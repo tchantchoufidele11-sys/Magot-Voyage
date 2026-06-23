@@ -1,0 +1,1108 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#0E1730">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<title>Atlas — Carnet de voyage</title>
+
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600;9..144,700&family=Inter:wght@400;450;500;600&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+
+<style>
+:root{
+  --night:#0E1730; --night-2:#1A2542; --paper:#F4EFE4; --surface:#FFFFFF; --surface-2:#FBF7EF;
+  --brass:#C49A4C; --brass-d:#A87F36; --sea:#1E6F6A; --ink:#1C2436; --muted:#7C8597;
+  --line:#E7DECC; --line-soft:#F0E9DA; --danger:#B4452F; --r:16px;
+  --shadow-sm:0 1px 2px rgba(14,23,48,.05); --shadow:0 2px 6px rgba(14,23,48,.06), 0 14px 34px rgba(14,23,48,.07);
+  --tab-h:66px;
+}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;height:100%}
+body{font-family:"Inter",system-ui,-apple-system,sans-serif;color:var(--ink);background:var(--paper);
+  font-size:15px;line-height:1.5;letter-spacing:-.005em;overscroll-behavior:none;-webkit-font-smoothing:antialiased}
+.mono{font-family:"Space Mono",ui-monospace,monospace}
+h1,h2,h3{font-family:"Fraunces",Georgia,serif;font-weight:600;margin:0;letter-spacing:-.02em;line-height:1.1}
+.kick{font:700 10.5px/1 "Space Mono",monospace;letter-spacing:.22em;text-transform:uppercase}
+a{color:var(--sea);text-decoration:none}
+#app{display:flex;flex-direction:column;height:100%}
+
+header.hero{position:relative;flex:0 0 auto;overflow:hidden;
+  background:linear-gradient(155deg,#0E1730 0%,#16203C 60%,#1B2748 100%);color:#fff;
+  padding:calc(env(safe-area-inset-top) + 20px) 22px 22px;border-bottom:1px solid rgba(196,154,76,.22)}
+header.hero .contours{position:absolute;inset:0;width:100%;height:100%;opacity:.55;pointer-events:none}
+header.hero .contours path{fill:none;stroke:var(--brass);stroke-width:1;opacity:.15}
+header.hero .inner{position:relative;z-index:1}
+header.hero .kick{color:var(--brass)}
+header.hero h1{color:#fff;font-size:30px;margin-top:7px;font-weight:600}
+header.hero .sub{color:#AEB9CC;font-size:13.5px;margin-top:5px;max-width:30ch}
+.hero-actions{position:absolute;top:calc(env(safe-area-inset-top) + 20px);right:18px;display:flex;align-items:center;gap:8px;z-index:2}
+.icon-btn{width:38px;height:38px;border-radius:50%;background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.2);
+  color:#fff;display:flex;align-items:center;justify-content:center;cursor:pointer;backdrop-filter:blur(6px)}
+.icon-btn svg{width:18px;height:18px;stroke:var(--brass);fill:none;stroke-width:1.7;stroke-linejoin:round}
+.voyages{display:flex;align-items:center;gap:7px;background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.2);
+  color:#fff;border-radius:999px;padding:8px 13px;font:600 12.5px "Inter",sans-serif;cursor:pointer;backdrop-filter:blur(6px)}
+.voyages svg{width:15px;height:15px;stroke:var(--brass);fill:none;stroke-width:1.7;stroke-linejoin:round}
+.voyages .cnt{font:700 11px "Space Mono",monospace;color:var(--brass)}
+
+main{flex:1 1 auto;overflow-y:auto;-webkit-overflow-scrolling:touch;
+  padding-bottom:calc(var(--tab-h) + env(safe-area-inset-bottom) + 10px)}
+.view{display:none;padding:20px 18px 6px}
+.view.active{display:block;animation:fade .35s ease both}
+@keyframes fade{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+
+nav.tabs{position:fixed;left:0;right:0;bottom:0;z-index:1000;
+  height:calc(var(--tab-h) + env(safe-area-inset-bottom));padding-bottom:env(safe-area-inset-bottom);
+  display:grid;grid-template-columns:repeat(5,1fr);background:rgba(255,255,255,.93);backdrop-filter:blur(12px);border-top:1px solid var(--line)}
+nav.tabs button{border:0;background:none;color:var(--muted);font:500 10px/1.25 "Inter",sans-serif;cursor:pointer;position:relative;
+  display:flex;flex-direction:column;align-items:center;justify-content:center;gap:5px;transition:color .2s}
+nav.tabs button svg{width:22px;height:22px;stroke:currentColor;fill:none;stroke-width:1.6;stroke-linecap:round;stroke-linejoin:round}
+nav.tabs button.active{color:var(--brass)}
+nav.tabs button.active::before{content:"";position:absolute;top:8px;width:5px;height:5px;border-radius:50%;background:var(--brass)}
+
+.search{display:flex;gap:9px;margin-bottom:18px}
+.search .wrap{flex:1;position:relative;display:flex;align-items:center}
+.search .wrap svg{position:absolute;left:14px;width:18px;height:18px;stroke:var(--muted);fill:none;stroke-width:1.7}
+.search input{flex:1;width:100%;padding:14px 14px 14px 42px;border:1px solid var(--line);border-radius:14px;
+  background:var(--surface);font-size:15.5px;color:var(--ink);box-shadow:var(--shadow-sm);transition:border .15s,box-shadow .15s}
+.search input::placeholder{color:#A7AAB2}
+.search input:focus{outline:none;border-color:var(--brass);box-shadow:0 0 0 3px rgba(196,154,76,.16)}
+.btn{border:0;border-radius:14px;padding:14px 18px;font:600 14.5px "Inter",sans-serif;cursor:pointer;
+  background:var(--night);color:#fff;box-shadow:var(--shadow-sm);white-space:nowrap;
+  transition:transform .12s,background .15s;display:inline-flex;align-items:center;justify-content:center;gap:8px}
+.btn:active{transform:translateY(1px)}
+.btn.block{width:100%}
+.btn.brass{background:var(--brass)}.btn.brass:active{background:var(--brass-d)}
+.btn:disabled{opacity:.45;pointer-events:none}
+
+#heroPrompt .lead{margin:6px 2px 20px}
+#heroPrompt .lead .kick{color:var(--brass-d)}
+#heroPrompt .lead h2{font-size:27px;margin-top:8px;color:var(--ink);font-weight:600;line-height:1.08}
+#heroPrompt .lead p{color:var(--muted);font-size:14px;margin:8px 0 0;max-width:32ch}
+
+.sugg-grid{display:grid;grid-template-columns:1fr 1fr;gap:13px}
+.sugg{position:relative;border:1px solid var(--line);border-radius:18px;overflow:hidden;background:var(--surface);
+  box-shadow:var(--shadow-sm);cursor:pointer;transition:transform .14s,box-shadow .2s;text-align:left;padding:0}
+.sugg:active{transform:scale(.97)}
+.sugg .cap{height:76px;display:flex;align-items:flex-end;padding:11px 13px;position:relative}
+.sugg .cap::after{content:"";position:absolute;inset:0;background:radial-gradient(120% 90% at 80% 0%,rgba(255,255,255,.28),transparent 60%)}
+.sugg .cap .emoji{font-size:27px;position:relative;z-index:1;filter:drop-shadow(0 2px 3px rgba(0,0,0,.25))}
+.sugg .info{padding:11px 13px 13px}
+.sugg .nm{font-family:"Fraunces",serif;font-weight:600;font-size:18px;color:var(--ink);line-height:1.05}
+.sugg .co{font:700 9.5px/1 "Space Mono",monospace;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);margin-top:5px}
+
+.dest{background:linear-gradient(160deg,#fff,#FBF7EF);border:1px solid var(--line);border-radius:18px;padding:18px;
+  box-shadow:var(--shadow);margin-bottom:16px;position:relative;overflow:hidden}
+.dest::after{content:"";position:absolute;right:-30px;top:-30px;width:120px;height:120px;border-radius:50%;
+  background:radial-gradient(circle,rgba(196,154,76,.13),transparent 70%)}
+.dest .name{font-family:"Fraunces",serif;font-size:23px;font-weight:600;line-height:1.05}
+.dest .coords{font:400 11px/1 "Space Mono",monospace;color:var(--muted);margin-top:7px;letter-spacing:.02em}
+.dest .badges{display:flex;gap:8px;margin-top:12px;flex-wrap:wrap}
+.badge{font:600 11.5px "Inter",sans-serif;padding:5px 11px;border-radius:999px;background:var(--surface-2);border:1px solid var(--line);color:var(--ink)}
+.badge.cur{background:rgba(196,154,76,.14);border-color:rgba(196,154,76,.35);color:var(--brass-d)}
+.dest .plan{position:absolute;right:16px;bottom:16px;font:600 13px "Inter";color:var(--sea);background:none;border:0;cursor:pointer}
+
+#mapWrap{margin-bottom:16px}
+#map{height:40vh;min-height:240px;border-radius:18px;border:1px solid var(--line);box-shadow:var(--shadow);background:#dde5e7}
+.leaflet-container{font-family:inherit;border-radius:18px}
+.pin{background:var(--sea);color:#fff;border:2.5px solid #fff;border-radius:50% 50% 50% 0;width:26px;height:26px;
+  transform:rotate(-45deg);box-shadow:0 3px 8px rgba(0,0,0,.35);display:flex;align-items:center;justify-content:center}
+.pin span{transform:rotate(45deg);font-size:13px}
+
+.chips{display:flex;gap:9px;overflow-x:auto;padding:2px 2px 8px;margin-bottom:14px;scrollbar-width:none}
+.chips::-webkit-scrollbar{display:none}
+.chip{flex:0 0 auto;border:1px solid var(--line);background:var(--surface);color:var(--muted);padding:9px 14px;border-radius:999px;
+  font:500 13.5px "Inter",sans-serif;cursor:pointer;white-space:nowrap;transition:all .15s}
+.chip.on{background:var(--night);color:#fff;border-color:var(--night)}
+
+.section-label{font:700 10.5px/1 "Space Mono",monospace;letter-spacing:.18em;text-transform:uppercase;color:var(--muted);
+  margin:22px 2px 12px;display:flex;align-items:center;gap:10px}
+.section-label::after{content:"";flex:1;height:1px;background:var(--line)}
+
+.poi{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:14px 15px;box-shadow:var(--shadow-sm);
+  margin-bottom:11px;display:flex;gap:13px;align-items:center;transition:transform .12s,box-shadow .2s;animation:rise .3s ease both;cursor:pointer}
+@keyframes rise{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+.poi:active{transform:scale(.99)}
+.poi .cat{flex:0 0 auto;width:42px;height:42px;border-radius:12px;background:var(--surface-2);border:1px solid var(--line-soft);
+  display:flex;align-items:center;justify-content:center;font-size:20px}
+.poi .body{flex:1;min-width:0}
+.poi .t{font-weight:600;font-size:15.5px;color:var(--ink)}
+.poi .m{font:400 12.5px "Inter";color:var(--muted);margin-top:2px}
+.poi .add{flex:0 0 auto;border:1.5px solid var(--brass);color:var(--brass-d);background:none;border-radius:11px;width:38px;height:38px;
+  font-size:21px;cursor:pointer;line-height:0;transition:all .15s}
+.poi .add.in{background:var(--brass);color:#fff;border-color:var(--brass)}
+.poi .add:active{transform:scale(.9)}
+
+.day{margin-bottom:26px}
+.day h3{font-size:19px;display:flex;align-items:baseline;gap:9px;color:var(--ink)}
+.day .dnum{font:700 10.5px "Space Mono",monospace;color:var(--brass-d);letter-spacing:.14em}
+.day .meta{font:400 12px "Inter";color:var(--muted);margin:5px 0 14px}
+.route{position:relative;margin-left:15px;padding-left:26px;border-left:2px solid var(--line)}
+.stop{position:relative;margin-bottom:13px}
+.stop .dot{position:absolute;left:-40px;top:2px;width:30px;height:30px;border-radius:50%;background:var(--brass);color:#fff;
+  font:700 12.5px "Space Mono",monospace;display:flex;align-items:center;justify-content:center;box-shadow:0 3px 8px rgba(196,154,76,.45);border:2px solid var(--paper)}
+.stop .card{background:var(--surface);border:1px solid var(--line);border-radius:13px;padding:12px 14px;box-shadow:var(--shadow-sm);position:relative}
+.stop .card .t{font-weight:600;font-size:14.5px;color:var(--ink);padding-right:18px}
+.stop .card .m{font:400 12px "Inter";color:var(--muted);margin-top:3px;display:flex;gap:12px;flex-wrap:wrap}
+.stop .card .rm{position:absolute;right:10px;top:10px;color:var(--muted);background:none;border:0;cursor:pointer;font-size:15px;z-index:2}
+.assign{margin-top:8px}
+.assign select{padding:9px 11px;border:1px solid var(--line);border-radius:11px;background:var(--surface-2);font-size:13.5px;color:var(--ink);font-family:inherit}
+
+.row{display:flex;gap:11px;margin-bottom:16px}.row>*{flex:1}
+input[type=date]{padding:13px;border:1px solid var(--line);border-radius:13px;background:var(--surface);font-size:14px;color:var(--ink);width:100%;font-family:inherit}
+label.fld{font:600 11px "Space Mono",monospace;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);display:block;margin:0 0 6px 2px}
+
+.empty{text-align:center;color:var(--muted);padding:54px 26px}
+.empty .ic{font-size:40px;display:block;margin-bottom:14px;opacity:.85}
+.empty h2{font-size:21px;color:var(--ink);margin-bottom:8px}
+.empty p{font-size:13.5px;max-width:32ch;margin:0 auto;line-height:1.55}
+
+.recent{margin-bottom:6px}
+.rt{display:flex;align-items:center;gap:12px;background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:12px 14px;
+  box-shadow:var(--shadow-sm);margin-bottom:10px;cursor:pointer;transition:transform .12s}
+.rt:active{transform:scale(.99)}
+.rt .ic{width:40px;height:40px;border-radius:11px;background:var(--surface-2);border:1px solid var(--line-soft);display:flex;align-items:center;justify-content:center;font-size:19px;flex:0 0 auto}
+.rt .b{flex:1;min-width:0}.rt .nm{font-weight:600;font-size:15px;color:var(--ink)}.rt .meta{font:400 12px "Inter";color:var(--muted);margin-top:1px}
+
+.st{font:700 9.5px "Space Mono",monospace;letter-spacing:.1em;text-transform:uppercase;padding:4px 9px;border-radius:999px;flex:0 0 auto}
+.st.encours{background:rgba(30,111,106,.14);color:var(--sea)}
+.st.avenir{background:rgba(196,154,76,.16);color:var(--brass-d)}
+.st.termine{background:rgba(124,133,151,.16);color:var(--muted)}
+.st.brouillon{background:rgba(124,133,151,.12);color:var(--muted)}
+
+.sheet{position:fixed;inset:0;z-index:3000;background:var(--paper);display:none;flex-direction:column}
+.sheet.show{display:flex;animation:fade .25s ease both}
+.sheet .sh-head{background:linear-gradient(155deg,#0E1730,#1B2748);color:#fff;padding:calc(env(safe-area-inset-top) + 18px) 20px 18px;
+  display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid rgba(196,154,76,.22)}
+.sheet .sh-head h2{color:#fff;font-size:23px}
+.sheet .sh-close{background:rgba(255,255,255,.14);border:0;color:#fff;width:36px;height:36px;border-radius:50%;font-size:17px;cursor:pointer}
+.sheet .sh-body{flex:1;overflow-y:auto;padding:18px 18px 24px}
+.sheet .sh-foot{padding:14px 18px calc(env(safe-area-inset-bottom) + 16px);border-top:1px solid var(--line);background:var(--surface)}
+.trip{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:15px 15px 40px;box-shadow:var(--shadow-sm);
+  margin-bottom:11px;position:relative;cursor:pointer;transition:transform .12s}
+.trip:active{transform:scale(.99)}
+.trip.current{border-color:var(--brass);box-shadow:0 0 0 2px rgba(196,154,76,.22)}
+.trip .nm{font-family:"Fraunces",serif;font-weight:600;font-size:18px;color:var(--ink);padding-right:84px}
+.trip .meta{font:400 12px "Inter";color:var(--muted);margin-top:4px}
+.trip .st{position:absolute;right:14px;top:15px}
+.trip .curtag{position:absolute;left:15px;bottom:13px;font:700 9.5px "Space Mono",monospace;letter-spacing:.1em;color:var(--brass-d)}
+.trip .del{position:absolute;right:14px;bottom:11px;background:none;border:0;color:var(--muted);font:500 12.5px "Inter",sans-serif;cursor:pointer;padding:4px 6px}
+
+/* settings */
+.lang-row{display:flex;align-items:center;gap:13px;background:var(--surface);border:1px solid var(--line);border-radius:13px;
+  padding:13px 15px;margin-bottom:9px;cursor:pointer;transition:transform .12s;width:100%;text-align:left}
+.lang-row:active{transform:scale(.99)}
+.lang-row.on{border-color:var(--brass);box-shadow:0 0 0 2px rgba(196,154,76,.2)}
+.lang-row .fl{font-size:22px}
+.lang-row .nm{flex:1;font-weight:600;color:var(--ink)}
+.lang-row .ck{color:var(--brass-d);font-size:17px;opacity:0}
+.lang-row.on .ck{opacity:1}
+.seg{display:flex;gap:9px}
+.seg button{flex:1;padding:12px;border:1px solid var(--line);background:var(--surface);border-radius:12px;font:600 13.5px "Inter",sans-serif;color:var(--muted);cursor:pointer;transition:all .15s}
+.seg button.on{background:var(--night);color:#fff;border-color:var(--night)}
+.danger-btn{width:100%;padding:14px;border:1px solid rgba(180,69,47,.3);background:rgba(180,69,47,.06);color:var(--danger);border-radius:13px;font:600 14px "Inter",sans-serif;cursor:pointer}
+.about{color:var(--muted);font-size:13.5px;line-height:1.65}
+
+.banner{background:rgba(180,69,47,.08);border:1px solid rgba(180,69,47,.25);color:var(--danger);border-radius:13px;padding:12px 14px;font-size:13px;margin-bottom:14px;display:none;line-height:1.5}
+.banner.show{display:block}
+.toast{position:fixed;left:50%;bottom:calc(var(--tab-h) + 20px);transform:translateX(-50%) translateY(8px);background:var(--night);color:#fff;
+  padding:11px 18px;border-radius:13px;font-size:13.5px;font-weight:500;box-shadow:var(--shadow);z-index:4000;opacity:0;transition:all .25s;pointer-events:none;max-width:80vw;text-align:center}
+.toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+.spin{display:inline-block;width:15px;height:15px;border:2px solid rgba(255,255,255,.35);border-top-color:#fff;border-radius:50%;animation:sp .7s linear infinite;vertical-align:-2px}
+@keyframes sp{to{transform:rotate(360deg)}}
+/* poi detail sheet */
+#poiSheet .poi-hero{position:relative;height:38vh;min-height:230px;flex:0 0 auto;overflow:hidden;background:linear-gradient(155deg,#16203C,#0E1730)}
+#poiSheet .car{display:flex;height:100%;overflow-x:auto;scroll-snap-type:x mandatory;scrollbar-width:none}
+#poiSheet .car::-webkit-scrollbar{display:none}
+#poiSheet .car img{flex:0 0 100%;width:100%;height:100%;object-fit:cover;scroll-snap-align:center}
+#poiSheet .ph-fallback{display:flex;align-items:center;justify-content:center;height:100%;font-size:56px;opacity:.5}
+#poiSheet .grad{position:absolute;left:0;right:0;bottom:0;height:130px;background:linear-gradient(transparent,rgba(14,23,48,.7));pointer-events:none}
+#poiSheet .cap{position:absolute;left:18px;right:18px;bottom:15px;color:#fff;z-index:2}
+#poiSheet .cap .nm{font-family:"Fraunces",serif;font-weight:600;font-size:25px;line-height:1.05;text-shadow:0 2px 10px rgba(0,0,0,.45)}
+#poiSheet .cap .ct{font:700 10px "Space Mono",monospace;letter-spacing:.16em;text-transform:uppercase;color:#E7DECC;margin-top:5px}
+.sheet-back{position:absolute;top:calc(env(safe-area-inset-top) + 14px);left:14px;z-index:3;width:38px;height:38px;border-radius:50%;background:rgba(0,0,0,.42);border:0;color:#fff;font-size:19px;cursor:pointer;backdrop-filter:blur(6px)}
+.desc{font-size:14.5px;line-height:1.6;color:var(--ink)}
+.meta-row{display:flex;gap:9px;flex-wrap:wrap;margin:15px 0 0}
+.meta-pill{font:600 12px "Inter",sans-serif;padding:8px 12px;border-radius:999px;background:var(--surface-2);border:1px solid var(--line);color:var(--ink);text-decoration:none}
+.premium-hint{margin-top:16px;padding:13px 14px;border:1px dashed rgba(196,154,76,.5);border-radius:13px;color:var(--brass-d);font-size:12.5px;line-height:1.5;background:rgba(196,154,76,.07)}
+.hours{margin-top:8px}
+.hours .hr{font-size:13px;color:var(--ink);padding:5px 0;border-bottom:1px solid var(--line-soft)}
+.hours .hr:last-child{border-bottom:0}
+.gdata{margin-top:18px;font:600 10.5px "Space Mono",monospace;letter-spacing:.12em;text-transform:uppercase;color:var(--muted)}
+
+/* accueil */
+#title{cursor:pointer}
+.home-card{background:linear-gradient(160deg,#fff,#FBF7EF);border:1px solid var(--line);border-radius:20px;padding:20px;box-shadow:var(--shadow);margin-bottom:16px;position:relative;overflow:hidden}
+.home-card::after{content:"";position:absolute;right:-34px;top:-34px;width:130px;height:130px;border-radius:50%;background:radial-gradient(circle,rgba(196,154,76,.13),transparent 70%)}
+.home-card .lbl{font:700 10px "Space Mono",monospace;letter-spacing:.16em;text-transform:uppercase;color:var(--brass-d)}
+.home-card .nm{font-family:"Fraunces",serif;font-weight:600;font-size:26px;margin-top:7px;line-height:1.05}
+.home-card .dt{font:400 12.5px "Inter",sans-serif;color:var(--muted);margin-top:5px}
+.home-card .acts{display:flex;gap:10px;margin-top:16px}
+.home-card .acts .btn{flex:1;padding:12px}
+.ai-card{display:flex;align-items:center;gap:14px;background:linear-gradient(150deg,#101A33,#1B2748);color:#fff;border-radius:20px;padding:18px;box-shadow:var(--shadow);margin-bottom:16px;cursor:pointer;position:relative;overflow:hidden;border:1px solid rgba(196,154,76,.28);transition:transform .12s}
+.ai-card:active{transform:scale(.99)}
+.ai-card .spark{width:46px;height:46px;border-radius:13px;background:rgba(196,154,76,.18);display:flex;align-items:center;justify-content:center;font-size:23px;color:var(--brass);flex:0 0 auto}
+.ai-card .b{flex:1;min-width:0}.ai-card .t{font-family:"Fraunces",serif;font-weight:600;font-size:18px}.ai-card .p{color:#AEB9CC;font-size:12.5px;margin-top:2px}
+.ai-card .arrow{color:var(--brass);font-size:20px}
+.tile-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.tile{background:var(--surface);border:1px solid var(--line);border-radius:16px;padding:16px;box-shadow:var(--shadow-sm);cursor:pointer;transition:transform .12s;text-align:left}
+.tile:active{transform:scale(.98)}
+.tile .ti{font-size:24px}.tile .tl{font-weight:600;font-size:14.5px;margin-top:10px;color:var(--ink)}.tile .ts{font-size:11.5px;color:var(--muted);margin-top:2px}
+
+/* ai chat sheet */
+#aiSheet{display:none}#aiSheet.show{display:flex;flex-direction:column}
+#aiSheet .sh-body{display:flex;flex-direction:column;gap:11px}
+.msg{max-width:86%;padding:12px 14px;border-radius:16px;font-size:14px;line-height:1.5;white-space:pre-wrap;word-wrap:break-word}
+.msg.u{align-self:flex-end;background:var(--night);color:#fff;border-bottom-right-radius:5px}
+.msg.a{align-self:flex-start;background:var(--surface);border:1px solid var(--line);color:var(--ink);border-bottom-left-radius:5px}
+.ai-empty{color:var(--muted);font-size:13.5px;text-align:center;padding:30px 18px;line-height:1.6}
+.ai-input{display:flex;gap:8px;padding:12px 14px calc(env(safe-area-inset-bottom) + 12px);border-top:1px solid var(--line);background:var(--surface)}
+.ai-input input{flex:1;padding:13px;border:1px solid var(--line);border-radius:13px;font-size:15px;font-family:inherit;color:var(--ink);background:var(--surface)}
+.ai-input input:focus{outline:none;border-color:var(--brass);box-shadow:0 0 0 3px rgba(196,154,76,.16)}
+.ai-input .btn{padding:13px 18px}
+
+@media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+</style>
+</head>
+<body>
+<div id="app">
+  <header class="hero">
+    <svg class="contours" viewBox="0 0 400 160" preserveAspectRatio="none" aria-hidden="true">
+      <path d="M-10 40 C 80 10, 150 70, 230 38 S 380 18, 410 52"/>
+      <path d="M-10 70 C 70 45, 160 100, 240 66 S 370 50, 410 84"/>
+      <path d="M-10 104 C 90 80, 150 132, 250 100 S 360 86, 410 116"/>
+      <path d="M-10 136 C 100 116, 170 160, 260 132 S 360 122, 410 146"/>
+    </svg>
+    <div class="inner">
+      <div class="kick" id="kicker">Carnet de voyage</div>
+      <h1 id="title">Atlas</h1>
+      <div class="sub" id="subtitle">Où partons-nous cette fois&nbsp;?</div>
+    </div>
+    <div class="hero-actions">
+      <button class="icon-btn" id="settingsBtn" aria-label="Paramètres">
+        <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3.2"/><path d="M19.4 13.5a1.6 1.6 0 0 0 .32 1.77l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.6 1.6 0 0 0-1.77-.32 1.6 1.6 0 0 0-.97 1.47V21a2 2 0 1 1-4 0v-.1a1.6 1.6 0 0 0-1.05-1.47 1.6 1.6 0 0 0-1.77.32l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.6 1.6 0 0 0 .32-1.77 1.6 1.6 0 0 0-1.47-.97H3a2 2 0 1 1 0-4h.1a1.6 1.6 0 0 0 1.47-1.05 1.6 1.6 0 0 0-.32-1.77l-.06-.06A2 2 0 1 1 7 4.6l.06.06a1.6 1.6 0 0 0 1.77.32H9a1.6 1.6 0 0 0 .97-1.47V3a2 2 0 1 1 4 0v.1a1.6 1.6 0 0 0 .97 1.47 1.6 1.6 0 0 0 1.77-.32l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.6 1.6 0 0 0-.32 1.77V9a1.6 1.6 0 0 0 1.47.97H21a2 2 0 1 1 0 4h-.1a1.6 1.6 0 0 0-1.47.97z"/></svg>
+      </button>
+      <button class="voyages" id="voyagesBtn">
+        <svg viewBox="0 0 24 24"><path d="M12 3l9 5-9 5-9-5 9-5z"/><path d="M3 13l9 5 9-5"/></svg>
+        <span id="voyagesLbl">Voyages</span><span class="cnt" id="voyagesCnt">0</span>
+      </button>
+    </div>
+  </header>
+
+  <main>
+    <section class="view active" id="view-accueil"><div id="homeBody"></div></section>
+
+    <section class="view" id="view-decouverte">
+      <div class="search">
+        <div class="wrap">
+          <svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4-4"/></svg>
+          <input id="destInput" placeholder="Ville, région ou pays…" autocomplete="off" enterkeyhint="search">
+        </div>
+        <button class="btn" id="destBtn">Chercher</button>
+      </div>
+      <div class="banner" id="netBanner"></div>
+      <div id="heroPrompt">
+        <div class="recent" id="recentTrips"></div>
+        <div class="lead">
+          <div class="kick" id="heroInspi">Inspirations</div>
+          <h2 id="heroChoose">Choisissez une destination</h2>
+          <p id="heroChooseP">Touchez une idée ci-dessous ou cherchez n'importe quel lieu.</p>
+        </div>
+        <div class="sugg-grid" id="suggGrid"></div>
+      </div>
+      <div id="destCard" style="display:none"></div>
+      <div id="mapWrap" style="display:none"><div id="map"></div></div>
+      <div id="catChips" class="chips" style="display:none"></div>
+      <button class="btn brass block" id="searchPlacesBtn" style="display:none">Trouver les lieux à visiter</button>
+      <div id="poiList"></div>
+    </section>
+
+    <section class="view" id="view-planifier"><div id="planHeader"></div><div id="planBody"></div></section>
+
+    <section class="view" id="view-carnet">
+      <div class="empty"><span class="ic">📔</span><h2 id="journalH">Carnet de bord</h2><p id="journalP"></p></div>
+    </section>
+    <section class="view" id="view-souvenirs">
+      <div class="empty"><span class="ic">📸</span><h2 id="memoriesH">Souvenirs</h2><p id="memoriesP"></p></div>
+    </section>
+  </main>
+
+  <nav class="tabs" id="tabs">
+    <button data-tab="accueil" class="active"><svg viewBox="0 0 24 24"><path d="M3 11l9-8 9 8"/><path d="M5 10v10h14V10"/></svg><span id="lbl-accueil">Accueil</span></button>
+    <button data-tab="decouverte"><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4-4"/></svg><span id="lbl-decouverte">Découverte</span></button>
+    <button data-tab="planifier"><svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="17" rx="2"/><path d="M3 9h18M8 2v4M16 2v4"/></svg><span id="lbl-planifier">Planifier</span></button>
+    <button data-tab="carnet"><svg viewBox="0 0 24 24"><path d="M4 5a2 2 0 0 1 2-2h12v18H6a2 2 0 0 1-2-2z"/><path d="M8 3v18"/></svg><span id="lbl-carnet">Carnet</span></button>
+    <button data-tab="souvenirs"><svg viewBox="0 0 24 24"><rect x="3" y="6" width="18" height="14" rx="2"/><circle cx="12" cy="13" r="3.4"/><path d="M8 6l1.5-2h5L16 6"/></svg><span id="lbl-souvenirs">Souvenirs</span></button>
+  </nav>
+</div>
+
+<div class="sheet" id="aiSheet">
+  <div class="sh-head"><h2 id="aiTitle">Assistant IA</h2><button class="sh-close" id="aiClose">✕</button></div>
+  <div class="sh-body" id="aiBody"></div>
+  <div class="ai-input"><input id="aiInput" placeholder="…" enterkeyhint="send"><button class="btn brass" id="aiSend">↑</button></div>
+</div>
+
+<div class="sheet" id="poiSheet">
+  <div class="poi-hero" id="poiHero"></div>
+  <button class="sheet-back" id="poiClose">←</button>
+  <div class="sh-body" id="poiBody"></div>
+  <div class="sh-foot"><button class="btn brass block" id="poiAddBtn">Ajouter au voyage</button></div>
+</div>
+
+<div class="sheet" id="tripsSheet">
+  <div class="sh-head"><h2 id="tripsTitle">Mes voyages</h2><button class="sh-close" id="tripsClose">✕</button></div>
+  <div class="sh-body" id="tripsBody"></div>
+  <div class="sh-foot"><button class="btn brass block" id="newTripBtn">+ Nouveau voyage</button></div>
+</div>
+
+<div class="sheet" id="settingsSheet">
+  <div class="sh-head"><h2 id="setTitle">Paramètres</h2><button class="sh-close" id="setClose">✕</button></div>
+  <div class="sh-body" id="setBody"></div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script>
+"use strict";
+
+/* ===================== I18N ===================== */
+const T={
+ fr:{
+  "nav.kicker":"Carnet de voyage","nav.discover":"Découverte","nav.plan":"Planifier","nav.journal":"Carnet","nav.memories":"Souvenirs",
+  "sub.discover":"Où partons-nous cette fois ?","sub.plan":"Organisez vos visites jour par jour","sub.journal":"Vivez le voyage, notez, photographiez","sub.memories":"Synthèse et album de vos vacances",
+  "hero.voyages":"Voyages","search.ph":"Ville, région ou pays…","search.btn":"Chercher",
+  "hero.inspi":"Inspirations","hero.choose":"Choisissez une destination","hero.chooseP":"Touchez une idée ci-dessous ou cherchez n'importe quel lieu — l'app trouve les plus beaux endroits à visiter.","hero.resume":"Reprendre un voyage",
+  "dest.retained":"{n} lieu(x) retenu(s)","dest.plan":"Planifier →","btn.findPlaces":"Trouver les lieux à visiter","poi.found":"{n} lieux trouvés · touchez pour découvrir",
+  "cat.patrimoine":"Patrimoine","cat.musees":"Musées","cat.nature":"Nature","cat.plages":"Plages","cat.pointsvue":"Points de vue","cat.gastronomie":"Gastronomie","cat.activites":"Activités",
+  "toast.added":"Ajouté au voyage","toast.removed":"Retiré du voyage","toast.notfound":"Destination introuvable","toast.cur":"{cur} détecté — {country}","toast.places":"{n} lieux trouvés","toast.noPlaces":"Aucun lieu — élargissez les catégories","toast.pickCat":"Choisissez au moins une catégorie","toast.limit":"Limite de {n} voyages atteinte","toast.optimized":"Itinéraire optimisé ✓","toast.tooFew":"Trop peu d'arrêts pour optimiser","toast.deleted":"Voyage supprimé","toast.reset":"Application réinitialisée",
+  "banner.geo":"Connexion au service de cartographie impossible. Si vous testez dans l'aperçu, déployez sur GitHub Pages : ces services nécessitent un vrai domaine.","banner.places":"Recherche de lieux indisponible. Réessayez, ou déployez sur GitHub Pages si vous êtes dans l'aperçu.",
+  "plan.noTripH":"Aucun voyage en cours","plan.noTripP":"Direction l'onglet Découverte pour choisir une destination et lancer un voyage.","plan.start":"Départ","plan.end":"Retour","plan.pickH":"Choisissez vos dates","plan.pickP":"Indiquez le départ et le retour pour générer votre planning jour par jour.","plan.retDevise":"{n} lieux retenus — devise {cur}","plan.day":"JOUR {n}","plan.dayMeta":"{v} visite(s) · ~{min} min · {dist}","plan.optimize":"optimiser l'itinéraire","plan.free":"Journée libre.","plan.toPlace":"À placer · {n}","plan.allPlanned":"Tout est planifié. Ajoutez d'autres lieux depuis Découverte.","plan.addTo":"Ajouter au…","plan.dayOpt":"Jour {n} — {date}",
+  "journal.h":"Carnet de bord","journal.p":"Pendant le voyage : cochez vos visites, ajoutez des notes et des photos sur place, même hors-ligne. Arrive en V2.","memories.h":"Souvenirs","memories.p":"Au retour : une synthèse commentée de votre séjour et un album-montage de vos photos. Arrive en V3.",
+  "trips.h":"Mes voyages","st.encours":"En cours","st.avenir":"À venir","st.brouillon":"Brouillon","st.termine":"Terminé","grp.encours":"En cours","grp.avenir":"À venir","grp.brouillon":"Brouillons","grp.termine":"Terminés","trips.ret2":"{p} lieux retenus · {pl} visites planifiées","trips.active":"● VOYAGE ACTIF","trips.delete":"Supprimer","trips.new":"+ Nouveau voyage","trips.emptyH":"Aucun voyage","trips.emptyP":"Créez votre premier voyage depuis l'onglet Découverte.","trips.confirmDel":"Supprimer ce voyage ? Cette action est définitive.","recent.meta":"{p} lieux · {pl} planifiés",
+  "set.h":"Paramètres","set.lang":"Langue","set.units":"Unités","set.km":"Kilomètres","set.mi":"Miles","set.data":"Données","set.reset":"Réinitialiser l'application","set.resetConfirm":"Tout effacer ? Vos voyages seront définitivement supprimés.","set.about":"À propos","set.aboutTxt":"Atlas — votre carnet de voyage, de la découverte aux souvenirs.","nav.home":"Accueil","sub.home":"Votre carnet de voyage, de A à Z","home.current":"Voyage actuel","home.continue":"Continuer","home.newTrip":"Nouveau voyage","home.noTripH":"Bienvenue sur Atlas","home.noTripP":"Choisissez une destination et organisez vos vacances de A à Z.","home.ai":"Assistant de voyage IA","home.aiP":"Idées, conseils, itinéraires sur mesure.","home.quick":"Accès rapide","ai.title":"Assistant IA","ai.ph":"Demandez une idée, un conseil…","ai.intro":"Posez-moi une question sur votre destination : que visiter, conseils, transports, itinéraire…","ai.noEndpoint":"Indiquez l'URL de votre proxy Mistral dans les Paramètres pour activer l'assistant.","ai.openSettings":"Ouvrir les Paramètres","ai.thinking":"L'assistant réfléchit…","ai.error":"Désolé, l'assistant est indisponible. Vérifiez l'URL du proxy dans les Paramètres.","set.ai":"Assistant IA","set.aiEndpoint":"URL du proxy Mistral","set.aiModel":"Modèle","set.aiHint":"Aucune clé n'est stockée dans l'app. Indiquez l'URL d'un proxy (Cloudflare Worker…) qui parle à Mistral.","detail.open":"Ouvert","detail.closed":"Fermé","detail.closedPerm":"Fermé définitivement","detail.reviews":"{n} avis","detail.hours":"Horaires","detail.googleData":"Données Google","set.save":"Enregistrer","set.saved":"Clé enregistrée — rechargez l'app","set.keySet":"Clé enregistrée","set.keyNone":"Aucune clé enregistrée","set.places":"Lieux (Google Places)","set.placesKey":"Clé Google Places","set.placesHint":"Restreignez votre clé à « Maps JavaScript API » et à votre domaine. Elle est facturée sur votre compte Google (gratuit à faible volume). Sans clé, l'app utilise OpenStreetMap. Rechargez l'app après avoir changé la clé.","toast.placesAuth":"Clé Google Places invalide ou non autorisée.","detail.add":"Ajouter au voyage","detail.remove":"Retirer du voyage","detail.website":"Site web","detail.loading":"Chargement du descriptif…","detail.noDesc":"Pas encore de descriptif pour ce lieu.","detail.premiumHint":"Ajoutez votre clé Google Places dans les Paramètres pour des photos, horaires et statut d'ouverture en direct.","set.version":"Version {v}","common.dateUndef":"Dates non définies"
+ },
+ en:{
+  "nav.kicker":"Travel journal","nav.discover":"Discover","nav.plan":"Plan","nav.journal":"Journal","nav.memories":"Memories",
+  "sub.discover":"Where to this time?","sub.plan":"Organise your visits day by day","sub.journal":"Live the trip, note it, photograph it","sub.memories":"A recap and album of your holiday",
+  "hero.voyages":"Trips","search.ph":"City, region or country…","search.btn":"Search",
+  "hero.inspi":"Inspiration","hero.choose":"Choose a destination","hero.chooseP":"Tap an idea below or search any place — the app finds the best spots to visit.","hero.resume":"Resume a trip",
+  "dest.retained":"{n} place(s) saved","dest.plan":"Plan →","btn.findPlaces":"Find places to visit","poi.found":"{n} places found · tap to explore",
+  "cat.patrimoine":"Heritage","cat.musees":"Museums","cat.nature":"Nature","cat.plages":"Beaches","cat.pointsvue":"Viewpoints","cat.gastronomie":"Food","cat.activites":"Activities",
+  "toast.added":"Added to trip","toast.removed":"Removed from trip","toast.notfound":"Destination not found","toast.cur":"{cur} detected — {country}","toast.places":"{n} places found","toast.noPlaces":"No places — widen the categories","toast.pickCat":"Pick at least one category","toast.limit":"Limit of {n} trips reached","toast.optimized":"Route optimised ✓","toast.tooFew":"Too few stops to optimise","toast.deleted":"Trip deleted","toast.reset":"App reset",
+  "banner.geo":"Can't reach the mapping service. If you're testing in the preview, deploy to GitHub Pages: these services need a real domain.","banner.places":"Place search unavailable. Try again, or deploy to GitHub Pages if you're in the preview.",
+  "plan.noTripH":"No active trip","plan.noTripP":"Head to the Discover tab to choose a destination and start a trip.","plan.start":"Start","plan.end":"End","plan.pickH":"Choose your dates","plan.pickP":"Enter the start and end to generate your day-by-day plan.","plan.retDevise":"{n} saved places — currency {cur}","plan.day":"DAY {n}","plan.dayMeta":"{v} visit(s) · ~{min} min · {dist}","plan.optimize":"optimise route","plan.free":"Free day.","plan.toPlace":"To place · {n}","plan.allPlanned":"All planned. Add more places from Discover.","plan.addTo":"Add to…","plan.dayOpt":"Day {n} — {date}",
+  "journal.h":"Travel log","journal.p":"During the trip: check off visits, add notes and photos on the spot, even offline. Coming in V2.","memories.h":"Memories","memories.p":"Back home: a narrated recap of your trip and a photo album-montage. Coming in V3.",
+  "trips.h":"My trips","st.encours":"Ongoing","st.avenir":"Upcoming","st.brouillon":"Draft","st.termine":"Finished","grp.encours":"Ongoing","grp.avenir":"Upcoming","grp.brouillon":"Drafts","grp.termine":"Finished","trips.ret2":"{p} saved places · {pl} planned visits","trips.active":"● ACTIVE TRIP","trips.delete":"Delete","trips.new":"+ New trip","trips.emptyH":"No trips","trips.emptyP":"Create your first trip from the Discover tab.","trips.confirmDel":"Delete this trip? This cannot be undone.","recent.meta":"{p} places · {pl} planned",
+  "set.h":"Settings","set.lang":"Language","set.units":"Units","set.km":"Kilometres","set.mi":"Miles","set.data":"Data","set.reset":"Reset the app","set.resetConfirm":"Erase everything? Your trips will be permanently deleted.","set.about":"About","set.aboutTxt":"Atlas — your travel journal, from discovery to memories.","nav.home":"Home","sub.home":"Your travel journal, A to Z","home.current":"Current trip","home.continue":"Continue","home.newTrip":"New trip","home.noTripH":"Welcome to Atlas","home.noTripP":"Choose a destination and plan your holiday from A to Z.","home.ai":"AI travel assistant","home.aiP":"Ideas, tips, tailor-made itineraries.","home.quick":"Quick access","ai.title":"AI assistant","ai.ph":"Ask for an idea, some advice…","ai.intro":"Ask me anything about your destination: what to see, tips, transport, itinerary…","ai.noEndpoint":"Enter your Mistral proxy URL in Settings to enable the assistant.","ai.openSettings":"Open Settings","ai.thinking":"The assistant is thinking…","ai.error":"Sorry, the assistant is unavailable. Check the proxy URL in Settings.","set.ai":"AI assistant","set.aiEndpoint":"Mistral proxy URL","set.aiModel":"Model","set.aiHint":"No key is stored in the app. Enter the URL of a proxy (Cloudflare Worker…) that talks to Mistral.","detail.open":"Open","detail.closed":"Closed","detail.closedPerm":"Permanently closed","detail.reviews":"{n} reviews","detail.hours":"Opening hours","detail.googleData":"Google data","set.save":"Save","set.saved":"Key saved — reload the app","set.keySet":"Key saved","set.keyNone":"No key saved","set.places":"Places (Google Places)","set.placesKey":"Google Places key","set.placesHint":"Restrict your key to \u201cMaps JavaScript API\u201d and your domain. It is billed to your Google account (free at low volume). Without a key, the app uses OpenStreetMap. Reload the app after changing the key.","toast.placesAuth":"Invalid or unauthorized Google Places key.","detail.add":"Add to trip","detail.remove":"Remove from trip","detail.website":"Website","detail.loading":"Loading description…","detail.noDesc":"No description yet for this place.","detail.premiumHint":"Add your Google Places key in Settings for live photos, opening hours and open/closed status.","set.version":"Version {v}","common.dateUndef":"Dates not set"
+ },
+ es:{
+  "nav.kicker":"Cuaderno de viaje","nav.discover":"Descubrir","nav.plan":"Planificar","nav.journal":"Diario","nav.memories":"Recuerdos",
+  "sub.discover":"¿A dónde esta vez?","sub.plan":"Organiza tus visitas día a día","sub.journal":"Vive el viaje, anota, fotografía","sub.memories":"Resumen y álbum de tus vacaciones",
+  "hero.voyages":"Viajes","search.ph":"Ciudad, región o país…","search.btn":"Buscar",
+  "hero.inspi":"Inspiración","hero.choose":"Elige un destino","hero.chooseP":"Toca una idea o busca cualquier lugar — la app encuentra los mejores sitios para visitar.","hero.resume":"Retomar un viaje",
+  "dest.retained":"{n} lugar(es) guardado(s)","dest.plan":"Planificar →","btn.findPlaces":"Buscar lugares para visitar","poi.found":"{n} lugares encontrados · toca para explorar",
+  "cat.patrimoine":"Patrimonio","cat.musees":"Museos","cat.nature":"Naturaleza","cat.plages":"Playas","cat.pointsvue":"Miradores","cat.gastronomie":"Gastronomía","cat.activites":"Actividades",
+  "toast.added":"Añadido al viaje","toast.removed":"Quitado del viaje","toast.notfound":"Destino no encontrado","toast.cur":"{cur} detectado — {country}","toast.places":"{n} lugares encontrados","toast.noPlaces":"Sin lugares — amplía las categorías","toast.pickCat":"Elige al menos una categoría","toast.limit":"Límite de {n} viajes alcanzado","toast.optimized":"Ruta optimizada ✓","toast.tooFew":"Muy pocas paradas para optimizar","toast.deleted":"Viaje eliminado","toast.reset":"App restablecida",
+  "banner.geo":"No se puede conectar con el servicio de mapas. Si pruebas en la vista previa, publica en GitHub Pages: estos servicios necesitan un dominio real.","banner.places":"Búsqueda de lugares no disponible. Inténtalo de nuevo o publica en GitHub Pages.",
+  "plan.noTripH":"Ningún viaje activo","plan.noTripP":"Ve a la pestaña Descubrir para elegir un destino e iniciar un viaje.","plan.start":"Inicio","plan.end":"Fin","plan.pickH":"Elige tus fechas","plan.pickP":"Indica inicio y fin para generar tu planning día a día.","plan.retDevise":"{n} lugares guardados — moneda {cur}","plan.day":"DÍA {n}","plan.dayMeta":"{v} visita(s) · ~{min} min · {dist}","plan.optimize":"optimizar ruta","plan.free":"Día libre.","plan.toPlace":"Por colocar · {n}","plan.allPlanned":"Todo planificado. Añade más lugares desde Descubrir.","plan.addTo":"Añadir a…","plan.dayOpt":"Día {n} — {date}",
+  "journal.h":"Diario de a bordo","journal.p":"Durante el viaje: marca tus visitas, añade notas y fotos sobre la marcha, incluso sin conexión. Llega en V2.","memories.h":"Recuerdos","memories.p":"Al volver: un resumen comentado de tu viaje y un álbum-montaje de tus fotos. Llega en V3.",
+  "trips.h":"Mis viajes","st.encours":"En curso","st.avenir":"Próximo","st.brouillon":"Borrador","st.termine":"Terminado","grp.encours":"En curso","grp.avenir":"Próximos","grp.brouillon":"Borradores","grp.termine":"Terminados","trips.ret2":"{p} lugares guardados · {pl} visitas planificadas","trips.active":"● VIAJE ACTIVO","trips.delete":"Eliminar","trips.new":"+ Nuevo viaje","trips.emptyH":"Sin viajes","trips.emptyP":"Crea tu primer viaje desde la pestaña Descubrir.","trips.confirmDel":"¿Eliminar este viaje? Esta acción es definitiva.","recent.meta":"{p} lugares · {pl} planificados",
+  "set.h":"Ajustes","set.lang":"Idioma","set.units":"Unidades","set.km":"Kilómetros","set.mi":"Millas","set.data":"Datos","set.reset":"Restablecer la app","set.resetConfirm":"¿Borrar todo? Tus viajes se eliminarán definitivamente.","set.about":"Acerca de","set.aboutTxt":"Atlas — tu cuaderno de viaje, del descubrimiento a los recuerdos.","nav.home":"Inicio","sub.home":"Tu cuaderno de viaje, de la A a la Z","home.current":"Viaje actual","home.continue":"Continuar","home.newTrip":"Nuevo viaje","home.noTripH":"Bienvenido a Atlas","home.noTripP":"Elige un destino y organiza tus vacaciones de la A a la Z.","home.ai":"Asistente de viaje IA","home.aiP":"Ideas, consejos, itinerarios a medida.","home.quick":"Acceso rápido","ai.title":"Asistente IA","ai.ph":"Pide una idea, un consejo…","ai.intro":"Pregúntame lo que quieras sobre tu destino: qué visitar, consejos, transporte, itinerario…","ai.noEndpoint":"Indica la URL de tu proxy Mistral en Ajustes para activar el asistente.","ai.openSettings":"Abrir Ajustes","ai.thinking":"El asistente está pensando…","ai.error":"Lo siento, el asistente no está disponible. Revisa la URL del proxy en Ajustes.","set.ai":"Asistente IA","set.aiEndpoint":"URL del proxy Mistral","set.aiModel":"Modelo","set.aiHint":"No se guarda ninguna clave en la app. Indica la URL de un proxy (Cloudflare Worker…) que hable con Mistral.","detail.open":"Abierto","detail.closed":"Cerrado","detail.closedPerm":"Cerrado permanentemente","detail.reviews":"{n} reseñas","detail.hours":"Horario","detail.googleData":"Datos de Google","set.save":"Guardar","set.saved":"Clave guardada — recarga la app","set.keySet":"Clave guardada","set.keyNone":"Sin clave guardada","set.places":"Lugares (Google Places)","set.placesKey":"Clave de Google Places","set.placesHint":"Restringe tu clave a «Maps JavaScript API» y a tu dominio. Se factura a tu cuenta de Google (gratis con poco volumen). Sin clave, la app usa OpenStreetMap. Recarga la app tras cambiar la clave.","toast.placesAuth":"Clave de Google Places no válida o no autorizada.","detail.add":"Añadir al viaje","detail.remove":"Quitar del viaje","detail.website":"Sitio web","detail.loading":"Cargando descripción…","detail.noDesc":"Aún no hay descripción de este lugar.","detail.premiumHint":"Añade tu clave de Google Places en Ajustes para fotos, horarios y estado de apertura en directo.","set.version":"Versión {v}","common.dateUndef":"Fechas sin definir"
+ },
+ it:{
+  "nav.kicker":"Diario di viaggio","nav.discover":"Scopri","nav.plan":"Pianifica","nav.journal":"Diario","nav.memories":"Ricordi",
+  "sub.discover":"Dove andiamo stavolta?","sub.plan":"Organizza le visite giorno per giorno","sub.journal":"Vivi il viaggio, annota, fotografa","sub.memories":"Riepilogo e album della tua vacanza",
+  "hero.voyages":"Viaggi","search.ph":"Città, regione o paese…","search.btn":"Cerca",
+  "hero.inspi":"Ispirazione","hero.choose":"Scegli una destinazione","hero.chooseP":"Tocca un'idea o cerca qualsiasi luogo — l'app trova i posti più belli da visitare.","hero.resume":"Riprendi un viaggio",
+  "dest.retained":"{n} luogo/luoghi salvati","dest.plan":"Pianifica →","btn.findPlaces":"Trova luoghi da visitare","poi.found":"{n} luoghi trovati · tocca per esplorare",
+  "cat.patrimoine":"Patrimonio","cat.musees":"Musei","cat.nature":"Natura","cat.plages":"Spiagge","cat.pointsvue":"Punti panoramici","cat.gastronomie":"Gastronomia","cat.activites":"Attività",
+  "toast.added":"Aggiunto al viaggio","toast.removed":"Rimosso dal viaggio","toast.notfound":"Destinazione non trovata","toast.cur":"{cur} rilevato — {country}","toast.places":"{n} luoghi trovati","toast.noPlaces":"Nessun luogo — amplia le categorie","toast.pickCat":"Scegli almeno una categoria","toast.limit":"Limite di {n} viaggi raggiunto","toast.optimized":"Itinerario ottimizzato ✓","toast.tooFew":"Troppe poche tappe per ottimizzare","toast.deleted":"Viaggio eliminato","toast.reset":"App reimpostata",
+  "banner.geo":"Impossibile contattare il servizio mappe. Se provi nell'anteprima, pubblica su GitHub Pages: questi servizi richiedono un dominio reale.","banner.places":"Ricerca luoghi non disponibile. Riprova, o pubblica su GitHub Pages.",
+  "plan.noTripH":"Nessun viaggio attivo","plan.noTripP":"Vai alla scheda Scopri per scegliere una destinazione e iniziare un viaggio.","plan.start":"Inizio","plan.end":"Fine","plan.pickH":"Scegli le date","plan.pickP":"Indica inizio e fine per generare il programma giorno per giorno.","plan.retDevise":"{n} luoghi salvati — valuta {cur}","plan.day":"GIORNO {n}","plan.dayMeta":"{v} visita/e · ~{min} min · {dist}","plan.optimize":"ottimizza itinerario","plan.free":"Giornata libera.","plan.toPlace":"Da inserire · {n}","plan.allPlanned":"Tutto pianificato. Aggiungi altri luoghi da Scopri.","plan.addTo":"Aggiungi a…","plan.dayOpt":"Giorno {n} — {date}",
+  "journal.h":"Diario di bordo","journal.p":"Durante il viaggio: spunta le visite, aggiungi note e foto sul posto, anche offline. In arrivo nella V2.","memories.h":"Ricordi","memories.p":"Al ritorno: un riepilogo commentato del viaggio e un album-montaggio delle foto. In arrivo nella V3.",
+  "trips.h":"I miei viaggi","st.encours":"In corso","st.avenir":"In arrivo","st.brouillon":"Bozza","st.termine":"Concluso","grp.encours":"In corso","grp.avenir":"In arrivo","grp.brouillon":"Bozze","grp.termine":"Conclusi","trips.ret2":"{p} luoghi salvati · {pl} visite pianificate","trips.active":"● VIAGGIO ATTIVO","trips.delete":"Elimina","trips.new":"+ Nuovo viaggio","trips.emptyH":"Nessun viaggio","trips.emptyP":"Crea il tuo primo viaggio dalla scheda Scopri.","trips.confirmDel":"Eliminare questo viaggio? L'azione è definitiva.","recent.meta":"{p} luoghi · {pl} pianificati",
+  "set.h":"Impostazioni","set.lang":"Lingua","set.units":"Unità","set.km":"Chilometri","set.mi":"Miglia","set.data":"Dati","set.reset":"Reimposta l'app","set.resetConfirm":"Cancellare tutto? I tuoi viaggi saranno eliminati definitivamente.","set.about":"Informazioni","set.aboutTxt":"Atlas — il tuo diario di viaggio, dalla scoperta ai ricordi.","nav.home":"Home","sub.home":"Il tuo diario di viaggio, dalla A alla Z","home.current":"Viaggio attuale","home.continue":"Continua","home.newTrip":"Nuovo viaggio","home.noTripH":"Benvenuto su Atlas","home.noTripP":"Scegli una destinazione e organizza la tua vacanza dalla A alla Z.","home.ai":"Assistente di viaggio IA","home.aiP":"Idee, consigli, itinerari su misura.","home.quick":"Accesso rapido","ai.title":"Assistente IA","ai.ph":"Chiedi un'idea, un consiglio…","ai.intro":"Chiedimi qualsiasi cosa sulla tua destinazione: cosa visitare, consigli, trasporti, itinerario…","ai.noEndpoint":"Inserisci l'URL del tuo proxy Mistral nelle Impostazioni per attivare l'assistente.","ai.openSettings":"Apri Impostazioni","ai.thinking":"L'assistente sta pensando…","ai.error":"Spiacente, l'assistente non è disponibile. Controlla l'URL del proxy nelle Impostazioni.","set.ai":"Assistente IA","set.aiEndpoint":"URL del proxy Mistral","set.aiModel":"Modello","set.aiHint":"Nessuna chiave è salvata nell'app. Inserisci l'URL di un proxy (Cloudflare Worker…) che comunica con Mistral.","detail.open":"Aperto","detail.closed":"Chiuso","detail.closedPerm":"Chiuso definitivamente","detail.reviews":"{n} recensioni","detail.hours":"Orari","detail.googleData":"Dati Google","set.save":"Salva","set.saved":"Chiave salvata — ricarica l'app","set.keySet":"Chiave salvata","set.keyNone":"Nessuna chiave salvata","set.places":"Luoghi (Google Places)","set.placesKey":"Chiave Google Places","set.placesHint":"Limita la tua chiave a «Maps JavaScript API» e al tuo dominio. È addebitata sul tuo account Google (gratis a basso volume). Senza chiave, l'app usa OpenStreetMap. Ricarica l'app dopo aver cambiato la chiave.","toast.placesAuth":"Chiave Google Places non valida o non autorizzata.","detail.add":"Aggiungi al viaggio","detail.remove":"Rimuovi dal viaggio","detail.website":"Sito web","detail.loading":"Caricamento descrizione…","detail.noDesc":"Nessuna descrizione per questo luogo.","detail.premiumHint":"Aggiungi la tua chiave Google Places nelle Impostazioni per foto, orari e stato di apertura in tempo reale.","set.version":"Versione {v}","common.dateUndef":"Date non definite"
+ },
+ de:{
+  "nav.kicker":"Reisetagebuch","nav.discover":"Entdecken","nav.plan":"Planen","nav.journal":"Tagebuch","nav.memories":"Erinnerungen",
+  "sub.discover":"Wohin diesmal?","sub.plan":"Organisiere deine Besuche Tag für Tag","sub.journal":"Erlebe die Reise, notiere, fotografiere","sub.memories":"Rückblick und Album deines Urlaubs",
+  "hero.voyages":"Reisen","search.ph":"Stadt, Region oder Land…","search.btn":"Suchen",
+  "hero.inspi":"Inspiration","hero.choose":"Wähle ein Reiseziel","hero.chooseP":"Tippe auf eine Idee oder suche einen Ort — die App findet die schönsten Orte zum Besuchen.","hero.resume":"Reise fortsetzen",
+  "dest.retained":"{n} Ort(e) gemerkt","dest.plan":"Planen →","btn.findPlaces":"Orte zum Besuchen finden","poi.found":"{n} Orte gefunden · zum Entdecken tippen",
+  "cat.patrimoine":"Kulturerbe","cat.musees":"Museen","cat.nature":"Natur","cat.plages":"Strände","cat.pointsvue":"Aussichtspunkte","cat.gastronomie":"Gastronomie","cat.activites":"Aktivitäten",
+  "toast.added":"Zur Reise hinzugefügt","toast.removed":"Aus der Reise entfernt","toast.notfound":"Ziel nicht gefunden","toast.cur":"{cur} erkannt — {country}","toast.places":"{n} Orte gefunden","toast.noPlaces":"Keine Orte — erweitere die Kategorien","toast.pickCat":"Wähle mindestens eine Kategorie","toast.limit":"Limit von {n} Reisen erreicht","toast.optimized":"Route optimiert ✓","toast.tooFew":"Zu wenige Stopps zum Optimieren","toast.deleted":"Reise gelöscht","toast.reset":"App zurückgesetzt",
+  "banner.geo":"Kartendienst nicht erreichbar. Wenn du in der Vorschau testest, veröffentliche auf GitHub Pages: diese Dienste brauchen eine echte Domain.","banner.places":"Ortssuche nicht verfügbar. Erneut versuchen oder auf GitHub Pages veröffentlichen.",
+  "plan.noTripH":"Keine aktive Reise","plan.noTripP":"Gehe zum Tab Entdecken, um ein Ziel zu wählen und eine Reise zu starten.","plan.start":"Beginn","plan.end":"Ende","plan.pickH":"Wähle deine Daten","plan.pickP":"Gib Beginn und Ende ein, um deinen Tagesplan zu erstellen.","plan.retDevise":"{n} gemerkte Orte — Währung {cur}","plan.day":"TAG {n}","plan.dayMeta":"{v} Besuch(e) · ~{min} Min · {dist}","plan.optimize":"Route optimieren","plan.free":"Freier Tag.","plan.toPlace":"Einzuplanen · {n}","plan.allPlanned":"Alles geplant. Füge weitere Orte über Entdecken hinzu.","plan.addTo":"Hinzufügen zu…","plan.dayOpt":"Tag {n} — {date}",
+  "journal.h":"Bordtagebuch","journal.p":"Während der Reise: Besuche abhaken, Notizen und Fotos vor Ort hinzufügen, auch offline. Kommt in V2.","memories.h":"Erinnerungen","memories.p":"Zurück zu Hause: ein kommentierter Rückblick und eine Foto-Album-Montage. Kommt in V3.",
+  "trips.h":"Meine Reisen","st.encours":"Laufend","st.avenir":"Bevorstehend","st.brouillon":"Entwurf","st.termine":"Beendet","grp.encours":"Laufend","grp.avenir":"Bevorstehend","grp.brouillon":"Entwürfe","grp.termine":"Beendet","trips.ret2":"{p} gemerkte Orte · {pl} geplante Besuche","trips.active":"● AKTIVE REISE","trips.delete":"Löschen","trips.new":"+ Neue Reise","trips.emptyH":"Keine Reisen","trips.emptyP":"Erstelle deine erste Reise über den Tab Entdecken.","trips.confirmDel":"Diese Reise löschen? Das kann nicht rückgängig gemacht werden.","recent.meta":"{p} Orte · {pl} geplant",
+  "set.h":"Einstellungen","set.lang":"Sprache","set.units":"Einheiten","set.km":"Kilometer","set.mi":"Meilen","set.data":"Daten","set.reset":"App zurücksetzen","set.resetConfirm":"Alles löschen? Deine Reisen werden dauerhaft entfernt.","set.about":"Über","set.aboutTxt":"Atlas — dein Reisetagebuch, von der Entdeckung bis zu den Erinnerungen.","nav.home":"Start","sub.home":"Dein Reisetagebuch, von A bis Z","home.current":"Aktuelle Reise","home.continue":"Fortsetzen","home.newTrip":"Neue Reise","home.noTripH":"Willkommen bei Atlas","home.noTripP":"Wähle ein Ziel und plane deinen Urlaub von A bis Z.","home.ai":"KI-Reiseassistent","home.aiP":"Ideen, Tipps, maßgeschneiderte Routen.","home.quick":"Schnellzugriff","ai.title":"KI-Assistent","ai.ph":"Frag nach einer Idee, einem Tipp…","ai.intro":"Frag mich alles über dein Ziel: was besichtigen, Tipps, Transport, Route…","ai.noEndpoint":"Gib die URL deines Mistral-Proxys in den Einstellungen ein, um den Assistenten zu aktivieren.","ai.openSettings":"Einstellungen öffnen","ai.thinking":"Der Assistent denkt nach…","ai.error":"Entschuldigung, der Assistent ist nicht verfügbar. Prüfe die Proxy-URL in den Einstellungen.","set.ai":"KI-Assistent","set.aiEndpoint":"Mistral-Proxy-URL","set.aiModel":"Modell","set.aiHint":"Es wird kein Schlüssel in der App gespeichert. Gib die URL eines Proxys (Cloudflare Worker…) an, der mit Mistral spricht.","detail.open":"Geöffnet","detail.closed":"Geschlossen","detail.closedPerm":"Dauerhaft geschlossen","detail.reviews":"{n} Bewertungen","detail.hours":"Öffnungszeiten","detail.googleData":"Google-Daten","set.save":"Speichern","set.saved":"Schlüssel gespeichert — App neu laden","set.keySet":"Schlüssel gespeichert","set.keyNone":"Kein Schlüssel gespeichert","set.places":"Orte (Google Places)","set.placesKey":"Google-Places-Schlüssel","set.placesHint":"Beschränke deinen Schlüssel auf „Maps JavaScript API“ und deine Domain. Er wird deinem Google-Konto berechnet (bei geringem Volumen kostenlos). Ohne Schlüssel nutzt die App OpenStreetMap. Lade die App nach dem Ändern des Schlüssels neu.","toast.placesAuth":"Google-Places-Schlüssel ungültig oder nicht autorisiert.","detail.add":"Zur Reise hinzufügen","detail.remove":"Aus der Reise entfernen","detail.website":"Website","detail.loading":"Beschreibung wird geladen…","detail.noDesc":"Noch keine Beschreibung für diesen Ort.","detail.premiumHint":"Füge deinen Google-Places-Schlüssel in den Einstellungen hinzu für Live-Fotos, Öffnungszeiten und Geöffnet/Geschlossen-Status.","set.version":"Version {v}","common.dateUndef":"Daten nicht festgelegt"
+ }
+};
+const LOCALE={fr:"fr-FR",en:"en-GB",es:"es-ES",it:"it-IT",de:"de-DE"};
+const LANGS=[{code:"fr",fl:"🇫🇷",nm:"Français"},{code:"en",fl:"🇬🇧",nm:"English"},{code:"es",fl:"🇪🇸",nm:"Español"},{code:"it",fl:"🇮🇹",nm:"Italiano"},{code:"de",fl:"🇩🇪",nm:"Deutsch"}];
+function lang(){ return (S.settings&&S.settings.lang)||"fr"; }
+function t(key,vars){ let s=(T[lang()]&&T[lang()][key])||T.fr[key]||key;
+  if(vars) for(const k in vars) s=s.split("{"+k+"}").join(vars[k]); return s; }
+
+/* ===================== ÉTAT ===================== */
+const STORAGE_KEY="voyage_S", FREE_TRIP_LIMIT=100;
+const DEFAULT_S={ version:"0.5.0", trips:[], currentTripId:null,
+  settings:{ lang:"fr", units:"metric", activeProviders:["osm"], aiEndpoint:"", aiModel:"mistral-small-latest", placesKey:"" } };
+let S=loadState(), currentTab="accueil";
+
+function loadState(){
+  try{ const raw=localStorage.getItem(STORAGE_KEY); if(raw){ const p=JSON.parse(raw);
+    p.settings=Object.assign({},DEFAULT_S.settings,p.settings||{}); return Object.assign({},DEFAULT_S,p); } }
+  catch(e){ console.warn("load",e); }
+  return JSON.parse(JSON.stringify(DEFAULT_S));
+}
+function saveState(){ try{ localStorage.setItem(STORAGE_KEY,JSON.stringify(S)); }catch(e){ console.warn("save",e); } }
+function currentTrip(){ return S.trips.find(t=>t.id===S.currentTripId)||null; }
+function uid(){ return Date.now().toString(36)+Math.random().toString(36).slice(2,6); }
+
+/* ===================== CATÉGORIES ===================== */
+const CATEGORIES=[
+  {key:"patrimoine",icon:"🏛️",dur:60,tags:['["historic"]','["tourism"="attraction"]']},
+  {key:"musees",icon:"🖼️",dur:90,tags:['["tourism"="museum"]']},
+  {key:"nature",icon:"🌿",dur:75,tags:['["leisure"="park"]','["natural"="peak"]','["boundary"="national_park"]']},
+  {key:"plages",icon:"🏖️",dur:120,tags:['["natural"="beach"]']},
+  {key:"pointsvue",icon:"🌅",dur:30,tags:['["tourism"="viewpoint"]']},
+  {key:"gastronomie",icon:"🍽️",dur:75,tags:['["amenity"="restaurant"]']},
+  {key:"activites",icon:"🎡",dur:120,tags:['["tourism"="theme_park"]','["leisure"="water_park"]']}
+];
+let selectedCats=new Set(["patrimoine","musees","nature","pointsvue"]);
+function catByKey(k){ return CATEGORIES.find(c=>c.key===k); }
+function catLabel(key){ return key?t("cat."+key):""; }
+
+/* ===================== SUGGESTIONS ===================== */
+const SUGGESTIONS=[
+  {q:"Lisbonne, Portugal",nm:"Lisbonne",cc:"PT",emoji:"🇵🇹",band:"#1E6F6A"},
+  {q:"Rome, Italie",nm:"Rome",cc:"IT",emoji:"🇮🇹",band:"#C49A4C"},
+  {q:"Marrakech, Maroc",nm:"Marrakech",cc:"MA",emoji:"🇲🇦",band:"#C2502E"},
+  {q:"Barcelone, Espagne",nm:"Barcelone",cc:"ES",emoji:"🇪🇸",band:"#A23B5E"},
+  {q:"Kyoto, Japon",nm:"Kyoto",cc:"JP",emoji:"🇯🇵",band:"#5B4B8A"},
+  {q:"Santorin, Grèce",nm:"Santorin",cc:"GR",emoji:"🇬🇷",band:"#2E6FA2"}
+];
+const COUNTRY_NAMES={
+  fr:{PT:"Portugal",IT:"Italie",MA:"Maroc",ES:"Espagne",JP:"Japon",GR:"Grèce"},
+  en:{PT:"Portugal",IT:"Italy",MA:"Morocco",ES:"Spain",JP:"Japan",GR:"Greece"},
+  es:{PT:"Portugal",IT:"Italia",MA:"Marruecos",ES:"España",JP:"Japón",GR:"Grecia"},
+  it:{PT:"Portogallo",IT:"Italia",MA:"Marocco",ES:"Spagna",JP:"Giappone",GR:"Grecia"},
+  de:{PT:"Portugal",IT:"Italien",MA:"Marokko",ES:"Spanien",JP:"Japan",GR:"Griechenland"}
+};
+function countryName(cc){ return (COUNTRY_NAMES[lang()]&&COUNTRY_NAMES[lang()][cc])||cc; }
+
+/* ===================== DEVISE ===================== */
+const COUNTRY_CURRENCY={fr:"EUR",de:"EUR",es:"EUR",it:"EUR",pt:"EUR",be:"EUR",nl:"EUR",ie:"EUR",at:"EUR",gr:"EUR",fi:"EUR",lu:"EUR",sk:"EUR",si:"EUR",ee:"EUR",lv:"EUR",lt:"EUR",cy:"EUR",mt:"EUR",hr:"EUR",gb:"GBP",us:"USD",ca:"CAD",ch:"CHF",jp:"JPY",cn:"CNY",au:"AUD",nz:"NZD",ma:"MAD",dz:"DZD",tn:"TND",sn:"XOF",ci:"XOF",cm:"XAF",ga:"XAF",th:"THB",vn:"VND",id:"IDR",my:"MYR",sg:"SGD",in:"INR",ae:"AED",tr:"TRY",mx:"MXN",br:"BRL",ar:"ARS",za:"ZAR",eg:"EGP",no:"NOK",se:"SEK",dk:"DKK",pl:"PLN",cz:"CZK",hu:"HUF"};
+const CURRENCY_SYMBOL={EUR:"€",GBP:"£",USD:"$",CAD:"$",CHF:"CHF",JPY:"¥",CNY:"¥",AUD:"$",MAD:"DH",THB:"฿",TRY:"₺",INR:"₹",AED:"AED",BRL:"R$",ZAR:"R",NOK:"kr",SEK:"kr",DKK:"kr",PLN:"zł"};
+function currencyFor(cc){ return COUNTRY_CURRENCY[(cc||"").toLowerCase()]||"EUR"; }
+function curSym(c){ return CURRENCY_SYMBOL[c]||c; }
+function fmtDist(km){ return S.settings.units==="imperial" ? (km*0.621371).toFixed(1)+" mi" : km.toFixed(1)+" km"; }
+
+/* ===================== API ===================== */
+async function geocode(q){
+  const url="https://nominatim.openstreetmap.org/search?format=json&addressdetails=1&limit=1&accept-language="+lang()+"&q="+encodeURIComponent(q);
+  const r=await fetch(url,{headers:{Accept:"application/json"}});
+  if(!r.ok) throw new Error("geocode "+r.status);
+  const data=await r.json(); if(!data.length) return null;
+  const d=data[0], bb=d.boundingbox.map(Number), cc=d.address&&d.address.country_code;
+  return { name:d.display_name.split(",")[0], country:(d.address&&d.address.country)||"", countryCode:cc||"",
+    currency:currencyFor(cc), lat:+d.lat, lng:+d.lon, bbox:{south:bb[0],north:bb[1],west:bb[2],east:bb[3]} };
+}
+function buildOverpassQuery(bbox,cats){
+  const b=`(${bbox.south},${bbox.west},${bbox.north},${bbox.east})`, parts=[];
+  cats.forEach(k=>{ const c=catByKey(k); if(c) c.tags.forEach(tg=>parts.push(`nwr${tg}["name"]${b};`)); });
+  return `[out:json][timeout:25];(${parts.join("")});out center 80;`;
+}
+async function fetchPois(bbox,cats){
+  const q=buildOverpassQuery(bbox,cats);
+  const r=await fetch("https://overpass-api.de/api/interpreter",{method:"POST",headers:{"Content-Type":"application/x-www-form-urlencoded"},body:"data="+encodeURIComponent(q)});
+  if(!r.ok) throw new Error("overpass "+r.status);
+  const data=await r.json(), seen=new Set(), out=[];
+  (data.elements||[]).forEach(el=>{
+    const lat=el.lat!=null?el.lat:(el.center&&el.center.lat), lng=el.lon!=null?el.lon:(el.center&&el.center.lon);
+    const name=el.tags&&el.tags.name; if(lat==null||lng==null||!name) return;
+    const cat=classify(el.tags), key=name+"|"+lat.toFixed(4); if(seen.has(key)) return; seen.add(key);
+    const tg=el.tags;
+    out.push({id:"osm"+el.type[0]+el.id,name,category:cat.key,icon:cat.icon,lat,lng,source:"osm",estDuration:cat.dur,estCost:0,
+      wikidata:tg.wikidata||"",wikipedia:tg.wikipedia||"",image:(tg.image&&/^https?:/.test(tg.image))?tg.image:"",
+      website:tg.website||tg["contact:website"]||"",openingHours:tg.opening_hours||""});
+  });
+  return out.slice(0,60);
+}
+function classify(tags){
+  for(const c of CATEGORIES) for(const tg of c.tags){
+    const m=tg.match(/\["([^"]+)"(?:="([^"]+)")?\]/); if(!m) continue;
+    const k=m[1],v=m[2]; if(tags[k]!=null&&(v==null||tags[k]===v)) return c;
+  } return CATEGORIES[0];
+}
+function haversine(a,b){ const R=6371,r=x=>x*Math.PI/180;
+  const dLat=r(b.lat-a.lat),dLon=r(b.lng-a.lng);
+  const s=Math.sin(dLat/2)**2+Math.cos(r(a.lat))*Math.cos(r(b.lat))*Math.sin(dLon/2)**2;
+  return 2*R*Math.asin(Math.sqrt(s)); }
+
+/* ===================== CARTE ===================== */
+let map,poiLayer,mapReady=false;
+function initMap(){
+  try{ map=L.map("map",{zoomControl:true,attributionControl:true}).setView([46.6,2.4],5);
+    L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png",{maxZoom:19,attribution:"© OpenStreetMap"}).addTo(map);
+    poiLayer=L.layerGroup().addTo(map); mapReady=true;
+  }catch(e){ console.warn("map",e); }
+}
+function pinIcon(label){ return L.divIcon({className:"",html:`<div class="pin"><span>${label}</span></div>`,iconSize:[26,26],iconAnchor:[13,26],popupAnchor:[0,-24]}); }
+function renderMapPois(pois){ if(!poiLayer) return; poiLayer.clearLayers();
+  pois.forEach(p=>{ const mk=L.marker([p.lat,p.lng],{icon:pinIcon(p.icon)}).addTo(poiLayer); mk.on("click",()=>openPoiDetail(p.id)); }); }
+
+/* ===================== DÉCOUVERTE ===================== */
+let lastPois=[];
+function renderSuggestions(){
+  document.getElementById("suggGrid").innerHTML=SUGGESTIONS.map(s=>`
+    <button class="sugg" data-q="${escapeHtml(s.q)}">
+      <div class="cap" style="background:linear-gradient(140deg,${s.band},rgba(0,0,0,.28))"><span class="emoji">${s.emoji}</span></div>
+      <div class="info"><div class="nm">${s.nm}</div><div class="co">${countryName(s.cc)}</div></div>
+    </button>`).join("");
+  document.querySelectorAll(".sugg").forEach(b=>b.onclick=()=>{ document.getElementById("destInput").value=b.dataset.q; onSearchDestination(); });
+}
+function renderDecouverte(){
+  const trip=currentTrip(), has=!!trip;
+  document.getElementById("heroPrompt").style.display=has?"none":"block";
+  document.getElementById("destCard").style.display=has?"block":"none";
+  document.getElementById("mapWrap").style.display=has?"block":"none";
+  document.getElementById("catChips").style.display=has?"flex":"none";
+  document.getElementById("searchPlacesBtn").style.display=has?"flex":"none";
+  if(has){
+    document.getElementById("destCard").innerHTML=`
+      <div class="dest">
+        <div class="name">${escapeHtml(trip.destination.name)}</div>
+        <div class="coords">${trip.destination.lat.toFixed(3)}°, ${trip.destination.lng.toFixed(3)}° — ${escapeHtml(trip.destination.country)}</div>
+        <div class="badges"><span class="badge cur">${trip.budget.currency} ${curSym(trip.budget.currency)}</span>
+          <span class="badge">${t("dest.retained",{n:trip.shortlist.length})}</span></div>
+        <button class="plan" id="goPlanBtn">${t("dest.plan")}</button>
+      </div>`;
+    document.getElementById("goPlanBtn").onclick=()=>switchTab("planifier");
+    if(mapReady) setTimeout(()=>map.invalidateSize(),60);
+  }
+  renderPoiList(); renderRecentTrips(); renderVoyagesBtn();
+}
+function renderChips(){
+  const el=document.getElementById("catChips");
+  el.innerHTML=CATEGORIES.map(c=>`<button class="chip ${selectedCats.has(c.key)?'on':''}" data-cat="${c.key}">${c.icon} ${catLabel(c.key)}</button>`).join("");
+  el.querySelectorAll(".chip").forEach(b=>b.onclick=()=>{ const k=b.dataset.cat; selectedCats.has(k)?selectedCats.delete(k):selectedCats.add(k); renderChips(); });
+}
+function renderPoiList(){
+  const el=document.getElementById("poiList"), trip=currentTrip();
+  if(!trip||!lastPois.length){ el.innerHTML=""; return; }
+  const inList=id=>trip.shortlist.some(p=>p.id===id);
+  el.innerHTML=`<div class="section-label">${t("poi.found",{n:lastPois.length})}</div>`+
+    lastPois.map(p=>`<div class="poi" data-id="${p.id}">
+      <div class="cat">${p.icon}</div>
+      <div class="body"><div class="t">${escapeHtml(p.name)}</div><div class="m">${catLabel(p.category)} · ~${p.estDuration} min</div></div>
+      <button class="add ${inList(p.id)?'in':''}" data-id="${p.id}">${inList(p.id)?'✓':'+'}</button>
+    </div>`).join("");
+  el.querySelectorAll(".poi").forEach(row=>row.onclick=()=>openPoiDetail(row.dataset.id));
+  el.querySelectorAll(".add").forEach(b=>b.onclick=e=>{ e.stopPropagation(); toggleShortlist(b.dataset.id); });
+}
+function findPoi(id){ return lastPois.find(p=>p.id===id) || (currentTrip()&&currentTrip().shortlist.find(p=>p.id===id)) || null; }
+function updateRetainedBadge(){ const trip=currentTrip(); if(currentTab!=="decouverte"||!trip) return;
+  const b=document.querySelector(".dest .badge:last-child"); if(b) b.textContent=t("dest.retained",{n:trip.shortlist.length}); }
+function togglePoi(poi){ const trip=currentTrip(); if(!trip||!poi) return;
+  const i=trip.shortlist.findIndex(p=>p.id===poi.id);
+  if(i>=0){ trip.shortlist.splice(i,1); toast(t("toast.removed")); } else { trip.shortlist.push(poi); toast(t("toast.added")); }
+  saveState(); }
+function toggleShortlist(id){ const poi=findPoi(id); if(!poi) return; togglePoi(poi); renderPoiList(); updateRetainedBadge(); }
+
+/* ---- fiche détaillée d'un lieu (enrichie Wikipédia, gratuit) ---- */
+let currentDetailPoi=null; const detailCache={};
+function openPoiDetail(id){
+  const poi=findPoi(id); if(!poi) return; currentDetailPoi=poi;
+  document.getElementById("poiSheet").classList.add("show");
+  renderPoiDetail(poi,null,true);
+  const useG=!!S.settings.placesKey;
+  const key=(useG?"g:":"w:")+id+":"+lang();
+  if(detailCache[key]){ renderPoiDetail(poi,detailCache[key],false); return; }
+  const loader=useG ? loadPlacesDetail(poi).catch(e=>{ console.warn("places fallback",e); return loadPoiDetail(poi); }) : loadPoiDetail(poi);
+  Promise.resolve(loader).then(d=>{ d=d||{extract:null,imgs:[]}; detailCache[key]=d;
+    if(currentDetailPoi===poi) renderPoiDetail(poi,d,false); })
+  .catch(e=>{ console.warn("detail",e); if(currentDetailPoi===poi) renderPoiDetail(poi,{extract:null,imgs:[]},false); });
+}
+function closePoiDetail(){ document.getElementById("poiSheet").classList.remove("show"); currentDetailPoi=null; }
+function renderPoiDetail(poi,detail,loading){
+  const trip=currentTrip(), inList=trip&&trip.shortlist.some(p=>p.id===poi.id);
+  const isG=detail&&detail.source==="google";
+  const imgs=(detail&&detail.imgs&&detail.imgs.length)?detail.imgs:(poi.image?[poi.image]:[]);
+  document.getElementById("poiHero").innerHTML=
+    (imgs.length?`<div class="car">${imgs.map(u=>`<img src="${escapeHtml(u)}" onerror="this.remove()">`).join("")}</div>`:`<div class="ph-fallback">${poi.icon}</div>`)
+    +`<div class="grad"></div><div class="cap"><div class="nm">${escapeHtml((detail&&detail.name)||poi.name)}</div><div class="ct">${catLabel(poi.category)}</div></div>`;
+  let body="";
+  if(isG){
+    const chips=[];
+    if(detail.businessStatus==="CLOSED_PERMANENTLY") chips.push(`<span class="meta-pill" style="color:var(--danger);border-color:rgba(180,69,47,.3)">⛔ ${t("detail.closedPerm")}</span>`);
+    else if(detail.openNow===true) chips.push(`<span class="meta-pill" style="color:var(--ok);border-color:rgba(46,125,91,.35)">🟢 ${t("detail.open")}</span>`);
+    else if(detail.openNow===false) chips.push(`<span class="meta-pill" style="color:var(--danger);border-color:rgba(180,69,47,.3)">🔴 ${t("detail.closed")}</span>`);
+    if(detail.rating) chips.push(`<span class="meta-pill">⭐ ${detail.rating.toFixed(1)}${detail.ratingCount?" · "+t("detail.reviews",{n:detail.ratingCount}):""}</span>`);
+    if(chips.length) body+=`<div class="meta-row" style="margin:0 0 6px">${chips.join("")}</div>`;
+  }
+  if(loading) body+=`<div class="desc" style="color:var(--muted)">${t("detail.loading")}</div>`;
+  else if(detail&&detail.extract) body+=`<div class="desc">${escapeHtml(detail.extract)}</div>`;
+  else body+=`<div class="desc" style="color:var(--muted)">${t("detail.noDesc")}</div>`;
+  const pills=[`<span class="meta-pill">⏱ ~${poi.estDuration} min</span>`];
+  const website=(detail&&detail.website)||poi.website;
+  if(website) pills.push(`<a class="meta-pill" href="${escapeHtml(website)}" target="_blank" rel="noopener">🌐 ${t("detail.website")}</a>`);
+  if(isG&&detail.address) pills.push(`<span class="meta-pill">📍 ${escapeHtml(detail.address)}</span>`);
+  else if(!isG&&poi.openingHours) pills.push(`<span class="meta-pill">🕒 ${escapeHtml(poi.openingHours)}</span>`);
+  body+=`<div class="meta-row">${pills.join("")}</div>`;
+  if(isG&&detail.hours&&detail.hours.length)
+    body+=`<div class="section-label" style="margin-top:18px">${t("detail.hours")}</div><div class="hours">${detail.hours.map(h=>`<div class="hr">${escapeHtml(h)}</div>`).join("")}</div>`;
+  if(isG) body+=`<div class="gdata">${t("detail.googleData")}</div>`;
+  else body+=`<div class="premium-hint">✦ ${t("detail.premiumHint")}</div>`;
+  document.getElementById("poiBody").innerHTML=body;
+  const add=document.getElementById("poiAddBtn");
+  add.textContent=inList?t("detail.remove"):t("detail.add");
+  add.className="btn block"+(inList?"":" brass");
+  add.onclick=()=>{ togglePoi(poi); renderPoiDetail(poi,detail,false); renderPoiList(); updateRetainedBadge(); };
+}
+async function loadPoiDetail(poi){
+  const wl=lang(); let title=null,wlang=wl;
+  if(poi.wikipedia&&poi.wikipedia.includes(":")){ const i=poi.wikipedia.indexOf(":"); wlang=poi.wikipedia.slice(0,i); title=poi.wikipedia.slice(i+1); }
+  else if(poi.wikidata){ const sl=await wikidataSitelink(poi.wikidata,wl); if(sl){ wlang=sl.lang; title=sl.title; } }
+  // Plus de recherche par nom : on n'enrichit QUE depuis un lien Wikidata/Wikipédia vérifié,
+  // pour ne jamais afficher le descriptif ou la photo d'un autre lieu.
+  let extract=null,img=null;
+  if(title){ try{ const s=await wikiSummary(wlang,title); extract=s.extract; img=s.img; }catch(e){}
+    if(!extract&&wlang!==wl){ try{ const s2=await wikiSummary(wl,title); if(s2.extract){ extract=s2.extract; img=img||s2.img; } }catch(e){} } }
+  const imgs=[]; if(poi.image) imgs.push(poi.image); if(img) imgs.push(img);
+  return { extract, imgs:imgs.filter((v,i,a)=>a.indexOf(v)===i) };
+}
+
+/* ---- Google Places (clé fournie par l'utilisateur, 100% navigateur) ---- */
+let gPlacesLib=null, gMapsLoading=null, gPlacesAuthFail=false;
+window.gm_authFailure=function(){ gPlacesAuthFail=true; gPlacesLib=null; gMapsLoading=null; toast(t("toast.placesAuth")); };
+function loadGoogleMaps(){
+  if(gPlacesAuthFail) return Promise.reject(new Error("authfail"));
+  if(gPlacesLib) return Promise.resolve(gPlacesLib);
+  const k=S.settings.placesKey; if(!k) return Promise.reject(new Error("nokey"));
+  if(!gMapsLoading){
+    gMapsLoading=new Promise((resolve,reject)=>{
+      if(window.google&&window.google.maps&&window.google.maps.importLibrary){ resolve(); return; }
+      const s=document.createElement("script");
+      s.src="https://maps.googleapis.com/maps/api/js?key="+encodeURIComponent(k)+"&v=weekly&loading=async&libraries=places";
+      s.async=true; s.onload=()=>resolve(); s.onerror=()=>reject(new Error("gmaps load")); document.head.appendChild(s);
+    }).then(()=>google.maps.importLibrary("places")).then(lib=>{ gPlacesLib=lib; return lib; });
+  }
+  return gMapsLoading;
+}
+async function loadPlacesDetail(poi){
+  const lib=await loadGoogleMaps(); const Place=lib.Place;
+  const trip=currentTrip();
+  const textQuery=poi.name+(trip?(", "+trip.destination.name):"");
+  const res=await Place.searchByText({
+    textQuery,
+    fields:["id","displayName","location","photos","rating","userRatingCount","regularOpeningHours","businessStatus","websiteURI","editorialSummary","formattedAddress"],
+    maxResultCount:1, language:lang(),
+    locationBias:{ center:{lat:poi.lat,lng:poi.lng}, radius:1500 }
+  });
+  const places=res&&res.places; if(!places||!places.length) return null;
+  const pl=places[0];
+  let imgs=[];
+  if(pl.photos&&pl.photos.length){ imgs=pl.photos.slice(0,6).map(ph=>{ try{ return ph.getURI({maxWidth:1000}); }catch(e){ return null; } }).filter(Boolean); }
+  let openNow=null; try{ if(typeof pl.isOpen==="function"){ openNow=await pl.isOpen(); } }catch(e){}
+  let extract=null; if(pl.editorialSummary){ extract=(typeof pl.editorialSummary==="string")?pl.editorialSummary:(pl.editorialSummary.text||null); }
+  return {
+    source:"google", name:(pl.displayName&&(pl.displayName.text||pl.displayName))||poi.name,
+    extract, imgs,
+    rating:pl.rating||null, ratingCount:pl.userRatingCount||null,
+    hours:(pl.regularOpeningHours&&pl.regularOpeningHours.weekdayDescriptions)||null,
+    businessStatus:pl.businessStatus||null, openNow,
+    website:pl.websiteURI||null, address:pl.formattedAddress||null
+  };
+}
+async function wikidataSitelink(qid,wl){
+  try{ const url="https://www.wikidata.org/w/api.php?action=wbgetentities&ids="+qid+"&props=sitelinks&format=json&origin=*";
+    const r=await fetch(url); if(!r.ok) return null; const d=await r.json();
+    const sl=d.entities&&d.entities[qid]&&d.entities[qid].sitelinks; if(!sl) return null;
+    const keys=Object.keys(sl).filter(k=>/^[a-z]{2,3}wiki$/.test(k));
+    const pk=(sl[wl+"wiki"]&&wl+"wiki")||(sl["enwiki"]&&"enwiki")||keys[0]; if(!pk) return null;
+    return { lang:pk.replace("wiki",""), title:sl[pk].title };
+  }catch(e){ return null; } }
+async function wikiSummary(wlang,title){
+  const url="https://"+wlang+".wikipedia.org/api/rest_v1/page/summary/"+encodeURIComponent(title);
+  const r=await fetch(url); if(!r.ok) throw new Error("wiki "+r.status); const d=await r.json();
+  if(d.type&&String(d.type).indexOf("not_found")>=0) throw new Error("nf");
+  return { extract:d.extract||null, img:(d.originalimage&&d.originalimage.source)||(d.thumbnail&&d.thumbnail.source)||null }; }
+async function wikiSearch(wlang,q){
+  try{ const url="https://"+wlang+".wikipedia.org/w/api.php?action=query&list=search&srlimit=1&srsearch="+encodeURIComponent(q)+"&format=json&origin=*";
+    const r=await fetch(url); if(!r.ok) return null; const d=await r.json();
+    const hit=d.query&&d.query.search&&d.query.search[0]; return hit?hit.title:null;
+  }catch(e){ return null; } }
+
+/* ===================== PLANIFIER ===================== */
+function daysBetween(s,e){ const out=[],d=new Date(s),x=new Date(e); if(isNaN(d)||isNaN(x)||d>x) return out;
+  while(d<=x){ out.push(d.toISOString().slice(0,10)); d.setDate(d.getDate()+1); } return out; }
+function syncDays(trip){ const want=daysBetween(trip.dateStart,trip.dateEnd),old={};
+  (trip.days||[]).forEach(dy=>old[dy.date]=dy); trip.days=want.map(date=>old[date]||{date,items:[]}); }
+function fmtDate(iso){ return new Date(iso).toLocaleDateString(LOCALE[lang()],{weekday:"short",day:"numeric",month:"short"}); }
+function renderPlanning(){
+  const trip=currentTrip(), head=document.getElementById("planHeader"), body=document.getElementById("planBody");
+  if(!trip){ head.innerHTML=""; body.innerHTML=`<div class="empty"><span class="ic">🧭</span><h2>${t("plan.noTripH")}</h2><p>${t("plan.noTripP")}</p></div>`; return; }
+  head.innerHTML=`
+    <div class="dest"><div class="name">${escapeHtml(trip.destination.name)}</div>
+      <div class="coords">${t("plan.retDevise",{n:trip.shortlist.length,cur:trip.budget.currency})}</div></div>
+    <div class="row"><div><label class="fld">${t("plan.start")}</label><input type="date" id="dStart" value="${trip.dateStart||''}"></div>
+      <div><label class="fld">${t("plan.end")}</label><input type="date" id="dEnd" value="${trip.dateEnd||''}"></div></div>`;
+  document.getElementById("dStart").onchange=e=>{ trip.dateStart=e.target.value; syncDays(trip); saveState(); renderPlanning(); };
+  document.getElementById("dEnd").onchange=e=>{ trip.dateEnd=e.target.value; syncDays(trip); saveState(); renderPlanning(); };
+  if(!trip.dateStart||!trip.dateEnd||!trip.days||!trip.days.length){
+    body.innerHTML=`<div class="empty"><span class="ic">🗓️</span><h2>${t("plan.pickH")}</h2><p>${t("plan.pickP")}</p></div>`; return; }
+  const planned=new Set(); trip.days.forEach(d=>d.items.forEach(it=>planned.add(it.poiId)));
+  const unplanned=trip.shortlist.filter(p=>!planned.has(p.id));
+  let html="";
+  trip.days.forEach((day,di)=>{
+    const st=dayStats(trip,day);
+    html+=`<div class="day"><h3><span class="dnum">${t("plan.day",{n:di+1})}</span> ${fmtDate(day.date)}</h3>
+      <div class="meta">${t("plan.dayMeta",{v:day.items.length,min:st.dur,dist:fmtDist(st.km)})}${day.items.length>1?` · <a href="#" data-opt="${di}">${t("plan.optimize")}</a>`:``}</div>
+      <div class="route">`;
+    if(!day.items.length) html+=`<div style="color:var(--muted);font-size:13px;padding:2px 0 4px">${t("plan.free")}</div>`;
+    day.items.forEach((it,si)=>{
+      const p=trip.shortlist.find(x=>x.id===it.poiId)||{name:"—",category:"",estDuration:0,icon:"📍"};
+      html+=`<div class="stop"><div class="dot">${si+1}</div>
+        <div class="card"><button class="rm" data-rm="${di}:${it.poiId}">✕</button>
+          <div class="t">${p.icon} ${escapeHtml(p.name)}</div>
+          <div class="m"><span>${catLabel(p.category)}</span><span>~${p.estDuration} min</span></div></div></div>`;
+    });
+    html+=`</div></div>`;
+  });
+  html+=`<div class="section-label">${t("plan.toPlace",{n:unplanned.length})}</div>`;
+  if(!unplanned.length) html+=`<div style="color:var(--muted);font-size:13px;padding:0 2px 8px">${t("plan.allPlanned")}</div>`;
+  unplanned.forEach(p=>{
+    const opts=trip.days.map((d,i)=>`<option value="${i}">${t("plan.dayOpt",{n:i+1,date:fmtDate(d.date)})}</option>`).join("");
+    html+=`<div class="poi"><div class="cat">${p.icon}</div>
+      <div class="body"><div class="t">${escapeHtml(p.name)}</div>
+        <div class="assign"><select data-assign="${p.id}"><option value="">${t("plan.addTo")}</option>${opts}</select></div></div></div>`;
+  });
+  body.innerHTML=html;
+  body.querySelectorAll("[data-opt]").forEach(a=>a.onclick=e=>{ e.preventDefault(); optimizeDay(+a.dataset.opt); });
+  body.querySelectorAll("[data-rm]").forEach(b=>b.onclick=()=>{ const parts=b.dataset.rm.split(":"),di=+parts[0],pid=parts[1];
+    trip.days[di].items=trip.days[di].items.filter(x=>x.poiId!==pid); saveState(); renderPlanning(); });
+  body.querySelectorAll("[data-assign]").forEach(sel=>sel.onchange=()=>{ if(sel.value==="") return;
+    const di=+sel.value; trip.days[di].items.push({poiId:sel.dataset.assign,order:trip.days[di].items.length,done:false,notes:"",photoIds:[]}); saveState(); renderPlanning(); });
+}
+function dayStats(trip,day){ let dur=0,km=0,prev=null;
+  day.items.forEach(it=>{ const p=trip.shortlist.find(x=>x.id===it.poiId); if(!p) return;
+    dur+=p.estDuration||0; if(prev) km+=haversine(prev,p); prev=p; }); return {dur,km}; }
+function optimizeDay(di){
+  const trip=currentTrip(),day=trip.days[di];
+  const pts=day.items.map(it=>trip.shortlist.find(p=>p.id===it.poiId)).filter(Boolean);
+  if(pts.length<3){ toast(t("toast.tooFew")); return; }
+  const rem=pts.slice(),route=[rem.shift()];
+  while(rem.length){ const last=route[route.length-1]; let bi=0,bd=Infinity;
+    rem.forEach((p,i)=>{ const d=haversine(last,p); if(d<bd){bd=d;bi=i;} }); route.push(rem.splice(bi,1)[0]); }
+  day.items=route.map((p,i)=>({poiId:p.id,order:i,done:false,notes:"",photoIds:[]}));
+  saveState(); renderPlanning(); toast(t("toast.optimized"));
+}
+
+/* ===================== VOYAGES ===================== */
+function tripStatus(trip){
+  if(!trip.dateStart||!trip.dateEnd) return {key:"brouillon"};
+  const today=new Date().toISOString().slice(0,10);
+  if(today<trip.dateStart) return {key:"avenir"};
+  if(today>trip.dateEnd) return {key:"termine"};
+  return {key:"encours"};
+}
+function tripMeta(trip){ const places=trip.shortlist.length, planned=(trip.days||[]).reduce((n,d)=>n+d.items.length,0);
+  const dates=(trip.dateStart&&trip.dateEnd)?fmtDate(trip.dateStart)+" → "+fmtDate(trip.dateEnd):t("common.dateUndef"); return {places,planned,dates}; }
+function renderVoyagesBtn(){ const el=document.getElementById("voyagesCnt"); if(el) el.textContent=S.trips.length; }
+function tripRowsHtml(){
+  const order={encours:0,avenir:1,brouillon:2,termine:3};
+  const trips=S.trips.slice().sort((a,b)=>order[tripStatus(a).key]-order[tripStatus(b).key]);
+  return trips.map(trip=>{ const s=tripStatus(trip),m=tripMeta(trip);
+    return `<div class="rt" data-id="${trip.id}"><div class="ic">🧭</div>
+      <div class="b"><div class="nm">${escapeHtml(trip.destination.name)}</div>
+        <div class="meta">${t("recent.meta",{p:m.places,pl:m.planned})}</div></div>
+      <span class="st ${s.key}">${t("st."+s.key)}</span></div>`; }).join("");
+}
+function renderRecentTrips(){
+  const el=document.getElementById("recentTrips"); if(!el) return;
+  if(currentTrip()||!S.trips.length){ el.innerHTML=""; return; }
+  el.innerHTML=`<div class="kick" style="color:var(--brass-d);margin:4px 2px 12px">${t("hero.resume")}</div>`+tripRowsHtml();
+  el.querySelectorAll(".rt").forEach(r=>r.onclick=()=>selectTrip(r.dataset.id));
+}
+
+/* ===================== ACCUEIL ===================== */
+function homeTile(go,icon,lk,sk){ return `<button class="tile" data-go="${go}"><div class="ti">${icon}</div><div class="tl">${t(lk)}</div><div class="ts">${t(sk)}</div></button>`; }
+function goNewTrip(){ newTrip(); switchTab("decouverte"); setTimeout(()=>{ const i=document.getElementById("destInput"); if(i) i.focus(); },120); }
+function renderHome(){
+  const el=document.getElementById("homeBody"); if(!el) return;
+  const trip=currentTrip(); let h="";
+  if(trip){ const s=tripStatus(trip),m=tripMeta(trip);
+    h+=`<div class="home-card"><div class="lbl">${t("home.current")} · ${t("st."+s.key)}</div>
+      <div class="nm">${escapeHtml(trip.destination.name)}</div>
+      <div class="dt">${escapeHtml(trip.destination.country)} · ${m.dates}</div>
+      <div class="dt">${t("recent.meta",{p:m.places,pl:m.planned})}</div>
+      <div class="acts"><button class="btn brass" id="hcCont">${t("home.continue")}</button>
+        <button class="btn ghost" id="hcPlan">${t("nav.plan")}</button></div></div>`;
+  } else if(S.trips.length){
+    h+=`<div class="kick" style="color:var(--brass-d);margin:2px 2px 12px">${t("hero.resume")}</div><div id="homeRecent">${tripRowsHtml()}</div>`;
+  } else {
+    h+=`<div class="home-card"><div class="lbl">Atlas</div><div class="nm">${t("home.noTripH")}</div>
+      <div class="dt">${t("home.noTripP")}</div>
+      <div class="acts"><button class="btn brass" id="hcNew">${t("home.newTrip")}</button></div></div>`;
+  }
+  h+=`<div class="ai-card" id="aiCard"><div class="spark">✦</div>
+    <div class="b"><div class="t">${t("home.ai")}</div><div class="p">${t("home.aiP")}</div></div><div class="arrow">→</div></div>`;
+  if(trip||S.trips.length) h+=`<button class="btn block" id="hcNew2" style="margin-bottom:18px">${t("home.newTrip")}</button>`;
+  h+=`<div class="section-label">${t("home.quick")}</div><div class="tile-grid">
+    ${homeTile("decouverte","🔍","nav.discover","sub.discover")}
+    ${homeTile("planifier","🗓️","nav.plan","sub.plan")}
+    ${homeTile("carnet","📔","nav.journal","sub.journal")}
+    ${homeTile("souvenirs","📸","nav.memories","sub.memories")}</div>`;
+  el.innerHTML=h;
+  const cont=document.getElementById("hcCont"); if(cont) cont.onclick=()=>switchTab("decouverte");
+  const pl=document.getElementById("hcPlan"); if(pl) pl.onclick=()=>switchTab("planifier");
+  const n1=document.getElementById("hcNew"); if(n1) n1.onclick=goNewTrip;
+  const n2=document.getElementById("hcNew2"); if(n2) n2.onclick=goNewTrip;
+  document.getElementById("aiCard").onclick=openAI;
+  el.querySelectorAll(".tile").forEach(tl=>tl.onclick=()=>switchTab(tl.dataset.go));
+  el.querySelectorAll("#homeRecent .rt").forEach(r=>r.onclick=()=>selectTrip(r.dataset.id));
+}
+
+/* ===================== ASSISTANT IA (Mistral via proxy) ===================== */
+let aiMessages=[], aiThinking=false;
+function aiSystem(){
+  const trip=currentTrip();
+  let c="Tu es un assistant de voyage expert. Réponds dans la langue '"+lang()+"'. Sois concis et concret, propose des lieux réels et encore en activité, donne avantages/inconvénients et options de transport quand c'est utile.";
+  if(trip){ c+=" Destination: "+trip.destination.name+" ("+trip.destination.country+")."; if(trip.shortlist&&trip.shortlist.length) c+=" Lieux déjà retenus: "+trip.shortlist.slice(0,15).map(p=>p.name).join(", ")+"."; }
+  return c;
+}
+async function askMistral(messages){
+  const ep=S.settings.aiEndpoint; if(!ep) throw new Error("noendpoint");
+  const r=await fetch(ep,{method:"POST",headers:{"Content-Type":"application/json"},
+    body:JSON.stringify({model:S.settings.aiModel||"mistral-small-latest",messages,temperature:0.6})});
+  if(!r.ok) throw new Error("ai "+r.status);
+  const d=await r.json();
+  return (d.choices&&d.choices[0]&&d.choices[0].message&&d.choices[0].message.content)||d.content||d.reply||d.text||(typeof d==="string"?d:"");
+}
+function openAI(){ document.getElementById("aiSheet").classList.add("show"); renderAI(); setTimeout(()=>{ const i=document.getElementById("aiInput"); if(i&&S.settings.aiEndpoint) i.focus(); },120); }
+function closeAI(){ document.getElementById("aiSheet").classList.remove("show"); }
+function renderAI(){
+  document.getElementById("aiTitle").textContent=t("ai.title");
+  document.getElementById("aiInput").placeholder=t("ai.ph");
+  const body=document.getElementById("aiBody");
+  if(!S.settings.aiEndpoint){
+    body.innerHTML=`<div class="ai-empty">${t("ai.noEndpoint")}<br><br><button class="btn brass" id="aiToSet">${t("ai.openSettings")}</button></div>`;
+    document.getElementById("aiToSet").onclick=()=>{ closeAI(); openSettings(); }; return;
+  }
+  let h=""; if(!aiMessages.length) h+=`<div class="ai-empty">${t("ai.intro")}</div>`;
+  aiMessages.forEach(m=>{ h+=`<div class="msg ${m.role==='user'?'u':'a'}">${escapeHtml(m.content)}</div>`; });
+  if(aiThinking) h+=`<div class="msg a" style="color:var(--muted)">${t("ai.thinking")}</div>`;
+  body.innerHTML=h; body.scrollTop=body.scrollHeight;
+}
+async function sendAI(){
+  if(!S.settings.aiEndpoint){ renderAI(); return; }
+  const inp=document.getElementById("aiInput"), q=inp.value.trim(); if(!q||aiThinking) return;
+  aiMessages.push({role:"user",content:q}); inp.value=""; aiThinking=true; renderAI();
+  try{ const reply=await askMistral([{role:"system",content:aiSystem()}].concat(aiMessages));
+    aiMessages.push({role:"assistant",content:reply||t("ai.error")}); }
+  catch(e){ console.warn("ai",e); aiMessages.push({role:"assistant",content:t("ai.error")}); }
+  aiThinking=false; renderAI();
+}
+function openTripsSheet(){ renderTripsSheet(); document.getElementById("tripsSheet").classList.add("show"); }
+function closeTripsSheet(){ document.getElementById("tripsSheet").classList.remove("show"); }
+function renderTripsSheet(){
+  document.getElementById("tripsTitle").textContent=t("trips.h");
+  document.getElementById("newTripBtn").textContent=t("trips.new");
+  const body=document.getElementById("tripsBody");
+  if(!S.trips.length){ body.innerHTML=`<div class="empty"><span class="ic">🧳</span><h2>${t("trips.emptyH")}</h2><p>${t("trips.emptyP")}</p></div>`; return; }
+  const groups=["encours","avenir","brouillon","termine"]; let html="";
+  groups.forEach(key=>{
+    const list=S.trips.filter(tr=>tripStatus(tr).key===key); if(!list.length) return;
+    html+=`<div class="section-label">${t("grp."+key)} · ${list.length}</div>`;
+    list.forEach(trip=>{ const m=tripMeta(trip),isCur=trip.id===S.currentTripId;
+      html+=`<div class="trip ${isCur?'current':''}" data-id="${trip.id}">
+        <div class="nm">${escapeHtml(trip.destination.name)}</div>
+        <div class="meta">${escapeHtml(trip.destination.country)} · ${m.dates}</div>
+        <div class="meta">${t("trips.ret2",{p:m.places,pl:m.planned})}</div>
+        <span class="st ${key}">${t("st."+key)}</span>
+        ${isCur?`<span class="curtag">${t("trips.active")}</span>`:``}
+        <button class="del" data-del="${trip.id}">${t("trips.delete")}</button></div>`; });
+  });
+  body.innerHTML=html;
+  body.querySelectorAll(".trip").forEach(r=>r.onclick=()=>selectTrip(r.dataset.id));
+  body.querySelectorAll("[data-del]").forEach(b=>b.onclick=e=>{ e.stopPropagation(); deleteTrip(b.dataset.del); });
+}
+function selectTrip(id){
+  S.currentTripId=id; saveState(); lastPois=[]; closeTripsSheet(); switchTab("decouverte"); renderDecouverte();
+  const trip=currentTrip();
+  if(trip){ document.getElementById("title").textContent=trip.destination.name;
+    if(mapReady){ map.setView([trip.destination.lat,trip.destination.lng],12); if(poiLayer) poiLayer.clearLayers(); setTimeout(()=>map.invalidateSize(),80); }
+    onSearchPlaces(); }
+}
+function deleteTrip(id){
+  if(!confirm(t("trips.confirmDel"))) return;
+  S.trips=S.trips.filter(tr=>tr.id!==id);
+  if(S.currentTripId===id){ S.currentTripId=null; lastPois=[]; if(poiLayer) poiLayer.clearLayers(); }
+  saveState(); renderTripsSheet(); renderDecouverte(); renderVoyagesBtn();
+  document.getElementById("title").textContent=currentTrip()?currentTrip().destination.name:"Atlas";
+  toast(t("toast.deleted"));
+}
+function newTrip(){
+  S.currentTripId=null; saveState(); lastPois=[]; closeTripsSheet();
+  document.getElementById("destInput").value=""; if(poiLayer) poiLayer.clearLayers();
+  switchTab("decouverte"); renderDecouverte(); document.getElementById("title").textContent="Atlas";
+}
+
+/* ===================== PARAMÈTRES ===================== */
+function openSettings(){ renderSettings(); document.getElementById("settingsSheet").classList.add("show"); }
+function closeSettings(){ document.getElementById("settingsSheet").classList.remove("show"); }
+function renderSettings(){
+  document.getElementById("setTitle").textContent=t("set.h");
+  const L=lang(), body=document.getElementById("setBody"); let h="";
+  h+=`<div class="section-label">${t("set.lang")}</div>`;
+  h+=LANGS.map(l=>`<button class="lang-row ${l.code===L?'on':''}" data-lang="${l.code}"><span class="fl">${l.fl}</span><span class="nm">${l.nm}</span><span class="ck">✓</span></button>`).join("");
+  h+=`<div class="section-label">${t("set.units")}</div><div class="seg">
+    <button data-unit="metric" class="${S.settings.units==='imperial'?'':'on'}">${t("set.km")}</button>
+    <button data-unit="imperial" class="${S.settings.units==='imperial'?'on':''}">${t("set.mi")}</button></div>`;
+  h+=`<div class="section-label">${t("set.places")}</div>
+    <label class="fld">${t("set.placesKey")}</label>
+    <div style="display:flex;gap:8px;margin-bottom:7px">
+      <input type="text" id="plKey" value="${escapeHtml(S.settings.placesKey||"")}" placeholder="AIza…" autocomplete="off" spellcheck="false" style="flex:1;min-width:0;padding:12px;border:1px solid var(--line);border-radius:12px;font-family:inherit;font-size:13.5px;color:var(--ink);background:var(--surface)">
+      <button class="btn brass" id="plSave" style="padding:12px 16px;flex:0 0 auto">${t("set.save")}</button></div>
+    <div id="plStatus" style="font:600 12px 'Inter',sans-serif;margin-bottom:8px"></div>
+    <div class="about" style="margin-bottom:4px">${t("set.placesHint")}</div>`;
+  h+=`<div class="section-label">${t("set.ai")}</div>
+    <div style="margin-bottom:9px"><label class="fld">${t("set.aiEndpoint")}</label>
+      <input type="url" id="aiEp" value="${escapeHtml(S.settings.aiEndpoint||"")}" placeholder="https://votre-worker.workers.dev" style="width:100%;padding:12px;border:1px solid var(--line);border-radius:12px;font-family:inherit;font-size:13.5px;color:var(--ink);background:var(--surface)"></div>
+    <div style="margin-bottom:9px"><label class="fld">${t("set.aiModel")}</label>
+      <input type="text" id="aiMd" value="${escapeHtml(S.settings.aiModel||"mistral-small-latest")}" style="width:100%;padding:12px;border:1px solid var(--line);border-radius:12px;font-family:inherit;font-size:13.5px;color:var(--ink);background:var(--surface)"></div>
+    <div class="about" style="margin-bottom:4px">${t("set.aiHint")}</div>`;
+  h+=`<div class="section-label">${t("set.data")}</div><button class="danger-btn" id="resetBtn">${t("set.reset")}</button>`;
+  h+=`<div class="section-label">${t("set.about")}</div><div class="about">${t("set.aboutTxt")}<br><span class="mono" style="font-size:12px">${t("set.version",{v:S.version})}</span></div>`;
+  body.innerHTML=h;
+  body.querySelectorAll("[data-lang]").forEach(b=>b.onclick=()=>setLang(b.dataset.lang));
+  body.querySelectorAll("[data-unit]").forEach(b=>b.onclick=()=>setUnit(b.dataset.unit));
+  document.getElementById("resetBtn").onclick=resetApp;
+  const plKey=document.getElementById("plKey"), plSave=document.getElementById("plSave");
+  function plUpdateStatus(){ const st=document.getElementById("plStatus"); if(!st) return;
+    if(S.settings.placesKey){ st.textContent="✓ "+t("set.keySet"); st.style.color="var(--ok)"; }
+    else { st.textContent=t("set.keyNone"); st.style.color="var(--muted)"; } }
+  function plSaveKey(){ S.settings.placesKey=(plKey.value||"").trim(); saveState();
+    gPlacesLib=null; gMapsLoading=null; gPlacesAuthFail=false;
+    Object.keys(detailCache).forEach(k=>{ if(k[0]==="g") delete detailCache[k]; });
+    plUpdateStatus(); toast(t("set.saved")); }
+  if(plSave) plSave.onclick=plSaveKey;
+  if(plKey) plKey.onchange=plSaveKey;
+  plUpdateStatus();
+  const aiEp=document.getElementById("aiEp"); if(aiEp) aiEp.onchange=()=>{ S.settings.aiEndpoint=aiEp.value.trim(); saveState(); };
+  const aiMd=document.getElementById("aiMd"); if(aiMd) aiMd.onchange=()=>{ S.settings.aiModel=aiMd.value.trim()||"mistral-small-latest"; saveState(); };
+}
+function setLang(code){ S.settings.lang=code; saveState(); applyI18n(); renderSettings(); }
+function setUnit(u){ S.settings.units=u; saveState(); renderSettings(); if(currentTab==="planifier") renderPlanning(); }
+function resetApp(){
+  if(!confirm(t("set.resetConfirm"))) return;
+  S=JSON.parse(JSON.stringify(DEFAULT_S)); saveState(); lastPois=[]; if(poiLayer) poiLayer.clearLayers();
+  closeSettings(); switchTab("decouverte"); renderDecouverte(); applyI18n(); toast(t("toast.reset"));
+}
+
+/* ===================== NAVIGATION + I18N STATIQUE ===================== */
+function titleFor(tab){ if(tab==="accueil") return "Atlas"; if(tab==="decouverte") return currentTrip()?currentTrip().destination.name:"Atlas";
+  return t("nav."+({planifier:"plan",carnet:"journal",souvenirs:"memories"}[tab])); }
+function subFor(tab){ return t("sub."+({accueil:"home",decouverte:"discover",planifier:"plan",carnet:"journal",souvenirs:"memories"}[tab])); }
+function switchTab(name){
+  currentTab=name;
+  document.querySelectorAll(".view").forEach(v=>v.classList.remove("active"));
+  document.getElementById("view-"+name).classList.add("active");
+  document.querySelectorAll("#tabs button").forEach(b=>b.classList.toggle("active",b.dataset.tab===name));
+  document.getElementById("title").textContent=titleFor(name);
+  document.getElementById("subtitle").textContent=subFor(name);
+  if(name==="accueil") renderHome();
+  if(name==="planifier") renderPlanning();
+  if(name==="decouverte"&&mapReady&&currentTrip()) setTimeout(()=>map.invalidateSize(),60);
+}
+function setText(id,txt){ const el=document.getElementById(id); if(el) el.textContent=txt; }
+function applyI18n(){
+  document.documentElement.lang=lang();
+  setText("kicker",t("nav.kicker"));
+  document.getElementById("destInput").placeholder=t("search.ph");
+  setText("destBtn",t("search.btn"));
+  setText("voyagesLbl",t("hero.voyages"));
+  setText("searchPlacesBtn",t("btn.findPlaces"));
+  setText("heroInspi",t("hero.inspi")); setText("heroChoose",t("hero.choose")); setText("heroChooseP",t("hero.chooseP"));
+  setText("lbl-decouverte",t("nav.discover")); setText("lbl-planifier",t("nav.plan")); setText("lbl-carnet",t("nav.journal")); setText("lbl-souvenirs",t("nav.memories"));
+  setText("lbl-accueil",t("nav.home"));
+  setText("journalH",t("journal.h")); setText("journalP",t("journal.p"));
+  setText("memoriesH",t("memories.h")); setText("memoriesP",t("memories.p"));
+  document.getElementById("title").textContent=titleFor(currentTab);
+  document.getElementById("subtitle").textContent=subFor(currentTab);
+  renderChips(); renderSuggestions();
+  if(currentTab==="accueil") renderHome();
+  if(currentTab==="decouverte") renderDecouverte();
+  if(currentTab==="planifier") renderPlanning();
+  if(document.getElementById("tripsSheet").classList.contains("show")) renderTripsSheet();
+  renderVoyagesBtn();
+}
+
+/* ===================== ACTIONS ===================== */
+function showBanner(msg){ const b=document.getElementById("netBanner"); b.textContent=msg; b.classList.add("show"); }
+function hideBanner(){ document.getElementById("netBanner").classList.remove("show"); }
+async function onSearchDestination(){
+  const q=document.getElementById("destInput").value.trim(); if(!q) return;
+  const btn=document.getElementById("destBtn"); btn.innerHTML='<span class="spin"></span>'; btn.disabled=true; hideBanner();
+  try{
+    const dest=await geocode(q);
+    if(!dest){ toast(t("toast.notfound")); return; }
+    if(S.trips.length>=FREE_TRIP_LIMIT){ toast(t("toast.limit",{n:FREE_TRIP_LIMIT})); return; }
+    const trip={id:uid(),name:dest.name,destination:dest,dateStart:"",dateEnd:"",travelers:[],budget:{planned:0,spent:0,currency:dest.currency},shortlist:[],days:[],synthesis:null,album:null};
+    S.trips.push(trip); S.currentTripId=trip.id; saveState(); lastPois=[];
+    renderDecouverte(); document.getElementById("title").textContent=dest.name;
+    if(mapReady){ map.setView([dest.lat,dest.lng],12); if(poiLayer) poiLayer.clearLayers(); setTimeout(()=>map.invalidateSize(),80); }
+    toast(t("toast.cur",{cur:dest.currency,country:dest.country}));
+    renderVoyagesBtn(); onSearchPlaces();
+  }catch(e){ console.error(e); showBanner(t("banner.geo")); }
+  finally{ btn.innerHTML=t("search.btn"); btn.disabled=false; }
+}
+async function onSearchPlaces(){
+  const trip=currentTrip(); if(!trip) return;
+  if(!selectedCats.size){ toast(t("toast.pickCat")); return; }
+  const btn=document.getElementById("searchPlacesBtn"); btn.innerHTML='<span class="spin"></span>'; btn.disabled=true; hideBanner();
+  try{
+    const pois=await fetchPois(trip.destination.bbox,[...selectedCats]);
+    lastPois=pois; renderMapPois(pois); renderPoiList();
+    toast(pois.length?t("toast.places",{n:pois.length}):t("toast.noPlaces"));
+  }catch(e){ console.error(e); showBanner(t("banner.places")); }
+  finally{ btn.innerHTML=t("btn.findPlaces"); btn.disabled=false; }
+}
+
+/* ===================== UTILS ===================== */
+function escapeHtml(s){ return String(s).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c])); }
+let toastTimer;
+function toast(msg){ const el=document.getElementById("toast"); el.textContent=msg; el.classList.add("show");
+  clearTimeout(toastTimer); toastTimer=setTimeout(()=>el.classList.remove("show"),2200); }
+
+/* ===================== INIT ===================== */
+function init(){
+  initMap(); applyI18n();
+  const trip=currentTrip(); if(trip&&mapReady){ map.setView([trip.destination.lat,trip.destination.lng],12); document.getElementById("title").textContent=trip.destination.name; }
+  document.getElementById("destBtn").onclick=onSearchDestination;
+  document.getElementById("destInput").addEventListener("keydown",e=>{ if(e.key==="Enter") onSearchDestination(); });
+  document.getElementById("searchPlacesBtn").onclick=onSearchPlaces;
+  document.getElementById("voyagesBtn").onclick=openTripsSheet;
+  document.getElementById("tripsClose").onclick=closeTripsSheet;
+  document.getElementById("newTripBtn").onclick=newTrip;
+  document.getElementById("settingsBtn").onclick=openSettings;
+  document.getElementById("setClose").onclick=closeSettings;
+  document.getElementById("poiClose").onclick=closePoiDetail;
+  document.getElementById("aiClose").onclick=closeAI;
+  document.getElementById("aiSend").onclick=sendAI;
+  document.getElementById("aiInput").addEventListener("keydown",e=>{ if(e.key==="Enter") sendAI(); });
+  document.getElementById("title").onclick=()=>switchTab("accueil");
+  document.querySelectorAll("#tabs button").forEach(b=>b.onclick=()=>switchTab(b.dataset.tab));
+  switchTab("accueil");
+}
+document.addEventListener("DOMContentLoaded",init);
+</script>
+</body>
+</html>
