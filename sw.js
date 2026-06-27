@@ -6,7 +6,7 @@
    - Requêtes externes (Google Maps/Places/Routes, polices, jsPDF) : laissées au réseau,
      elles échouent proprement hors-ligne (l'app gère l'absence de données).
    Pour forcer une mise à jour du cache après un déploiement, change le numéro de version. */
-const VERSION = "v10";
+const VERSION = "v11";
 const CACHE = "magot-voyage-" + VERSION;
 const SHELL = [
   "./",
