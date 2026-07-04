@@ -1208,7 +1208,7 @@ const DEFAULT_S={ version:"0.2.0", settings:{ lang:"fr", theme:"system", units:"
 /* Clé Maps JS partagée (restreinte au domaine GitHub Pages). Repli : clé perso de l'utilisateur si fournie. */
 const SHARED_MAP_KEY="AIzaSyCVuaQyq8Fg-_qPVtmtVU__KMrAjDbrRkI";
 function mapKey(){ return (S.settings.mapKey||"").trim() || SHARED_MAP_KEY; }
-const BUILD="0.3.0 · build 166";
+const BUILD="0.3.0 · build 167-diag";
 let S=loadState();
 function normalizeTrip(tr){ if(!tr||typeof tr!=="object") return tr;
   tr.id=tr.id||("t"+Date.now()+Math.random().toString(36).slice(2,7));
@@ -3569,7 +3569,11 @@ async function computeRoute(stops,mode){ if(stops.length<2) return null;
   if(stops.length>2) body.intermediates=stops.slice(1,-1).map(loc);
   const fields="routes.distanceMeters,routes.duration,routes.polyline.encodedPolyline,routes.legs.distanceMeters,routes.legs.duration,routes.legs.polyline.encodedPolyline";
   try{ const j=await workerFetch("/google/routes",{fieldMask:fields,request:body});
-    if(j.error) return null; const d=j.data||{}; const rt=d.routes&&d.routes[0]; if(!rt) return null;
+    // DIAGNOSTIC PRÉCIS : on montre exactement ce que le worker renvoie
+    try{ window._diag = "err="+(j.error||"none")+" | data="+(j.data?("keys:"+Object.keys(j.data).join(",")):"null"); }catch(e){}
+    if(j.error){ try{ alert("TRAJET ÉCHEC → "+JSON.stringify(j).slice(0,300)); }catch(e){} return null; }
+    const d=j.data||{}; const rt=d.routes&&d.routes[0];
+    if(!rt){ try{ alert("TRAJET VIDE → "+JSON.stringify(d).slice(0,300)); }catch(e){} return null; }
     return { distanceMeters:rt.distanceMeters||0, duration:parseInt((rt.duration||"0s").replace("s",""),10)||0,
       polyline:(rt.polyline&&rt.polyline.encodedPolyline)||"", mode,
       legs:(rt.legs||[]).map(l=>({dist:l.distanceMeters||0,dur:parseInt((l.duration||"0s").replace("s",""),10)||0,poly:(l.polyline&&l.polyline.encodedPolyline)||""})) };
