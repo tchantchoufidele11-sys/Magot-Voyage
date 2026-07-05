@@ -3583,8 +3583,8 @@ function stopDesc(s){ if(!s) return ""; const parts=[]; let k=""; if(s.kind==="m
 let _osmMap=null, _osmData=null, _osmEngine=false;
 function loadMapLibre(cb){
   if(window.maplibregl) return cb();
-  if(!document.getElementById("mlbCss")){ const l=document.createElement("link"); l.id="mlbCss"; l.rel="stylesheet"; l.crossOrigin="anonymous"; l.href="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.css"; document.head.appendChild(l); }
-  const s=document.createElement("script"); s.crossOrigin="anonymous"; s.src="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.js"; s.onload=()=>cb(); s.onerror=()=>cb(new Error("maplibre")); document.head.appendChild(s);
+  if(!document.getElementById("mlbCss")){ const l=document.createElement("link"); l.id="mlbCss"; l.rel="stylesheet"; l.href="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.css"; document.head.appendChild(l); }
+  const s=document.createElement("script"); s.src="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.js"; s.onload=()=>cb(); s.onerror=()=>cb(new Error("maplibre")); document.head.appendChild(s);
 }
 function decodePolyLL(str){ let i=0,lat=0,lng=0,out=[]; if(!str) return out; while(i<str.length){ let b,sh=0,r=0; do{b=str.charCodeAt(i++)-63;r|=(b&0x1f)<<sh;sh+=5;}while(b>=0x20); lat+=(r&1)?~(r>>1):(r>>1); sh=0;r=0; do{b=str.charCodeAt(i++)-63;r|=(b&0x1f)<<sh;sh+=5;}while(b>=0x20); lng+=(r&1)?~(r>>1):(r>>1); out.push([lat/1e5,lng/1e5]); } return out; }
 function renderDayOSM(){
@@ -3644,6 +3644,17 @@ async function downloadOfflineOSM(tr,onProg){
   return {tiles:tl.list.length,zmax:tl.zmax};
 }
 function renderDayMap(stops,tr,day){ const el=document.getElementById("planMap"); if(!el) return; if(!mapKey()){ el.style.display="none"; return; }
+  if(!navigator.onLine){ // hors-ligne : Google ne peut pas charger → bascule automatique sur la carte OSM (route en cache)
+    const pts0=stops.filter(s=>s.lat!=null); if(!pts0.length){ el.style.display="none"; return; }
+    _osmEngine=true; const start=dayStart(tr); const routeStops=start?[start].concat(pts0,[start]):pts0; const _dd=(tripDays(tr)[day]||{}).date;
+    const finish=(route)=>{ _osmData={route:route||{legsInfo:[]},pts:pts0,tr};
+      const pm=document.getElementById("planMap"), om=document.getElementById("osmMap"), me=document.getElementById("mapEngine"), dl=document.getElementById("osmDl");
+      if(pm) pm.style.display="none"; if(om) om.style.display="block"; if(me) me.textContent="Google"; if(dl) dl.style.display="";
+      renderDayOSM(); try{ renderFideleAI(tr,day,_osmData.route,pts0,_dd); }catch(e){} };
+    if(routeStops.length>1) ensureRoute(tr,day,routeStops).then(finish).catch(()=>finish(null)); else finish(null);
+    return;
+  }
+  _osmEngine=false; // en ligne : Google par défaut
   loadMaps().then(()=>{ const pts=stops.filter(s=>s.lat!=null); if(!pts.length){ el.style.display="none"; return; } el.style.display="block";
     const mode=travelMode(tr); const start=dayStart(tr); const info=new google.maps.InfoWindow(); const _dd=(tripDays(tr)[day]||{}).date;
     const map=new google.maps.Map(el,{center:{lat:pts[0].lat,lng:pts[0].lng},zoom:13,mapTypeId:"roadmap",mapTypeControl:true,mapTypeControlOptions:{position:google.maps.ControlPosition.TOP_LEFT},streetViewControl:false,fullscreenControl:false});
