@@ -5894,7 +5894,7 @@ function openMontage(tr,version,autoplay){ tr=tr||souvTrip(); if(!tr) return; _m
           </div>
           <div class="mv-sec">
             <div class="mv-lab">Transitions</div>
-            <div class="mv-durs">${[["","\u2728 Auto"],["all","Toutes"],["douces","Douces"],["premium","Premium"],["cinema","Cinéma"],["elegant","Élégant"],["dynamique","Dynamique"],["creatif","Créatif"]].map(([k,l])=>`<button class="mv-dur${k===(_mvState.style||"")?' on':''}" data-style="${k}">${l}</button>`).join("")}</div>
+            <div class="mv-durs">${[["magot","\u2726 Magot"],["","\u2728 Auto"],["all","Toutes"],["douces","Douces"],["premium","Premium"],["cinema","Cinéma"],["elegant","Élégant"],["dynamique","Dynamique"],["creatif","Créatif"]].map(([k,l])=>`<button class="mv-dur${k===(_mvState.style||"")?' on':''}" data-style="${k}">${l}</button>`).join("")}</div>
           </div>
         </div></div>
 
@@ -5937,7 +5937,7 @@ function openMontage(tr,version,autoplay){ tr=tr||souvTrip(); if(!tr) return; _m
     <div id="mvStudio" class="stu" style="display:none">
       <div class="stu-top">
         <button class="stu-back" id="stuBack">\u2190</button>
-        <div class="stu-ttl"><b>Studio Magot</b><span>Montage vidéo · v364</span></div>
+        <div class="stu-ttl"><b>Studio Magot</b><span>Montage vidéo · v365</span></div>
         <button class="stu-ico" id="stuUndo" title="Annuler">\u21b6</button>
         <button class="stu-ico" id="stuRedo" title="Rétablir">\u21b7</button>
         <button class="stu-exp" id="mvSave">\u2b06 Exporter</button>
@@ -6545,7 +6545,8 @@ async function mvPhotoStory(tr, keep){
     const pt=fp.find(p=>p.id===m.placeId)||null;
     const tags=((m.vis&&m.vis.tags)||[]);
     /* Rien pour situer NI décrire la photo → on ne demande pas de légende (l'agent se tairait de toute façon) */
-    if(!pt && !tags.length) return;
+    /* Une légende écrite par toi est une donnée vraie : elle suffit à faire parler Fidèle. */
+    if(!pt && !tags.length && !(m.caption||m.note)) return;
     photos.push({ i, lieu:(pt&&pt.title)||"", ville:(pt&&(pt.sub||pt.vicinity))||"",
       adresse:(pt&&(pt.address||pt.vicinity))||"", jour:(pt?pt.day+1:0),
       type:((pt&&(pt.types||[]).join(","))||(pt&&pt.kind)||""),
@@ -6557,7 +6558,11 @@ async function mvPhotoStory(tr, keep){
     if(!r || r.error) return;
     const j=JSON.parse(String(r.text||"").replace(/```json|```/g,"").trim());
     let n=0; ((j&&j.photos)||[]).forEach(p=>{ if(p&&p.i!=null&&p.texte&&keep[p.i]&&keep[p.i].m){ keep[p.i].m.filmLine=String(p.texte).trim(); n++; } });
-    if(n){ saveState(); toast(n+" photo"+(n>1?"s légendées":" légendée")); }
+    /* Fidèle n'a rien écrit pour une photo ? On reprend TA légende telle quelle.
+       Tes mots valent mieux qu'une phrase inventée — et mieux que rien. */
+    let nOwn=0;
+    keep.forEach(k=>{ if(k&&k.m&&!k.m.filmLine&&(k.m.caption||"").trim()){ k.m.filmLine=String(k.m.caption).trim(); nOwn++; } });
+    if(n||nOwn){ saveState(); toast(n?(n+" photo"+(n>1?"s légendées":" légendée")):(nOwn+" légende"+(nOwn>1?"s reprises":" reprise"))); }
   }catch(e){}
 }
 /* ============ Mode automatique : Fidèle compose tout le film ============
@@ -7185,7 +7190,11 @@ function mvAutoSetup(tr,imgsCount){
   const dur=[30,60,90,120,180,300].reduce((a,b)=>Math.abs(b-raw)<Math.abs(a-raw)?b:a, 60);  /* on colle aux durées proposées (jusqu\u2019à 5 min) */
   return { dur, fmt:"auto", grade:d.grade, style:d.style, pace:d.pace, soft:!!d.soft, mood:d.n, why:d.why };
 }
-function mvApplyDirector(tr){ const d=mvDirect(tr); _mvState.style=d.style; _mvState.pace=d.pace; _mvState.grade="auto"; _mvState.dur=d.dur; _mvState.fmt="auto"; _mvState.fx=""; return d; }
+function mvApplyDirector(tr){ const d=mvDirect(tr);
+  /* SIGNATURE MAGOT PAR DÉFAUT : ambiance maison (ombres bleu-nuit, lumières dorées)
+     et transitions signature. Tout reste modifiable ensuite. */
+  _mvState.style="magot"; _mvState.pace=d.pace; _mvState.grade="magot";
+  _mvState.dur=d.dur; _mvState.fmt="auto"; _mvState.fx=""; return d; }
 function mvApplyVersion(k){ const v=MV_VERSIONS.find(x=>x.k===k); if(!v) return; _mvState.dur=v.d; _mvState.fmt=v.fmt; _mvState.style=v.style; _mvState.pace=v.pace; _mvState.soft=v.soft; _mvState.grade=v.grade||"natural"; }
 /* ===================== MOTEUR DE CADRAGE PROFESSIONNEL (100% local) =====================
    1) On analyse la photo sur l'appareil (visages si l'API existe + carte de saillance).
@@ -7462,6 +7471,10 @@ function mvFxDraw(name,g,W,H,u,e,seed,t,cv,drop){
 }
 function mvTransPool(style){
   if(style==="tridi") style="reelle3d";   /* ancien style « 3D » des projets déjà enregistrés */
+  /* ✦ SIGNATURE MAGOT : les quatre transitions maison (Carnet de voyage, Boussole,
+     Réminiscence, Tableau des départs), avec leurs équivalents si le moteur 3D manque. */
+  if(style==="magot") return mvGLReady() ? ["carnet3d","boussole3d","reminiscence3d","depart3d"]
+                                         : ["fold","softReveal","dissolve","blinds"];
   if(style==="reelle3d" && !mvGLReady()) return ["flip","fold","rotate","blinds"];   /* moteur absent : équivalents 2D */
   if(style==="all"){ const all=[]; Object.keys(MV_TRANS).forEach(k=>{ if(k==="reelle3d"&&!mvGLReady()) return; MV_TRANS[k].forEach(t=>{ if(all.indexOf(t)<0) all.push(t); }); }); return all; }
   if(style&&MV_TRANS[style]) return MV_TRANS[style].slice();
