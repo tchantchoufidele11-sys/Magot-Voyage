@@ -5601,10 +5601,47 @@ function protectedDeleteTrip(tr){ if(!tr) return;
 }
 let photoTarget={placeId:null,day:null};
 const _mediaCache={};
-function compressImage(file,maxDim,quality){ return new Promise(resolve=>{ const img=new Image(); const url=URL.createObjectURL(file);
-  img.onload=()=>{ let w=img.naturalWidth||img.width,h=img.naturalHeight||img.height; const sc=Math.min(1,(maxDim||1400)/Math.max(w,h)); w=Math.max(1,Math.round(w*sc)); h=Math.max(1,Math.round(h*sc));
-    try{ const c=document.createElement("canvas"); c.width=w; c.height=h; const x=c.getContext("2d"); x.drawImage(img,0,0,w,h); const out=c.toDataURL("image/jpeg",quality||0.82); URL.revokeObjectURL(url); resolve(out); }catch(e){ URL.revokeObjectURL(url); resolve(null); } };
-  img.onerror=()=>{ URL.revokeObjectURL(url); resolve(null); }; img.src=url; }); }
+function compressImage(file,maxDim,quality){
+  /* Réduit la photo avant de la stocker.
+     ATTENTION : la version précédente n'avait AUCUNE limite de temps. Sur une photo
+     d'iPhone très lourde (12 à 48 Mpx, parfois HEIC), le chargement pouvait ne jamais
+     aboutir — ni succès ni erreur — et l'import restait bloqué indéfiniment sur
+     « Traitement des photos… ». On ajoute donc : une voie moderne plus robuste
+     (createImageBitmap, qui décode les grandes images sans saturer la mémoire),
+     un repli classique, et surtout un délai maximum qui rend toujours la main. */
+  return new Promise(resolve=>{
+    let done=false, url=null;
+    const finish=(v)=>{ if(done) return; done=true;
+      if(url){ try{ URL.revokeObjectURL(url); }catch(e){} }
+      clearTimeout(timer); resolve(v); };
+    const timer=setTimeout(()=>finish(null), 25000);   /* filet de sécurité : on ne bloque jamais */
+
+    const paint=(src,w0,h0)=>{
+      try{
+        const sc=Math.min(1,(maxDim||1400)/Math.max(w0,h0));
+        const w=Math.max(1,Math.round(w0*sc)), h=Math.max(1,Math.round(h0*sc));
+        const c=document.createElement("canvas"); c.width=w; c.height=h;
+        const x=c.getContext("2d"); x.drawImage(src,0,0,w,h);
+        finish(c.toDataURL("image/jpeg",quality||0.82));
+      }catch(e){ finish(null); }
+    };
+
+    /* Voie 1 — createImageBitmap : la plus fiable pour les grosses photos. */
+    const legacy=()=>{
+      try{
+        const img=new Image(); url=URL.createObjectURL(file);
+        img.onload=()=>paint(img,(img.naturalWidth||img.width),(img.naturalHeight||img.height));
+        img.onerror=()=>finish(null);
+        img.decoding="async"; img.src=url;
+      }catch(e){ finish(null); }
+    };
+    if(window.createImageBitmap){
+      let ok=false;
+      createImageBitmap(file).then(bmp=>{ ok=true; paint(bmp,bmp.width,bmp.height); try{ bmp.close(); }catch(e){} })
+                             .catch(()=>{ if(!ok && !done) legacy(); });
+    } else legacy();
+  });
+}
 async function loadMedia(id){ if(_mediaCache[id]!=null) return _mediaCache[id]; const d=await idbGetMedia(id); if(d) _mediaCache[id]=d; return d; }
 function hydratePhotos(scope){ (scope||document).querySelectorAll("[data-media]").forEach(el=>{ if(el.dataset.hy==="1") return; const id=el.getAttribute("data-media"); loadMedia(id).then(d=>{ if(d){ el.style.backgroundImage="url('"+d+"')"; el.classList.remove("loading"); el.dataset.hy="1"; } else { el.classList.remove("loading"); el.classList.add("ph-missing"); el.dataset.hy="1"; } }).catch(()=>{ el.classList.remove("loading"); el.classList.add("ph-missing"); }); }); }
 function cap2(s){ return s?s.charAt(0).toUpperCase()+s.slice(1):s; }
@@ -5900,7 +5937,7 @@ function openMontage(tr,version,autoplay){ tr=tr||souvTrip(); if(!tr) return; _m
     <div id="mvStudio" class="stu" style="display:none">
       <div class="stu-top">
         <button class="stu-back" id="stuBack">\u2190</button>
-        <div class="stu-ttl"><b>Studio Magot</b><span>Montage vidéo · v362</span></div>
+        <div class="stu-ttl"><b>Studio Magot</b><span>Montage vidéo · v363</span></div>
         <button class="stu-ico" id="stuUndo" title="Annuler">\u21b6</button>
         <button class="stu-ico" id="stuRedo" title="Rétablir">\u21b7</button>
         <button class="stu-exp" id="mvSave">\u2b06 Exporter</button>
@@ -8370,7 +8407,8 @@ async function addMemPhotos(files,fromCamera){ const tr=souvTrip(); if(!tr||!fil
        depuis l'accueil était bien enregistrée mais restait introuvable. */
     if(!placeId) openPhotoAssign(tr, newIds, {fromCamera:!!fromCamera});
     else { souvState.filter="photos"; try{ switchTab("memories"); }catch(e){ renderMemories(); } } }
-  else if(skipped){ toast("Photo non lue ("+why+"). R\u00e9essaie en choisissant la photo depuis la galerie."); } }
+  else if(skipped){ toast("Photo non enregistr\u00e9e ("+(why||"format ou taille")+"). Essaie depuis la galerie, ou r\u00e9duis la taille dans R\u00e9glages iPhone > Appareil photo > Formats > Le plus compatible."); }
+  else { toast("Aucune photo ajout\u00e9e."); } }
 function nearestPlaceByGeo(tr){ return new Promise(resolve=>{ const pls=(tr.places||[]).filter(p=>p.lat!=null); if(!pls.length||!navigator.geolocation){ resolve(null); return; }
   let done=false; const to=setTimeout(()=>{ if(!done){ done=true; resolve(null); } },6000);
   navigator.geolocation.getCurrentPosition(pos=>{ if(done) return; done=true; clearTimeout(to); const me={lat:pos.coords.latitude,lng:pos.coords.longitude}; let best=null,bd=Infinity; pls.forEach(p=>{ const d=haversineKm(me,{lat:p.lat,lng:p.lng}); if(d<bd){bd=d;best=p;} }); resolve(bd<=1?best:null); },
