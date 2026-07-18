@@ -1568,6 +1568,56 @@ body.dragging-on{-webkit-user-select:none;user-select:none}
 .ss-fam.on b,.ss-fam.on span{color:#fff}
 .ss-fam.feat{border-color:var(--gold,#E0A33E)}
 .ss-fam.feat.on{background:var(--navy,#1F3A5F);border-color:var(--gold,#E0A33E)}
+
+/* ============================================================
+   STUDIO MAGOT — charte visuelle (maquette iPhone 16 Pro, 3x -> CSS)
+   Fond #08111F · cartes #111C30 · bleu Magot #16284D · or #D6A23F
+   ============================================================ */
+#mvOv{--sBg:#08111F;--sCard:#111C30;--sBlue:#16284D;--sGold:#D6A23F;--sTx:#F5F7FA;--sTx2:#B4BCC8}
+#mvOv{background:var(--sBg)}
+#mvOv .stu-top{background:var(--sBg)}
+#mvOv .stu-top h3,#mvOv .stu-title{font-size:15px;color:var(--sGold)}
+#mvOv .stu-sub{font-size:11px;color:var(--sTx2)}
+/* Prévisualisation : l'élément prioritaire, ~48 % de la hauteur */
+#mvOv .mv-stage{min-height:52vh;border-radius:11px;background:#050C17}
+#mvOv canvas#mvCanvas{border-radius:11px}
+/* Barres d'outils latérales */
+#mvOv .stu-tools{width:39px;background:var(--sCard);border-radius:14px}
+#mvOv .stu-tools button{color:var(--sTx2);font-size:9.5px}
+#mvOv .stu-tools button.on{color:var(--sGold)}
+#mvOv .stu-right{width:39px}
+#mvOv .stu-right .stu-rb{width:34px;height:34px;border-radius:50%;background:var(--sCard)}
+/* Fiche du film */
+#mvOv .mv-fiche{background:var(--sCard);border-radius:13px}
+#mvOv .mv-fiche b{color:var(--sGold);font-size:13px}
+#mvOv .mv-fiche span{color:var(--sTx2);font-size:10.5px}
+/* Timeline */
+#mvOv .stu-strip{gap:8px;padding:8px 12px}
+#mvOv .stu-clip{width:60px;border-radius:7px}
+#mvOv .stu-cth{height:80px;border-radius:7px}
+#mvOv .stu-clip.on{outline:2px solid var(--sGold);outline-offset:1px}
+#mvOv .stu-clip .stu-cd{font-size:10px}
+#mvOv .stu-lab{font-size:10px;color:var(--sTx2)}
+/* Forme d'onde */
+#mvOv .stu-wave{height:23px}
+/* Carte Réalisateur */
+#mvOv .stu-dir{background:var(--sCard);border-radius:9px;border-color:rgba(214,162,63,.30);min-height:56px}
+#mvOv .stu-dir-t b{color:var(--sGold)}
+#mvOv .stu-dir-t span{color:var(--sTx2);font-size:12px}
+/* Barre de lecture */
+#mvOv .stu-play{padding:8px 12px 2px}
+#mvOv .stu-pp{background:var(--sBlue)}
+#mvOv .stu-jp{background:var(--sBlue);color:var(--sTx2)}
+#mvOv .stu-seek-f{background:var(--sGold)}
+#mvOv .stu-tc{color:var(--sTx2);font-size:11px}
+/* Boutons du bas : proportions de la maquette */
+#mvOv .stu-bot{gap:8px;padding:10px 12px calc(10px + env(safe-area-inset-bottom,0px))}
+#mvOv .stu-bot button{height:31px;border-radius:9px;font-size:12.5px}
+#mvOv .stu-bot .stu-main{flex:1.7 1 0;background:var(--sGold);color:#0B1730;font-weight:700}
+#mvOv .stu-bot button:not(.stu-main){flex:1 1 0;background:var(--sCard);color:var(--sTx)}
+/* Règle temporelle */
+#mvOv .stu-ph{background:var(--sGold)}
+#mvOv .stu-ph::before{background:var(--sGold)}
 </style>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
@@ -5997,7 +6047,7 @@ function openMontage(tr,version,autoplay){ tr=tr||souvTrip(); if(!tr) return; _m
     <div id="mvStudio" class="stu" style="display:none">
       <div class="stu-top">
         <button class="stu-back" id="stuBack">\u2190</button>
-        <div class="stu-ttl"><b>Studio Magot</b><span>Montage vidéo · v381</span></div>
+        <div class="stu-ttl"><b>Studio Magot</b><span>Montage vidéo · v382</span></div>
         <button class="stu-ico" id="stuUndo" title="Annuler">\u21b6</button>
         <button class="stu-ico" id="stuRedo" title="Rétablir">\u21b7</button>
         <button class="stu-exp" id="mvSave">\u2b06 Exporter</button>
