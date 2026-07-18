@@ -1480,6 +1480,14 @@ body.dragging-on{-webkit-user-select:none;user-select:none}
 #mvOv.stufull .stu-exit{display:inline-flex}
 #mvOv.cine .mv-fiche{flex:0 0 auto;background:#101B2E;margin:10px;border-radius:12px}
 /* ---- Barre de lecture : grande prévisualisation façon studio ---- */
+.ep-row{display:flex;gap:8px}
+.ep-c{flex:1 1 0;background:var(--paper,#F7F8FB);border:1.5px solid var(--line,#E6E9F0);border-radius:12px;padding:11px 6px;cursor:pointer;font-family:inherit;display:flex;flex-direction:column;align-items:center;gap:3px}
+.ep-c b{font-size:14px;color:var(--navy,#0E2148)}
+.ep-c span{font-size:10px;color:var(--muted,#6b7280);text-align:center;line-height:1.3}
+.ep-c.on{border-color:var(--gold,#E0A33E);background:rgba(224,163,62,.10)}
+.ep-s{display:block;border:2px solid var(--navy,#0E2148);border-radius:3px;margin-bottom:3px}
+.ep-v{width:15px;height:26px}.ep-c .ep-c{width:22px;height:22px}.ep-h{width:28px;height:16px}
+.ep-c.on .ep-s{border-color:var(--gold,#E0A33E)}
 .mv-adj{margin-top:12px}
 .mv-adj label{display:flex;justify-content:space-between;font-size:12px;color:#8FA1BC;margin:10px 0 4px}
 .mv-adj label b{color:var(--gold,#E0A33E);font-variant-numeric:tabular-nums}
@@ -5976,7 +5984,7 @@ function openMontage(tr,version,autoplay){ tr=tr||souvTrip(); if(!tr) return; _m
     <div id="mvStudio" class="stu" style="display:none">
       <div class="stu-top">
         <button class="stu-back" id="stuBack">\u2190</button>
-        <div class="stu-ttl"><b>Studio Magot</b><span>Montage vidéo · v375</span></div>
+        <div class="stu-ttl"><b>Studio Magot</b><span>Montage vidéo · v377</span></div>
         <button class="stu-ico" id="stuUndo" title="Annuler">\u21b6</button>
         <button class="stu-ico" id="stuRedo" title="Rétablir">\u21b7</button>
         <button class="stu-exp" id="mvSave">\u2b06 Exporter</button>
@@ -6147,7 +6155,7 @@ function openMontage(tr,version,autoplay){ tr=tr||souvTrip(); if(!tr) return; _m
     const r2=ov.querySelector("#mvRestart");
     if(r2) r2.onclick=()=>{ if(!has()){ mk(); return; } _mvState.playing=true; mvStageRestart(0); mvSetPlaying(true); };
     const s2=ov.querySelector("#mvSave");
-    if(s2) s2.onclick=()=>{ if(!has()){ toast("Cr\u00e9e d\u2019abord le film."); return; } mvRecord(tr,_mvState.total||60,s2); };
+    if(s2) s2.onclick=()=>{ if(!has()){ toast("Cr\u00e9e d\u2019abord le film."); return; } openExportPick(tr,s2); };
     const h2=ov.querySelector("#mvShots");
     if(h2) h2.onclick=()=>{ if(!has()){ toast("Cr\u00e9e d\u2019abord le film."); return; } openShots(tr); }; }
 
@@ -6663,6 +6671,49 @@ function openDirectorNote(){
   ov.querySelector("#dnX").onclick=()=>ov.remove();
   ov.onclick=(e)=>{ if(e.target===ov) ov.remove(); };
 }
+/* ---- Export à la manière CapCut ----
+   Le format ne décide QUE du cadre. La durée, le rythme, les couleurs et les
+   plans restent exactement ceux que tu as réglés. Aucune recomposition. */
+function openExportPick(tr, btn){
+  const F=[["v","9:16","Téléphone \u00b7 Réels, TikTok, Stories"],
+           ["c","1:1","Carré \u00b7 fil Instagram"],
+           ["h","16:9","Paysage \u00b7 YouTube, télévision"]];
+  const Q=[["1080","1080p","Qualité maximale"],["720","720p","Fichier plus léger"]];
+  let fmt=(_mvState.fmt&&_mvState.fmt!=="auto")?_mvState.fmt:(_mvState.fmtKey==="16:9"?"h":(_mvState.fmtKey==="1:1"?"c":"v"));
+  let q=String(_mvState.expQ||"1080");
+  let ov=document.getElementById("expPickOv"); if(ov) ov.remove();
+  ov=document.createElement("div"); ov.id="expPickOv"; ov.className="cal-ov show"; ov.style.zIndex="9700";
+  const dur=Math.round(_mvState.total||_mvState.dur||60);
+  ov.innerHTML=`<div class="cal-sheet" style="max-height:90vh;overflow-y:auto">
+    <div class="cal-h"><b>\u2b06 Exporter</b><button class="cal-x" id="epX" type="button">\u2715</button></div>
+    <div style="padding:2px 16px 18px">
+      <div class="mv-lab" style="margin-top:2px">Format</div>
+      <div class="ep-row">${F.map(([k,n,d])=>`<button class="ep-c${k===fmt?" on":""}" data-epf="${k}"><i class="ep-s ep-${k}"></i><b>${n}</b><span>${d}</span></button>`).join("")}</div>
+      <div class="mv-lab" style="margin-top:16px">Qualité</div>
+      <div class="ep-row">${Q.map(([k,n,d])=>`<button class="ep-c${k===q?" on":""}" data-epq="${k}"><b>${n}</b><span>${d}</span></button>`).join("")}</div>
+      <p style="margin:14px 0 0;font-size:12.5px;color:#6b7280;line-height:1.5">Durée du film : ${Math.floor(dur/60)} min ${String(dur%60).padStart(2,"0")} s \u2014 inchangée. Seul le cadre change.</p>
+      <button class="btn gold block" id="epGo" style="margin-top:12px">Exporter la vidéo</button>
+    </div></div>`;
+  document.body.appendChild(ov);
+  const close=()=>ov.remove();
+  ov.querySelector("#epX").onclick=close;
+  ov.onclick=(e)=>{ if(e.target===ov) close(); };
+  ov.querySelectorAll("[data-epf]").forEach(b=>b.onclick=()=>{
+    ov.querySelectorAll("[data-epf]").forEach(x=>x.classList.remove("on")); b.classList.add("on"); fmt=b.dataset.epf; });
+  ov.querySelectorAll("[data-epq]").forEach(b=>b.onclick=()=>{
+    ov.querySelectorAll("[data-epq]").forEach(x=>x.classList.remove("on")); b.classList.add("on"); q=b.dataset.epq; });
+  ov.querySelector("#epGo").onclick=()=>{
+    _mvState.expQ=q;
+    const change=(fmt!==_mvState.fmt);
+    _mvState.fmt=fmt; try{ filmProjSave(tr); }catch(e){}
+    close();
+    /* Changer de cadre ne touche pas au montage : on recadre, puis on enregistre. */
+    if(change && _mvState.segs && _mvState.segs.length && _mvState.audio){
+      try{ mvStudioApply(tr,"format"); }catch(e){}
+      setTimeout(()=>mvRecord(tr,_mvState.total||60,btn), 350);
+    } else mvRecord(tr,_mvState.total||60,btn);
+  };
+}
 function mvSetPlaying(on){ _mvState.playing=!!on;
   const a=document.getElementById("mvPlay"); if(a) a.textContent=(on?mvT("pause"):mvT("play"));
   const b=document.getElementById("stuPlay"); if(b) b.textContent=(on?"\u23f8":"\u25b6");
@@ -7096,7 +7147,7 @@ async function mvRecord(tr,total,btn){ _mvState.rec=true;
       }catch(e){ actx=null; dest=null; }
     }
     if(dest) dest.stream.getAudioTracks().forEach(tk=>vs.addTrack(tk));   /* sans audio, on exporte quand même l'image */
-    const rec=new MediaRecorder(vs,{mimeType:mime,videoBitsPerSecond:6000000});
+    const rec=new MediaRecorder(vs,{mimeType:mime,videoBitsPerSecond:(String(_mvState.expQ||"1080")==="720"?2500000:6000000)});
     const chunks=[]; rec.ondataavailable=e=>{ if(e.data&&e.data.size) chunks.push(e.data); };
     const done=new Promise(r=>{ rec.onstop=r; });
     btn.disabled=true;
