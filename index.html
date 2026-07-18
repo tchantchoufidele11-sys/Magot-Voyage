@@ -5900,7 +5900,7 @@ function openMontage(tr,version,autoplay){ tr=tr||souvTrip(); if(!tr) return; _m
     <div id="mvStudio" class="stu" style="display:none">
       <div class="stu-top">
         <button class="stu-back" id="stuBack">\u2190</button>
-        <div class="stu-ttl"><b>Studio Magot</b><span>Montage vidéo · v360</span></div>
+        <div class="stu-ttl"><b>Studio Magot</b><span>Montage vidéo · v361</span></div>
         <button class="stu-ico" id="stuUndo" title="Annuler">\u21b6</button>
         <button class="stu-ico" id="stuRedo" title="Rétablir">\u21b7</button>
         <button class="stu-exp" id="mvSave">\u2b06 Exporter</button>
@@ -7515,10 +7515,13 @@ function mvRun(tr,total){
             const oi=(_mvState._ovInt!=null?_mvState._ovInt:0.55);
             const cat=(ovEl._cat||"");
             const fw=(cat==="Feux d'artifice");
-            /* Feux d'artifice : remontés dans le ciel ET estompés vers le bas, pour
-               qu'aucune gerbe ne retombe sur le sol ni sur les personnes. */
+            /* Feux d'artifice : dans le ciel, mais l'explosion doit rester ENTIÈRE.
+               Une remontée trop forte sortait le cœur de la gerbe hors du cadre et ne
+               laissait qu'une traînée isolée. On remonte donc moins, on estompe plus bas,
+               et on décale horizontalement selon le plan pour ne pas toujours viser le même coin. */
+            const shift=fw?(((_mvState._planIx||0)%3)-1)*0.22:0;
             _mvGL.draw(ovTex,{mode:"fill", alpha:oi, additive:true,
-                              offY:(fw?0.16:0), fadeY:(fw?[0.16,0.50]:null)});
+                              offX:shift, offY:(fw?0.07:0), fadeY:(fw?[0.26,0.62]:null)});
             /* la personne est redessinée PAR-DESSUS l'overlay → l'overlay passe derrière elle */
             if(mask){ const g2={}; for(const k in geo) g2[k]=geo[k]; g2.mask=mask; g2.maskMode=1; _mvGL.draw(tex,g2); }
             _mvState._ovDone=true;
@@ -7769,7 +7772,7 @@ function mvRun(tr,total){
             if(it.im.currentTime > (c.start||0)+(c.len||4) || it.im.currentTime < (c.start||0)-0.1){ try{ it.im.currentTime=c.start||0; }catch(e){} } } }
         /* Effet du plan communiqué au moteur GPU avant le dessin.
            Pendant une transition on n'applique pas d'effet (deux images à la fois). */
-        _mvState._fxDone=false; _mvState._ovDone=false; _mvState._ovTrDone=false; _mvState._gradeDone=false;
+        _mvState._fxDone=false; _mvState._ovDone=false; _mvState._ovTrDone=false; _mvState._gradeDone=false; _mvState._planIx=si;
         _mvState._ovNow=(seg.overlay?(_mvOverlayEls[seg.overlay]||null):null);
         /* Flash d'overlay sur les temps forts, désormais composé sur le GPU lui aussi. */
         _mvState._ovTrNow=(seg.overlayTr && into<TR)?(_mvOverlayEls[seg.overlayTr]||null):null;
@@ -7786,10 +7789,10 @@ function mvRun(tr,total){
           if(ovl.paused && _mvState.playing){ try{ ovl.play().catch(()=>{}); }catch(e){} }   /* iOS met parfois l'overlay en pause : on le relance */
           if(ovl.readyState>=2){
             const vw=ovl.videoWidth||W, vh=ovl.videoHeight||H, sc=Math.max(W/vw,H/vh), dw=vw*sc, dh=vh*sc;
-            const biasY=(ovl._cat==="Feux d'artifice")? -H*0.16 : 0;   /* feux d'artifice : dans le ciel, pas au sol */
+            const biasY=(ovl._cat==="Feux d'artifice")? -H*0.07 : 0;   /* feux d'artifice : dans le ciel, mais gerbe entière */
             try{ ovg.clearRect(0,0,W,H); ovg.drawImage(ovl,(W-dw)/2,(H-dh)/2+biasY,dw,dh);
               if(biasY){ /* feux d'artifice : on efface le bas pour que rien ne retombe au sol */
-                const gr=ovg.createLinearGradient(0,H*0.16,0,H*0.50);
+                const gr=ovg.createLinearGradient(0,H*0.26,0,H*0.62);
                 gr.addColorStop(0,"rgba(0,0,0,0)"); gr.addColorStop(1,"rgba(0,0,0,1)");
                 ovg.save(); ovg.globalCompositeOperation="destination-out"; ovg.fillStyle=gr; ovg.fillRect(0,0,W,H); ovg.restore(); }
               g.save();
