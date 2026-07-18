@@ -1481,9 +1481,9 @@ body.dragging-on{-webkit-user-select:none;user-select:none}
 #mvOv.cine .mv-fiche{flex:0 0 auto;background:#101B2E;margin:10px;border-radius:12px}
 /* ---- Barre de lecture : grande prévisualisation façon studio ---- */
 /* ---- Règle temporelle du studio (tête de lecture traversante) ---- */
-.stu-ruler{position:relative;flex:0 0 auto;margin:2px 12px 0;height:26px}
-.stu-ruler canvas{width:100%;height:26px;display:block}
-.stu-ph{position:absolute;top:0;bottom:-92px;width:2px;background:var(--gold,#E0A33E);left:0;pointer-events:none;z-index:5;box-shadow:0 0 6px rgba(224,163,62,.6)}
+.stu-ruler{position:relative;flex:0 0 auto;margin:2px 0 0;height:26px;overflow:hidden;padding-left:10px}
+.stu-ruler canvas{height:26px;display:block;will-change:transform}
+.stu-ph{position:absolute;top:0;bottom:-92px;width:2px;transition:opacity .15s;background:var(--gold,#E0A33E);left:0;pointer-events:none;z-index:5;box-shadow:0 0 6px rgba(224,163,62,.6)}
 .stu-ph::before{content:"";position:absolute;top:-1px;left:-5px;width:12px;height:12px;border-radius:50%;background:var(--gold,#E0A33E)}
 .ep-row{display:flex;gap:8px}
 .ep-c{flex:1 1 0;background:var(--paper,#F7F8FB);border:1.5px solid var(--line,#E6E9F0);border-radius:12px;padding:11px 6px;cursor:pointer;font-family:inherit;display:flex;flex-direction:column;align-items:center;gap:3px}
@@ -5989,7 +5989,7 @@ function openMontage(tr,version,autoplay){ tr=tr||souvTrip(); if(!tr) return; _m
     <div id="mvStudio" class="stu" style="display:none">
       <div class="stu-top">
         <button class="stu-back" id="stuBack">\u2190</button>
-        <div class="stu-ttl"><b>Studio Magot</b><span>Montage vidéo · v379</span></div>
+        <div class="stu-ttl"><b>Studio Magot</b><span>Montage vidéo · v380</span></div>
         <button class="stu-ico" id="stuUndo" title="Annuler">\u21b6</button>
         <button class="stu-ico" id="stuRedo" title="Rétablir">\u21b7</button>
         <button class="stu-exp" id="mvSave">\u2b06 Exporter</button>
@@ -6083,6 +6083,7 @@ function openMontage(tr,version,autoplay){ tr=tr||souvTrip(); if(!tr) return; _m
           <span class="stu-cname"><b>${i+1}</b>${escapeHtml(((sg.pt&&sg.pt.title)||"Plan").slice(0,18))}</span>
         </div>${i<segs.length-1?`<button class="stu-tr" data-ctr="${i}" title="${MV_TR_LBL[sg.mode]||"Transition"}">\u00bb</button>`:""}`; }).join("");
     hydratePhotos(el);
+    try{ requestAnimationFrame(()=>{ mvRulerPaint(); mvSeekUpdate(); }); }catch(e){}
     el.querySelectorAll("[data-cmenu]").forEach(b=>b.onclick=(e)=>{ e.stopPropagation(); openShots(tr); });
     el.querySelectorAll("[data-ctr]").forEach(b=>b.onclick=()=>openShots(tr));
     el.querySelectorAll("[data-clip]").forEach(b=>b.onclick=()=>{ const i=+b.dataset.clip; const sg=(_mvState.segs||[])[i];
@@ -6731,27 +6732,43 @@ function mvFmtTc(x){ x=Math.max(0,Math.floor(x||0)); const m=Math.floor(x/60), s
 /* Dessine la règle temporelle : graduations à la seconde, repères chiffrés,
    et tête de lecture qui traverse la bande de plans. */
 function mvRulerPaint(){
-  const c=document.getElementById("stuRulerC"); if(!c) return;
-  const total=Math.max(1,_mvState.total||_mvState.dur||60);
-  const w=c.clientWidth||c.parentNode.clientWidth||300;
+  /* La bande de plans défile et ses vignettes ont une largeur fixe : une règle
+     linéaire ne peut donc PAS coïncider avec elle. On dessine donc les repères
+     à l'emplacement RÉEL de chaque vignette, en affichant l'instant où ce plan
+     commence. Ainsi règle, tête de lecture et vignettes disent la même chose. */
+  const c=document.getElementById("stuRulerC"), strip=document.getElementById("stuStrip");
+  if(!c||!strip) return;
+  const segs=_mvState.segs||[]; if(!segs.length) return;
+  const wrap=c.parentNode;
+  const contentW=Math.max(strip.scrollWidth, wrap.clientWidth||1);
   const dpr=Math.min(2,window.devicePixelRatio||1);
-  if(c.width!==Math.round(w*dpr)){ c.width=Math.round(w*dpr); c.height=Math.round(26*dpr); }
+  c.style.width=contentW+"px";
+  if(c.width!==Math.round(contentW*dpr)){ c.width=Math.round(contentW*dpr); c.height=Math.round(26*dpr); }
   const g=c.getContext("2d"); g.setTransform(dpr,0,0,dpr,0,0);
-  g.clearRect(0,0,w,26);
-  /* pas adapté à la durée : 1 s, 5 s ou 10 s selon la place disponible */
-  const pas=(w/total>18)?1:((w/total>4)?5:10);
+  g.clearRect(0,0,contentW,26);
   g.font="9px -apple-system,system-ui,sans-serif"; g.textBaseline="top";
-  for(let t=0;t<=total;t+=pas){
-    const x=Math.round((t/total)*w)+0.5;
-    const gros=(t%(pas*5)===0)||t===0;
-    g.strokeStyle=gros?"rgba(224,163,62,.55)":"rgba(143,161,188,.34)";
-    g.beginPath(); g.moveTo(x,gros?8:14); g.lineTo(x,24); g.stroke();
-    if(gros){ const m=Math.floor(t/60), sec=Math.floor(t%60);
-      const lab=m+":"+(sec<10?"0":"")+sec;
-      g.fillStyle="#8FA1BC";
-      const tw=g.measureText(lab).width;
-      g.fillText(lab, Math.min(w-tw-1,Math.max(1,x-tw/2)), 0); }
-  }
+  const tc=(x)=>{ const m=Math.floor(x/60), sec=Math.floor(x%60); return m+":"+(sec<10?"0":"")+sec; };
+  segs.forEach((sg,k)=>{
+    const el=strip.querySelector('[data-clip="'+k+'"]'); if(!el) return;
+    const x=Math.round(el.offsetLeft)+0.5, w=el.offsetWidth;
+    g.strokeStyle="rgba(224,163,62,.55)";
+    g.beginPath(); g.moveTo(x,8); g.lineTo(x,24); g.stroke();
+    const lab=tc(sg.start||0);
+    g.fillStyle="#8FA1BC"; g.fillText(lab, x+3, 0);
+    /* petites graduations internes : une par seconde du plan */
+    const dsec=Math.max(0.1,(sg.end-sg.start));
+    const n=Math.min(12,Math.floor(dsec));
+    for(let q=1;q<n;q++){ const xx=Math.round(x+(w*q/n))+0.5;
+      g.strokeStyle="rgba(143,161,188,.28)";
+      g.beginPath(); g.moveTo(xx,17); g.lineTo(xx,24); g.stroke(); }
+  });
+  mvRulerScroll();
+}
+/* Fait glisser la règle en même temps que la bande de plans. */
+function mvRulerScroll(){
+  const c=document.getElementById("stuRulerC"), strip=document.getElementById("stuStrip");
+  if(!c||!strip) return;
+  c.style.transform="translateX("+(-strip.scrollLeft)+"px)";
 }
 function mvSeekUpdate(){
   const A=_mvState.audio; const f=document.getElementById("stuSeekF");
@@ -6761,8 +6778,26 @@ function mvSeekUpdate(){
   const pct=Math.max(0,Math.min(1,cur/total));
   f.style.width=(pct*100)+"%";
   const h=document.getElementById("stuSeekH"); if(h) h.style.left=(pct*100)+"%";
-  const ph=document.getElementById("stuPh"); const rl=document.getElementById("stuRuler");
-  if(ph&&rl) ph.style.left=(pct*(rl.clientWidth||1))+"px";
+  /* Tête de lecture : on la place SUR la vignette du plan en cours, à la
+     progression exacte à l'intérieur de ce plan. C'est la seule façon d'être
+     d'accord avec une bande dont les vignettes ont toutes la même largeur. */
+  { const ph=document.getElementById("stuPh"), strip=document.getElementById("stuStrip");
+    const segs=_mvState.segs||[];
+    if(ph&&strip&&segs.length){
+      let k=-1; for(let q=0;q<segs.length;q++){ if(cur>=segs[q].start && cur<segs[q].end){ k=q; break; } }
+      if(k<0) k=(cur<(segs[0].start||0))?0:segs.length-1;
+      const el=strip.querySelector('[data-clip="'+k+'"]');
+      if(el){ const sg=segs[k], d=Math.max(0.01,(sg.end-sg.start));
+        const pr=Math.max(0,Math.min(1,(cur-sg.start)/d));
+        const x=el.offsetLeft + pr*el.offsetWidth - strip.scrollLeft;
+        ph.style.left=x+"px";
+        ph.style.opacity=(x<-4||x>strip.clientWidth+4)?"0":"1";
+        /* on garde le plan en cours visible, comme dans un vrai studio */
+        if(_mvState.playing && (x<30 || x>strip.clientWidth-30)){
+          try{ strip.scrollTo({left:Math.max(0,el.offsetLeft-strip.clientWidth/2),behavior:"smooth"}); }catch(e){}
+        }
+      }
+    } }
   const a=document.getElementById("stuTcA"); if(a) a.textContent=mvFmtTc(cur);
   const b=document.getElementById("stuTcB"); if(b) b.textContent=mvFmtTc(total);
 }
@@ -6784,6 +6819,10 @@ function mvSeekBind(ov){
   bar.addEventListener("pointerdown",down); bar.addEventListener("touchstart",down,{passive:false});
   window.addEventListener("pointermove",move); window.addEventListener("touchmove",move,{passive:false});
   window.addEventListener("pointerup",up); window.addEventListener("touchend",up);
+  /* La règle glisse avec la bande de plans quand on la fait défiler au doigt. */
+  { const strip=ov.querySelector("#stuStrip");
+    if(strip && strip.dataset.rb!=="1"){ strip.dataset.rb="1";
+      strip.addEventListener("scroll",()=>{ mvRulerScroll(); mvSeekUpdate(); },{passive:true}); } }
   const pp=ov.querySelector("#stuPP"); if(pp) pp.onclick=()=>mvTogglePlay();
   /* Appui sur l'image = lecture / pause, comme dans un vrai lecteur. */
   const st=ov.querySelector("#mvStage"); if(st && st.dataset.b!=="1"){ st.dataset.b="1"; st.onclick=()=>mvTogglePlay(); }
