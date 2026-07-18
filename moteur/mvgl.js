@@ -52,9 +52,92 @@
     "}"
   ].join("\n");
 
+
+  /* ============================================================
+     PASSE D'EFFETS SUR GPU
+     La scène est dessinée dans une mémoire graphique (framebuffer),
+     puis retraitée en une seule passe par ce nuanceur : c'est ce qui
+     permettra à terme de supprimer la recopie image par image.
+     ============================================================ */
+  var FS_POST = [
+    "precision mediump float;",
+    "varying vec2 vUV;",
+    "uniform sampler2D uTex;",
+    "uniform vec2 uTexel;",
+    "uniform float uAmt;",     /* progression 0..1 dans le plan */
+    "uniform float uTime;",
+    "uniform float uDrop;",
+    "uniform int uFx;",
+    "uniform float uVig;",
+    "uniform vec3 uTint;",
+    "uniform float uTintAmt;",
+    "float hash(vec2 p){ return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }",
+    "vec3 blurAt(vec2 uv, float r){",
+    "  vec3 s = vec3(0.0);",
+    "  for(int i=-2;i<=2;i++){ for(int j=-2;j<=2;j++){",
+    "    s += texture2D(uTex, uv + vec2(float(i), float(j)) * uTexel * r).rgb; } }",
+    "  return s / 25.0; }",
+    "void main(){",
+    "  vec2 uv = vUV;",
+    "  vec3 c = texture2D(uTex, uv).rgb;",
+    "  float lum = dot(c, vec3(0.299, 0.587, 0.114));",
+    /* --- Lumière --- */
+    "  if(uFx == 1){ c += blurAt(uv, 6.0) * 0.16; }",                                   /* Éclat doux */
+    "  else if(uFx == 2){ c = mix(c, blurAt(uv, 5.0), 0.45) + blurAt(uv, 9.0) * 0.10; }", /* Flou de rêve */
+    "  else if(uFx == 3){ c += vec3(0.14, 0.13, 0.11) * (1.0 - uv.y * 0.7); }",         /* Brume */
+    "  else if(uFx == 4){ float d = distance(uv, vec2(0.5)); c += vec3(0.20, 0.17, 0.10) * (1.0 - smoothstep(0.0, 0.75, d)); }", /* Halo */
+    "  else if(uFx == 5){ float b = smoothstep(0.55, 1.0, uv.x + uv.y * 0.35 - 0.15 + sin(uTime * 0.7) * 0.06);",
+    "    c += vec3(0.85, 0.55, 0.20) * b * 0.42; }",                                     /* Fuite de lumière */
+    "  else if(uFx == 6){ vec2 fp = vec2(0.30 + sin(uTime * 0.5) * 0.03, 0.30);",
+    "    float d = distance(uv, fp); c += vec3(1.0, 0.86, 0.6) * (1.0 - smoothstep(0.0, 0.42, d)) * 0.55;",
+    "    float st = max(0.0, 1.0 - abs(uv.y - fp.y) * 26.0); c += vec3(0.9, 0.8, 0.6) * st * 0.16; }", /* Lens flare */
+    "  else if(uFx == 7){ vec2 g = floor(uv * 26.0); float h = hash(g);",
+    "    float tw = 0.5 + 0.5 * sin(uTime * 3.0 + h * 30.0);",
+    "    float sp = step(0.983, h) * tw * step(0.55, lum);",
+    "    c += vec3(1.0, 0.95, 0.8) * sp * 0.85; }",                                      /* Scintillement */
+    "  else if(uFx == 8){ vec2 g = floor(uv * 12.0); float h = hash(g + 3.7);",
+    "    vec2 ctr = (g + 0.5) / 12.0; float d = distance(uv, ctr);",
+    "    float bk = step(0.86, h) * (1.0 - smoothstep(0.0, 0.045, d));",
+    "    c += vec3(1.0, 0.92, 0.75) * bk * 0.30 * step(0.45, lum); }",                   /* Bokeh */
+    /* --- Rétro & écran --- */
+    "  else if(uFx == 9){ float sc = sin(uv.y * 900.0) * 0.045;",
+    "    float r = texture2D(uTex, uv + vec2(0.0022, 0.0)).r;",
+    "    float b = texture2D(uTex, uv - vec2(0.0022, 0.0)).b;",
+    "    c = vec3(r, c.g, b) + sc; }",                                                   /* VHS */
+    "  else if(uFx == 10){ float sc = step(0.5, fract(uv.y * 300.0)) * 0.10;",
+    "    float d = distance(uv, vec2(0.5));",
+    "    c = mix(c, vec3(lum), 0.30) - sc; c *= 1.0 - smoothstep(0.35, 0.95, d) * 0.55; }", /* Vieille TV */
+    "  else if(uFx == 11){ c *= vec3(1.04, 1.0, 0.92);",
+    "    c -= step(0.5, fract(uv.y * 210.0)) * 0.045;",
+    "    c += 0.05 * hash(uv * 900.0 + uTime); }",                                       /* Camescope */
+    "  else if(uFx == 12){ c = vec3(lum); c = (c - 0.5) * 1.12 + 0.5; }",                /* Noir & blanc */
+    "  else if(uFx == 13){ float b = smoothstep(0.75, 1.0, uAmt);",
+    "    float n = hash(uv * 40.0 + floor(uTime * 8.0));",
+    "    c += vec3(1.0, 0.45, 0.10) * b * (0.35 + n * 0.5); }",                          /* Film burn */
+    /* --- Particules --- */
+    "  else if(uFx == 14){ vec2 g = floor(uv * vec2(20.0, 34.0));",
+    "    float h = hash(g); float yy = fract(uv.y * 34.0 + uTime * 0.16 + h);",
+    "    float p = step(0.975, h) * (1.0 - smoothstep(0.0, 0.30, abs(yy - 0.5)));",
+    "    c += vec3(1.0, 0.82, 0.35) * p * 0.75; }",                                      /* Poussière d'or */
+    "  else if(uFx == 15){ vec2 g = floor(uv * vec2(16.0, 28.0));",
+    "    float h = hash(g + 9.1); float yy = fract(uv.y * 28.0 + uTime * 0.30 + h);",
+    "    float p = step(0.972, h) * (1.0 - smoothstep(0.0, 0.26, abs(yy - 0.5)));",
+    "    c += vec3(1.0) * p * 0.70; }",                                                  /* Neige */
+    "  c = mix(c, uTint, uTintAmt);",
+    "  float dv = distance(uv, vec2(0.5));",
+    "  c *= 1.0 - uVig * smoothstep(0.35, 0.9, dv);",
+    "  gl_FragColor = vec4(c, 1.0);",
+    "}"
+  ].join("\n");
+
+  /* Correspondance nom d'effet -> numéro dans le nuanceur */
+  var FX_ID = { softGlow:1, dreamBlur:2, haze:3, glow:4, leak:5, flare:6, sparkle:7, bokeh:8,
+                vhs:9, oldtv:10, camcorder:11, bw:12, burn:13, dustGold:14, snow:15 };
+
   var gl = null, prog = null, canvas = null;
   var bufPos = null, bufUV = null, loc = {};
   var ready = false;
+  var progPost = null, locP = {}, fbo = null, fboTex = null, fboW = 0, fboH = 0, inScene = false;
 
   function compile(type, src) {
     var s = gl.createShader(type);
@@ -167,6 +250,19 @@
         ["uMVP","uTex","uAlpha","uBright","uContrast","uSat","uTint","uTintAmt","uVignette","uBlur","uTexel","uGray"]
           .forEach(function (n) { loc[n] = gl.getUniformLocation(prog, n); });
 
+        /* Second programme : la passe d'effets. */
+        progPost = gl.createProgram();
+        gl.attachShader(progPost, compile(gl.VERTEX_SHADER, VS));
+        gl.attachShader(progPost, compile(gl.FRAGMENT_SHADER, FS_POST));
+        gl.linkProgram(progPost);
+        if (!gl.getProgramParameter(progPost, gl.LINK_STATUS)) progPost = null;
+        if (progPost) {
+          locP.aPos = gl.getAttribLocation(progPost, "aPos");
+          locP.aUV = gl.getAttribLocation(progPost, "aUV");
+          ["uMVP","uTex","uTexel","uAmt","uTime","uDrop","uFx","uVig","uTint","uTintAmt"]
+            .forEach(function (n) { locP[n] = gl.getUniformLocation(progPost, n); });
+        }
+
         gl.enable(gl.BLEND);
         gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
         ready = true;
@@ -175,6 +271,78 @@
     },
 
     available: function () { return !!ready; },
+
+    /* La passe d'effets est-elle utilisable ? */
+    canFx: function (name) { return !!(ready && progPost && (!name || FX_ID[name])); },
+    fxList: function () { var a = []; for (var k in FX_ID) if (FX_ID.hasOwnProperty(k)) a.push(k); return a; },
+
+    /* Ouvre une scène : tout ce qui suit est dessiné en mémoire graphique. */
+    beginScene: function () {
+      if (!ready || !progPost) return false;
+      try {
+        var W = canvas.width, H = canvas.height;
+        if (!fbo || fboW !== W || fboH !== H) {
+          if (fboTex) gl.deleteTexture(fboTex);
+          if (fbo) gl.deleteFramebuffer(fbo);
+          fboTex = gl.createTexture();
+          gl.bindTexture(gl.TEXTURE_2D, fboTex);
+          gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, W, H, 0, gl.RGBA, gl.UNSIGNED_BYTE, null);
+          gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+          gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+          gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+          gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+          fbo = gl.createFramebuffer();
+          gl.bindFramebuffer(gl.FRAMEBUFFER, fbo);
+          gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, fboTex, 0);
+          if (gl.checkFramebufferStatus(gl.FRAMEBUFFER) !== gl.FRAMEBUFFER_COMPLETE) {
+            gl.bindFramebuffer(gl.FRAMEBUFFER, null); fbo = null; return false;
+          }
+          fboW = W; fboH = H;
+        }
+        gl.bindFramebuffer(gl.FRAMEBUFFER, fbo);
+        gl.viewport(0, 0, W, H);
+        gl.clearColor(0, 0, 0, 1);
+        gl.clear(gl.COLOR_BUFFER_BIT);
+        inScene = true;
+        return true;
+      } catch (e) { try { gl.bindFramebuffer(gl.FRAMEBUFFER, null); } catch (e2) {} inScene = false; return false; }
+    },
+
+    /* Referme la scène en appliquant l'effet demandé, puis dessine à l'écran. */
+    endScene: function (fx, o) {
+      if (!inScene) return false;
+      o = o || {};
+      try {
+        gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+        inScene = false;
+        var W = canvas.width, H = canvas.height;
+        gl.viewport(0, 0, W, H);
+        gl.useProgram(progPost);
+        gl.bindBuffer(gl.ARRAY_BUFFER, bufPos);
+        gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1,-1, 1,-1, -1,1, 1,1]), gl.DYNAMIC_DRAW);
+        gl.enableVertexAttribArray(locP.aPos);
+        gl.vertexAttribPointer(locP.aPos, 2, gl.FLOAT, false, 0, 0);
+        gl.bindBuffer(gl.ARRAY_BUFFER, bufUV);
+        gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([0,0, 1,0, 0,1, 1,1]), gl.DYNAMIC_DRAW);
+        gl.enableVertexAttribArray(locP.aUV);
+        gl.vertexAttribPointer(locP.aUV, 2, gl.FLOAT, false, 0, 0);
+        gl.activeTexture(gl.TEXTURE0);
+        gl.bindTexture(gl.TEXTURE_2D, fboTex);
+        gl.uniform1i(locP.uTex, 0);
+        gl.uniformMatrix4fv(locP.uMVP, false, mat4Identity());
+        gl.uniform2f(locP.uTexel, 1 / W, 1 / H);
+        gl.uniform1f(locP.uAmt, o.amt || 0);
+        gl.uniform1f(locP.uTime, o.time || 0);
+        gl.uniform1f(locP.uDrop, o.drop ? 1 : 0);
+        gl.uniform1i(locP.uFx, FX_ID[fx] || 0);
+        gl.uniform1f(locP.uVig, o.vignette == null ? 0 : o.vignette);
+        gl.uniform3fv(locP.uTint, o.tint || [1, 1, 1]);
+        gl.uniform1f(locP.uTintAmt, o.tintAmt || 0);
+        gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
+        gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
+        return true;
+      } catch (e) { try { gl.bindFramebuffer(gl.FRAMEBUFFER, null); } catch (e2) {} inScene = false; return false; }
+    },
 
     /* Crée une texture depuis une image, une vidéo ou un canvas. */
     texture: function (src) {
@@ -429,7 +597,7 @@
       if (to)   API.draw(to,   opts({ alpha: e }));
     },
 
-    version: "1.7",
+    version: "2.0",
     kinds: ["cube3d", "cubeX3d", "flip3d", "carousel3d", "door3d", "zoomThrough3d", "carnet3d", "boussole3d", "reminiscence3d", "depart3d", "fade"],
     labels: { cube3d:"Cube", cubeX3d:"Cube vertical", flip3d:"Retournement", carousel3d:"Carrousel", door3d:"Portes", zoomThrough3d:"Traversée", carnet3d:"\u2726 Carnet de voyage", boussole3d:"\u2726 Boussole", reminiscence3d:"\u2726 Réminiscence", depart3d:"\u2726 Tableau des départs", fade:"Fondu" }
   };
