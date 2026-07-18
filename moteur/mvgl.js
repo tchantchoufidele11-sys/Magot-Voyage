@@ -64,11 +64,12 @@
     "varying vec2 vUV;",
     "uniform sampler2D uTex;",
     "uniform vec2 uTexel;",
-    "uniform float uAmt;",     /* progression 0..1 dans le plan */
+    "uniform float uAmt;",
     "uniform float uTime;",
     "uniform float uDrop;",
     "uniform int uFx;",
     "uniform float uVig;",
+    "uniform float uAsp;",     /* largeur/hauteur : garde les particules RONDES */
     "uniform vec3 uTint;",
     "uniform float uTintAmt;",
     "float hash(vec2 p){ return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }",
@@ -77,52 +78,109 @@
     "  for(int i=-2;i<=2;i++){ for(int j=-2;j<=2;j++){",
     "    s += texture2D(uTex, uv + vec2(float(i), float(j)) * uTexel * r).rgb; } }",
     "  return s / 25.0; }",
+    /* Une couche de flocons ronds : cellules carrées, chute, balancement latéral. */
+    "float flakes(vec2 uv, float cells, float speed, float size, float seed, float dir){",
+    "  vec2 st = uv * vec2(cells * uAsp, cells);",
+    "  st.y -= uTime * speed * dir;",
+    "  vec2 id = floor(st); vec2 f = fract(st);",
+    "  float h = hash(id + seed);",
+    "  if(h < 0.62) return 0.0;",
+    "  float sway = sin(uTime * 1.1 + h * 25.0) * 0.30;",
+    "  vec2 c = vec2(0.5 + sway, 0.5);",
+    "  float d = distance(f, c);",
+    "  float r = size * (0.45 + h * 0.75);",
+    "  return smoothstep(r, r * 0.15, d); }",
     "void main(){",
     "  vec2 uv = vUV;",
     "  vec3 c = texture2D(uTex, uv).rgb;",
     "  float lum = dot(c, vec3(0.299, 0.587, 0.114));",
     /* --- Lumière --- */
-    "  if(uFx == 1){ c += blurAt(uv, 6.0) * 0.16; }",                                   /* Éclat doux */
-    "  else if(uFx == 2){ c = mix(c, blurAt(uv, 5.0), 0.45) + blurAt(uv, 9.0) * 0.10; }", /* Flou de rêve */
-    "  else if(uFx == 3){ c += vec3(0.14, 0.13, 0.11) * (1.0 - uv.y * 0.7); }",         /* Brume */
-    "  else if(uFx == 4){ float d = distance(uv, vec2(0.5)); c += vec3(0.20, 0.17, 0.10) * (1.0 - smoothstep(0.0, 0.75, d)); }", /* Halo */
-    "  else if(uFx == 5){ float b = smoothstep(0.55, 1.0, uv.x + uv.y * 0.35 - 0.15 + sin(uTime * 0.7) * 0.06);",
-    "    c += vec3(0.85, 0.55, 0.20) * b * 0.42; }",                                     /* Fuite de lumière */
-    "  else if(uFx == 6){ vec2 fp = vec2(0.30 + sin(uTime * 0.5) * 0.03, 0.30);",
-    "    float d = distance(uv, fp); c += vec3(1.0, 0.86, 0.6) * (1.0 - smoothstep(0.0, 0.42, d)) * 0.55;",
-    "    float st = max(0.0, 1.0 - abs(uv.y - fp.y) * 26.0); c += vec3(0.9, 0.8, 0.6) * st * 0.16; }", /* Lens flare */
-    "  else if(uFx == 7){ vec2 g = floor(uv * 26.0); float h = hash(g);",
-    "    float tw = 0.5 + 0.5 * sin(uTime * 3.0 + h * 30.0);",
-    "    float sp = step(0.983, h) * tw * step(0.55, lum);",
-    "    c += vec3(1.0, 0.95, 0.8) * sp * 0.85; }",                                      /* Scintillement */
-    "  else if(uFx == 8){ vec2 g = floor(uv * 12.0); float h = hash(g + 3.7);",
-    "    vec2 ctr = (g + 0.5) / 12.0; float d = distance(uv, ctr);",
-    "    float bk = step(0.86, h) * (1.0 - smoothstep(0.0, 0.045, d));",
-    "    c += vec3(1.0, 0.92, 0.75) * bk * 0.30 * step(0.45, lum); }",                   /* Bokeh */
+    "  if(uFx == 1){ vec3 b = blurAt(uv, 7.0);",
+    "    vec3 hi = max(b - 0.55, 0.0);",
+    "    c += hi * 0.85; }",                                                    /* Éclat doux : seulement les hautes lumières */
+    "  else if(uFx == 2){ vec3 b = blurAt(uv, 6.0);",
+    "    c = mix(c, b, 0.42); c = (c - 0.5) * 1.10 + 0.5;",
+    "    c += max(b - 0.60, 0.0) * 0.45; }",                                    /* Flou de rêve : doux mais pas mou */
+    "  else if(uFx == 3){ float h = 1.0 - uv.y;",
+    "    c += vec3(0.20, 0.19, 0.17) * h * h * 0.9; }",                         /* Brume : monte du bas */
+    "  else if(uFx == 4){ float d = distance(uv, vec2(0.5, 0.42));",
+    "    c += vec3(0.34, 0.29, 0.18) * pow(1.0 - smoothstep(0.0, 0.80, d), 2.0); }", /* Halo */
+    "  else if(uFx == 5){ float a = uv.x * 0.8 + uv.y * 0.5 + sin(uTime * 0.45) * 0.10;",
+    "    float b1 = smoothstep(0.62, 1.05, a);",
+    "    float b2 = smoothstep(0.30, 0.02, a) * 0.6;",
+    "    c += vec3(1.0, 0.62, 0.24) * b1 * 0.75;",
+    "    c += vec3(0.35, 0.55, 1.0) * b2 * 0.30; }",                            /* Fuite de lumière : chaude d'un côté, froide de l'autre */
+    "  else if(uFx == 6){ vec2 fp = vec2(0.28 + sin(uTime * 0.4) * 0.04, 0.26);",
+    "    vec2 dv = (uv - fp) * vec2(uAsp, 1.0); float d = length(dv);",
+    "    c += vec3(1.0, 0.88, 0.62) * pow(1.0 - smoothstep(0.0, 0.50, d), 2.0) * 0.95;",
+    "    float st = max(0.0, 1.0 - abs(dv.y) * 34.0);",
+    "    c += vec3(1.0, 0.90, 0.70) * st * 0.30;",
+    "    float ring = 1.0 - smoothstep(0.02, 0.05, abs(d - 0.34));",
+    "    c += vec3(0.9, 0.75, 0.45) * ring * 0.18; }",                          /* Lens flare : halo + traînée + anneau */
+    "  else if(uFx == 7){ float sp = 0.0;",
+    "    for(int L=0;L<3;L++){ float fl = float(L);",
+    "      vec2 st = uv * vec2(30.0 * uAsp + fl * 12.0, 30.0 + fl * 12.0);",
+    "      vec2 id = floor(st); vec2 f = fract(st);",
+    "      float h = hash(id + fl * 7.3);",
+    "      if(h > 0.955){",
+    "        float tw = 0.5 + 0.5 * sin(uTime * 4.0 + h * 40.0);",
+    "        vec2 q = (f - 0.5) * vec2(uAsp, 1.0);",
+    "        float star = max(0.0, 1.0 - abs(q.x) * 26.0) + max(0.0, 1.0 - abs(q.y) * 26.0);",
+    "        star *= 1.0 - smoothstep(0.0, 0.42, length(q));",
+    "        sp += star * tw; } }",
+    "    c += vec3(1.0, 0.96, 0.85) * sp * 0.9 * (0.35 + lum); }",              /* Scintillement : petites étoiles qui pulsent */
+    "  else if(uFx == 8){ float bk = 0.0;",
+    "    for(int L=0;L<2;L++){ float fl = float(L);",
+    "      float cells = 9.0 + fl * 6.0;",
+    "      vec2 st = uv * vec2(cells * uAsp, cells) + vec2(uTime * (0.03 + fl * 0.02), 0.0);",
+    "      vec2 id = floor(st); vec2 f = fract(st);",
+    "      float h = hash(id + fl * 3.1);",
+    "      if(h > 0.80){",
+    "        float d = distance(f, vec2(0.5));",
+    "        float r = 0.20 + h * 0.22;",
+    "        bk += (1.0 - smoothstep(r * 0.55, r, d)) * (0.35 + h * 0.5); } }",
+    "    c += vec3(1.0, 0.94, 0.80) * bk * 0.42 * smoothstep(0.35, 0.9, lum); }", /* Bokeh : disques doux sur les lumières */
     /* --- Rétro & écran --- */
-    "  else if(uFx == 9){ float sc = sin(uv.y * 900.0) * 0.045;",
-    "    float r = texture2D(uTex, uv + vec2(0.0022, 0.0)).r;",
-    "    float b = texture2D(uTex, uv - vec2(0.0022, 0.0)).b;",
-    "    c = vec3(r, c.g, b) + sc; }",                                                   /* VHS */
-    "  else if(uFx == 10){ float sc = step(0.5, fract(uv.y * 300.0)) * 0.10;",
+    "  else if(uFx == 9){ float jit = (hash(vec2(floor(uTime * 12.0), 1.0)) - 0.5) * 0.004;",
+    "    float r = texture2D(uTex, uv + vec2(0.0030 + jit, 0.0)).r;",
+    "    float b = texture2D(uTex, uv - vec2(0.0030 + jit, 0.0)).b;",
+    "    c = vec3(r, c.g, b);",
+    "    c += sin(uv.y * 800.0) * 0.05;",
+    "    c += (hash(uv * 500.0 + uTime) - 0.5) * 0.07;",
+    "    float band = smoothstep(0.06, 0.0, abs(fract(uv.y - uTime * 0.12) - 0.5));",
+    "    c += band * 0.06; }",                                                  /* VHS : décalage couleur, bruit, bande qui défile */
+    "  else if(uFx == 10){ c = mix(c, vec3(lum), 0.35);",
+    "    c -= step(0.5, fract(uv.y * 260.0)) * 0.13;",
+    "    float roll = smoothstep(0.05, 0.0, abs(fract(uv.y - uTime * 0.25) - 0.5));",
+    "    c += roll * 0.10;",
+    "    c += (hash(uv * 700.0 + uTime * 2.0) - 0.5) * 0.06;",
     "    float d = distance(uv, vec2(0.5));",
-    "    c = mix(c, vec3(lum), 0.30) - sc; c *= 1.0 - smoothstep(0.35, 0.95, d) * 0.55; }", /* Vieille TV */
-    "  else if(uFx == 11){ c *= vec3(1.04, 1.0, 0.92);",
-    "    c -= step(0.5, fract(uv.y * 210.0)) * 0.045;",
-    "    c += 0.05 * hash(uv * 900.0 + uTime); }",                                       /* Camescope */
-    "  else if(uFx == 12){ c = vec3(lum); c = (c - 0.5) * 1.12 + 0.5; }",                /* Noir & blanc */
-    "  else if(uFx == 13){ float b = smoothstep(0.75, 1.0, uAmt);",
-    "    float n = hash(uv * 40.0 + floor(uTime * 8.0));",
-    "    c += vec3(1.0, 0.45, 0.10) * b * (0.35 + n * 0.5); }",                          /* Film burn */
+    "    c *= 1.0 - smoothstep(0.30, 0.95, d) * 0.70; }",                       /* Vieille TV */
+    "  else if(uFx == 11){ c *= vec3(1.06, 1.0, 0.90);",
+    "    c -= step(0.5, fract(uv.y * 200.0)) * 0.05;",
+    "    c += (hash(uv * 900.0 + uTime) - 0.5) * 0.08;",
+    "    float d = distance(uv, vec2(0.5));",
+    "    c *= 1.0 - smoothstep(0.45, 1.0, d) * 0.45; }",                        /* Camescope */
+    "  else if(uFx == 12){ c = vec3(lum); c = (c - 0.5) * 1.25 + 0.48;",
+    "    c += (hash(uv * 600.0) - 0.5) * 0.03; }",                              /* Noir & blanc contrasté */
+    "  else if(uFx == 13){ float b = smoothstep(0.55, 1.0, uAmt);",
+    "    float edge = smoothstep(0.55, 1.0, uv.x * 0.6 + (1.0 - uv.y) * 0.7);",
+    "    float n = hash(uv * 26.0 + floor(uTime * 10.0));",
+    "    float burn = b * edge * (0.55 + n * 0.75);",
+    "    c += vec3(1.0, 0.42, 0.08) * burn;",
+    "    c = mix(c, vec3(1.0, 0.92, 0.75), clamp(burn - 0.75, 0.0, 1.0)); }",   /* Film burn : part d'un coin */
     /* --- Particules --- */
-    "  else if(uFx == 14){ vec2 g = floor(uv * vec2(20.0, 34.0));",
-    "    float h = hash(g); float yy = fract(uv.y * 34.0 + uTime * 0.16 + h);",
-    "    float p = step(0.975, h) * (1.0 - smoothstep(0.0, 0.30, abs(yy - 0.5)));",
-    "    c += vec3(1.0, 0.82, 0.35) * p * 0.75; }",                                      /* Poussière d'or */
-    "  else if(uFx == 15){ vec2 g = floor(uv * vec2(16.0, 28.0));",
-    "    float h = hash(g + 9.1); float yy = fract(uv.y * 28.0 + uTime * 0.30 + h);",
-    "    float p = step(0.972, h) * (1.0 - smoothstep(0.0, 0.26, abs(yy - 0.5)));",
-    "    c += vec3(1.0) * p * 0.70; }",                                                  /* Neige */
+    "  else if(uFx == 14){ float p = 0.0;",
+    "    p += flakes(uv, 12.0, 0.05, 0.16, 1.0, -1.0) * 0.9;",
+    "    p += flakes(uv, 20.0, 0.035, 0.11, 5.0, -1.0) * 0.6;",
+    "    p += flakes(uv, 30.0, 0.025, 0.08, 9.0, -1.0) * 0.4;",
+    "    float tw = 0.6 + 0.4 * sin(uTime * 2.5 + uv.x * 30.0);",
+    "    c += vec3(1.0, 0.80, 0.32) * p * tw * 1.15; }",                        /* Poussière d'or : monte doucement, scintille */
+    "  else if(uFx == 15){ float p = 0.0;",
+    "    p += flakes(uv, 9.0,  0.12, 0.20, 2.0, 1.0) * 1.0;",
+    "    p += flakes(uv, 15.0, 0.09, 0.14, 6.0, 1.0) * 0.7;",
+    "    p += flakes(uv, 24.0, 0.06, 0.10, 11.0, 1.0) * 0.45;",
+    "    c += vec3(1.0) * p * 1.25; }",                                          /* Neige : 3 profondeurs de flocons ronds */
     "  c = mix(c, uTint, uTintAmt);",
     "  float dv = distance(uv, vec2(0.5));",
     "  c *= 1.0 - uVig * smoothstep(0.35, 0.9, dv);",
@@ -259,7 +317,7 @@
         if (progPost) {
           locP.aPos = gl.getAttribLocation(progPost, "aPos");
           locP.aUV = gl.getAttribLocation(progPost, "aUV");
-          ["uMVP","uTex","uTexel","uAmt","uTime","uDrop","uFx","uVig","uTint","uTintAmt"]
+          ["uMVP","uTex","uTexel","uAmt","uTime","uDrop","uFx","uVig","uAsp","uTint","uTintAmt"]
             .forEach(function (n) { locP[n] = gl.getUniformLocation(progPost, n); });
         }
 
@@ -336,6 +394,7 @@
         gl.uniform1f(locP.uDrop, o.drop ? 1 : 0);
         gl.uniform1i(locP.uFx, FX_ID[fx] || 0);
         gl.uniform1f(locP.uVig, o.vignette == null ? 0 : o.vignette);
+        gl.uniform1f(locP.uAsp, W / H);
         gl.uniform3fv(locP.uTint, o.tint || [1, 1, 1]);
         gl.uniform1f(locP.uTintAmt, o.tintAmt || 0);
         gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
@@ -597,7 +656,7 @@
       if (to)   API.draw(to,   opts({ alpha: e }));
     },
 
-    version: "2.0",
+    version: "2.1",
     kinds: ["cube3d", "cubeX3d", "flip3d", "carousel3d", "door3d", "zoomThrough3d", "carnet3d", "boussole3d", "reminiscence3d", "depart3d", "fade"],
     labels: { cube3d:"Cube", cubeX3d:"Cube vertical", flip3d:"Retournement", carousel3d:"Carrousel", door3d:"Portes", zoomThrough3d:"Traversée", carnet3d:"\u2726 Carnet de voyage", boussole3d:"\u2726 Boussole", reminiscence3d:"\u2726 Réminiscence", depart3d:"\u2726 Tableau des départs", fade:"Fondu" }
   };
