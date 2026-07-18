@@ -1480,6 +1480,8 @@ body.dragging-on{-webkit-user-select:none;user-select:none}
 #mvOv.stufull .stu-exit{display:inline-flex}
 #mvOv.cine .mv-fiche{flex:0 0 auto;background:#101B2E;margin:10px;border-radius:12px}
 /* ---- Barre de lecture : grande prévisualisation façon studio ---- */
+#mvOv .mv-fiche{cursor:pointer;position:relative}
+#mvOv .mv-fiche::after{content:"\u2726 Note du r\u00e9alisateur";position:absolute;right:10px;bottom:4px;font-size:9.5px;color:var(--gold,#E0A33E);opacity:.85}
 .stu-play{flex:0 0 auto;display:flex;align-items:center;gap:10px;padding:8px 12px 2px}
 .stu-pp{width:34px;height:34px;flex:0 0 auto;border:0;border-radius:50%;background:#16213A;color:#fff;font-size:14px;cursor:pointer}
 .stu-tc{flex:0 0 auto;font-size:11px;color:#8FA1BC;font-variant-numeric:tabular-nums;min-width:36px;text-align:center}
@@ -5950,7 +5952,7 @@ function openMontage(tr,version,autoplay){ tr=tr||souvTrip(); if(!tr) return; _m
     <div id="mvStudio" class="stu" style="display:none">
       <div class="stu-top">
         <button class="stu-back" id="stuBack">\u2190</button>
-        <div class="stu-ttl"><b>Studio Magot</b><span>Montage vidéo · v368</span></div>
+        <div class="stu-ttl"><b>Studio Magot</b><span>Montage vidéo · v369</span></div>
         <button class="stu-ico" id="stuUndo" title="Annuler">\u21b6</button>
         <button class="stu-ico" id="stuRedo" title="Rétablir">\u21b7</button>
         <button class="stu-exp" id="mvSave">\u2b06 Exporter</button>
@@ -5981,7 +5983,7 @@ function openMontage(tr,version,autoplay){ tr=tr||souvTrip(); if(!tr) return; _m
         </div>
       </div>
 
-      <div class="mv-fiche" id="mvFiche"></div>
+      <div class="mv-fiche" id="mvFiche" role="button" title="Note du réalisateur"></div>
 
       <div class="stu-play" id="stuPlayBar">
         <button class="stu-pp" id="stuPP" type="button" aria-label="Lecture">\u23f8</button>
@@ -6102,6 +6104,7 @@ function openMontage(tr,version,autoplay){ tr=tr||souvTrip(); if(!tr) return; _m
   { const un=ov.querySelector("#stuUndo"), re2=ov.querySelector("#stuRedo");
     if(un) un.onclick=()=>{ if(mvUndo()){ stripPaint(); if(_mvState._rebuild) _mvState._rebuild("Annul\u00e9"); } else toast("Rien \u00e0 annuler"); };
     if(re2) re2.onclick=()=>{ if(mvRedo()){ stripPaint(); if(_mvState._rebuild) _mvState._rebuild("R\u00e9tabli"); } else toast("Rien \u00e0 r\u00e9tablir"); }; }
+  { const fi=ov.querySelector("#mvFiche"); if(fi) fi.onclick=()=>openDirectorNote(); }
   _mvState._refreshStudio=()=>{ try{ mvSeekBind(ov); mvSeekUpdate(); }catch(e){}
     try{ _mvState.fiche=mvBuildFiche(_mvState.tr||souvTrip());
     const fe=document.getElementById("mvFiche"); if(fe && _mvState.fiche){ fe.style.display="flex"; fe.innerHTML=_mvState.fiche.map(([k,v])=>`<span class="mvf"><b>${v}</b>${k}</span>`).join(""); }
@@ -6181,6 +6184,7 @@ function openMontage(tr,version,autoplay){ tr=tr||souvTrip(); if(!tr) return; _m
          On ne réordonne QUE si l'on a des heures réelles pour au moins la moitié
          des photos ; sinon on garde l'ordre existant plutôt que d'inventer. */
       {
+        _mvState._chrono=false; _mvState._dated=0;
         const withTime=all.filter(x=>x.m&&x.m.takenAt).length;
         if(withTime>=Math.ceil(all.length/2) && all.length>1){
           const jour=x=>(x.m&&x.m.day!=null)?x.m.day:9999;
@@ -6192,12 +6196,21 @@ function openMontage(tr,version,autoplay){ tr=tr||souvTrip(); if(!tr) return; _m
             if(!ta&&tb) return 1;
             return (a.m.createdAt||0)-(b.m.createdAt||0);
           });
+          _mvState._chrono=true; _mvState._dated=withTime;
           toast("\ud83d\udd52 Film remis dans l'ordre de la journ\u00e9e ("+withTime+" photo"+(withTime>1?"s dat\u00e9es":" dat\u00e9e")+")");
         }
       }
       let keep=all.filter(x=>x.m.lock || (!x.q.blur && !x.q.dark));
       const dropped=all.length-keep.length;
-      if(keep.length<Math.max(3,Math.ceil(all.length*0.4))) keep=all.slice();
+      /* On note ce qui a réellement été décidé, pour pouvoir l'EXPLIQUER ensuite.
+         Rien d'inventé : ce sont les chiffres du tri qui vient d'avoir lieu. */
+      const nBlur=all.filter(x=>x.q.blur && !x.m.lock).length;
+      const nDark=all.filter(x=>x.q.dark && !x.q.blur && !x.m.lock).length;
+      const forced=(keep.length<Math.max(3,Math.ceil(all.length*0.4)));
+      _mvState._report={ total:all.length, blur:nBlur, dark:nDark, dropped:dropped,
+                         forced:forced, chrono:!!_mvState._chrono, dated:(_mvState._dated||0),
+                         locked:all.filter(x=>x.m.lock).length };
+      if(forced) keep=all.slice();
       const imgs=keep.map(x=>x.im);
       if(dropped>0 && keep.length<all.length) toast(dropped+(dropped>1?" photos \u00e9cart\u00e9es (floues ou sombres)":" photo \u00e9cart\u00e9e (floue ou sombre)"));
       if(visionOn()){ go.textContent="Analyse des photos\u2026";
@@ -6492,6 +6505,66 @@ function mvBuildFiche(tr){
     ["Couleurs",(_mvState.grade==="auto"?"Auto":(MV_GRADE_LBL[_mvState.grade||"natural"]||"Naturelle"))],
     ["Transitions",(_mvState.style?(trLbl[_mvState.style]||"Auto"):"Auto")],
     ["Plans",segs.length],["Chapitres",nCh||"\u2014"],["Photos",(_mvState.imgs||[]).length]];
+}
+/* ============ NOTE DU RÉALISATEUR ============
+   Fidèle explique ses choix. Chaque phrase s'appuie sur une décision RÉELLE
+   déjà prise par le moteur (tri, cadrage, rythme, musique). Aucune IA n'est
+   appelée ici, donc aucun risque d'invention : si l'information n'existe pas,
+   la ligne n'apparaît pas. */
+function mvDirectorNotes(){
+  const R=_mvState._report||{}, segs=_mvState.segs||[], out=[];
+  const n=(x)=>String(x);
+  /* 1. Les médias */
+  if(R.total){
+    let l="J'ai examiné "+n(R.total)+" photo"+(R.total>1?"s":"")+".";
+    if(R.dropped>0 && !R.forced){
+      const d=[]; if(R.blur) d.push(n(R.blur)+" floue"+(R.blur>1?"s":""));
+      if(R.dark) d.push(n(R.dark)+" trop sombre"+(R.dark>1?"s":""));
+      l+=" J'en ai écarté "+n(R.dropped)+(d.length?" ("+d.join(", ")+")":"")+".";
+    } else if(R.forced && R.dropped>0){
+      l+=" Plusieurs étaient floues ou sombres, mais les écarter aurait vidé le film : je les ai gardées.";
+    } else l+=" Aucune n'était floue ni sous-exposée.";
+    if(R.locked) l+=" "+n(R.locked)+" photo"+(R.locked>1?"s sont épinglées":" est épinglée")+" : je la"+(R.locked>1?"s":"")+" garde quoi qu'il arrive.";
+    out.push(l);
+  }
+  /* 2. L'ordre */
+  if(R.chrono) out.push("J'ai remis le film dans l'ordre de la journée, grâce à l'heure de prise de vue de "+n(R.dated)+" photo"+(R.dated>1?"s":"")+".");
+  else if(R.total>1) out.push("Trop peu de photos portaient une heure de prise de vue : j'ai conservé ton ordre plutôt que d'en inventer un.");
+  /* 3. Le rythme et la musique */
+  if(segs.length){
+    const bpm=Math.round(_mvState.bpm||0);
+    const dmoy=segs.reduce((a,x)=>a+(x.len||0),0)/segs.length;
+    let l=n(segs.length)+" plan"+(segs.length>1?"s":"")+", "+dmoy.toFixed(1)+" s en moyenne.";
+    if(bpm) l+=" Les coupes tombent sur les temps forts de ta musique ("+n(bpm)+" BPM).";
+    out.push(l);
+    let long=segs[0]; segs.forEach(x=>{ if((x.len||0)>(long.len||0)) long=x; });
+    const pt=long&&long.pt;
+    if(pt&&pt.title&&segs.length>2) out.push("Le moment que j'ai le plus laissé respirer : "+String(pt.title)+" ("+(long.len||0).toFixed(1)+" s).");
+  }
+  /* 4. Le cadrage */
+  out.push(mvGLReady()
+    ? "Le cadrage suit les personnes détectées sur chaque photo : aucun visage n'est coupé. En cas de doute, j'affiche la photo entière sur fond flouté."
+    : "Le cadrage reste prudent sur cet appareil : en cas de doute, j'affiche la photo entière sur fond flouté plutôt que de risquer de couper quelqu'un.");
+  /* 5. Les couleurs */
+  const gk=(_mvState.grade==="auto"?(_mvState._autoGrade||"cinema"):(_mvState.grade||"natural"));
+  if(gk==="magot") out.push("Couleurs : la signature Magot — ombres bleu-nuit, lumières dorées, les teintes de la marque portées par l'image elle-même.");
+  else if(MV_GRADE_LBL[gk]) out.push("Couleurs : ambiance "+MV_GRADE_LBL[gk]+(_mvState.grade==="auto"?" (choisie d'après ton voyage)":"")+".");
+  return out;
+}
+function openDirectorNote(){
+  const notes=mvDirectorNotes();
+  let ov=document.getElementById("dirNoteOv"); if(ov) ov.remove();
+  ov=document.createElement("div"); ov.id="dirNoteOv"; ov.className="cal-ov show";
+  ov.style.zIndex="9600";
+  ov.innerHTML=`<div class="cal-sheet" style="max-height:88vh;overflow-y:auto">
+    <div class="cal-h"><b>\u2726 Note du r\u00e9alisateur</b><button class="cal-x" id="dnX" type="button">\u2715</button></div>
+    <div style="padding:4px 16px 20px">
+      ${notes.map(x=>`<p style="margin:0 0 12px;line-height:1.55;color:#0E2148;font-size:14.2px">${escapeHtml(x)}</p>`).join("")}
+      <p style="margin:14px 0 0;font-size:12px;color:#6b7280;line-height:1.5">Ces explications d\u00e9crivent des d\u00e9cisions r\u00e9ellement prises par le montage \u2014 rien n'est invent\u00e9.</p>
+    </div></div>`;
+  document.body.appendChild(ov);
+  ov.querySelector("#dnX").onclick=()=>ov.remove();
+  ov.onclick=(e)=>{ if(e.target===ov) ov.remove(); };
 }
 function mvSetPlaying(on){ _mvState.playing=!!on;
   const a=document.getElementById("mvPlay"); if(a) a.textContent=(on?mvT("pause"):mvT("play"));
