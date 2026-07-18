@@ -5900,7 +5900,7 @@ function openMontage(tr,version,autoplay){ tr=tr||souvTrip(); if(!tr) return; _m
     <div id="mvStudio" class="stu" style="display:none">
       <div class="stu-top">
         <button class="stu-back" id="stuBack">\u2190</button>
-        <div class="stu-ttl"><b>Studio Magot</b><span>Montage vidéo · v354</span></div>
+        <div class="stu-ttl"><b>Studio Magot</b><span>Montage vidéo · v355</span></div>
         <button class="stu-ico" id="stuUndo" title="Annuler">\u21b6</button>
         <button class="stu-ico" id="stuRedo" title="Rétablir">\u21b7</button>
         <button class="stu-exp" id="mvSave">\u2b06 Exporter</button>
@@ -6881,7 +6881,7 @@ function mvGLLoad(){
   _mvGLtried=true;
   return new Promise(res=>{
     if(window.MVGL){ res(mvGLInit()); return; }
-    const s=document.createElement("script"); s.src="./moteur/mvgl.js?v=23";
+    const s=document.createElement("script"); s.src="./moteur/mvgl.js?v=24";
     s.onload=()=>res(mvGLInit()); s.onerror=()=>{ _mvGL=null; res(false); };
     document.head.appendChild(s);
   });
@@ -7449,8 +7449,11 @@ function mvRun(tr,total){
           if(ovTex){
             const oi=(_mvState._ovInt!=null?_mvState._ovInt:0.55);
             const cat=(ovEl._cat||"");
-            const bias=(cat==="Feux d'artifice")?0.16:0;   /* feux d'artifice : dans le ciel */
-            _mvGL.draw(ovTex,{mode:"fill", alpha:oi, additive:true, offY:bias});
+            const fw=(cat==="Feux d'artifice");
+            /* Feux d'artifice : remontés dans le ciel ET estompés vers le bas, pour
+               qu'aucune gerbe ne retombe sur le sol ni sur les personnes. */
+            _mvGL.draw(ovTex,{mode:"fill", alpha:oi, additive:true,
+                              offY:(fw?0.16:0), fadeY:(fw?[0.34,0.72]:null)});
             /* la personne est redessinée PAR-DESSUS l'overlay → l'overlay passe derrière elle */
             if(mask){ const g2={}; for(const k in geo) g2[k]=geo[k]; g2.mask=mask; g2.maskMode=1; _mvGL.draw(tex,g2); }
             _mvState._ovDone=true;
@@ -7689,6 +7692,10 @@ function mvRun(tr,total){
             const vw=ovl.videoWidth||W, vh=ovl.videoHeight||H, sc=Math.max(W/vw,H/vh), dw=vw*sc, dh=vh*sc;
             const biasY=(ovl._cat==="Feux d'artifice")? -H*0.16 : 0;   /* feux d'artifice : dans le ciel, pas au sol */
             try{ ovg.clearRect(0,0,W,H); ovg.drawImage(ovl,(W-dw)/2,(H-dh)/2+biasY,dw,dh);
+              if(biasY){ /* feux d'artifice : on efface le bas pour que rien ne retombe au sol */
+                const gr=ovg.createLinearGradient(0,H*0.34,0,H*0.72);
+                gr.addColorStop(0,"rgba(0,0,0,0)"); gr.addColorStop(1,"rgba(0,0,0,1)");
+                ovg.save(); ovg.globalCompositeOperation="destination-out"; ovg.fillStyle=gr; ovg.fillRect(0,0,W,H); ovg.restore(); }
               g.save();
               const R=_mvState._imgRect; if(R){ g.beginPath(); g.rect(R.x,R.y,R.w,R.h); g.clip(); }   /* on reste dans l'image nette (pas les bords floutés) */
               g.globalCompositeOperation="screen"; g.globalAlpha=(_mvState.overlayInt!=null?_mvState.overlayInt:0.55); g.drawImage(ovc,0,0); g.restore();
