@@ -1782,12 +1782,12 @@ body.dragging-on{-webkit-user-select:none;user-select:none}
    Cette section est la DERNIERE : elle fait autorite sur tout ce
    qui precede (les anciennes passes de compression sont neutralisees).
    ============================================================ */
-#mvOv.cine #mvStudio.stu{overflow-y:auto;overflow-x:hidden;-webkit-overflow-scrolling:touch;
-  overscroll-behavior:contain;display:flex;flex-direction:column;gap:0;background:var(--sBg,#08111F)}
+#mvOv.cine #mvStudio.stu{height:100dvh;max-height:100dvh;overflow:hidden;
+  overscroll-behavior:none;display:flex;flex-direction:column;gap:0;background:var(--sBg,#08111F)}
 #mvOv #mvStudio.stu > *{flex-shrink:0}
 
 /* ---------- 1. En-tete (hauteur 52) ---------- */
-#mvOv .stu-top{display:flex;align-items:center;gap:6px;padding:8px 14px 6px;background:none}
+#mvOv .stu-top{display:flex;align-items:center;gap:6px;padding:7px 14px 5px;background:none}
 #mvOv .stu-back{width:34px;height:34px;flex:0 0 34px;border-radius:50%;background:none;
   border:1px solid rgba(255,255,255,.16);color:#EAF0FA;font-size:19px;line-height:1;padding:0 2px 2px 0}
 #mvOv .stu-ttl{flex:1 1 auto;min-width:0;padding-left:2px}
@@ -1803,10 +1803,9 @@ body.dragging-on{-webkit-user-select:none;user-select:none}
 /* ---------- 2. Rangee centrale : rail / apercu / formats ---------- */
 #mvOv .stu-mid{flex:1 1 auto;min-height:0;display:flex;align-items:stretch;gap:8px;padding:2px 14px 0}
 #mvOv .stu-tools{width:48px;flex:0 0 48px;background:#101B2E;border-radius:16px;padding:6px 0;
-  display:flex;flex-direction:column;justify-content:space-between;gap:2px;
-  overflow-y:auto;-webkit-overflow-scrolling:touch;scrollbar-width:none}
+  display:flex;flex-direction:column;justify-content:space-between;gap:2px;overflow:hidden}
 #mvOv .stu-tools::-webkit-scrollbar{display:none}
-#mvOv .stu-tool{position:relative;width:100%;flex:1 1 0;min-height:56px;background:none;border:0;
+#mvOv .stu-tool{position:relative;width:100%;flex:1 1 0;min-height:0;background:none;border:0;
   color:#8FA1BC;padding:4px 2px;border-radius:12px;display:flex;flex-direction:column;
   align-items:center;justify-content:center;gap:5px;cursor:pointer}
 #mvOv .stu-tool i{font-style:normal;font-size:18px;line-height:1;filter:grayscale(1) opacity(.75)}
@@ -1816,21 +1815,22 @@ body.dragging-on{-webkit-user-select:none;user-select:none}
 #mvOv .stu-tool.on i{filter:none}
 #mvOv .stu-tool.on::before{content:"";position:absolute;left:0;top:12px;bottom:12px;width:3px;
   border-radius:0 3px 3px 0;background:var(--sGold,#E0A33E)}
-#mvOv.cine .mv-stage{flex:1 1 auto;min-width:0;min-height:334px;height:auto;max-height:none;
+#mvOv.cine .mv-stage{flex:1 1 auto;min-width:0;min-height:150px;height:auto;max-height:none;
   align-self:stretch;position:relative;border-radius:14px;overflow:hidden;background:#000;
   display:flex;align-items:center;justify-content:center}
 #mvOv .stu-right{width:56px;flex:0 0 56px;align-self:stretch;display:flex;flex-direction:column;
-  align-items:center;gap:9px;overflow-y:auto;scrollbar-width:none}
+  align-items:center;justify-content:flex-start;gap:2.2%;overflow:hidden}
 #mvOv .stu-right::-webkit-scrollbar{display:none}
 #mvOv .stu-flab{font:700 9.5px system-ui;letter-spacing:.10em;color:#8A9AB5;margin-top:4px}
-#mvOv .stu-fmts{background:none;padding:0;display:flex;flex-direction:column;gap:7px;align-items:center}
-#mvOv .stu-fmt{width:50px;height:46px;background:none;border:0;border-radius:14px;color:#8FA1BC;
+#mvOv .stu-fmts{background:none;padding:0;display:flex;flex-direction:column;gap:2%;align-items:center;
+  flex:0 1 auto;min-height:0}
+#mvOv .stu-fmt{width:50px;height:46px;flex:0 1 46px;min-height:32px;background:none;border:0;border-radius:14px;color:#8FA1BC;
   display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;padding:0;cursor:pointer}
 #mvOv .stu-fmt i{font-style:normal;font-size:17px;line-height:1}
 #mvOv .stu-fmt span{font-size:10.5px;font-weight:600}
 #mvOv .stu-fmt.on{color:var(--sGold,#E0A33E);background:rgba(224,163,62,.10);
   box-shadow:inset 0 0 0 1.5px var(--sGold,#E0A33E)}
-#mvOv .stu-right .stu-round{width:44px;height:44px;flex:0 0 44px;border-radius:50%;border:0;
+#mvOv .stu-right .stu-round{width:44px;height:44px;flex:0 1 44px;min-height:34px;border-radius:50%;border:0;
   background:#16213A;color:#EAF0FA;font-size:17px;cursor:pointer;display:flex;align-items:center;justify-content:center}
 #mvOv .stu-right .stu-round.gold{margin-top:2px;background:rgba(224,163,62,.14);
   box-shadow:inset 0 0 0 1px rgba(224,163,62,.35);color:var(--sGold,#E0A33E);font-size:20px}
@@ -1850,46 +1850,46 @@ body.dragging-on{-webkit-user-select:none;user-select:none}
 #mvOv .stu-pic{width:24px;height:24px;flex:0 0 24px;border:0;background:none;color:#EAF0FA;font-size:14px;padding:0}
 
 /* ---------- 4. Bandeau d'informations (6 cartes) ---------- */
-#mvOv .mv-fiche{display:flex;gap:8px;overflow-x:auto;-webkit-overflow-scrolling:touch;
-  background:none;padding:12px 14px 0;scrollbar-width:none}
+#mvOv .mv-fiche{display:flex;gap:8px;overflow-x:auto;overflow-y:hidden;-webkit-overflow-scrolling:touch;
+  background:none;padding:8px 14px 0;scrollbar-width:none}
 #mvOv .mv-fiche::-webkit-scrollbar{display:none}
 #mvOv .mv-fiche .mvf{flex:1 0 auto;min-width:58px;display:flex;flex-direction:column;align-items:center;
-  gap:3px;background:#111C30;border:1px solid rgba(224,163,62,.14);border-radius:14px;padding:9px 6px 8px}
+  gap:2px;background:#111C30;border:1px solid rgba(224,163,62,.14);border-radius:14px;padding:7px 6px 6px}
 #mvOv .mv-fiche .mvf i{font-style:normal;font-size:15px;line-height:1;color:var(--sGold,#E0A33E)}
 #mvOv .mv-fiche .mvf b{font:700 12.5px system-ui;color:#F5F7FA;white-space:nowrap}
 #mvOv .mv-fiche .mvf em{font-style:normal;font-size:9.5px;color:#8A9AB5;white-space:nowrap}
 
 /* ---------- 5. Carte Realisateur IA ---------- */
-#mvOv .stu-dir{display:block;width:auto;margin:12px 14px 0;padding:13px 14px 12px;background:#111C30;
+#mvOv .stu-dir{display:block;width:auto;margin:8px 14px 0;padding:10px 12px 9px;background:#111C30;
   border:1px solid rgba(224,163,62,.16);border-radius:18px;text-align:left;cursor:default;min-height:0}
 #mvOv .stu-dir-h{display:flex;align-items:center;gap:8px;cursor:pointer}
 #mvOv .stu-dir-h .ttx{flex:1 1 auto;min-width:0}
 #mvOv .stu-dir-k{display:block;font:700 10.5px system-ui;letter-spacing:.07em;color:var(--sGold,#E0A33E)}
 #mvOv .stu-dir-h b{display:block;font:700 15.5px system-ui;color:#F5F7FA;margin-top:3px}
 #mvOv .stu-dir-h .cv{flex:0 0 auto;color:#8A9AB5;font-size:19px}
-#mvOv .stu-dir-g{display:grid;grid-template-columns:1fr 1fr;gap:7px 10px;margin-top:11px}
+#mvOv .stu-dir-g{display:grid;grid-template-columns:1fr 1fr;gap:5px 10px;margin-top:8px}
 #mvOv .stu-ck{display:flex;align-items:center;gap:6px;font-size:11.5px;color:#C3D0E4;line-height:1.25}
 #mvOv .stu-ck i{flex:0 0 15px;width:15px;height:15px;border-radius:50%;border:1px solid var(--sGold,#E0A33E);
   color:var(--sGold,#E0A33E);font-style:normal;font-size:9px;line-height:13px;text-align:center}
 #mvOv .stu-ck.warn i{border-color:#B98A2E;color:#B98A2E}
-#mvOv .stu-dir-f{display:flex;justify-content:flex-end;margin-top:12px}
-#mvOv .stu-dir-b{display:flex;align-items:center;gap:7px;height:36px;padding:0 15px;border-radius:12px;
+#mvOv .stu-dir-f{display:flex;justify-content:flex-end;margin-top:9px}
+#mvOv .stu-dir-b{display:flex;align-items:center;gap:7px;height:32px;padding:0 15px;border-radius:12px;
   background:#16213A;border:1px solid rgba(224,163,62,.30);color:#F5F7FA;font:600 12.5px system-ui;cursor:pointer}
 #mvOv .stu-dir-b i{font-style:normal;color:var(--sGold,#E0A33E);font-size:12px}
 
 /* ---------- 6. Timeline : regle, chapitres, plans ---------- */
-#mvOv .stu-tl{position:relative;margin-top:12px;padding-bottom:2px}
-#mvOv .stu-ruler{position:relative;height:24px;margin:0;padding:0 14px;overflow:hidden}
-#mvOv .stu-ruler canvas{height:24px;display:block;transform:none!important}
-#mvOv .stu-rph{position:absolute;top:9px;left:0;width:11px;height:11px;margin-left:-5.5px;border-radius:50%;
+#mvOv .stu-tl{position:relative;margin-top:8px;padding-bottom:0}
+#mvOv .stu-ruler{position:relative;height:20px;margin:0;padding:0 14px;overflow:hidden}
+#mvOv .stu-ruler canvas{height:20px;display:block;transform:none!important}
+#mvOv .stu-rph{position:absolute;top:7px;left:0;width:11px;height:11px;margin-left:-5.5px;border-radius:50%;
   background:var(--sGold,#E0A33E);pointer-events:none;z-index:6;opacity:0;transition:opacity .15s}
-#mvOv .stu-chaps{display:flex;gap:6px;padding:6px 14px 0;overflow:hidden}
+#mvOv .stu-chaps{display:flex;gap:6px;padding:5px 14px 0;overflow:hidden}
 #mvOv .stu-chap{flex:1 1 0;min-width:0;height:26px;padding:0 6px;border:1px solid transparent;border-radius:9px;
   background:#16213A;color:#8FA1BC;font:700 9.5px system-ui;letter-spacing:.06em;cursor:pointer;
   white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 #mvOv .stu-chap.on{background:rgba(224,163,62,.14);border-color:var(--sGold,#E0A33E);color:var(--sGold,#E0A33E)}
-#mvOv .stu-strip{position:relative;display:flex;align-items:flex-start;gap:0;overflow-x:auto;
-  padding:8px 14px 4px;-webkit-overflow-scrolling:touch;scrollbar-width:none}
+#mvOv .stu-strip{position:relative;display:flex;align-items:flex-start;gap:0;overflow-x:auto;overflow-y:hidden;
+  padding:6px 14px 2px;-webkit-overflow-scrolling:touch;scrollbar-width:none}
 #mvOv .stu-strip::-webkit-scrollbar{display:none}
 #mvOv .stu-clip{flex:0 0 auto;width:52px;margin-right:2px;cursor:pointer}
 #mvOv .stu-cth{position:relative;display:block;width:52px;height:66px;border-radius:10px;
@@ -1917,7 +1917,7 @@ body.dragging-on{-webkit-user-select:none;user-select:none}
 #mvOv .stu-ph::before{display:none}
 
 /* ---------- 7. Bandeau musique ---------- */
-#mvOv .stu-mus{display:flex;align-items:center;gap:8px;margin:10px 14px 0;padding:0 12px;height:52px;
+#mvOv .stu-mus{display:flex;align-items:center;gap:8px;margin:8px 14px 0;padding:0 12px;height:48px;
   background:#111C30;border:1px solid rgba(224,163,62,.16);border-radius:16px;cursor:pointer}
 #mvOv .stu-mus-ic{flex:0 0 auto;width:auto;height:auto;background:none;color:var(--sGold,#E0A33E);font-size:15px;display:block}
 #mvOv .stu-mus-t{flex:0 0 auto;max-width:132px;color:#F5F7FA;font:600 11.5px system-ui;
@@ -1927,13 +1927,13 @@ body.dragging-on{-webkit-user-select:none;user-select:none}
 #mvOv .stu-mus-x{flex:0 0 auto;border:0;background:none;color:#EAF0FA;font-size:13px;padding:0 0 0 6px;cursor:pointer}
 
 /* ---------- 8. Commandes du bas ---------- */
-#mvOv .stu-bot{display:flex;flex-direction:row;gap:9px;padding:12px 14px calc(10px + env(safe-area-inset-bottom,0px));
+#mvOv .stu-bot{display:flex;flex-direction:row;gap:9px;padding:9px 14px calc(8px + env(safe-area-inset-bottom,0px));
   margin:0;background:none;border:0;border-radius:0}
-#mvOv .stu-bot .stu-b{flex:1 1 0;height:52px;border-radius:16px;background:#111C30;
+#mvOv .stu-bot .stu-b{flex:1 1 0;height:48px;border-radius:16px;background:#111C30;
   border:1px solid rgba(224,163,62,.14);color:#F5F7FA;font:600 14px system-ui;
   display:flex;align-items:center;justify-content:center;gap:7px}
 #mvOv .stu-bot .stu-b i{font-style:normal;font-size:14px;color:var(--sGold,#E0A33E)}
-#mvOv .stu-bot .stu-main{flex:1.75 1 0;height:52px;background:var(--sGold,#E0A33E);color:#231603;
+#mvOv .stu-bot .stu-main{flex:1.75 1 0;height:48px;background:var(--sGold,#E0A33E);color:#231603;
   border:0;font:700 15.5px system-ui}
 #mvOv .stu-bot .stu-main i{color:#231603}
 
@@ -1944,11 +1944,47 @@ body.dragging-on{-webkit-user-select:none;user-select:none}
 #mvOv.stufull.cine .mv-stage{border-radius:0;min-height:100dvh}
 #mvOv.stufull .stu-exit{display:inline-flex}
 
-/* ---------- 10. Ecrans courts : rien ne se chevauche, la colonne defile ---------- */
-@media (max-height:760px){
-  #mvOv.cine .mv-stage{min-height:300px}
-  #mvOv .stu-tool{min-height:48px}
-  #mvOv .stu-dir-g{gap:6px 8px}
+/* ---------- 10. Ecrans courts : on comprime, jamais de defilement ---------- */
+@media (max-height:800px){
+  #mvOv .mv-fiche .mvf{padding:6px 6px 5px}
+  #mvOv .mv-fiche .mvf b{font-size:12px}
+  #mvOv .stu-cth,#mvOv .stu-add{height:60px}
+  #mvOv .stu-bot .stu-b,#mvOv .stu-bot .stu-main{height:46px}
+  #mvOv .stu-mus{height:46px}
+}
+@media (max-height:740px){
+  #mvOv .stu-top{padding:6px 14px 4px}
+  #mvOv .stu-exp{height:34px;padding:0 13px}
+  #mvOv .mv-fiche{padding-top:6px}
+  #mvOv .mv-fiche .mvf i{font-size:13px}
+  #mvOv .stu-dir{margin-top:6px;padding:8px 12px 8px}
+  #mvOv .stu-dir-h b{font-size:14.5px}
+  #mvOv .stu-dir-g{gap:4px 8px;margin-top:6px}
+  #mvOv .stu-ck{font-size:11px}
+  #mvOv .stu-dir-b{height:30px;font-size:12px}
+  #mvOv .stu-tl{margin-top:6px}
+  #mvOv .stu-ruler,#mvOv .stu-ruler canvas{height:18px}
+  #mvOv .stu-rph{top:6px}
+  #mvOv .stu-chap{height:23px}
+  #mvOv .stu-cth,#mvOv .stu-add{height:54px}
+  #mvOv .stu-mus{height:44px;margin-top:6px}
+  #mvOv .stu-mus canvas{height:28px}
+  #mvOv .stu-bot{padding-top:7px}
+  #mvOv .stu-bot .stu-b,#mvOv .stu-bot .stu-main{height:44px}
+}
+@media (max-height:680px){
+  #mvOv .stu-ttl b{font-size:17px}
+  #mvOv .mv-fiche .mvf{padding:5px 5px 4px;min-width:54px}
+  #mvOv .mv-fiche .mvf b{font-size:11.5px}
+  #mvOv .stu-dir{padding:7px 11px}
+  #mvOv .stu-dir-g{gap:3px 8px;margin-top:5px}
+  #mvOv .stu-ck{font-size:10.5px}
+  #mvOv .stu-ck i{flex:0 0 13px;width:13px;height:13px;line-height:11px;font-size:8px}
+  #mvOv .stu-dir-f{margin-top:6px}
+  #mvOv .stu-cth,#mvOv .stu-add{height:48px}
+  #mvOv .stu-clip,#mvOv .stu-cth,#mvOv .stu-add{width:46px}
+  #mvOv .stu-mus{height:42px}
+  #mvOv .stu-bot .stu-b,#mvOv .stu-bot .stu-main{height:42px}
 }
 </style>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
@@ -6379,7 +6415,7 @@ function openMontage(tr,version,autoplay){ tr=tr||souvTrip(); if(!tr) return; _m
     <div id="mvStudio" class="stu" style="display:none">
       <div class="stu-top">
         <button class="stu-back" id="stuBack" aria-label="Retour">\u2039</button>
-        <div class="stu-ttl"><b>Studio Magot<i>\u2727</i></b><span>Montage vid\u00e9o \u00b7 v392</span></div>
+        <div class="stu-ttl"><b>Studio Magot<i>\u2727</i></b><span>Montage vid\u00e9o \u00b7 v393</span></div>
         <button class="stu-ico" id="stuUndo" title="Annuler">\u21b6</button>
         <button class="stu-ico" id="stuRedo" title="R\u00e9tablir">\u21b7</button>
         <button class="stu-exp" id="mvSave"><i>\u2b06</i>Exporter</button>
@@ -7267,16 +7303,18 @@ function mvRulerPaint(){
   const w=Math.max(60,(wrap.clientWidth||320)-28);   /* 14 px de marge de chaque c\u00f4t\u00e9 */
   const total=Math.max(1,_mvState.total||_mvState.dur||60);
   const dpr=Math.min(2,window.devicePixelRatio||1);
-  c.style.width=w+"px"; c.style.height="24px";
-  if(c.width!==Math.round(w*dpr)){ c.width=Math.round(w*dpr); c.height=Math.round(24*dpr); }
+  /* La hauteur suit le CSS : la r\u00e8gle se comprime sur les petits iPhone. */
+  const H=Math.max(14,wrap.clientHeight||24);
+  c.style.width=w+"px"; c.style.height=H+"px";
+  if(c.width!==Math.round(w*dpr)||c.height!==Math.round(H*dpr)){ c.width=Math.round(w*dpr); c.height=Math.round(H*dpr); }
   const g=c.getContext("2d"); if(!g) return;
-  g.setTransform(dpr,0,0,dpr,0,0); g.clearRect(0,0,w,24);
+  g.setTransform(dpr,0,0,dpr,0,0); g.clearRect(0,0,w,H);
   g.font="9.5px -apple-system,system-ui,sans-serif"; g.textBaseline="top";
   const n2=Math.max(10,Math.min(90,Math.round(total)));
   for(let i=0;i<=n2;i++){
     const x=Math.round(i/n2*(w-1))+0.5, big=(i%5===0);
     g.strokeStyle=big?"rgba(143,161,188,.55)":"rgba(143,161,188,.26)";
-    g.beginPath(); g.moveTo(x,big?15:18); g.lineTo(x,24); g.stroke();
+    g.beginPath(); g.moveTo(x,big?H-9:H-6); g.lineTo(x,H); g.stroke();
   }
   const tc=(x)=>{ const m=Math.floor(x/60), sec=Math.floor(x%60);
     return (m<10?"0":"")+m+":"+(sec<10?"0":"")+sec; };
@@ -7290,6 +7328,9 @@ function mvRulerPaint(){
 }
 /* La r\u00e8gle ne d\u00e9file plus avec la bande de plans : elle est lin\u00e9aire. */
 function mvRulerScroll(){}
+/* Rotation ou barre Safari qui appara\u00eet : on recalcule la r\u00e8gle et la t\u00eate. */
+try{ window.addEventListener("resize",()=>{ const st=document.getElementById("mvStudio");
+  if(st && st.style.display!=="none"){ try{ mvRulerPaint(); mvSeekUpdate(); }catch(e){} } }); }catch(e){}
 function segsExist(){ return !!((_mvState.segs||[]).length); }
 function mvSeekUpdate(){
   const A=_mvState.audio; const f=document.getElementById("stuSeekF");
