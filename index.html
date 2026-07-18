@@ -5900,7 +5900,7 @@ function openMontage(tr,version,autoplay){ tr=tr||souvTrip(); if(!tr) return; _m
     <div id="mvStudio" class="stu" style="display:none">
       <div class="stu-top">
         <button class="stu-back" id="stuBack">\u2190</button>
-        <div class="stu-ttl"><b>Studio Magot</b><span>Montage vidéo · v353</span></div>
+        <div class="stu-ttl"><b>Studio Magot</b><span>Montage vidéo · v354</span></div>
         <button class="stu-ico" id="stuUndo" title="Annuler">\u21b6</button>
         <button class="stu-ico" id="stuRedo" title="Rétablir">\u21b7</button>
         <button class="stu-exp" id="mvSave">\u2b06 Exporter</button>
@@ -6881,7 +6881,7 @@ function mvGLLoad(){
   _mvGLtried=true;
   return new Promise(res=>{
     if(window.MVGL){ res(mvGLInit()); return; }
-    const s=document.createElement("script"); s.src="./moteur/mvgl.js?v=22";
+    const s=document.createElement("script"); s.src="./moteur/mvgl.js?v=23";
     s.onload=()=>res(mvGLInit()); s.onerror=()=>{ _mvGL=null; res(false); };
     document.head.appendChild(s);
   });
@@ -6895,6 +6895,53 @@ function mvGLInit(){
     if(!window.MVGL.init(_mvGLcv)){ _mvGL=null; return false; }
     _mvGL=window.MVGL; _mvGLtex=new Map(); return true;
   }catch(e){ _mvGL=null; return false; }
+}
+/* ---- DÉTECTION DES PERSONNES (MediaPipe) --------------------------------
+   Les photos étant fixes, on ne calcule le masque QU'UNE FOIS par photo,
+   puis on le garde. Il sert à faire passer les overlays DERRIÈRE les gens.
+   Si MediaPipe n'est pas disponible, les overlays restent devant, comme avant. */
+let _mvSeg=null, _mvSegTried=false, _mvMaskTex=new Map(), _mvMaskBusy=new Set();
+async function mvSegLoad(){
+  if(_mvSegTried) return _mvSeg;
+  _mvSegTried=true;
+  try{
+    const V=await import("https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.14/vision_bundle.mjs");
+    const files=await V.FilesetResolver.forVisionTasks("https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.14/wasm");
+    _mvSeg=await V.ImageSegmenter.createFromOptions(files,{
+      baseOptions:{ modelAssetPath:"https://storage.googleapis.com/mediapipe-models/image_segmenter/selfie_segmenter/float16/1/selfie_segmenter.tflite" },
+      runningMode:"IMAGE", outputCategoryMask:true, outputConfidenceMasks:false });
+  }catch(e){ _mvSeg=null; }
+  return _mvSeg;
+}
+/* Masque de la photo (texture blanche = personne). null tant qu'il n'est pas prêt. */
+function mvMaskFor(im){
+  if(!im || !mvGLReady()) return null;
+  if(_mvMaskTex.has(im)) return _mvMaskTex.get(im);
+  if(_mvMaskBusy.has(im)) return null;
+  _mvMaskBusy.add(im);
+  (async()=>{
+    try{
+      const seg=await mvSegLoad(); if(!seg){ _mvMaskTex.set(im,null); return; }
+      const w=Math.min(256, im.naturalWidth||im.width||256);
+      const h=Math.max(1, Math.round((im.naturalHeight||im.height||256)*(w/(im.naturalWidth||im.width||256))));
+      const c=document.createElement("canvas"); c.width=w; c.height=h;
+      c.getContext("2d").drawImage(im,0,0,w,h);
+      const r=seg.segment(c); const cm=r.categoryMask; if(!cm){ _mvMaskTex.set(im,null); return; }
+      const px=cm.getAsUint8Array(), mw=cm.width, mh=cm.height;
+      const mc=document.createElement("canvas"); mc.width=mw; mc.height=mh;
+      const mg=mc.getContext("2d"), id=mg.createImageData(mw,mh);
+      let any=0;
+      for(let i=0;i<px.length;i++){ const v=(px[i]>0)?255:0; if(v) any++;
+        id.data[i*4]=v; id.data[i*4+1]=v; id.data[i*4+2]=v; id.data[i*4+3]=255; }
+      mg.putImageData(id,0,0);
+      try{ cm.close(); }catch(e){}
+      /* Aucune personne détectée (ou toute l'image) → pas de masque, on ne force rien. */
+      const ratio=any/px.length;
+      _mvMaskTex.set(im, (ratio>0.02 && ratio<0.85) ? _mvGL.texture(mc) : null);
+    }catch(e){ _mvMaskTex.set(im,null); }
+    finally{ _mvMaskBusy.delete(im); }
+  })();
+  return null;
 }
 function mvGLReady(){ return !!(_mvGL && _mvGL.available() && _mvGLcv); }
 /* Textures gardées en mémoire (une par image) : on ne recrée pas à chaque image. */
@@ -7221,10 +7268,9 @@ const MV_FX_CATS=[
   ["Mouvement",[["cineZoom","Zoom cinématique"],["swayS","Mouvement doux"]]],
   ["Lumière",[["glow","Halo lumineux"],["softGlow","Éclat doux"],["leak","Fuite de lumière"],["flare","Lens flare"],["bokeh","Bokeh"],["sparkle","Scintillement"],["haze","Brume"]]],
   ["Rétro & Écran",[["vhs","VHS rétro"],["oldtv","Vieille TV"],["camcorder","Camescope REC"],["bw","Noir & blanc"],["burn","Film burn"]]],
-  ["Douceur",[["dreamBlur","Flou de rêve"]]],
-  ["Particules",[["dustGold","Poussière d'or"],["snow","Neige"]]]
+  ["Douceur",[["dreamBlur","Flou de rêve"]]]
 ];
-const MV_FX_CALM=["cineZoom","glow","softGlow","leak","bokeh","sparkle","haze","dustGold","swayS","dreamBlur","snow"];
+const MV_FX_CALM=["cineZoom","glow","softGlow","leak","bokeh","sparkle","haze","swayS","dreamBlur"];
 const MV_FX_PUNCH=["cineZoom","flare","leak","sparkle","glow","burn","vhs"];
 function mvFxAssign(){
   const segs=_mvState.segs||[]; const g=_mvState.fx||""; let last="";
@@ -7389,10 +7435,26 @@ function mvRun(tr,total){
              pendant le rendu (plus de retraitement du canvas après coup). */
           const fxN=_mvState._fxNow||"";
           const gpuFx=(fxN && _mvGL.canFx(fxN));
-          const scene=gpuFx?_mvGL.beginScene():false;
+          /* Overlay de ce plan : on le compose ICI, sur le GPU, pour pouvoir
+             le glisser DERRIÈRE les personnes. */
+          const ovEl=_mvState._ovNow||null;
+          const ovTex=(ovEl && ovEl.readyState>=2)?mvGLTex(ovEl):null;
+          const mask=ovTex?mvMaskFor(im):null;   /* masque calculé une seule fois par photo */
+          const geo={mode:(fp.mode==="fill"?"fill":"fit"), zoom:z, rotZ:(rr||0), offX:oX, offY:oY};
+
+          const scene=(gpuFx||ovTex)?_mvGL.beginScene():false;
           if(!scene) _mvGL.clear(0,0,0);
           if(fp.mode!=="fill") _mvGL.background(tex,{});
-          _mvGL.draw(tex,{mode:(fp.mode==="fill"?"fill":"fit"), zoom:z, rotZ:(rr||0), offX:oX, offY:oY});
+          _mvGL.draw(tex,geo);
+          if(ovTex){
+            const oi=(_mvState._ovInt!=null?_mvState._ovInt:0.55);
+            const cat=(ovEl._cat||"");
+            const bias=(cat==="Feux d'artifice")?0.16:0;   /* feux d'artifice : dans le ciel */
+            _mvGL.draw(ovTex,{mode:"fill", alpha:oi, additive:true, offY:bias});
+            /* la personne est redessinée PAR-DESSUS l'overlay → l'overlay passe derrière elle */
+            if(mask){ const g2={}; for(const k in geo) g2[k]=geo[k]; g2.mask=mask; g2.maskMode=1; _mvGL.draw(tex,g2); }
+            _mvState._ovDone=true;
+          }
           if(scene) _mvGL.endScene(fxN,{amt:(_mvState._fxAmt||0), time:(_mvState._fxTime||0), drop:!!_mvState._fxDrop});
           g.save(); g.globalAlpha=(alpha==null?1:alpha);
           if(useCtx() && GR.f){ try{ g.filter=GR.f; }catch(e3){} }
@@ -7611,7 +7673,9 @@ function mvRun(tr,total){
             if(it.im.currentTime > (c.start||0)+(c.len||4) || it.im.currentTime < (c.start||0)-0.1){ try{ it.im.currentTime=c.start||0; }catch(e){} } } }
         /* Effet du plan communiqué au moteur GPU avant le dessin.
            Pendant une transition on n'applique pas d'effet (deux images à la fois). */
-        _mvState._fxDone=false;
+        _mvState._fxDone=false; _mvState._ovDone=false;
+        _mvState._ovNow=((!prev || into>=TR) && seg.overlay)?(_mvOverlayEls[seg.overlay]||null):null;
+        _mvState._ovInt=(_mvState.overlayInt!=null?_mvState.overlayInt:0.55);
         _mvState._fxNow=(prev && into<TR)?"":(seg.fx||"");
         _mvState._fxAmt=into/Math.max(0.5,len); _mvState._fxTime=t; _mvState._fxDrop=!!seg.drop;
         if(prev && into<TR) trans(seg.mode, into/TR, prev, cur, 1, k, pm, cm, ppi, pi);
@@ -7619,7 +7683,7 @@ function mvRun(tr,total){
         if(seg.drop && into<0.28){ const p2=1-into/0.28; g.save(); g.globalAlpha=0.16*p2; g.fillStyle="#fff"; g.fillRect(0,0,W,H); g.restore(); }
         vign();
         if(seg.fx && !_mvState._fxDone) mvFxDraw(seg.fx, g, W, H, into/Math.max(0.5,len), seg.e||0.5, si, t, cv, seg.drop);   /* effet du plan (2D) — sauté si le GPU l'a déjà appliqué */
-        if(seg.overlay && _mvOverlayEls[seg.overlay]){ const ovl=_mvOverlayEls[seg.overlay];
+        if(seg.overlay && !_mvState._ovDone && _mvOverlayEls[seg.overlay]){ const ovl=_mvOverlayEls[seg.overlay];
           if(ovl.paused && _mvState.playing){ try{ ovl.play().catch(()=>{}); }catch(e){} }   /* iOS met parfois l'overlay en pause : on le relance */
           if(ovl.readyState>=2){
             const vw=ovl.videoWidth||W, vh=ovl.videoHeight||H, sc=Math.max(W/vw,H/vh), dw=vw*sc, dh=vh*sc;
