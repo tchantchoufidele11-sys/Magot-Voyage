@@ -78,6 +78,71 @@
     "  for(int i=-2;i<=2;i++){ for(int j=-2;j<=2;j++){",
     "    s += texture2D(uTex, uv + vec2(float(i), float(j)) * uTexel * r).rgb; } }",
     "  return s / 25.0; }",
+    /* Une couche de particules rondes. "soft" = flou de mise au point :
+       plus il est grand, plus le flocon est diffus (comme au premier plan
+       d'une vraie prise de vue). */
+    "float flakes(vec2 uv, float cells, float speed, float size, float seed, float dir, float soft){",
+    "  vec2 st = uv * vec2(cells * uAsp, cells);",
+    "  st.y -= uTime * speed * dir;",
+    "  float best = 0.0;",
+    "  for(int oy=-1; oy<=1; oy++){ for(int ox=-1; ox<=1; ox++){",
+    "    vec2 id = floor(st) + vec2(float(ox), float(oy));",
+    "    float h = hash(id + seed);",
+    "    if(h > 0.42){",
+    "      float sway = sin(uTime * 0.9 + h * 25.0) * 0.32;",
+    "      vec2 c = id + vec2(0.5 + sway, 0.5 + hash(id + seed + 3.0) * 0.4 - 0.2);",
+    "      float d = distance(st, c);",
+    "      float r = size * (0.55 + h * 0.9);",
+    "      float v = smoothstep(r, r * soft, d);",
+    "      best = max(best, v); } } }",
+    "  return best; }",
+    "void main(){",
+    "  vec4 c;",
+    "  if(uBlur > 0.0){",
+    "    vec4 s = vec4(0.0); float w = 0.0;",
+    "    for(int i=-2;i<=2;i++){ for(int j=-2;j<=2;j++){",
+    "      vec2 o = vec2(float(i), float(j)) * uTexel * uBlur * 2.5;",
+    "      s += texture2D(uTex, vUV + o); w += 1.0; } }",
+    "    c = s / w;",
+    "  } else { c = texture2D(uTex, vUV); }",
+    "  c.rgb = (c.rgb - 0.5) * uContrast + 0.5;",       /* contraste */
+    "  c.rgb *= uBright;",                               /* luminosité */
+    "  float l = dot(c.rgb, vec3(0.299, 0.587, 0.114));",
+    "  c.rgb = mix(vec3(l), c.rgb, uSat);",              /* saturation */
+    "  c.rgb = mix(c.rgb, vec3(l), uGray);",             /* noir & blanc */
+    "  c.rgb = mix(c.rgb, uTint, uTintAmt);",            /* étalonnage */
+    "  float d = distance(vUV, vec2(0.5));",
+    "  c.rgb *= 1.0 - uVignette * smoothstep(0.35, 0.85, d);",
+    "  gl_FragColor = vec4(c.rgb, c.a * uAlpha);",
+    "}"
+  ].join("\n");
+
+
+  /* ============================================================
+     PASSE D'EFFETS SUR GPU
+     La scène est dessinée dans une mémoire graphique (framebuffer),
+     puis retraitée en une seule passe par ce nuanceur : c'est ce qui
+     permettra à terme de supprimer la recopie image par image.
+     ============================================================ */
+  var FS_POST = [
+    "precision mediump float;",
+    "varying vec2 vUV;",
+    "uniform sampler2D uTex;",
+    "uniform vec2 uTexel;",
+    "uniform float uAmt;",
+    "uniform float uTime;",
+    "uniform float uDrop;",
+    "uniform int uFx;",
+    "uniform float uVig;",
+    "uniform float uAsp;",     /* largeur/hauteur : garde les particules RONDES */
+    "uniform vec3 uTint;",
+    "uniform float uTintAmt;",
+    "float hash(vec2 p){ return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }",
+    "vec3 blurAt(vec2 uv, float r){",
+    "  vec3 s = vec3(0.0);",
+    "  for(int i=-2;i<=2;i++){ for(int j=-2;j<=2;j++){",
+    "    s += texture2D(uTex, uv + vec2(float(i), float(j)) * uTexel * r).rgb; } }",
+    "  return s / 25.0; }",
     /* Une couche de flocons ronds : cellules carrées, chute, balancement latéral. */
     "float flakes(vec2 uv, float cells, float speed, float size, float seed, float dir){",
     "  vec2 st = uv * vec2(cells * uAsp, cells);",
@@ -170,17 +235,20 @@
     "    c += vec3(1.0, 0.42, 0.08) * burn;",
     "    c = mix(c, vec3(1.0, 0.92, 0.75), clamp(burn - 0.75, 0.0, 1.0)); }",   /* Film burn : part d'un coin */
     /* --- Particules --- */
-    "  else if(uFx == 14){ float p = 0.0;",
-    "    p += flakes(uv, 12.0, 0.05, 0.16, 1.0, -1.0) * 0.9;",
-    "    p += flakes(uv, 20.0, 0.035, 0.11, 5.0, -1.0) * 0.6;",
-    "    p += flakes(uv, 30.0, 0.025, 0.08, 9.0, -1.0) * 0.4;",
-    "    float tw = 0.6 + 0.4 * sin(uTime * 2.5 + uv.x * 30.0);",
-    "    c += vec3(1.0, 0.80, 0.32) * p * tw * 1.15; }",                        /* Poussière d'or : monte doucement, scintille */
-    "  else if(uFx == 15){ float p = 0.0;",
-    "    p += flakes(uv, 9.0,  0.12, 0.20, 2.0, 1.0) * 1.0;",
-    "    p += flakes(uv, 15.0, 0.09, 0.14, 6.0, 1.0) * 0.7;",
-    "    p += flakes(uv, 24.0, 0.06, 0.10, 11.0, 1.0) * 0.45;",
-    "    c += vec3(1.0) * p * 1.25; }",                                          /* Neige : 3 profondeurs de flocons ronds */
+    "  else if(uFx == 14){ float p = 0.0; float g2 = 0.0;",
+    "    g2 += flakes(uv, 3.5, 0.045, 0.62, 1.0, -1.0, 0.02) * 0.30;",
+    "    p  += flakes(uv, 8.0, 0.060, 0.30, 5.0, -1.0, 0.25) * 0.75;",
+    "    p  += flakes(uv, 15.0, 0.045, 0.16, 9.0, -1.0, 0.45) * 0.60;",
+    "    p  += flakes(uv, 26.0, 0.030, 0.10, 13.0, -1.0, 0.60) * 0.40;",
+    "    float tw = 0.65 + 0.35 * sin(uTime * 2.5 + uv.x * 24.0);",
+    "    c += vec3(1.0, 0.80, 0.30) * (p * tw + g2) * 1.35; }",
+    "  else if(uFx == 15){ float p = 0.0; float g2 = 0.0;",
+    "    g2 += flakes(uv, 2.6, 0.10, 0.75, 2.0, 1.0, 0.02) * 0.34;",
+    "    g2 += flakes(uv, 4.5, 0.13, 0.50, 4.0, 1.0, 0.05) * 0.42;",
+    "    p  += flakes(uv, 8.0, 0.16, 0.30, 6.0, 1.0, 0.28) * 0.85;",
+    "    p  += flakes(uv, 14.0, 0.12, 0.18, 11.0, 1.0, 0.50) * 0.65;",
+    "    p  += flakes(uv, 24.0, 0.08, 0.11, 17.0, 1.0, 0.65) * 0.45;",
+    "    c += vec3(1.0) * (p + g2) * 1.45; }",
     "  c = mix(c, uTint, uTintAmt);",
     "  float dv = distance(uv, vec2(0.5));",
     "  c *= 1.0 - uVig * smoothstep(0.35, 0.9, dv);",
@@ -656,7 +724,7 @@
       if (to)   API.draw(to,   opts({ alpha: e }));
     },
 
-    version: "2.1",
+    version: "2.2",
     kinds: ["cube3d", "cubeX3d", "flip3d", "carousel3d", "door3d", "zoomThrough3d", "carnet3d", "boussole3d", "reminiscence3d", "depart3d", "fade"],
     labels: { cube3d:"Cube", cubeX3d:"Cube vertical", flip3d:"Retournement", carousel3d:"Carrousel", door3d:"Portes", zoomThrough3d:"Traversée", carnet3d:"\u2726 Carnet de voyage", boussole3d:"\u2726 Boussole", reminiscence3d:"\u2726 Réminiscence", depart3d:"\u2726 Tableau des départs", fade:"Fondu" }
   };
