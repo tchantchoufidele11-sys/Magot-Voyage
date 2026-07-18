@@ -35,8 +35,8 @@
     "  vec4 c;",
     "  if(uBlur > 0.0){",
     "    vec4 s = vec4(0.0); float w = 0.0;",
-    "    for(int i=-4;i<=4;i++){ for(int j=-4;j<=4;j++){",
-    "      vec2 o = vec2(float(i), float(j)) * uTexel * uBlur;",
+    "    for(int i=-2;i<=2;i++){ for(int j=-2;j<=2;j++){",
+    "      vec2 o = vec2(float(i), float(j)) * uTexel * uBlur * 2.5;",
     "      s += texture2D(uTex, vUV + o); w += 1.0; } }",
     "    c = s / w;",
     "  } else { c = texture2D(uTex, vUV); }",
@@ -70,11 +70,13 @@
   function mat4Identity() {
     return new Float32Array([1,0,0,0, 0,1,0,0, 0,0,1,0, 0,0,0,1]);
   }
+  /* a * b, en colonnes (convention WebGL). L'ordre compte : P * T * R * S. */
   function mat4Multiply(a, b) {
     var o = new Float32Array(16);
-    for (var i = 0; i < 4; i++) {
-      for (var j = 0; j < 4; j++) {
-        o[i*4+j] = a[i*4]*b[j] + a[i*4+1]*b[4+j] + a[i*4+2]*b[8+j] + a[i*4+3]*b[12+j];
+    for (var c = 0; c < 4; c++) {
+      for (var r = 0; r < 4; r++) {
+        o[c*4+r] = a[0*4+r]*b[c*4+0] + a[1*4+r]*b[c*4+1]
+                 + a[2*4+r]*b[c*4+2] + a[3*4+r]*b[c*4+3];
       }
     }
     return o;
@@ -99,6 +101,24 @@
   function mat4RotateX(a) {
     var c = Math.cos(a), s = Math.sin(a), m = mat4Identity();
     m[5]=c; m[6]=s; m[9]=-s; m[10]=c; return m;
+  }
+
+  /* Les photos d'iPhone dépassent souvent la taille maximale d'une texture.
+     On réduit d'abord, sinon la texture échoue en silence (écran noir). */
+  function fitSize(src) {
+    var w = src.videoWidth || src.width || 0, h = src.videoHeight || src.height || 0;
+    var max = 2048;
+    try { var mx = gl.getParameter(gl.MAX_TEXTURE_SIZE); if (mx && mx < max) max = mx; } catch (e) {}
+    if (!w || !h || (w <= max && h <= max)) return src;
+    var s = Math.min(max / w, max / h);
+    var c = document.createElement("canvas");
+    c.width = Math.max(1, Math.round(w * s));
+    c.height = Math.max(1, Math.round(h * s));
+    var x = c.getContext("2d");
+    x.imageSmoothingEnabled = true;
+    x.drawImage(src, 0, 0, c.width, c.height);
+    c._srcW = w; c._srcH = h;
+    return c;
   }
 
   var API = {
@@ -141,16 +161,18 @@
     texture: function (src) {
       if (!ready || !src) return null;
       try {
+        var img = fitSize(src);
         var t = gl.createTexture();
         gl.bindTexture(gl.TEXTURE_2D, t);
         gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, true);
-        gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, src);
+        gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, img);
         gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
         gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
         gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
         gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
-        t._w = src.videoWidth || src.width || 1;
-        t._h = src.videoHeight || src.height || 1;
+        t._w = img.videoWidth || img.width || 1;
+        t._h = img.videoHeight || img.height || 1;
+        t._err = gl.getError();
         return t;
       } catch (e) { return null; }
     },
@@ -186,13 +208,15 @@
       gl.viewport(0, 0, W, H);
       gl.useProgram(prog);
 
-      /* Cadrage : on respecte les proportions de la photo. */
+      /* Cadrage : dans ce repère, la largeur de l'écran vaut "car" et la hauteur vaut 1. */
       var car = W / H, ar = (tex._w || 1) / (tex._h || 1);
-      var sx = 1, sy = 1;
+      var sx, sy;
       if ((o.mode || "fit") === "fill") {
-        if (ar > car) { sx = ar / car; } else { sy = car / ar; }
+        if (ar > car) { sy = 1; sx = ar; }          /* déborde en largeur, rogné */
+        else { sx = car; sy = car / ar; }           /* déborde en hauteur, rogné */
       } else {
-        if (ar > car) { sy = car / ar; } else { sx = ar / car; }
+        if (ar > car) { sx = car; sy = car / ar; }  /* photo entière : bandes en haut/bas */
+        else { sy = 1; sx = ar; }                   /* photo entière : bandes sur les côtés */
       }
       var zoom = o.zoom || 1;
       sx *= zoom; sy *= zoom;
