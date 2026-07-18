@@ -1582,8 +1582,11 @@ body.dragging-on{-webkit-user-select:none;user-select:none}
 #mvOv .mv-stage{min-height:52vh;border-radius:11px;background:#050C17}
 #mvOv canvas#mvCanvas{border-radius:11px}
 /* Barres d'outils latérales */
-#mvOv .stu-tools{width:39px;background:var(--sCard);border-radius:14px}
-#mvOv .stu-tools button{color:var(--sTx2);font-size:9.5px}
+/* Largeur mesurée sur le texte le plus long ("Transitions"), pas convertie
+   mécaniquement : à 39 pt tous les libellés étaient tronqués. */
+#mvOv .stu-tools{width:56px;background:var(--sCard);border-radius:14px;flex:0 0 56px}
+#mvOv .stu-tools button{color:var(--sTx2);font-size:9px;line-height:1.15;white-space:normal;
+  word-break:normal;hyphens:none;padding:7px 2px;overflow:visible;text-overflow:clip}
 #mvOv .stu-tools button.on{color:var(--sGold)}
 #mvOv .stu-right{width:39px}
 #mvOv .stu-right .stu-rb{width:34px;height:34px;border-radius:50%;background:var(--sCard)}
@@ -1597,7 +1600,8 @@ body.dragging-on{-webkit-user-select:none;user-select:none}
 #mvOv .stu-cth{height:80px;border-radius:7px}
 #mvOv .stu-clip.on{outline:2px solid var(--sGold);outline-offset:1px}
 #mvOv .stu-clip .stu-cd{font-size:10px}
-#mvOv .stu-lab{font-size:10px;color:var(--sTx2)}
+#mvOv .stu-lab{font-size:9.5px;color:var(--sTx2);max-width:60px;white-space:nowrap;
+  overflow:hidden;text-overflow:ellipsis;text-align:center}
 /* Forme d'onde */
 #mvOv .stu-wave{height:23px}
 /* Carte Réalisateur */
@@ -1611,7 +1615,9 @@ body.dragging-on{-webkit-user-select:none;user-select:none}
 #mvOv .stu-seek-f{background:var(--sGold)}
 #mvOv .stu-tc{color:var(--sTx2);font-size:11px}
 /* Boutons du bas : proportions de la maquette */
-#mvOv .stu-bot{gap:8px;padding:10px 12px calc(10px + env(safe-area-inset-bottom,0px))}
+#mvOv .stu-bot{gap:8px;padding:10px 12px calc(10px + env(safe-area-inset-bottom,0px));
+  position:relative;z-index:6;background:var(--sBg);flex:0 0 auto;margin-top:auto}
+#mvOv .stu-wave{margin-bottom:2px;flex:0 0 auto}
 #mvOv .stu-bot button{height:31px;border-radius:9px;font-size:12.5px}
 #mvOv .stu-bot .stu-main{flex:1.7 1 0;background:var(--sGold);color:#0B1730;font-weight:700}
 #mvOv .stu-bot button:not(.stu-main){flex:1 1 0;background:var(--sCard);color:var(--sTx)}
@@ -6047,7 +6053,7 @@ function openMontage(tr,version,autoplay){ tr=tr||souvTrip(); if(!tr) return; _m
     <div id="mvStudio" class="stu" style="display:none">
       <div class="stu-top">
         <button class="stu-back" id="stuBack">\u2190</button>
-        <div class="stu-ttl"><b>Studio Magot</b><span>Montage vidéo · v382</span></div>
+        <div class="stu-ttl"><b>Studio Magot</b><span>Montage vidéo · v383</span></div>
         <button class="stu-ico" id="stuUndo" title="Annuler">\u21b6</button>
         <button class="stu-ico" id="stuRedo" title="Rétablir">\u21b7</button>
         <button class="stu-exp" id="mvSave">\u2b06 Exporter</button>
