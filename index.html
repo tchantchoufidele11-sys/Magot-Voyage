@@ -1480,6 +1480,10 @@ body.dragging-on{-webkit-user-select:none;user-select:none}
 #mvOv.stufull .stu-exit{display:inline-flex}
 #mvOv.cine .mv-fiche{flex:0 0 auto;background:#101B2E;margin:10px;border-radius:12px}
 /* ---- Barre de lecture : grande prévisualisation façon studio ---- */
+.mv-adj{margin-top:12px}
+.mv-adj label{display:flex;justify-content:space-between;font-size:12px;color:#8FA1BC;margin:10px 0 4px}
+.mv-adj label b{color:var(--gold,#E0A33E);font-variant-numeric:tabular-nums}
+.mv-adj input[type=range]{width:100%;accent-color:#E0A33E}
 .mrp{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin:6px 0 14px}
 .mrp-i{background:var(--paper,#F7F8FB);border:1px solid var(--line,#E6E9F0);border-radius:11px;padding:9px 6px;text-align:center}
 .mrp-i b{display:block;font-size:19px;color:var(--navy,#0E2148);line-height:1.2}
@@ -5914,6 +5918,13 @@ function openMontage(tr,version,autoplay){ tr=tr||souvTrip(); if(!tr) return; _m
           <div class="mv-sec">
             <div class="mv-lab">Couleur</div>
             <div class="mv-durs mv-grades">${[["auto","\u2728 Auto"]].concat(Object.keys(MV_GRADE).map(k=>[k,MV_GRADE_LBL[k]])).map(([k,l])=>`<button class="mv-dur${k===(_mvState.grade||"natural")?' on':''}" data-grade="${k}">${l}</button>`).join("")}</div>
+            <div class="mv-adj">
+              <label>Exposition <b id="adjExL">0</b></label>
+              <input type="range" id="adjEx" min="-100" max="100" step="5" value="${Math.round((_mvState.expo||0)*100)}">
+              <label>Balance des blancs <b id="adjWbL">0</b></label>
+              <input type="range" id="adjWb" min="-100" max="100" step="5" value="${Math.round((_mvState.tempK||0)*500)}">
+              <button class="mv-dur" id="adjReset" style="margin-top:8px">Remettre à neutre</button>
+            </div>
           </div>
           <div class="mv-sec">
             <div class="mv-lab">Transitions</div>
@@ -5960,7 +5971,7 @@ function openMontage(tr,version,autoplay){ tr=tr||souvTrip(); if(!tr) return; _m
     <div id="mvStudio" class="stu" style="display:none">
       <div class="stu-top">
         <button class="stu-back" id="stuBack">\u2190</button>
-        <div class="stu-ttl"><b>Studio Magot</b><span>Montage vidéo · v371</span></div>
+        <div class="stu-ttl"><b>Studio Magot</b><span>Montage vidéo · v373</span></div>
         <button class="stu-ico" id="stuUndo" title="Annuler">\u21b6</button>
         <button class="stu-ico" id="stuRedo" title="Rétablir">\u21b7</button>
         <button class="stu-exp" id="mvSave">\u2b06 Exporter</button>
@@ -6156,6 +6167,18 @@ function openMontage(tr,version,autoplay){ tr=tr||souvTrip(); if(!tr) return; _m
   const sumUp=()=>{ const el=ov.querySelector("#mvOptSum"); if(el) el.textContent=durLbl()+" \u00b7 "+fmtLbl()+" \u00b7 "+gradeLbl()+" \u00b7 "+styleLbl(); filmProjSave(tr); };
   ov.querySelectorAll("[data-style]").forEach(b=>b.onclick=()=>{ ov.querySelectorAll("[data-style]").forEach(x=>x.classList.remove("on")); b.classList.add("on"); _mvState.style=b.dataset.style; sumUp(); });
   ov.querySelectorAll("[data-grade]").forEach(b=>b.onclick=()=>{ ov.querySelectorAll("[data-grade]").forEach(x=>x.classList.remove("on")); b.classList.add("on"); _mvState.grade=b.dataset.grade; sumUp(); });
+  /* Exposition et balance des blancs : réglages fins, appliqués en direct.
+     Exposition en diaphragmes (-1 à +1), balance de froid à chaud (±0,2). */
+  { const ex=ov.querySelector("#adjEx"), wb=ov.querySelector("#adjWb");
+    const exL=ov.querySelector("#adjExL"), wbL=ov.querySelector("#adjWbL");
+    const show=()=>{ if(exL) exL.textContent=((_mvState.expo||0)>0?"+":"")+(_mvState.expo||0).toFixed(2).replace(/0$/,"");
+      if(wbL) wbL.textContent=((_mvState.tempK||0)>0?"chaud ":((_mvState.tempK||0)<0?"froid ":""))+(Math.abs((_mvState.tempK||0)*500)||0).toFixed(0); };
+    if(ex) ex.oninput=()=>{ _mvState.expo=(+ex.value)/100; show(); };
+    if(wb) wb.oninput=()=>{ _mvState.tempK=(+wb.value)/500; show(); };
+    const rz=ov.querySelector("#adjReset");
+    if(rz) rz.onclick=()=>{ _mvState.expo=0; _mvState.tempK=0; _mvState.tintG=0;
+      if(ex) ex.value=0; if(wb) wb.value=0; show(); };
+    show(); }
   if(_dir){ const mn=ov.querySelector("#mvDirNote"); if(mn) mn.innerHTML=`\u2728 <b>${_dir.n}</b> \u2014 ${escapeHtml(_dir.why)}. Rythme, transitions et couleur r\u00e9gl\u00e9s pour ce ton.`; }
   /* (les réglages viennent de mvAutoSetup — plus aucune valeur ne les écrase ici) */
   ov.querySelectorAll("[data-dur]").forEach(b=>b.classList.toggle("on", +b.dataset.dur===_mvState.dur));
@@ -6568,7 +6591,7 @@ function mvDirectorNotes(){
     } else if(R.forced && R.dropped>0){
       l+=" Plusieurs étaient floues ou sombres, mais les écarter aurait vidé le film : je les ai gardées.";
     } else l+=" Aucune n'était floue ni sous-exposée.";
-    if(R.locked) l+=" "+n(R.locked)+" photo"+(R.locked>1?"s sont épinglées":" est épinglée")+" : je la"+(R.locked>1?"s":"")+" garde quoi qu'il arrive.";
+    if(R.locked) l+=" "+n(R.locked)+" photo"+(R.locked>1?"s sont épinglées":" est épinglée")+" : je les garde quoi qu'il arrive.";
     out.push(l);
   }
   if(R.dup) out.push("J'ai repéré "+n(R.dup)+" photo"+(R.dup>1?"s":"")+" très proche"+(R.dup>1?"s":"")+" d'une autre (rafales ou clichés répétés), réparti"+(R.dup>1?"es":"e")+" en "+n(R.dupGroups)+" groupe"+(R.dupGroups>1?"s":"")+" : je les espace pour éviter l'effet de répétition.");
@@ -6579,13 +6602,14 @@ function mvDirectorNotes(){
   /* 3. Le rythme et la musique */
   if(segs.length){
     const bpm=Math.round(_mvState.bpm||0);
-    const dmoy=segs.reduce((a,x)=>a+(x.len||0),0)/segs.length;
+    const dur1=(x)=>Math.max(0,(x.end||0)-(x.start||0));   /* un plan est défini par son début et sa fin */
+    const dmoy=segs.reduce((a,x)=>a+dur1(x),0)/segs.length;
     let l=n(segs.length)+" plan"+(segs.length>1?"s":"")+", "+dmoy.toFixed(1)+" s en moyenne.";
     if(bpm) l+=" Les coupes tombent sur les temps forts de ta musique ("+n(bpm)+" BPM).";
     out.push(l);
-    let long=segs[0]; segs.forEach(x=>{ if((x.len||0)>(long.len||0)) long=x; });
+    let long=segs[0]; segs.forEach(x=>{ if(dur1(x)>dur1(long)) long=x; });
     const pt=long&&long.pt;
-    if(pt&&pt.title&&segs.length>2) out.push("Le moment que j'ai le plus laissé respirer : "+String(pt.title)+" ("+(long.len||0).toFixed(1)+" s).");
+    if(pt&&pt.title&&segs.length>2) out.push("Le moment que j'ai le plus laissé respirer : "+String(pt.title)+" ("+dur1(long).toFixed(1)+" s).");
   }
   /* 4. Le cadrage */
   out.push(mvGLReady()
@@ -7157,7 +7181,7 @@ function mvGLLoad(){
   _mvGLtried=true;
   return new Promise(res=>{
     if(window.MVGL){ res(mvGLInit()); return; }
-    const s=document.createElement("script"); s.src="./moteur/mvgl.js?v=26";
+    const s=document.createElement("script"); s.src="./moteur/mvgl.js?v=27";
     s.onload=()=>res(mvGLInit()); s.onerror=()=>{ _mvGL=null; res(false); };
     document.head.appendChild(s);
   });
@@ -7803,6 +7827,7 @@ function mvRun(tr,total){
           }
           if(scene){
             _mvGL.endScene(fxN,{amt:(_mvState._fxAmt||0), time:(_mvState._fxTime||0), drop:!!_mvState._fxDrop,
+              expo:(_mvState.expo||0), tempK:(_mvState.tempK||0), tintG:(_mvState.tintG||0),
               contrast:GG.contrast, sat:GG.sat, bright:GG.bright, sepia:GG.sepia,
               tint:(GG.tint||[1,1,1]), tintAmt:(GG.tint?GG.tintAmt:0),
               shadow:GG.shadow, high:GG.high, split:(GG.split||0),
@@ -7846,6 +7871,17 @@ function mvRun(tr,total){
     g.restore();
   };
   const vign=()=>{ if(_mvState._gradeDone) return;   /* déjà fait sur GPU (teinte, grain, vignettage) */
+    /* Repli sans GPU : exposition et balance des blancs par calque de fusion.
+       Moins précis que le moteur, mais le réglage n'est jamais ignoré en silence. */
+    { const ex=(_mvState.expo||0), tk=(_mvState.tempK||0);
+      if(ex||tk){ const W=g.canvas.width, H=g.canvas.height; g.save();
+        if(ex){ g.globalCompositeOperation=(ex>0?"lighter":"multiply");
+          const a=Math.min(0.6,Math.abs(ex)*0.55);
+          g.fillStyle=(ex>0?"rgba(255,255,255,"+a+")":"rgba(255,255,255,"+(1-a)+")");
+          g.fillRect(0,0,W,H); }
+        if(tk){ g.globalCompositeOperation="overlay"; g.globalAlpha=Math.min(0.5,Math.abs(tk)*2.2);
+          g.fillStyle=(tk>0?"#FFB661":"#5FA8FF"); g.fillRect(0,0,W,H); }
+        g.restore(); } }
     if(GR.tint){ g.fillStyle=GR.tint; g.fillRect(0,0,W,H); }
     const _gk=(_mvState.grade==="auto"?(_mvState._autoGrade||"cinema"):(_mvState.grade||"natural"));
     const GRAIN=MV_GRAIN[_gk]||0, gtile=GRAIN?mvGrainTile():null;
