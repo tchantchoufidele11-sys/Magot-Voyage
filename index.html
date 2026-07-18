@@ -1668,6 +1668,16 @@ body.dragging-on{-webkit-user-select:none;user-select:none}
 #mvOv .stu-bot .stu-main{width:100%;height:46px;border-radius:12px;background:var(--sGold);
   color:#0B1730;font-weight:700;font-size:15px;border:0}
 #mvOv .stu-bot .stu-main:active{filter:brightness(.94)}
+
+/* ---- Bandeau musique : titre, BPM et forme d'onde réunis (maquette) ---- */
+#mvOv .stu-mus{display:flex;align-items:center;gap:9px;margin:6px 12px 8px;padding:8px 11px;
+  background:var(--sCard);border:1px solid rgba(214,162,63,.20);border-radius:13px;cursor:pointer}
+#mvOv .stu-mus-ic{flex:0 0 auto;width:30px;height:30px;border-radius:9px;background:var(--sBlue);
+  color:var(--sGold);display:flex;align-items:center;justify-content:center;font-size:14px}
+#mvOv .stu-mus-t{flex:0 0 auto;max-width:132px;color:var(--sTx);font-size:11.5px;font-weight:600;
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#mvOv .stu-mus canvas{flex:1 1 auto;height:34px;min-width:0}
+#mvOv .stu-mus-c{flex:0 0 auto;color:var(--sTx2);font-size:17px}
 </style>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
@@ -6097,7 +6107,7 @@ function openMontage(tr,version,autoplay){ tr=tr||souvTrip(); if(!tr) return; _m
     <div id="mvStudio" class="stu" style="display:none">
       <div class="stu-top">
         <button class="stu-back" id="stuBack">\u2190</button>
-        <div class="stu-ttl"><b>Studio Magot</b><span>Montage vidéo · v387</span></div>
+        <div class="stu-ttl"><b>Studio Magot</b><span>Montage vidéo · v388</span></div>
         <button class="stu-ico" id="stuUndo" title="Annuler">\u21b6</button>
         <button class="stu-ico" id="stuRedo" title="Rétablir">\u21b7</button>
         <button class="stu-exp" id="mvSave">\u2b06 Exporter</button>
@@ -6151,7 +6161,12 @@ function openMontage(tr,version,autoplay){ tr=tr||souvTrip(); if(!tr) return; _m
 
       <div class="stu-wave">
         <div class="stu-times"><span id="stuT0">00:00</span><span id="stuT1">00:00</span><span id="stuT2">00:00</span></div>
+        <div class="stu-mus" id="stuMus">
+        <span class="stu-mus-ic">\u266b</span>
+        <span class="stu-mus-t" id="stuMusT">Musique</span>
         <canvas id="stuWave" height="46"></canvas>
+        <span class="stu-mus-c">\u203a</span>
+      </div>
       </div>
 
       <div class="stu-bot">
@@ -6940,6 +6955,19 @@ function mvSeekBind(ov){
   window.addEventListener("pointermove",move); window.addEventListener("touchmove",move,{passive:false});
   window.addEventListener("pointerup",up); window.addEventListener("touchend",up);
   /* La règle glisse avec la bande de plans quand on la fait défiler au doigt. */
+  /* Bandeau musique : titre réel du morceau + tempo mesuré. Une touche ouvre le
+     choix de la musique. Si le titre est inconnu, on n'invente rien. */
+  { const mt=ov.querySelector("#stuMusT");
+    if(mt){ let nom="";
+      try{ const d=(_mvState.musicId?musicLib().find(x=>x.id===_mvState.musicId):null);
+           nom=(d&&(d.title||d.name))||""; }catch(e){}
+      const bpm=Math.round(_mvState.bpm||0);
+      mt.textContent=(nom||"Musique")+(bpm?" \u00b7 "+bpm+" BPM":"");
+    }
+    const mb=ov.querySelector("#stuMus");
+    if(mb) mb.onclick=(e)=>{ if(e.target.tagName==="CANVAS") return;
+      const b=ov.querySelector('[data-tool="music"]')||ov.querySelector('[data-tool="mus"]');
+      if(b) b.click(); }; }
   { const strip=ov.querySelector("#stuStrip");
     if(strip && strip.dataset.rb!=="1"){ strip.dataset.rb="1";
       strip.addEventListener("scroll",()=>{ mvRulerScroll(); mvSeekUpdate(); },{passive:true}); } }
