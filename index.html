@@ -1479,6 +1479,16 @@ body.dragging-on{-webkit-user-select:none;user-select:none}
 #mvOv.stufull.cine .mv-stage{border-radius:0}
 #mvOv.stufull .stu-exit{display:inline-flex}
 #mvOv.cine .mv-fiche{flex:0 0 auto;background:#101B2E;margin:10px;border-radius:12px}
+/* ---- Barre de lecture : grande prévisualisation façon studio ---- */
+.stu-play{flex:0 0 auto;display:flex;align-items:center;gap:10px;padding:8px 12px 2px}
+.stu-pp{width:34px;height:34px;flex:0 0 auto;border:0;border-radius:50%;background:#16213A;color:#fff;font-size:14px;cursor:pointer}
+.stu-tc{flex:0 0 auto;font-size:11px;color:#8FA1BC;font-variant-numeric:tabular-nums;min-width:36px;text-align:center}
+.stu-seek{position:relative;flex:1 1 auto;height:22px;display:flex;align-items:center;cursor:pointer;touch-action:none}
+.stu-seek::before{content:"";position:absolute;left:0;right:0;height:4px;border-radius:3px;background:#22304C}
+.stu-seek-f{position:absolute;left:0;height:4px;border-radius:3px;background:var(--gold,#E0A33E);width:0}
+.stu-seek-h{position:absolute;width:13px;height:13px;border-radius:50%;background:#fff;box-shadow:0 1px 4px rgba(0,0,0,.5);left:0;transform:translateX(-6px)}
+#mvOv.stufull .stu-play{display:flex!important;position:fixed;left:0;right:0;bottom:calc(10px + env(safe-area-inset-bottom,0px));z-index:60;background:linear-gradient(180deg,rgba(0,0,0,0),rgba(0,0,0,.55));padding:14px 16px 10px}
+#mvOv.cine .mv-stage{min-height:46vh}
 .stu-strip{flex:0 0 auto;display:flex;gap:6px;align-items:flex-start;overflow-x:auto;padding:0 10px 6px;-webkit-overflow-scrolling:touch}
 .stu-add{flex:0 0 auto;width:64px;height:82px;border-radius:12px;background:#101B2E;border:1px dashed #2A3B58;color:#8FA1BC;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;cursor:pointer}
 .stu-add i{font-style:normal;font-size:18px}
@@ -5940,7 +5950,7 @@ function openMontage(tr,version,autoplay){ tr=tr||souvTrip(); if(!tr) return; _m
     <div id="mvStudio" class="stu" style="display:none">
       <div class="stu-top">
         <button class="stu-back" id="stuBack">\u2190</button>
-        <div class="stu-ttl"><b>Studio Magot</b><span>Montage vidéo · v367</span></div>
+        <div class="stu-ttl"><b>Studio Magot</b><span>Montage vidéo · v368</span></div>
         <button class="stu-ico" id="stuUndo" title="Annuler">\u21b6</button>
         <button class="stu-ico" id="stuRedo" title="Rétablir">\u21b7</button>
         <button class="stu-exp" id="mvSave">\u2b06 Exporter</button>
@@ -5972,6 +5982,13 @@ function openMontage(tr,version,autoplay){ tr=tr||souvTrip(); if(!tr) return; _m
       </div>
 
       <div class="mv-fiche" id="mvFiche"></div>
+
+      <div class="stu-play" id="stuPlayBar">
+        <button class="stu-pp" id="stuPP" type="button" aria-label="Lecture">\u23f8</button>
+        <span class="stu-tc" id="stuTcA">00:00</span>
+        <div class="stu-seek" id="stuSeek"><div class="stu-seek-f" id="stuSeekF"></div><div class="stu-seek-h" id="stuSeekH"></div></div>
+        <span class="stu-tc" id="stuTcB">00:00</span>
+      </div>
 
       <div class="stu-strip" id="stuStrip"></div>
 
@@ -6085,7 +6102,8 @@ function openMontage(tr,version,autoplay){ tr=tr||souvTrip(); if(!tr) return; _m
   { const un=ov.querySelector("#stuUndo"), re2=ov.querySelector("#stuRedo");
     if(un) un.onclick=()=>{ if(mvUndo()){ stripPaint(); if(_mvState._rebuild) _mvState._rebuild("Annul\u00e9"); } else toast("Rien \u00e0 annuler"); };
     if(re2) re2.onclick=()=>{ if(mvRedo()){ stripPaint(); if(_mvState._rebuild) _mvState._rebuild("R\u00e9tabli"); } else toast("Rien \u00e0 r\u00e9tablir"); }; }
-  _mvState._refreshStudio=()=>{ try{ _mvState.fiche=mvBuildFiche(_mvState.tr||souvTrip());
+  _mvState._refreshStudio=()=>{ try{ mvSeekBind(ov); mvSeekUpdate(); }catch(e){}
+    try{ _mvState.fiche=mvBuildFiche(_mvState.tr||souvTrip());
     const fe=document.getElementById("mvFiche"); if(fe && _mvState.fiche){ fe.style.display="flex"; fe.innerHTML=_mvState.fiche.map(([k,v])=>`<span class="mvf"><b>${v}</b>${k}</span>`).join(""); }
     stripPaint(); fmtsPaint(); wavePaint(); }catch(e){} };
   /* Reconstruit le film sur-le-champ avec les nouveaux réglages (même musique). */
@@ -6477,7 +6495,45 @@ function mvBuildFiche(tr){
 }
 function mvSetPlaying(on){ _mvState.playing=!!on;
   const a=document.getElementById("mvPlay"); if(a) a.textContent=(on?mvT("pause"):mvT("play"));
-  const b=document.getElementById("stuPlay"); if(b) b.textContent=(on?"\u23f8":"\u25b6"); }
+  const b=document.getElementById("stuPlay"); if(b) b.textContent=(on?"\u23f8":"\u25b6");
+  const c=document.getElementById("stuPP"); if(c) c.textContent=(on?"\u23f8":"\u25b6"); }
+
+/* ---- Barre de lecture : avancement, temps et déplacement au doigt ---- */
+function mvFmtTc(x){ x=Math.max(0,Math.floor(x||0)); const m=Math.floor(x/60), sec=x%60;
+  return (m<10?"0":"")+m+":"+(sec<10?"0":"")+sec; }
+function mvSeekUpdate(){
+  const A=_mvState.audio; const f=document.getElementById("stuSeekF");
+  if(!f) return;
+  const total=Math.max(0.1,_mvState.total||_mvState.dur||60);
+  const cur=Math.min(total, (A&&A.currentTime)||0);
+  const pct=Math.max(0,Math.min(1,cur/total));
+  f.style.width=(pct*100)+"%";
+  const h=document.getElementById("stuSeekH"); if(h) h.style.left=(pct*100)+"%";
+  const a=document.getElementById("stuTcA"); if(a) a.textContent=mvFmtTc(cur);
+  const b=document.getElementById("stuTcB"); if(b) b.textContent=mvFmtTc(total);
+}
+function mvSeekBind(ov){
+  const bar=ov.querySelector("#stuSeek"); if(!bar || bar.dataset.b==="1") return;
+  bar.dataset.b="1";
+  const pos=(e)=>{ const r=bar.getBoundingClientRect();
+    const x=((e.touches&&e.touches[0])?e.touches[0].clientX:e.clientX)-r.left;
+    return Math.max(0,Math.min(1,x/Math.max(1,r.width))); };
+  const seek=(p)=>{ const A=_mvState.audio; if(!A) return;
+    const total=Math.max(0.1,_mvState.total||_mvState.dur||60);
+    /* On se déplace dans la musique : le film suit, puisqu'il est calé dessus. */
+    try{ A.currentTime=Math.min(total-0.05, p*total); }catch(e){}
+    mvSeekUpdate(); };
+  let drag=false;
+  const down=e=>{ drag=true; seek(pos(e)); e.preventDefault(); };
+  const move=e=>{ if(drag){ seek(pos(e)); e.preventDefault(); } };
+  const up=()=>{ drag=false; };
+  bar.addEventListener("pointerdown",down); bar.addEventListener("touchstart",down,{passive:false});
+  window.addEventListener("pointermove",move); window.addEventListener("touchmove",move,{passive:false});
+  window.addEventListener("pointerup",up); window.addEventListener("touchend",up);
+  const pp=ov.querySelector("#stuPP"); if(pp) pp.onclick=()=>mvTogglePlay();
+  /* Appui sur l'image = lecture / pause, comme dans un vrai lecteur. */
+  const st=ov.querySelector("#mvStage"); if(st && st.dataset.b!=="1"){ st.dataset.b="1"; st.onclick=()=>mvTogglePlay(); }
+}
 function mvTogglePlay(){ const A=_mvState.audio; if(!A) return; mvAudioResume();
   if(_mvState.playing){ try{ A.pause(); }catch(e){} mvOverlayPlayAll(false); mvSetPlaying(false); return; }
   const total=Math.min(_mvState.total||60, (A.duration>1)?A.duration:(_mvState.total||60));
@@ -7845,6 +7901,7 @@ function mvRun(tr,total){
         /* Effet du plan communiqué au moteur GPU avant le dessin.
            Pendant une transition on n'applique pas d'effet (deux images à la fois). */
         _mvState._fxDone=false; _mvState._ovDone=false; _mvState._ovTrDone=false; _mvState._gradeDone=false; _mvState._planIx=si;
+        if(!_mvState._seekTick || (t-_mvState._seekTick)>0.12){ _mvState._seekTick=t; mvSeekUpdate(); }   /* barre de lecture */
         _mvState._ovNow=(seg.overlay?(_mvOverlayEls[seg.overlay]||null):null);
         /* Flash d'overlay sur les temps forts, désormais composé sur le GPU lui aussi. */
         _mvState._ovTrNow=(seg.overlayTr && into<TR)?(_mvOverlayEls[seg.overlayTr]||null):null;
