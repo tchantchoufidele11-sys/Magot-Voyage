@@ -5900,7 +5900,7 @@ function openMontage(tr,version,autoplay){ tr=tr||souvTrip(); if(!tr) return; _m
     <div id="mvStudio" class="stu" style="display:none">
       <div class="stu-top">
         <button class="stu-back" id="stuBack">\u2190</button>
-        <div class="stu-ttl"><b>Studio Magot</b><span>Montage vidéo · v356</span></div>
+        <div class="stu-ttl"><b>Studio Magot</b><span>Montage vidéo · v357</span></div>
         <button class="stu-ico" id="stuUndo" title="Annuler">\u21b6</button>
         <button class="stu-ico" id="stuRedo" title="Rétablir">\u21b7</button>
         <button class="stu-exp" id="mvSave">\u2b06 Exporter</button>
@@ -6851,7 +6851,8 @@ const MV_GRADE={
   cold:   {f:"saturate(0.95) contrast(1.06)", tint:"rgba(70,130,220,0.14)"},
   golden: {f:"saturate(1.18) brightness(1.04)", tint:"rgba(255,175,70,0.20)"},
   bw:     {f:"grayscale(1) contrast(1.15)",  tint:null},
-  vintage:{f:"sepia(0.35) saturate(0.9) contrast(0.95)", tint:"rgba(190,140,80,0.12)"}
+  vintage:{f:"sepia(0.35) saturate(0.9) contrast(0.95)", tint:"rgba(190,140,80,0.12)"},
+  magot:  {f:"contrast(1.10) saturate(1.06) brightness(1.02)", tint:"rgba(200,160,60,0.08)"}
 };
 /* Les mêmes ambiances, exprimées pour le GPU (identiques aux filtres 2D ci-dessus). */
 const MV_GRADE_GL={
@@ -6861,9 +6862,13 @@ const MV_GRADE_GL={
   cold:   {contrast:1.06, sat:0.95, bright:1,    sepia:0,    tint:[0.275,0.510,0.863], tintAmt:0.14},
   golden: {contrast:1,    sat:1.18, bright:1.04, sepia:0,    tint:[1,0.686,0.275],     tintAmt:0.20},
   bw:     {contrast:1.15, sat:0,    bright:1,    sepia:0,    tint:null,               tintAmt:0},
-  vintage:{contrast:0.95, sat:0.9,  bright:1,    sepia:0.35, tint:[0.745,0.549,0.314], tintAmt:0.12}
+  vintage:{contrast:0.95, sat:0.9,  bright:1,    sepia:0.35, tint:[0.745,0.549,0.314], tintAmt:0.12},
+  /* ✦ Signature Magot Voyage : ombres bleu-nuit, lumières dorées — les deux
+     couleurs de la marque, portées par l'image elle-même. */
+  magot:  {contrast:1.10, sat:1.06, bright:1.02, sepia:0,    tint:[0.784,0.627,0.235], tintAmt:0.05,
+           shadow:[0.043,0.090,0.180], high:[1.0,0.878,0.612], split:0.30, vignette:0.40}
 };
-const MV_GRADE_LBL={natural:"Naturelle",cinema:"Cinéma",warm:"Chaude",cold:"Froide",golden:"Golden hour",bw:"Noir & blanc",vintage:"Vintage"};
+const MV_GRADE_LBL={natural:"Naturelle",cinema:"Cinéma",warm:"Chaude",cold:"Froide",golden:"Golden hour",bw:"Noir & blanc",vintage:"Vintage",magot:"\u2726 Magot"};
 /* Couleur "Auto" : Fidèle choisit une ambiance qui va avec le voyage, et VARIE d'un montage à l'autre. */
 function mvAutoGrade(tr){
   let mood="decouverte"; try{ mood=(mvDirect(tr).mood)||"decouverte"; }catch(e){}
@@ -6875,7 +6880,7 @@ function mvAutoGrade(tr){
   while(pick===last && g<6){ pick=arr[Math.floor(Math.random()*arr.length)]; g++; }   /* pas deux fois la même de suite */
   _mvState._lastAutoGrade=pick; return pick;
 }
-const MV_GRAIN={natural:0,cinema:0.05,warm:0.02,cold:0.02,golden:0.03,bw:0.07,vintage:0.09};
+const MV_GRAIN={natural:0,cinema:0.05,warm:0.02,cold:0.02,golden:0.03,bw:0.07,vintage:0.09,magot:0.035};
 let _mvGrain=null;
 function mvGrainTile(){ if(_mvGrain) return _mvGrain; const N=180, c=document.createElement("canvas"); c.width=N;c.height=N;
   const g=c.getContext("2d"); if(!g||!g.createImageData) return null; const im=g.createImageData(N,N);
@@ -6891,7 +6896,7 @@ function mvGLLoad(){
   _mvGLtried=true;
   return new Promise(res=>{
     if(window.MVGL){ res(mvGLInit()); return; }
-    const s=document.createElement("script"); s.src="./moteur/mvgl.js?v=25";
+    const s=document.createElement("script"); s.src="./moteur/mvgl.js?v=26";
     s.onload=()=>res(mvGLInit()); s.onerror=()=>{ _mvGL=null; res(false); };
     document.head.appendChild(s);
   });
@@ -7447,14 +7452,16 @@ function mvRun(tr,total){
           const gpuFx=(fxN && _mvGL.canFx(fxN));
           /* Overlay de ce plan : on le compose ICI, sur le GPU, pour pouvoir
              le glisser DERRIÈRE les personnes. */
-          const ovEl=_mvState._ovNow||null;
+          const ovEl=(_mvState._role==="prev")?null:(_mvState._ovNow||null);   /* l'overlay accompagne la photo entrante */
+          const ovTrEl=(_mvState._role==="prev")?null:(_mvState._ovTrNow||null);
+          const ovTrTex=(ovTrEl && ovTrEl.readyState>=2)?mvGLTex(ovTrEl):null;
           const ovTex=(ovEl && ovEl.readyState>=2)?mvGLTex(ovEl):null;
           const mask=(ovTex && _mvState.maskPeople)?mvMaskFor(im):null;   /* desactive par defaut : overlays devant, plus naturel */
           const geo={mode:(fp.mode==="fill"?"fill":"fit"), zoom:z, rotZ:(rr||0), offX:oX, offY:oY};
 
           const gk=(_mvState.grade==="auto"?(_mvState._autoGrade||"cinema"):(_mvState.grade||"natural"));
           const GG=MV_GRADE_GL[gk]||MV_GRADE_GL.natural;
-          const scene=_mvGL.beginScene();   /* ambiance, grain et vignettage sont désormais faits ici */
+          const scene=_mvGL.beginScene();   /* ambiance, grain, vignettage et overlays sont désormais faits ici */
           if(!scene) _mvGL.clear(0,0,0);
           if(fp.mode!=="fill") _mvGL.background(tex,{});
           _mvGL.draw(tex,geo);
@@ -7470,11 +7477,18 @@ function mvRun(tr,total){
             if(mask){ const g2={}; for(const k in geo) g2[k]=geo[k]; g2.mask=mask; g2.maskMode=1; _mvGL.draw(tex,g2); }
             _mvState._ovDone=true;
           }
+          if(ovTrTex){   /* flash de transition : pulsation au cœur de la coupe */
+            const fwT=((ovTrEl._cat||"")==="Feux d'artifice");
+            _mvGL.draw(ovTrTex,{mode:"fill", alpha:Math.min(1,(_mvState._ovTrPulse||0)*1.1), additive:true,
+                                offY:(fwT?0.16:0), fadeY:(fwT?[0.16,0.50]:null)});
+            _mvState._ovTrDone=true;
+          }
           if(scene){
             _mvGL.endScene(fxN,{amt:(_mvState._fxAmt||0), time:(_mvState._fxTime||0), drop:!!_mvState._fxDrop,
               contrast:GG.contrast, sat:GG.sat, bright:GG.bright, sepia:GG.sepia,
               tint:(GG.tint||[1,1,1]), tintAmt:(GG.tint?GG.tintAmt:0),
-              grain:(MV_GRAIN[gk]||0), vignette:0.34});
+              shadow:GG.shadow, high:GG.high, split:(GG.split||0),
+              grain:(MV_GRAIN[gk]||0), vignette:(GG.vignette!=null?GG.vignette:0.34)});
             _mvState._fxDone=true; _mvState._gradeDone=true;   /* le 2D ne refait ni l'effet ni l'ambiance */
           }
           g.save(); g.globalAlpha=(alpha==null?1:alpha);
@@ -7545,8 +7559,8 @@ function mvRun(tr,total){
       mode=(mode==="depart3d"||mode==="door3d")?"blinds":(mode==="carnet3d"?"fold":(mode==="reminiscence3d"?"dissolve":"flip3d"));   /* repli 2D */
     }
     /* mêmes arguments que draw(), sans (image, progression, mouvement) : alpha, décalage X/Y, zoom, rotation */
-    const dP=(al,ox,oy,z,rot)=>draw(prev,pk,pm,al,ox,oy,z,rot,ppi);
-    const dC=(al,ox,oy,z,rot)=>draw(cur,ck,cm,al,ox,oy,z,rot,pi);
+    const dP=(al,ox,oy,z,rot)=>{ _mvState._role="prev"; draw(prev,pk,pm,al,ox,oy,z,rot,ppi); _mvState._role=""; };
+    const dC=(al,ox,oy,z,rot)=>{ _mvState._role="cur";  draw(cur,ck,cm,al,ox,oy,z,rot,pi);  _mvState._role=""; };
     switch(mode){
       case "whiteFade": dP(1); if(a<0.5) g.fillStyle="rgba(255,255,255,"+(a*2)+")"; else { dC(1); g.fillStyle="rgba(255,255,255,"+((1-a)*2)+")"; } g.fillRect(0,0,W,H); break;
       case "blackFade": if(a<0.5){ dP(1); g.fillStyle="rgba(0,0,0,"+(a*2)+")"; } else { dC(1); g.fillStyle="rgba(0,0,0,"+((1-a)*2)+")"; } g.fillRect(0,0,W,H); break;
@@ -7694,8 +7708,11 @@ function mvRun(tr,total){
             if(it.im.currentTime > (c.start||0)+(c.len||4) || it.im.currentTime < (c.start||0)-0.1){ try{ it.im.currentTime=c.start||0; }catch(e){} } } }
         /* Effet du plan communiqué au moteur GPU avant le dessin.
            Pendant une transition on n'applique pas d'effet (deux images à la fois). */
-        _mvState._fxDone=false; _mvState._ovDone=false; _mvState._gradeDone=false;
-        _mvState._ovNow=((!prev || into>=TR) && seg.overlay)?(_mvOverlayEls[seg.overlay]||null):null;
+        _mvState._fxDone=false; _mvState._ovDone=false; _mvState._ovTrDone=false; _mvState._gradeDone=false;
+        _mvState._ovNow=(seg.overlay?(_mvOverlayEls[seg.overlay]||null):null);
+        /* Flash d'overlay sur les temps forts, désormais composé sur le GPU lui aussi. */
+        _mvState._ovTrNow=(seg.overlayTr && into<TR)?(_mvOverlayEls[seg.overlayTr]||null):null;
+        _mvState._ovTrPulse=(seg.overlayTr && into<TR)?Math.sin(Math.min(1,into/Math.max(0.15,TR))*Math.PI):0;
         _mvState._ovInt=(_mvState.overlayInt!=null?_mvState.overlayInt:0.55);
         _mvState._fxNow=(prev && into<TR)?"":(seg.fx||"");
         _mvState._fxAmt=into/Math.max(0.5,len); _mvState._fxTime=t; _mvState._fxDrop=!!seg.drop;
@@ -7718,7 +7735,7 @@ function mvRun(tr,total){
               const R=_mvState._imgRect; if(R){ g.beginPath(); g.rect(R.x,R.y,R.w,R.h); g.clip(); }   /* on reste dans l'image nette (pas les bords floutés) */
               g.globalCompositeOperation="screen"; g.globalAlpha=(_mvState.overlayInt!=null?_mvState.overlayInt:0.55); g.drawImage(ovc,0,0); g.restore();
             }catch(e){} } }   /* overlay vidéo façon CapCut */
-        if(seg.overlayTr && into<TR && _mvOverlayEls[seg.overlayTr]){ const ovt=_mvOverlayEls[seg.overlayTr];
+        if(seg.overlayTr && into<TR && !_mvState._ovTrDone && _mvOverlayEls[seg.overlayTr]){ const ovt=_mvOverlayEls[seg.overlayTr];
           if(ovt.paused && _mvState.playing){ try{ ovt.play().catch(()=>{}); }catch(e){} }
           if(ovt.readyState>=2){ const pulse=Math.sin(Math.min(1,into/Math.max(0.15,TR))*Math.PI);   /* 0 → 1 → 0 : flash au cœur de la coupe */
             const vw=ovt.videoWidth||W, vh=ovt.videoHeight||H, sc=Math.max(W/vw,H/vh), dw=vw*sc, dh=vh*sc;
