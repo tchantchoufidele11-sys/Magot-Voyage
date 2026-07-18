@@ -5900,7 +5900,7 @@ function openMontage(tr,version,autoplay){ tr=tr||souvTrip(); if(!tr) return; _m
     <div id="mvStudio" class="stu" style="display:none">
       <div class="stu-top">
         <button class="stu-back" id="stuBack">\u2190</button>
-        <div class="stu-ttl"><b>Studio Magot</b><span>Montage vidéo · v350</span></div>
+        <div class="stu-ttl"><b>Studio Magot</b><span>Montage vidéo · v351</span></div>
         <button class="stu-ico" id="stuUndo" title="Annuler">\u21b6</button>
         <button class="stu-ico" id="stuRedo" title="Rétablir">\u21b7</button>
         <button class="stu-exp" id="mvSave">\u2b06 Exporter</button>
@@ -6881,7 +6881,7 @@ function mvGLLoad(){
   _mvGLtried=true;
   return new Promise(res=>{
     if(window.MVGL){ res(mvGLInit()); return; }
-    const s=document.createElement("script"); s.src="./moteur/mvgl.js?v=17";
+    const s=document.createElement("script"); s.src="./moteur/mvgl.js?v=20";
     s.onload=()=>res(mvGLInit()); s.onerror=()=>{ _mvGL=null; res(false); };
     document.head.appendChild(s);
   });
@@ -7385,13 +7385,20 @@ function mvRun(tr,total){
             oX+=((0.5-(fp.cx!=null?fp.cx:0.5))*(wpx-W))*2*car/W;
             oY-=((0.5-(fp.cy!=null?fp.cy:0.5))*(hpx-H))*2/H;
           }
-          _mvGL.clear(0,0,0);
+          /* Effet du plan : si le moteur sait le faire, il est appliqué SUR LE GPU
+             pendant le rendu (plus de retraitement du canvas après coup). */
+          const fxN=_mvState._fxNow||"";
+          const gpuFx=(fxN && _mvGL.canFx(fxN));
+          const scene=gpuFx?_mvGL.beginScene():false;
+          if(!scene) _mvGL.clear(0,0,0);
           if(fp.mode!=="fill") _mvGL.background(tex,{});
           _mvGL.draw(tex,{mode:(fp.mode==="fill"?"fill":"fit"), zoom:z, rotZ:(rr||0), offX:oX, offY:oY});
+          if(scene) _mvGL.endScene(fxN,{amt:(_mvState._fxAmt||0), time:(_mvState._fxTime||0), drop:!!_mvState._fxDrop});
           g.save(); g.globalAlpha=(alpha==null?1:alpha);
           if(useCtx() && GR.f){ try{ g.filter=GR.f; }catch(e3){} }
           g.drawImage(_mvGLcv,0,0,W,H);
           g.restore();
+          if(scene) _mvState._fxDone=true;   /* déjà appliqué : le 2D ne le refera pas */
           if(fp.mode==="fill") _mvState._imgRect=null;
           else { const wpx=(sxw/car)*W, hpx=syw*H; _mvState._imgRect={x:(W-wpx)/2,y:(H-hpx)/2,w:wpx,h:hpx}; }
           return;
@@ -7602,11 +7609,16 @@ function mvRun(tr,total){
         { const kp=_mvState.keep||[], it=kp[seg.img];
           if(it && it.vid && it.im && !it.im.paused){ const c=seg.clip||it.clip||{start:0,len:4};
             if(it.im.currentTime > (c.start||0)+(c.len||4) || it.im.currentTime < (c.start||0)-0.1){ try{ it.im.currentTime=c.start||0; }catch(e){} } } }
+        /* Effet du plan communiqué au moteur GPU avant le dessin.
+           Pendant une transition on n'applique pas d'effet (deux images à la fois). */
+        _mvState._fxDone=false;
+        _mvState._fxNow=(prev && into<TR)?"":(seg.fx||"");
+        _mvState._fxAmt=into/Math.max(0.5,len); _mvState._fxTime=t; _mvState._fxDrop=!!seg.drop;
         if(prev && into<TR) trans(seg.mode, into/TR, prev, cur, 1, k, pm, cm, ppi, pi);
         else draw(cur,k,cm,1,0,0, (seg.drop? (1+0.06*Math.max(0,1-into/0.25)) : 1), 0, pi);   /* coup de zoom sur le temps fort */
         if(seg.drop && into<0.28){ const p2=1-into/0.28; g.save(); g.globalAlpha=0.16*p2; g.fillStyle="#fff"; g.fillRect(0,0,W,H); g.restore(); }
         vign();
-        if(seg.fx) mvFxDraw(seg.fx, g, W, H, into/Math.max(0.5,len), seg.e||0.5, si, t, cv, seg.drop);   /* effet du plan, PAR-DESSUS l'étalonnage → bien visible */
+        if(seg.fx && !_mvState._fxDone) mvFxDraw(seg.fx, g, W, H, into/Math.max(0.5,len), seg.e||0.5, si, t, cv, seg.drop);   /* effet du plan (2D) — sauté si le GPU l'a déjà appliqué */
         if(seg.overlay && _mvOverlayEls[seg.overlay]){ const ovl=_mvOverlayEls[seg.overlay];
           if(ovl.paused && _mvState.playing){ try{ ovl.play().catch(()=>{}); }catch(e){} }   /* iOS met parfois l'overlay en pause : on le relance */
           if(ovl.readyState>=2){
