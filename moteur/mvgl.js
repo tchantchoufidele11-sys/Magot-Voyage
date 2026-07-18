@@ -121,6 +121,21 @@
     return c;
   }
 
+  /* Demi-largeur / demi-hauteur RÉELLES de la photo à l'écran.
+     Indispensable pour les cubes : sans ça, les arêtes ne se rejoignent pas. */
+  function extents(tex, o) {
+    o = o || {};
+    var car = canvas.width / canvas.height, ar = (tex && tex._w ? tex._w : 1) / (tex && tex._h ? tex._h : 1);
+    var sx, sy;
+    if ((o.mode || "fit") === "fill") {
+      if (ar > car) { sy = 1; sx = ar; } else { sx = car; sy = car / ar; }
+    } else {
+      if (ar > car) { sx = car; sy = car / ar; } else { sy = 1; sx = ar; }
+    }
+    var z = o.zoom || 1;
+    return { sx: sx * z, sy: sy * z };
+  }
+
   var API = {
     /* Prépare le moteur. Renvoie false si WebGL indisponible → repli 2D. */
     init: function (cv) {
@@ -209,17 +224,8 @@
       gl.useProgram(prog);
 
       /* Cadrage : dans ce repère, la largeur de l'écran vaut "car" et la hauteur vaut 1. */
-      var car = W / H, ar = (tex._w || 1) / (tex._h || 1);
-      var sx, sy;
-      if ((o.mode || "fit") === "fill") {
-        if (ar > car) { sy = 1; sx = ar; }          /* déborde en largeur, rogné */
-        else { sx = car; sy = car / ar; }           /* déborde en hauteur, rogné */
-      } else {
-        if (ar > car) { sx = car; sy = car / ar; }  /* photo entière : bandes en haut/bas */
-        else { sy = 1; sx = ar; }                   /* photo entière : bandes sur les côtés */
-      }
-      var zoom = o.zoom || 1;
-      sx *= zoom; sy *= zoom;
+      var ex = extents(tex, o);
+      var sx = ex.sx, sy = ex.sy, car = W / H;
 
       /* Perspective : indispensable pour que la 3D ait de la profondeur. */
       var proj = mat4Perspective(Math.PI / 4, car, 0.1, 100);
@@ -299,7 +305,7 @@
       if (kind === "cube3d") {
         /* Vrai cube : les deux faces sont perpendiculaires et tournent
            autour de l'axe central du cube (et non chacune sur elle-même). */
-        var hw = (canvas.width / canvas.height) * (base.zoom || 1);   /* demi-largeur du cube */
+        var hw = extents(from || to, base).sx;   /* demi-largeur RÉELLE : les arêtes se rejoignent */
         var th = e * PI / 2;
         var fO = { rotY: th,          offX: Math.sin(th) * hw,  z: Math.cos(th) * hw - hw };
         var tO = { rotY: th - PI / 2, offX: -Math.cos(th) * hw, z: Math.sin(th) * hw - hw };
@@ -324,7 +330,7 @@
       }
       if (kind === "cubeX3d") {
         /* Cube vertical : la photo bascule vers le haut. */
-        var hh = (base.zoom || 1);
+        var hh = extents(from || to, base).sy;   /* demi-hauteur RÉELLE : les coins se rejoignent */
         var tx = e * PI / 2;
         var fV = { rotX: -tx,          offY: Math.sin(tx) * hh,  z: Math.cos(tx) * hh - hh };
         var tV = { rotX: PI / 2 - tx,  offY: -Math.cos(tx) * hh, z: Math.sin(tx) * hh - hh };
@@ -335,7 +341,7 @@
       if (kind === "door3d") {
         /* Portes : la photo s'ouvre en deux panneaux qui pivotent sur les
            bords extérieurs, la suivante apparaît derrière. */
-        var hwd = (canvas.width / canvas.height) * (base.zoom || 1);
+        var hwd = extents(from || to, base).sx;
         var ang = e * (PI / 2) * 0.95, cA = Math.cos(ang), sA = Math.sin(ang);
         if (to) API.draw(to, opts({ zoom: (base.zoom || 1) * (0.93 + 0.07 * e) }));
         if (from) {
@@ -348,12 +354,13 @@
         /* ✦ Signature Magot Voyage — « Carnet de voyage » :
            la photo se soulève comme la page d'un carnet, pivot sur le bord
            gauche. La photo suivante attend dessous, comme la page d'après. */
-        var hwp = (canvas.width / canvas.height) * (base.zoom || 1);
-        var pg = e * (PI / 2) * 0.98, cP = Math.cos(pg), sP = Math.sin(pg);
+        var hwp = extents(from || to, base).sx;
+        var pg = Math.pow(k, 1.9) * (PI / 2) * 0.98;   /* la page se lève lentement, puis bascule */
+        var cP = Math.cos(pg), sP = Math.sin(pg);
         if (to) API.draw(to, opts({}));
         if (from) API.draw(from, opts({
           rotY: -pg, offX: hwp * (cP - 1), z: sP * hwp,
-          bright: 1 - 0.25 * e            /* la page s'assombrit en se levant */
+          bright: 1 - 0.25 * Math.pow(k, 1.9)   /* la page s'assombrit en se levant */
         }));
         return;
       }
@@ -362,12 +369,48 @@
            la photo arrive en pivotant sur deux axes et se stabilise
            avec un léger dépassement, comme une aiguille qui se pose. */
         var s = 1 - Math.pow(1 - k, 3);
-        var over = Math.sin(k * PI * 1.5) * (1 - k) * 0.28;   /* oscillation amortie */
+        var over = Math.sin(k * PI * 1.5) * Math.pow(1 - k, 2) * 0.09;   /* léger dépassement, vite amorti */
         if (from) API.draw(from, opts({ zoom: (base.zoom || 1) * (1 - 0.10 * s), alpha: 1 - s, rotY: -s * 0.35 }));
         if (to) API.draw(to, opts({
           rotY: (1 - s) * 0.9 + over, rotX: (1 - s) * 0.35 - over * 0.5,
           z: -(1 - s) * 1.1, alpha: s, zoom: (base.zoom || 1) * (1.06 - 0.06 * s)
         }));
+        return;
+      }
+      if (kind === "reminiscence3d") {
+        /* ✦ Signature Magot Voyage — « Réminiscence » :
+           la photo se voile, s'éclaircit et s'éloigne comme un souvenir qui
+           s'estompe ; la suivante émerge du flou dans un halo doré (la couleur
+           de la marque) qui se dissipe en arrivant à la netteté. */
+        var r = k < 0.5 ? 2 * k * k : 1 - Math.pow(-2 * k + 2, 2) / 2;
+        if (from) API.draw(from, opts({
+          blur: r * 4.5, bright: 1 + 0.18 * r, sat: 1 - 0.35 * r,
+          z: -0.40 * r, zoom: (base.zoom || 1) * (1 + 0.05 * r), alpha: 1 - r
+        }));
+        if (to) API.draw(to, opts({
+          blur: (1 - r) * 4.0, zoom: (base.zoom || 1) * (1.10 - 0.10 * r),
+          alpha: r, tint: [0.79, 0.64, 0.15], tintAmt: (1 - r) * 0.30,
+          bright: 1 + 0.10 * (1 - r)
+        }));
+        return;
+      }
+      if (kind === "depart3d") {
+        /* ✦ Signature Magot Voyage — « Tableau des départs » :
+           la photo est découpée en lames verticales qui basculent l'une après
+           l'autre, comme les volets d'un panneau d'affichage de gare ou
+           d'aéroport. Chaque lame révèle la photo suivante en se retournant. */
+        var N = 7, sg = 0.5 / (N - 1), win = 0.5;
+        for (var i = 0; i < N; i++) {
+          var p = (k - i * sg) / win;
+          p = p < 0 ? 0 : (p > 1 ? 1 : p);
+          var sl = [i / N, (i + 1) / N];
+          var dim = 1 - 0.40 * Math.sin(p * PI);   /* la lame s'assombrit sur la tranche */
+          if (p < 0.5) {
+            if (from) API.draw(from, opts({ slice: sl, rotX: -p * PI, bright: dim }));
+          } else {
+            if (to) API.draw(to, opts({ slice: sl, rotX: (p - 1) * PI, bright: dim }));
+          }
+        }
         return;
       }
       if (kind === "zoomThrough3d") {
@@ -381,9 +424,9 @@
       if (to)   API.draw(to,   opts({ alpha: e }));
     },
 
-    version: "1.3",
-    kinds: ["cube3d", "cubeX3d", "flip3d", "carousel3d", "door3d", "zoomThrough3d", "carnet3d", "boussole3d", "fade"],
-    labels: { cube3d:"Cube", cubeX3d:"Cube vertical", flip3d:"Retournement", carousel3d:"Carrousel", door3d:"Portes", zoomThrough3d:"Traversée", carnet3d:"\u2726 Carnet de voyage", boussole3d:"\u2726 Boussole", fade:"Fondu" }
+    version: "1.5",
+    kinds: ["cube3d", "cubeX3d", "flip3d", "carousel3d", "door3d", "zoomThrough3d", "carnet3d", "boussole3d", "reminiscence3d", "depart3d", "fade"],
+    labels: { cube3d:"Cube", cubeX3d:"Cube vertical", flip3d:"Retournement", carousel3d:"Carrousel", door3d:"Portes", zoomThrough3d:"Traversée", carnet3d:"\u2726 Carnet de voyage", boussole3d:"\u2726 Boussole", reminiscence3d:"\u2726 Réminiscence", depart3d:"\u2726 Tableau des départs", fade:"Fondu" }
   };
 
   root.MVGL = API;
