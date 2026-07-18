@@ -33,6 +33,8 @@
     "uniform float uGray;",
     "uniform sampler2D uMask;",
     "uniform int uMaskMode;",   /* 0 = tout, 1 = la personne seulement, 2 = le fond seulement */
+    "uniform vec2 uFadeY;",     /* estompage vertical : garde l'overlay dans le ciel */
+    "uniform int uFadeOn;",
     "void main(){",
     "  vec4 c;",
     "  if(uBlur > 0.0){",
@@ -53,6 +55,7 @@
     "  float mk = 1.0;",
     "  if(uMaskMode == 1){ mk = texture2D(uMask, vUV).r; mk = smoothstep(0.35, 0.65, mk); }",
     "  else if(uMaskMode == 2){ mk = 1.0 - smoothstep(0.35, 0.65, texture2D(uMask, vUV).r); }",
+    "  if(uFadeOn == 1){ mk *= 1.0 - smoothstep(uFadeY.x, uFadeY.y, vUV.y); }",
     "  gl_FragColor = vec4(c.rgb, c.a * uAlpha * mk);",
     "}"
   ].join("\n");
@@ -121,6 +124,7 @@
     "  float mk = 1.0;",
     "  if(uMaskMode == 1){ mk = texture2D(uMask, vUV).r; mk = smoothstep(0.35, 0.65, mk); }",
     "  else if(uMaskMode == 2){ mk = 1.0 - smoothstep(0.35, 0.65, texture2D(uMask, vUV).r); }",
+    "  if(uFadeOn == 1){ mk *= 1.0 - smoothstep(uFadeY.x, uFadeY.y, vUV.y); }",
     "  gl_FragColor = vec4(c.rgb, c.a * uAlpha * mk);",
     "}"
   ].join("\n");
@@ -381,7 +385,7 @@
 
         loc.aPos = gl.getAttribLocation(prog, "aPos");
         loc.aUV = gl.getAttribLocation(prog, "aUV");
-        ["uMVP","uTex","uAlpha","uBright","uContrast","uSat","uTint","uTintAmt","uVignette","uBlur","uTexel","uGray","uMask","uMaskMode"]
+        ["uMVP","uTex","uAlpha","uBright","uContrast","uSat","uTint","uTintAmt","uVignette","uBlur","uTexel","uGray","uMask","uMaskMode","uFadeY","uFadeOn"]
           .forEach(function (n) { loc[n] = gl.getUniformLocation(prog, n); });
 
         /* Second programme : la passe d'effets. */
@@ -578,6 +582,8 @@
       if (o.mask) { gl.activeTexture(gl.TEXTURE1); gl.bindTexture(gl.TEXTURE_2D, o.mask);
         gl.uniform1i(loc.uMask, 1); gl.uniform1i(loc.uMaskMode, o.maskMode || 1); gl.activeTexture(gl.TEXTURE0); }
       else { gl.uniform1i(loc.uMaskMode, 0); }
+      if (o.fadeY) { gl.uniform1i(loc.uFadeOn, 1); gl.uniform2f(loc.uFadeY, o.fadeY[0], o.fadeY[1]); }
+      else { gl.uniform1i(loc.uFadeOn, 0); }
       gl.uniform3fv(loc.uTint, o.tint || [1, 1, 1]);
       gl.uniform1f(loc.uTintAmt, o.tintAmt || 0);
       gl.uniform1f(loc.uVignette, o.vignette || 0);
@@ -736,7 +742,7 @@
       if (to)   API.draw(to,   opts({ alpha: e }));
     },
 
-    version: "2.3",
+    version: "2.4",
     kinds: ["cube3d", "cubeX3d", "flip3d", "carousel3d", "door3d", "zoomThrough3d", "carnet3d", "boussole3d", "reminiscence3d", "depart3d", "fade"],
     labels: { cube3d:"Cube", cubeX3d:"Cube vertical", flip3d:"Retournement", carousel3d:"Carrousel", door3d:"Portes", zoomThrough3d:"Traversée", carnet3d:"\u2726 Carnet de voyage", boussole3d:"\u2726 Boussole", reminiscence3d:"\u2726 Réminiscence", depart3d:"\u2726 Tableau des départs", fade:"Fondu" }
   };
