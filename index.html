@@ -1624,6 +1624,20 @@ body.dragging-on{-webkit-user-select:none;user-select:none}
 /* Règle temporelle */
 #mvOv .stu-ph{background:var(--sGold)}
 #mvOv .stu-ph::before{background:var(--sGold)}
+
+/* Bande d'infos -> cartes lisibles (audit : « trop plat ») */
+#mvOv .mv-fiche{display:flex;gap:7px;overflow-x:auto;-webkit-overflow-scrolling:touch;
+  background:none;padding:8px 12px;scrollbar-width:none}
+#mvOv .mv-fiche::-webkit-scrollbar{display:none}
+#mvOv .mv-fiche .mvf{flex:0 0 auto;display:flex;flex-direction:column;align-items:center;gap:1px;
+  min-width:74px;background:var(--sCard);border:1px solid rgba(214,162,63,.16);border-radius:12px;padding:9px 8px}
+#mvOv .mv-fiche .mvf i{font-style:normal;font-size:13px;color:var(--sGold);line-height:1}
+#mvOv .mv-fiche .mvf b{font-size:12.5px;color:var(--sTx);white-space:nowrap;font-weight:700}
+#mvOv .mv-fiche .mvf em{font-style:normal;font-size:9.5px;color:var(--sTx2);white-space:nowrap}
+/* La vidéo est la star : 58 % de la hauteur, moins de cadres */
+#mvOv .mv-stage{min-height:58vh;border:0;box-shadow:none}
+/* Forme d'onde plus haute (audit : trop fine) */
+#mvOv .stu-wave{height:40px}
 </style>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
@@ -6053,7 +6067,7 @@ function openMontage(tr,version,autoplay){ tr=tr||souvTrip(); if(!tr) return; _m
     <div id="mvStudio" class="stu" style="display:none">
       <div class="stu-top">
         <button class="stu-back" id="stuBack">\u2190</button>
-        <div class="stu-ttl"><b>Studio Magot</b><span>Montage vidéo · v383</span></div>
+        <div class="stu-ttl"><b>Studio Magot</b><span>Montage vidéo · v384</span></div>
         <button class="stu-ico" id="stuUndo" title="Annuler">\u21b6</button>
         <button class="stu-ico" id="stuRedo" title="Rétablir">\u21b7</button>
         <button class="stu-exp" id="mvSave">\u2b06 Exporter</button>
@@ -6219,7 +6233,8 @@ function openMontage(tr,version,autoplay){ tr=tr||souvTrip(); if(!tr) return; _m
   { const fi=ov.querySelector("#stuNote"); if(fi) fi.onclick=()=>openDirectorNote(); }
   _mvState._refreshStudio=()=>{ try{ mvSeekBind(ov); mvRulerPaint(); mvSeekUpdate(); }catch(e){}
     try{ _mvState.fiche=mvBuildFiche(_mvState.tr||souvTrip());
-    const fe=document.getElementById("mvFiche"); if(fe && _mvState.fiche){ fe.style.display="flex"; fe.innerHTML=_mvState.fiche.map(([k,v])=>`<span class="mvf"><b>${v}</b>${k}</span>`).join(""); }
+    const fe=document.getElementById("mvFiche"); if(fe && _mvState.fiche){ fe.style.display="flex"; const IC={Genre:"\u2665",Musique:"\u266b",Dur\u00e9e:"\u23f1",Couleurs:"\u25d0",Transitions:"\u2726",Plans:"\u25a4",Chapitres:"\u2637",Photos:"\u25a3"};
+      fe.innerHTML=_mvState.fiche.map(([k,v])=>`<span class="mvf"><i>${IC[k]||"\u25cf"}</i><b>${v}</b><em>${k}</em></span>`).join(""); }
     stripPaint(); fmtsPaint(); wavePaint(); }catch(e){} };
   /* Reconstruit le film sur-le-champ avec les nouveaux réglages (même musique). */
   const rebuild=(msg)=>{ if(msg) toast(msg);
@@ -6413,7 +6428,8 @@ function openMontage(tr,version,autoplay){ tr=tr||souvTrip(); if(!tr) return; _m
         if(nFit) toast(nFit+" photo"+(nFit>1?"s affichées entières":" affichée entière")+" (sujet préservé)");
       }
       { const fe=ov.querySelector("#mvFiche"); if(fe && _mvState.fiche){ fe.style.display="flex";
-          fe.innerHTML=_mvState.fiche.map(([k,v])=>`<span class="mvf"><b>${v}</b>${k}</span>`).join(""); } }
+          const IC={Genre:"\u2665",Musique:"\u266b",Dur\u00e9e:"\u23f1",Couleurs:"\u25d0",Transitions:"\u2726",Plans:"\u25a4",Chapitres:"\u2637",Photos:"\u25a3"};
+      fe.innerHTML=_mvState.fiche.map(([k,v])=>`<span class="mvf"><i>${IC[k]||"\u25cf"}</i><b>${v}</b><em>${k}</em></span>`).join(""); } }
       ov.classList.add("cine");
       ov.querySelector("#mvSetup").style.display="none";
       ov.querySelector(".smh").style.display="none";
