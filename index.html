@@ -5900,7 +5900,7 @@ function openMontage(tr,version,autoplay){ tr=tr||souvTrip(); if(!tr) return; _m
     <div id="mvStudio" class="stu" style="display:none">
       <div class="stu-top">
         <button class="stu-back" id="stuBack">\u2190</button>
-        <div class="stu-ttl"><b>Studio Magot</b><span>Montage vidéo · v359</span></div>
+        <div class="stu-ttl"><b>Studio Magot</b><span>Montage vidéo · v360</span></div>
         <button class="stu-ico" id="stuUndo" title="Annuler">\u21b6</button>
         <button class="stu-ico" id="stuRedo" title="Rétablir">\u21b7</button>
         <button class="stu-exp" id="mvSave">\u2b06 Exporter</button>
@@ -7184,12 +7184,55 @@ function mvSaliency(im){
   if(!sw||!tot) return null;
   return { cx:sx/sw, cy:sy/sw, box:{x:minx,y:miny,w:Math.max(0.08,maxx-minx),h:Math.max(0.08,maxy-miny)}, density:tot/(N*N) };
 }
+/* Silhouette de la ou des personnes (MediaPipe), en secours quand le navigateur
+   ne sait pas détecter les visages — c'est le cas de Safari sur iPhone.
+   Renvoie la boîte qui contient les personnes, ou null si on n'a rien de fiable. */
+async function mvPersonBox(im){
+  try{
+    const seg=await mvSegLoad(); if(!seg) return null;
+    const w=200, h=Math.max(1,Math.round((im.naturalHeight||im.height)*(w/(im.naturalWidth||im.width))));
+    const c=document.createElement("canvas"); c.width=w; c.height=h;
+    c.getContext("2d").drawImage(im,0,0,w,h);
+    const r=seg.segment(c), cm=r.categoryMask; if(!cm) return null;
+    const raw=cm.getAsUint8Array(), mw=cm.width, mh=cm.height;
+    try{ cm.close(); }catch(e){}
+    /* Nettoyage : un pixel isolé n'est pas une personne. On ne garde que les pixels
+       entourés d'au moins 5 voisins sur 9 — sinon des parasites élargiraient la boîte
+       jusqu'à couvrir toute la photo (vérifié : cela arrivait dès 1 % de bruit). */
+    const px=new Uint8Array(mw*mh);
+    for(let y=1;y<mh-1;y++){ for(let x=1;x<mw-1;x++){ let n=0;
+      for(let j=-1;j<=1;j++){ for(let i=-1;i<=1;i++){ if(raw[(y+j)*mw+x+i]>0) n++; } }
+      if(n>=5) px[y*mw+x]=1; } }
+    const cols=new Float32Array(mw), rows=new Float32Array(mh); let tot=0;
+    for(let y=0;y<mh;y++){ for(let x=0;x<mw;x++){ if(px[y*mw+x]>0){ cols[x]++; rows[y]++; tot++; } } }
+    const ratio=tot/(mw*mh);
+    if(ratio<0.015 || ratio>0.92) return null;         /* rien de net : on ne force pas */
+    let maxC=0,maxR=0;
+    for(let i=0;i<mw;i++) if(cols[i]>maxC) maxC=cols[i];
+    for(let i=0;i<mh;i++) if(rows[i]>maxR) maxR=rows[i];
+    const thC=Math.max(2,maxC*0.12), thR=Math.max(2,maxR*0.12);   /* seuil relatif à la personne */
+    let x0=0,x1=mw-1,y0=0,y1=mh-1;
+    while(x0<mw && cols[x0]<thC) x0++;
+    while(x1>x0 && cols[x1]<thC) x1--;
+    while(y0<mh && rows[y0]<thR) y0++;
+    while(y1>y0 && rows[y1]<thR) y1--;
+    if(x1<=x0 || y1<=y0) return null;
+    return { x:x0/mw, y:y0/mh, w:(x1-x0+1)/mw, h:(y1-y0+1)/mh, ratio };
+  }catch(e){ return null; }
+}
 async function mvAnalyzeFrame(im,key){
   if(key && _mvFrameCache[key]) return _mvFrameCache[key];
   const faces=await mvDetectFaces(im);
   const sal=mvSaliency(im);
+  /* Pas de détection de visages (iPhone) : on demande la silhouette à MediaPipe. */
+  const pb=faces.length?null:await mvPersonBox(im);
   let safe;
-  if(faces.length){
+  if(pb){
+    /* On garde toute la personne, avec un peu d'air au-dessus de la tête. */
+    const padX=0.05, padTop=0.07, padBot=0.04;
+    safe={ x:Math.max(0,pb.x-padX), y:Math.max(0,pb.y-padTop),
+           w:Math.min(1,pb.w+padX*2), h:Math.min(1,pb.h+padTop+padBot) };
+  } else if(faces.length){
     let minx=1,miny=1,maxx=0,maxy=0;
     faces.forEach(f=>{ minx=Math.min(minx,f.x); miny=Math.min(miny,f.y-f.h*0.35); /* on garde le front */
       maxx=Math.max(maxx,f.x+f.w); maxy=Math.max(maxy,f.y+f.h*1.25); });          /* et le menton/buste */
@@ -7199,10 +7242,12 @@ async function mvAnalyzeFrame(im,key){
     const b=sal.box, pad=0.05;
     safe={x:Math.max(0,b.x-pad),y:Math.max(0,b.y-pad),w:Math.min(1,b.w+pad*2),h:Math.min(1,b.h+pad*2)};
   } else safe={x:0.15,y:0.15,w:0.70,h:0.70};
-  const cx=(sal&&!faces.length)?sal.cx:(safe.x+safe.w/2), cy=(sal&&!faces.length)?sal.cy:(safe.y+safe.h/2);
+  /* Point de cadrage : la personne prime ; sinon le visage ; sinon la zone la plus riche. */
+  const cx=pb?(safe.x+safe.w/2):((sal&&!faces.length)?sal.cx:(safe.x+safe.w/2));
+  const cy=pb?(safe.y+safe.h*0.42):((sal&&!faces.length)?sal.cy:(safe.y+safe.h/2));   /* un peu au-dessus du centre : on vise le buste/visage */
   const q=mvScore(im);
   const faceKnown=("FaceDetector" in window);   /* iOS Safari ne la fournit PAS */
-  const r={faces:faces.length, faceBoxes:faces, safe, cx, cy, faceKnown, sharp:q.sharp, blur:q.blur, dark:q.dark,
+  const r={faces:faces.length, faceBoxes:faces, person:pb||null, safe, cx, cy, faceKnown:(faceKnown||!!pb), sharp:q.sharp, blur:q.blur, dark:q.dark,
            portrait:(im.height>im.width*1.15), spread:(faces.length>1 && (safe.w>0.7||safe.h>0.7))};
   if(key) _mvFrameCache[key]=r;
   return r;
@@ -7239,9 +7284,10 @@ function mvFramePlan(im,an,W,H,manual){
   /* RÈGLE 1 — plusieurs visages éloignés : jamais de coupe. */
   if(an.spread) return {mode:"fit", cx:0.5, cy:0.5, zoom:1};
   /* RÈGLE 2 — DANS LE DOUTE, ON NE COUPE PAS.
-     Si le téléphone ne sait pas détecter les visages (cas d'iOS Safari), on ne peut pas garantir
-     qu'un visage ne sera pas amputé : on n'autorise alors qu'un recadrage très léger (12 %).
-     Sinon, le seuil est de 30 %. Au-delà : photo entière + fond flouté. */
+     Si l'on sait où sont les gens (visages détectés, ou silhouette trouvée par MediaPipe),
+     on s'autorise un recadrage allant jusqu'à 30 %, car la règle 3 vérifie ensuite que
+     la personne tient entièrement dans le cadre. Sans cette certitude (aucune détection
+     possible), on se limite à 12 % pour ne jamais amputer quelqu'un. */
   const maxLoss = an.faceKnown ? 0.30 : 0.12;
   if(loss>maxLoss) return {mode:"fit", cx:0.5, cy:0.5, zoom:1};
   /* RÈGLE 3 — la zone de sécurité doit tenir ENTIÈREMENT dans la fenêtre visible. */
