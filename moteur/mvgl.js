@@ -80,6 +80,11 @@
     "uniform float uAsp;",     /* largeur/hauteur : garde les particules RONDES */
     "uniform vec3 uTint;",
     "uniform float uTintAmt;",
+    "uniform float uGrain;",
+    "uniform float uSepia;",
+    "uniform float uSat2;",
+    "uniform float uCon2;",
+    "uniform float uBri2;",
     "float hash(vec2 p){ return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }",
     "vec3 blurAt(vec2 uv, float r){",
     "  vec3 s = vec3(0.0);",
@@ -149,6 +154,11 @@
     "uniform float uAsp;",     /* largeur/hauteur : garde les particules RONDES */
     "uniform vec3 uTint;",
     "uniform float uTintAmt;",
+    "uniform float uGrain;",
+    "uniform float uSepia;",
+    "uniform float uSat2;",
+    "uniform float uCon2;",
+    "uniform float uBri2;",
     "float hash(vec2 p){ return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }",
     "vec3 blurAt(vec2 uv, float r){",
     "  vec3 s = vec3(0.0);",
@@ -261,7 +271,15 @@
     "    p  += flakes(uv, 14.0, 0.12, 0.18, 11.0, 1.0, 0.50) * 0.65;",
     "    p  += flakes(uv, 24.0, 0.08, 0.11, 17.0, 1.0, 0.65) * 0.45;",
     "    c += vec3(1.0) * (p + g2) * 1.45; }",
+    /* ---- Étalonnage (ambiance) : contraste, saturation, luminosité, sépia ---- */
+    "  c = (c - 0.5) * uCon2 + 0.5;",
+    "  c *= uBri2;",
+    "  float l2 = dot(c, vec3(0.299, 0.587, 0.114));",
+    "  c = mix(vec3(l2), c, uSat2);",
+    "  if(uSepia > 0.0){ vec3 sp = vec3(dot(c, vec3(0.393,0.769,0.189)), dot(c, vec3(0.349,0.686,0.168)), dot(c, vec3(0.272,0.534,0.131)));",
+    "    c = mix(c, sp, uSepia); }",
     "  c = mix(c, uTint, uTintAmt);",
+    "  if(uGrain > 0.0){ float gn = hash(uv * 850.0 + uTime * 3.0) - 0.5; c += gn * uGrain; }",
     "  float dv = distance(uv, vec2(0.5));",
     "  c *= 1.0 - uVig * smoothstep(0.35, 0.9, dv);",
     "  gl_FragColor = vec4(c, 1.0);",
@@ -397,7 +415,7 @@
         if (progPost) {
           locP.aPos = gl.getAttribLocation(progPost, "aPos");
           locP.aUV = gl.getAttribLocation(progPost, "aUV");
-          ["uMVP","uTex","uTexel","uAmt","uTime","uDrop","uFx","uVig","uAsp","uTint","uTintAmt"]
+          ["uMVP","uTex","uTexel","uAmt","uTime","uDrop","uFx","uVig","uAsp","uTint","uTintAmt","uGrain","uSepia","uSat2","uCon2","uBri2"]
             .forEach(function (n) { locP[n] = gl.getUniformLocation(progPost, n); });
         }
 
@@ -477,6 +495,11 @@
         gl.uniform1f(locP.uAsp, W / H);
         gl.uniform3fv(locP.uTint, o.tint || [1, 1, 1]);
         gl.uniform1f(locP.uTintAmt, o.tintAmt || 0);
+        gl.uniform1f(locP.uGrain, o.grain || 0);
+        gl.uniform1f(locP.uSepia, o.sepia || 0);
+        gl.uniform1f(locP.uSat2, o.sat == null ? 1 : o.sat);
+        gl.uniform1f(locP.uCon2, o.contrast == null ? 1 : o.contrast);
+        gl.uniform1f(locP.uBri2, o.bright == null ? 1 : o.bright);
         gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
         gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
         return true;
@@ -742,7 +765,7 @@
       if (to)   API.draw(to,   opts({ alpha: e }));
     },
 
-    version: "2.4",
+    version: "2.5",
     kinds: ["cube3d", "cubeX3d", "flip3d", "carousel3d", "door3d", "zoomThrough3d", "carnet3d", "boussole3d", "reminiscence3d", "depart3d", "fade"],
     labels: { cube3d:"Cube", cubeX3d:"Cube vertical", flip3d:"Retournement", carousel3d:"Carrousel", door3d:"Portes", zoomThrough3d:"Traversée", carnet3d:"\u2726 Carnet de voyage", boussole3d:"\u2726 Boussole", reminiscence3d:"\u2726 Réminiscence", depart3d:"\u2726 Tableau des départs", fade:"Fondu" }
   };
