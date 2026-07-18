@@ -5900,7 +5900,7 @@ function openMontage(tr,version,autoplay){ tr=tr||souvTrip(); if(!tr) return; _m
     <div id="mvStudio" class="stu" style="display:none">
       <div class="stu-top">
         <button class="stu-back" id="stuBack">\u2190</button>
-        <div class="stu-ttl"><b>Studio Magot</b><span>Montage vidéo · v357</span></div>
+        <div class="stu-ttl"><b>Studio Magot</b><span>Montage vidéo · v358</span></div>
         <button class="stu-ico" id="stuUndo" title="Annuler">\u21b6</button>
         <button class="stu-ico" id="stuRedo" title="Rétablir">\u21b7</button>
         <button class="stu-exp" id="mvSave">\u2b06 Exporter</button>
@@ -7392,7 +7392,7 @@ function mvMotion(pp){ const k=(pp&&pp.kind)||"", ty=((pp&&pp.types)||[]).join("
   if(/city|street|square|locality|point_of_interest/.test(ty)) return "travel"; /* travelling */
   return "slowZoom"; }
 function mvRun(tr,total){
-  const cv=document.getElementById("mvCanvas"); if(!cv) return; const g=cv.getContext("2d");
+  const cv=document.getElementById("mvCanvas"); if(!cv) return; let g=cv.getContext("2d");   /* "let" : on redirige brièvement le dessin vers le calque de texte */
   const ovc=document.createElement("canvas"); ovc.width=cv.width; ovc.height=cv.height; const ovg=ovc.getContext("2d");   /* canvas intermédiaire pour composer les overlays vidéo (contourne le bug iOS) */
   const W=cv.width,H=cv.height; const au=_mvState.audio, segs=_mvState.segs, imgs=_mvState.imgs, beats=_mvState.beats;
   const myLoop=(_mvState._loop=(_mvState._loop||0)+1);   /* jeton : une SEULE boucle de rendu vivante à la fois (empêche l'empilement = plantage) */
@@ -7643,9 +7643,22 @@ function mvRun(tr,total){
     g.fillStyle="rgba(255,255,255,.92)"; g.font="italic 400 "+F(0.034)+"px Georgia,serif";
     wrap(line,W*0.80,"italic 400 "+F(0.034)+"px Georgia,serif").slice(0,4).forEach((l,i)=>g.fillText(l,W/2,H*0.57+i*F(0.048)));
     g.restore(); };
+  /* Bandeau de texte : il ne change qu'au changement de plan, mais il était
+     redessiné 60 fois par seconde (dégradé + ombres portées + polices).
+     On le dessine UNE FOIS dans un calque, puis on se contente de l'afficher. */
+  const _txtCv=document.createElement("canvas"); _txtCv.width=W; _txtCv.height=H;
+  const _txtG=_txtCv.getContext("2d"); let _txtKey=null, _txtEmpty=true;
   const lower=(seg)=>{ const pp=seg&&seg.pt;
     const it=(_mvState.keep||[])[seg&&seg.img]; const line=(it&&it.m&&it.m.filmLine)||"";
-    if(!pp && !line) return;
+    if(!pp && !line){ _mvState._txtCv=null; return; }
+    const key=[line,(pp&&pp.title)||"",(pp&&pp.time)||"",(pp&&pp.day)||0,W,H].join("|");
+    if(key===_txtKey){ if(!_txtEmpty) g.drawImage(_txtCv,0,0); _mvState._txtCv=_txtEmpty?null:_txtCv; return; }
+    _txtKey=key; _txtG.clearRect(0,0,W,H);
+    const gSave=g; g=_txtG;   /* on dessine dans le calque au lieu de l'écran */
+    lowerPaint(seg,pp,line);
+    g=gSave; _txtEmpty=false; _mvState._txtCv=_txtCv;
+    g.drawImage(_txtCv,0,0); };
+  const lowerPaint=(seg,pp,line)=>{
     const bh=Math.round(H*0.24); const bg=g.createLinearGradient(0,H-bh,0,H);
     bg.addColorStop(0,"rgba(0,0,0,0)"); bg.addColorStop(0.5,"rgba(0,0,0,0.42)"); bg.addColorStop(1,"rgba(0,0,0,0.82)");
     g.fillStyle=bg; g.fillRect(0,H-bh,W,bh);
