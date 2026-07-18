@@ -781,6 +781,8 @@ body.dragging-on{-webkit-user-select:none;user-select:none}
 .mpc-note-txt{margin-top:6px;font:500 12px "Inter",sans-serif;color:var(--ink-2);line-height:1.45;white-space:pre-wrap}
 .mpc-heart svg{width:17px;height:17px;stroke:#fff;fill:none;stroke-width:2}
 .mpc-heart.on svg{fill:#E0467E;stroke:#E0467E}
+.mem-origin{margin-top:10px;font-size:13px;color:#6b7280;display:flex;flex-wrap:wrap;gap:4px 8px;line-height:1.5}
+.ph-tile .ph-geo{position:absolute;top:6px;right:6px;font-size:11px;background:rgba(11,23,45,.72);color:#fff;border-radius:8px;padding:1px 5px;line-height:1.5}
 .mem-view-img{width:100%;border-radius:16px;background:var(--surface-2) center/contain no-repeat;aspect-ratio:1;max-height:62vh}
 .danger-btn{width:100%;margin-top:10px;padding:13px;border-radius:14px;border:1px solid var(--danger,#E5484D);background:transparent;color:var(--danger,#E5484D);font:600 14px "Inter",sans-serif;cursor:pointer}
 .home-ac{display:none;background:var(--surface);border:1px solid var(--line);border-radius:16px;box-shadow:var(--shadow);overflow:hidden;margin:-8px 0 18px}
@@ -5647,7 +5649,8 @@ function hydratePhotos(scope){ (scope||document).querySelectorAll("[data-media]"
 function cap2(s){ return s?s.charAt(0).toUpperCase()+s.slice(1):s; }
 function fmtDayLong(d){ try{ return cap2(new Intl.DateTimeFormat(LOCALE[lang()]||'fr-FR',{weekday:'long',day:'numeric',month:'long'}).format(d)); }catch(e){ return ""; } }
 function _pastTripsHtml(list){ let o=`<div class="mem-sec-head" style="margin-top:22px"><h2>${t("mem.pastTrips")}</h2></div><div class="past-trips">`,ly=""; list.forEach(pt=>{ const yr=(pt.dateEnd||"").slice(0,4); if(yr&&yr!==ly){ o+=`<div class="past-year">${yr}</div>`; ly=yr; } o+=`<button class="past-card" data-pasttrip="${escapeHtml(pt.id)}"><span class="pc-cv" style="${coverStyle(pt)}"></span><span class="pc-nf"><span class="pc-nn">${escapeHtml(tripTitle(pt))}</span><span class="pc-dd">${fmtRange(pt.dateStart,pt.dateEnd)}</span></span></button>`; }); return o+`</div>`; }
-function phTile(m){ const tr=souvTrip(); const pl=(m.placeId&&tr)?(tr.places||[]).find(p=>p.id===m.placeId):null; const lab=pl?pl.name:(m.caption||""); return `<div class="ph-tile loading" data-media="${m.id}" data-pid="${m.id}">${lab?`<span class="ph-cap">${escapeHtml(lab)}</span>`:''}</div>`; }
+function phTile(m){ const tr=souvTrip(); const pl=(m.placeId&&tr)?(tr.places||[]).find(p=>p.id===m.placeId):null; const lab=pl?pl.name:(m.caption||""); const geo=(m.lat!=null)?`<span class="ph-geo" title="Photo localisée">\ud83d\udccd</span>`:"";
+  return `<div class="ph-tile loading" data-media="${m.id}" data-pid="${m.id}">${geo}${lab?`<span class="ph-cap">${escapeHtml(lab)}</span>`:''}</div>`; }
 function memPlaceCard(tr,p){ const cov=p.photo?`background-image:url('${gPhoto(p.photo,500)}')`:`background:${COVERS[hashStr(p.id)%COVERS.length]}`;
   const ty=p.primaryType?escapeHtml(gStr(p.primaryType,p.lang0)):escapeHtml(catLabel(p.types));
   return `<div class="mpc" data-place="${p.id}"><button class="mpc-heart ${p.fav?'on':''}" data-fav="${p.id}" aria-label="♥"><svg viewBox="0 0 24 24"><path d="M12 20s-7-4.5-9.5-9C1 8 2.5 4.5 6 4.5c2 0 3.2 1.2 4 2.3.8-1.1 2-2.3 4-2.3 3.5 0 5 3.5 3.5 6.5C19 15.5 12 20 12 20z"/></svg></button>
@@ -5937,7 +5940,7 @@ function openMontage(tr,version,autoplay){ tr=tr||souvTrip(); if(!tr) return; _m
     <div id="mvStudio" class="stu" style="display:none">
       <div class="stu-top">
         <button class="stu-back" id="stuBack">\u2190</button>
-        <div class="stu-ttl"><b>Studio Magot</b><span>Montage vidéo · v365</span></div>
+        <div class="stu-ttl"><b>Studio Magot</b><span>Montage vidéo · v366</span></div>
         <button class="stu-ico" id="stuUndo" title="Annuler">\u21b6</button>
         <button class="stu-ico" id="stuRedo" title="Rétablir">\u21b7</button>
         <button class="stu-exp" id="mvSave">\u2b06 Exporter</button>
@@ -8825,10 +8828,35 @@ function openPhotoAssign(tr, ids, info){
 }
 function closePhotoAdd(){ document.getElementById("photoAddSheet").classList.remove("show"); }
 function toggleFav(pid){ const tr=souvTrip(); if(!tr) return; const p=(tr.places||[]).find(x=>x.id===pid); if(!p) return; p.fav=!p.fav; saveState(); renderMemories(); }
+/* Décrit d'où viennent les informations d'une photo. On NE DEVINE JAMAIS :
+   si la donnée n'existe pas, la ligne correspondante ne s'affiche pas. */
+function mvOriginLine(tr,m){
+  if(!m) return "";
+  const bits=[];
+  const pl=(m.placeId&&tr)?(tr.places||[]).find(p=>p.id===m.placeId):null;
+  if(pl) bits.push("\ud83d\udccd "+escapeHtml(pl.name));
+  const hh=m.shotTime||"";
+  const dd=m.shotDate||"";
+  if(dd||hh){
+    let quand="";
+    if(dd){ try{ const d=new Date(dd+"T"+(hh||"12:00")+":00");
+      quand=new Intl.DateTimeFormat(LOCALE[lang()]||"fr-FR",{day:"numeric",month:"long"}).format(d); }catch(e){ quand=dd; } }
+    bits.push((quand?quand:"")+(hh?(quand?" \u00b7 ":"")+hh:""));
+  }
+  /* Provenance de la position, nommée clairement. */
+  let src=null;
+  if(m.geoSrc==="exif") src="lieu inscrit dans la photo";
+  else if(m.geo && m.lat!=null) src="position relev\u00e9e \u00e0 la prise de vue";
+  else if(pl) src="lieu que tu as choisi";
+  if(src) bits.push(src);
+  if(!bits.length) return "";
+  return `<div class="mem-origin">${bits.join(" &middot; ")}</div>`;
+}
 function openMemViewer(id){ const tr=souvTrip(); if(!tr) return; const m=(tr.memories||[]).find(x=>x.id===id); if(!m) return; const days=tripDays(tr);
   document.getElementById("memViewerHd").textContent=t("nav.memories");
   const b=document.getElementById("memViewerBody");
   b.innerHTML=`<div class="mem-view-img" id="mvImg"></div>
+    ${mvOriginLine(tr,m)}
     <div class="fld" style="margin-top:14px"><label>${t("mem.caption")}</label><input id="mvCap" value="${escapeHtml(m.caption||'')}" placeholder="${escapeHtml(t("mem.captionPh"))}"></div>
     <div class="fld"><label>${t("mem.place")}</label><select id="mvPlace"><option value="">${t("mem.noPlaceOpt")}</option>${(tr.places||[]).map(p=>`<option value="${escapeHtml(p.id)}" ${m.placeId===p.id?'selected':''}>${escapeHtml(p.name)}</option>`).join("")}</select></div>
     <div class="fld"><label>${t("mem.assignDay")}</label><select id="mvDay"><option value="">${t("mem.noDay")}</option>${days.map(dd=>`<option value="${dd.i}" ${m.day===dd.i?'selected':''}>${t("plan.day")} ${dd.i+1}</option>`).join("")}</select></div>
