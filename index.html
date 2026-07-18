@@ -5971,7 +5971,7 @@ function openMontage(tr,version,autoplay){ tr=tr||souvTrip(); if(!tr) return; _m
     <div id="mvStudio" class="stu" style="display:none">
       <div class="stu-top">
         <button class="stu-back" id="stuBack">\u2190</button>
-        <div class="stu-ttl"><b>Studio Magot</b><span>Montage vidéo · v373</span></div>
+        <div class="stu-ttl"><b>Studio Magot</b><span>Montage vidéo · v374</span></div>
         <button class="stu-ico" id="stuUndo" title="Annuler">\u21b6</button>
         <button class="stu-ico" id="stuRedo" title="Rétablir">\u21b7</button>
         <button class="stu-exp" id="mvSave">\u2b06 Exporter</button>
@@ -7268,7 +7268,14 @@ const MV_VERSIONS=[
  {k:"romance", n:"Film Romantique", d:65, fmt:"auto", style:"douces",   pace:1.2,  soft:true, grade:"warm"},
  {k:"aventure",n:"Film Aventure",   d:60, fmt:"auto", style:"dynamique",pace:0.75, soft:false, grade:"cinema"},
  {k:"social",  n:"R\u00e9seaux sociaux", d:30, fmt:"v",    style:"",         pace:0.7,  soft:false, grade:"natural"},
- {k:"carnet",  n:"Carnet de voyage",d:90, fmt:"auto", style:"cinema",   pace:1.35, soft:true, grade:"vintage"}
+ {k:"carnet",  n:"Carnet de voyage",d:90, fmt:"auto", style:"cinema",   pace:1.35, soft:true, grade:"vintage"},
+ /* ---- Destinations précises : chaque durée et chaque cadre correspond à ce
+    qu'attend réellement la plateforme visée. ---- */
+ {k:"magot",   n:"\u2726 Signature Magot", d:45, fmt:"v", style:"magot", pace:1.1, soft:true, grade:"magot"},
+ {k:"reel",    n:"R\u00e9el Instagram",  d:30, fmt:"v",    style:"dynamique",pace:0.72, soft:false, grade:"magot"},
+ {k:"tiktok",  n:"TikTok",           d:35, fmt:"v",    style:"dynamique",pace:0.65, soft:false, grade:"natural"},
+ {k:"youtube", n:"YouTube",          d:90, fmt:"h",    style:"cinema",   pace:1.3,  soft:true,  grade:"cinema"},
+ {k:"famille", n:"Souvenir Famille", d:120,fmt:"h",    style:"douces",   pace:1.5,  soft:true,  grade:"warm"}
 ];
 /* Directeur artistique : déduit le TON du voyage à partir de données réelles
    (types de lieux, densité du planning, durée, voyageurs) — aucune invention. */
