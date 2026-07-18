@@ -5900,7 +5900,7 @@ function openMontage(tr,version,autoplay){ tr=tr||souvTrip(); if(!tr) return; _m
     <div id="mvStudio" class="stu" style="display:none">
       <div class="stu-top">
         <button class="stu-back" id="stuBack">\u2190</button>
-        <div class="stu-ttl"><b>Studio Magot</b><span>Montage vidéo · v345</span></div>
+        <div class="stu-ttl"><b>Studio Magot</b><span>Montage vidéo · v346</span></div>
         <button class="stu-ico" id="stuUndo" title="Annuler">\u21b6</button>
         <button class="stu-ico" id="stuRedo" title="Rétablir">\u21b7</button>
         <button class="stu-exp" id="mvSave">\u2b06 Exporter</button>
@@ -6104,6 +6104,7 @@ function openMontage(tr,version,autoplay){ tr=tr||souvTrip(); if(!tr) return; _m
       const off=vc.querySelector("#visOff"); if(off) off.onclick=()=>{ S.settings.visionOk=false; saveState(); paint(); privLine(); }; };
     paint(); }
   ov.querySelector("#mvGo").onclick=async()=>{
+    mvGLLoad();   /* on charge le moteur 3D en tâche de fond : s'il arrive, la famille « 3D réelle » apparaît */
     const musicFile=musicFile_;
     if(!musicFile){ toast(mvT("needMusic")); return; }
     const go=ov.querySelector("#mvGo"); go.disabled=true; go.textContent=mvT("loading");
@@ -6607,7 +6608,8 @@ function openStudioSheet(tr,kind,after){
   const famLbl={ douces:["Douces","Fondu · dissolve · fondu blanc"], premium:["Premium","Zoom avant/arrière · dolly · révélation"],
     cinema:["Cinéma","Panoramiques · travelling · parallaxe"], elegant:["Élégant","Iris · rideau · store · révélation"],
     dynamique:["Dynamique","Split · flip · rotation · pli"], creatif:["Créatif","Flash · fuite de lumière · encre"],
-    tridi:["3D","Cube · flip 3D · balancement · traversée"] };
+    tridi:["3D","Cube · flip 3D · balancement · traversée"],
+    reelle3d:["3D réelle \u2726","Vrai relief · Carnet · Boussole · Réminiscence · Départs"] };
   let body="";
   if(kind==="grade"){
     body=`<div class="mv-lab">Ambiance (couleurs du film)</div>
@@ -6621,7 +6623,8 @@ function openStudioSheet(tr,kind,after){
         <button class="ss-fam${(_mvState.style||"")==="all"?" on":""}" data-ss="all"><b>\ud83c\udf9e Toutes</b><span>Mélange de toutes les familles</span></button>
       </div>
       <div class="ss-sec">Familles</div>
-      <div class="ss-blocks">${["douces","premium","cinema","elegant","dynamique","creatif","tridi"].map(fam).join("")}</div>
+      <div class="ss-blocks">${["douces","premium","cinema","elegant","dynamique","creatif","tridi"].concat(mvGLReady()?["reelle3d"]:[]).map(fam).join("")}</div>
+      ${mvGLReady()?"":'<p class="ss-hint">La « 3D réelle » apparaîtra ici si le moteur 3D est disponible sur cet appareil.</p>'}
       <p class="ss-hint">Le choix s'applique immédiatement. Pour régler un plan précis, ouvre « Plans ».</p>`;
   } else if(kind==="fx"){
     const curfx=(_mvState.fx||"");
@@ -6827,6 +6830,42 @@ function mvGrainTile(){ if(_mvGrain) return _mvGrain; const N=180, c=document.cr
   const g=c.getContext("2d"); if(!g||!g.createImageData) return null; const im=g.createImageData(N,N);
   for(let i=0;i<N*N;i++){ const v=128+(Math.random()-0.5)*255; im.data[i*4]=im.data[i*4+1]=im.data[i*4+2]=v; im.data[i*4+3]=255; }
   g.putImageData(im,0,0); _mvGrain=c; return c; }
+const MV_GL3D=["cube3d","cubeX3d","flip3d","carousel3d","door3d","zoomThrough3d","carnet3d","boussole3d","reminiscence3d","depart3d"];
+const MV_GL3D_LBL={cube3d:"Cube",cubeX3d:"Cube vertical",flip3d:"Retournement",carousel3d:"Carrousel",door3d:"Portes",zoomThrough3d:"Traversée",carnet3d:"\u2726 Carnet de voyage",boussole3d:"\u2726 Boussole",reminiscence3d:"\u2726 Réminiscence",depart3d:"\u2726 Tableau des départs"};
+let _mvGL=null, _mvGLcv=null, _mvGLtex=null, _mvGLtried=false;
+/* Le moteur 3D vit dans ./moteur/mvgl.js : il n'est chargé que si on en a besoin.
+   S'il est absent ou refusé par l'appareil, on garde le moteur 2D. Aucun bouton mort. */
+function mvGLLoad(){
+  if(_mvGLtried) return Promise.resolve(!!_mvGL);
+  _mvGLtried=true;
+  return new Promise(res=>{
+    if(window.MVGL){ res(mvGLInit()); return; }
+    const s=document.createElement("script"); s.src="./moteur/mvgl.js?v=16";
+    s.onload=()=>res(mvGLInit()); s.onerror=()=>{ _mvGL=null; res(false); };
+    document.head.appendChild(s);
+  });
+}
+function mvGLInit(){
+  try{
+    if(!window.MVGL) return false;
+    _mvGLcv=document.createElement("canvas");
+    const cv=document.getElementById("mvCanvas");
+    _mvGLcv.width=(cv&&cv.width)||1080; _mvGLcv.height=(cv&&cv.height)||1920;
+    if(!window.MVGL.init(_mvGLcv)){ _mvGL=null; return false; }
+    _mvGL=window.MVGL; _mvGLtex=new Map(); return true;
+  }catch(e){ _mvGL=null; return false; }
+}
+function mvGLReady(){ return !!(_mvGL && _mvGL.available() && _mvGLcv); }
+/* Textures gardées en mémoire (une par image) : on ne recrée pas à chaque image. */
+function mvGLTex(im){
+  if(!mvGLReady()||!im) return null;
+  let t=_mvGLtex.get(im);
+  if(!t){ t=_mvGL.texture(im); if(!t) return null; _mvGLtex.set(im,t);
+    if(_mvGLtex.size>10){ const k=_mvGLtex.keys().next().value; try{ _mvGL.free(_mvGLtex.get(k)); }catch(e){} _mvGLtex.delete(k); } }
+  else if(im.tagName==="VIDEO"){ _mvGL.update(t,im); }
+  return t;
+}
+function mvGLFreeAll(){ try{ if(_mvGLtex){ _mvGLtex.forEach(t=>{ try{ _mvGL.free(t); }catch(e){} }); _mvGLtex.clear(); } }catch(e){} }
 const MV_TRANS={
   douces:["fade","dissolve","whiteFade"],
   premium:["pushIn","pushOut","dolly","slowReveal"],
@@ -6834,7 +6873,8 @@ const MV_TRANS={
   elegant:["iris","curtain","blinds","softReveal"],
   dynamique:["split","flip","rotate","fold"],
   creatif:["flash","lightLeak","ink"],
-  tridi:["flip3d","cube3d","swing3d","zoomThrough","doorway"]
+  tridi:["flip3d","cube3d","swing3d","zoomThrough","doorway"],
+  reelle3d:MV_GL3D
 };
 const MV_VERSIONS=[
  {k:"cinema",  n:"Film Cin\u00e9ma",     d:75, fmt:"auto", style:"premium",  pace:1.25, soft:true, grade:"cinema"},
@@ -7318,6 +7358,27 @@ function mvRun(tr,total){
     vg.addColorStop(0,"rgba(0,0,0,0)"); vg.addColorStop(1,"rgba(0,0,0,0.34)"); g.fillStyle=vg; g.fillRect(0,0,W,H); };
   /* --- transitions --- */
   const trans=(mode,a,prev,cur,pk,ck,pm,cm,ppi,pi)=>{ const e=ease(a);
+    /* VRAIE 3D : rendue par le moteur WebGL (./moteur/mvgl.js), puis reportée
+       sur le canvas du film. Si le moteur n'est pas disponible, on retombe
+       automatiquement sur la transition 2D équivalente. */
+    if(MV_GL3D.indexOf(mode)>=0){
+      if(mvGLReady()){
+        const tp=mvGLTex(prev), tc=mvGLTex(cur);
+        if(tp||tc){
+          try{
+            if(_mvGLcv.width!==W||_mvGLcv.height!==H){ _mvGLcv.width=W; _mvGLcv.height=H; }
+            const fp=(pi!=null&&plans[pi])?plans[pi]:null;
+            const base={mode:(fp&&fp.mode)?fp.mode:"fit", vignette:0.32};
+            _mvGL.clear(0,0,0);
+            if(base.mode!=="fill") _mvGL.background(tc||tp,{});
+            _mvGL.transition(mode,tp,tc,a,base);
+            g.drawImage(_mvGLcv,0,0,W,H);
+            return;
+          }catch(err){}
+        }
+      }
+      mode=(mode==="depart3d"||mode==="door3d")?"blinds":(mode==="carnet3d"?"fold":(mode==="reminiscence3d"?"dissolve":"flip3d"));   /* repli 2D */
+    }
     /* mêmes arguments que draw(), sans (image, progression, mouvement) : alpha, décalage X/Y, zoom, rotation */
     const dP=(al,ox,oy,z,rot)=>draw(prev,pk,pm,al,ox,oy,z,rot,ppi);
     const dC=(al,ox,oy,z,rot)=>draw(cur,ck,cm,al,ox,oy,z,rot,pi);
