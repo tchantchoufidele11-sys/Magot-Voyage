@@ -5900,7 +5900,7 @@ function openMontage(tr,version,autoplay){ tr=tr||souvTrip(); if(!tr) return; _m
     <div id="mvStudio" class="stu" style="display:none">
       <div class="stu-top">
         <button class="stu-back" id="stuBack">\u2190</button>
-        <div class="stu-ttl"><b>Studio Magot</b><span>Montage vidéo · v358</span></div>
+        <div class="stu-ttl"><b>Studio Magot</b><span>Montage vidéo · v359</span></div>
         <button class="stu-ico" id="stuUndo" title="Annuler">\u21b6</button>
         <button class="stu-ico" id="stuRedo" title="Rétablir">\u21b7</button>
         <button class="stu-exp" id="mvSave">\u2b06 Exporter</button>
@@ -7651,14 +7651,16 @@ function mvRun(tr,total){
   const lower=(seg)=>{ const pp=seg&&seg.pt;
     const it=(_mvState.keep||[])[seg&&seg.img]; const line=(it&&it.m&&it.m.filmLine)||"";
     if(!pp && !line){ _mvState._txtCv=null; return; }
-    const key=[line,(pp&&pp.title)||"",(pp&&pp.time)||"",(pp&&pp.day)||0,W,H].join("|");
+    /* Heure affichée : celle inscrite par l'appareil photo si on l'a, sinon celle du lieu. */
+    const tm=(it&&it.m&&it.m.shotTime)||(pp&&pp.time)||"";
+    const key=[line,(pp&&pp.title)||"",tm,(pp&&pp.day)||0,W,H].join("|");
     if(key===_txtKey){ if(!_txtEmpty) g.drawImage(_txtCv,0,0); _mvState._txtCv=_txtEmpty?null:_txtCv; return; }
     _txtKey=key; _txtG.clearRect(0,0,W,H);
     const gSave=g; g=_txtG;   /* on dessine dans le calque au lieu de l'écran */
-    lowerPaint(seg,pp,line);
+    lowerPaint(seg,pp,line,tm);
     g=gSave; _txtEmpty=false; _mvState._txtCv=_txtCv;
     g.drawImage(_txtCv,0,0); };
-  const lowerPaint=(seg,pp,line)=>{
+  const lowerPaint=(seg,pp,line,tm)=>{
     const bh=Math.round(H*0.24); const bg=g.createLinearGradient(0,H-bh,0,H);
     bg.addColorStop(0,"rgba(0,0,0,0)"); bg.addColorStop(0.5,"rgba(0,0,0,0.42)"); bg.addColorStop(1,"rgba(0,0,0,0.82)");
     g.fillStyle=bg; g.fillRect(0,H-bh,W,bh);
@@ -7667,7 +7669,7 @@ function mvRun(tr,total){
     if(line){
       /* Une phrase par photo, façon sous-titre de film, avec un petit repère lieu/jour au-dessus */
       if(pp){ g.fillStyle="#E0A33E"; g.font="700 "+F(0.026)+"px system-ui"; g.letterSpacing="1px";
-        g.fillText((String(pp.title||"").slice(0,26)+(pp.time?"  ·  "+pp.time:"")), M2, H-SAFE-Math.round(H*0.058)); g.letterSpacing="0px"; }
+        g.fillText((String(pp.title||"").slice(0,26)+(tm?"  ·  "+tm:"")), M2, H-SAFE-Math.round(H*0.058)); g.letterSpacing="0px"; }
       g.fillStyle="#fff"; g.shadowColor="rgba(0,0,0,.72)"; g.shadowBlur=12;
       g.font="italic 600 "+F(0.040)+"px Georgia,serif";
       wrap(line,W*0.88,"italic 600 "+F(0.040)+"px Georgia,serif").slice(0,2).forEach((l,i)=>g.fillText(l,M2,H-SAFE-Math.round(H*0.018)+i*F(0.046)));
@@ -7678,7 +7680,7 @@ function mvRun(tr,total){
     g.shadowColor="rgba(0,0,0,.65)"; g.shadowBlur=12;
     g.fillText(String(pp.title||"").slice(0,30),M2,H-SAFE-Math.round(H*0.026));
     g.fillStyle="rgba(255,255,255,.85)"; g.font="500 "+F(0.028)+"px system-ui";
-    g.fillText((t("plan.day")+" "+(pp.day+1))+(pp.time?"  ·  "+pp.time:""),M2,H-SAFE+Math.round(H*0.004));
+    g.fillText((t("plan.day")+" "+(pp.day+1))+(tm?"  ·  "+tm:""),M2,H-SAFE+Math.round(H*0.004));
     }
     g.shadowBlur=0; };
   const step=()=>{ if(myLoop!==_mvState._loop) return;   /* boucle périmée : on l'arrête net (pas de re-planification) */
@@ -8197,13 +8199,98 @@ async function mvOverlayLoad(){
   for(const id of ids){ if(!_mvOverlayEls[id]){ const v=await loadOverlayEl(id); if(v){ _mvOverlayEls[id]=v; try{ v.play().catch(()=>{}); }catch(e){} } } }
 }
 function mvOverlayPlayAll(on){ try{ Object.keys(_mvOverlayEls).forEach(id=>{ const v=_mvOverlayEls[id]; if(!v)return; if(on===false){ v.pause(); } else { v.play().catch(()=>{}); } }); }catch(e){} }
+/* ===================== Lecture EXIF des photos importées =====================
+   Récupère la date, l'heure et le lieu inscrits par l'appareil photo.
+   Rien n'est inventé : si la donnée est absente, on ne remplit rien. */
+function mvExifParse(buf) {
+  try {
+    const dv = new DataView(buf);
+    if (dv.getUint16(0) !== 0xFFD8) return null;            /* pas un JPEG */
+    let off = 2, len = dv.byteLength, app1 = -1;
+    while (off < len - 4) {
+      if (dv.getUint16(off) === 0xFFE1) { app1 = off + 4; break; }
+      if ((dv.getUint16(off) & 0xFF00) !== 0xFF00) break;
+      off += 2 + dv.getUint16(off + 2);
+    }
+    if (app1 < 0) return null;
+    if (dv.getUint32(app1) !== 0x45786966) return null;      /* "Exif" */
+    const tiff = app1 + 6;
+    const le = dv.getUint16(tiff) === 0x4949;                /* petit ou gros boutiste */
+    const u16 = (p) => dv.getUint16(p, le);
+    const u32 = (p) => dv.getUint32(p, le);
+    if (u16(tiff + 2) !== 0x002A) return null;
+
+    const out = { date: null, lat: null, lon: null, orientation: 0 };
+
+    function rational(p) { const a = u32(p), b = u32(p + 4); return b ? a / b : 0; }
+    function str(p, n) { let s = ""; for (let i = 0; i < n - 1; i++) { const c = dv.getUint8(p + i); if (!c) break; s += String.fromCharCode(c); } return s; }
+
+    function readIFD(base, cb) {
+      const n = u16(base);
+      for (let i = 0; i < n; i++) {
+        const e = base + 2 + i * 12;
+        const tag = u16(e), type = u16(e + 2), cnt = u32(e + 4);
+        const sz = ({ 1: 1, 2: 1, 3: 2, 4: 4, 5: 8, 7: 1, 9: 4, 10: 8 })[type] || 1;
+        const total = sz * cnt;
+        const val = total > 4 ? tiff + u32(e + 8) : e + 8;
+        cb(tag, type, cnt, val);
+      }
+    }
+
+    let exifIFD = 0, gpsIFD = 0;
+    readIFD(tiff + u32(tiff + 4), (tag, type, cnt, val) => {
+      if (tag === 0x8769) exifIFD = tiff + u32(val);
+      else if (tag === 0x8825) gpsIFD = tiff + u32(val);
+      else if (tag === 0x0112) out.orientation = u16(val);
+    });
+
+    if (exifIFD) readIFD(exifIFD, (tag, type, cnt, val) => {
+      if (tag === 0x9003 || (tag === 0x9004 && !out.date)) out.date = str(val, cnt);  /* prise de vue */
+    });
+
+    if (gpsIFD) {
+      let latRef = "N", lonRef = "E", lat = null, lon = null;
+      readIFD(gpsIFD, (tag, type, cnt, val) => {
+        if (tag === 0x0001) latRef = str(val, cnt) || "N";
+        else if (tag === 0x0003) lonRef = str(val, cnt) || "E";
+        else if (tag === 0x0002) lat = rational(val) + rational(val + 8) / 60 + rational(val + 16) / 3600;
+        else if (tag === 0x0004) lon = rational(val) + rational(val + 8) / 60 + rational(val + 16) / 3600;
+      });
+      if (lat != null && lon != null && (lat || lon)) {
+        out.lat = (latRef === "S" ? -lat : lat);
+        out.lon = (lonRef === "W" ? -lon : lon);
+      }
+    }
+
+    /* "2024:07:14 10:51:33" -> date et heure exploitables */
+    if (out.date && /^\d{4}:\d{2}:\d{2}/.test(out.date)) {
+      const p = out.date.split(/[: ]/);
+      out.iso = p[0] + "-" + p[1] + "-" + p[2];
+      out.time = (p[3] || "00") + ":" + (p[4] || "00");
+    } else { out.date = null; }
+    return (out.iso || out.lat != null || out.orientation) ? out : null;
+  } catch (e) { return null; }
+}
+/* Lit les données de la photo (le fichier d'origine, avant compression). */
+function mvExifRead(file){
+  return new Promise(res=>{
+    try{
+      if(!file || !/^image\/jpe?g$/i.test(file.type||"")){ res(null); return; }
+      const fr=new FileReader();
+      fr.onload=()=>{ try{ res(mvExifParse(fr.result)); }catch(e){ res(null); } };
+      fr.onerror=()=>res(null);
+      fr.readAsArrayBuffer(file.slice(0, 256*1024));   /* l'EXIF est en tête de fichier */
+    }catch(e){ res(null); }
+  });
+}
+
 async function addMemPhotos(files,fromCamera){ const tr=souvTrip(); if(!tr||!files||!files.length){ photoTarget={placeId:null,day:null}; return; }
   let placeId=photoTarget.placeId||null, day=photoTarget.day;
   let geo=null;
   if(fromCamera){ geo=await new Promise(res=>{ if(!navigator.geolocation){ res(null); return; } let d=false; const to=setTimeout(()=>{ if(!d){ d=true; res(null); } },6000);
     navigator.geolocation.getCurrentPosition(p=>{ if(d)return; d=true; clearTimeout(to); res({lat:p.coords.latitude,lng:p.coords.longitude}); }, ()=>{ if(!d){ d=true; clearTimeout(to); res(null); } }, {enableHighAccuracy:true,timeout:5000,maximumAge:60000}); }); }
   if(fromCamera && !placeId){ const near=await nearestPlaceByGeo(tr); if(near){ placeId=near.id; if(day==null){ const st=(tr.plan||[]).find(s=>s.placeId===near.id&&s.day!=null); if(st) day=st.day; } toast(t("mem.linkedNearest",{p:near.name})); } }
-  toast(t("mem.processing")); tr.memories=tr.memories||[]; let added=0;
+  toast(t("mem.processing")); tr.memories=tr.memories||[]; let added=0, nExif=0, nDate=0;
   let skipped=0, why="";
   for(const file of Array.from(files)){ const ty=(file.type||"").toLowerCase();
     if(/^video\//.test(ty) || /\.(mp4|mov|m4v|webm)$/i.test(file.name||"")){
@@ -8212,9 +8299,24 @@ async function addMemPhotos(files,fromCamera){ const tr=souvTrip(); if(!tr||!fil
     if(ty && !/^image\//.test(ty)){ skipped++; why=ty||"?"; continue; }
     let data=null; try{ data=await compressImage(file,1400,0.82); }catch(e){ data=null; }
     if(!data){ skipped++; why=ty||((file.name||"").split(".").pop()||"?"); continue; }
-    const id=uid(); await idbSetMedia(id,data); _mediaCache[id]=data; tr.memories.push({id,day:(day==null?null:day),caption:"",placeId:placeId||null,createdAt:Date.now(),lat:(geo?geo.lat:null),lng:(geo?geo.lng:null),geo:!!geo}); added++; }
+    const ex=fromCamera?null:await mvExifRead(file);   /* date/heure/lieu inscrits par l'appareil */
+    const id=uid(); await idbSetMedia(id,data); _mediaCache[id]=data;
+    const mem={id,day:(day==null?null:day),caption:"",placeId:placeId||null,createdAt:Date.now(),
+               lat:(geo?geo.lat:null),lng:(geo?geo.lng:null),geo:!!geo};
+    if(ex){
+      if(ex.lat!=null && mem.lat==null){ mem.lat=ex.lat; mem.lng=ex.lon; mem.geo=true; mem.geoSrc="exif"; nExif++; }
+      if(ex.iso){ mem.shotDate=ex.iso; mem.shotTime=ex.time||null;
+        const ts=Date.parse(ex.iso+"T"+(ex.time||"12:00")+":00"); if(!isNaN(ts)) mem.takenAt=ts; nDate++; }
+    }
+    tr.memories.push(mem); added++; }
   photoTarget={placeId:null,day:null};
-  if(added){ saveState(); renderMemories(); toast(geo?("\ud83d\udccd Photo"+(added>1?"s":"")+" localis\u00e9e"+(added>1?"s":"")):t("mem.added")); }
+  if(added){ saveState(); renderMemories();
+    let msg;
+    if(geo) msg="\ud83d\udccd Photo"+(added>1?"s":"")+" localis\u00e9e"+(added>1?"s":"");
+    else if(nExif) msg="\ud83d\udccd "+nExif+" photo"+(nExif>1?"s":"")+" localis\u00e9e"+(nExif>1?"s":"")+" (lieu de la photo)";
+    else if(nDate) msg="\ud83d\udcc5 Date de prise de vue r\u00e9cup\u00e9r\u00e9e sur "+nDate+" photo"+(nDate>1?"s":"");
+    else msg=t("mem.added");
+    toast(msg); }
   else if(skipped){ toast("Photo non lue ("+why+"). R\u00e9essaie en choisissant la photo depuis la galerie."); } }
 function nearestPlaceByGeo(tr){ return new Promise(resolve=>{ const pls=(tr.places||[]).filter(p=>p.lat!=null); if(!pls.length||!navigator.geolocation){ resolve(null); return; }
   let done=false; const to=setTimeout(()=>{ if(!done){ done=true; resolve(null); } },6000);
