@@ -1581,6 +1581,8 @@ body.dragging-on{-webkit-user-select:none;user-select:none}
 /* Prévisualisation : l'élément prioritaire, ~48 % de la hauteur */
 #mvOv .mv-stage{min-height:52vh;border-radius:11px;background:#050C17}
 #mvOv canvas#mvCanvas{border-radius:11px}
+#mvOv.cine .mv-stage>canvas,#mvOv.cine .mv-stage>video,#mvOv.cine .mv-stage>img{
+  max-width:100%;max-height:100%;width:auto;height:auto;object-fit:contain}
 /* Barres d'outils latérales */
 /* Largeur mesurée sur le texte le plus long ("Transitions"), pas convertie
    mécaniquement : à 39 pt tous les libellés étaient tronqués. */
@@ -1801,7 +1803,7 @@ body.dragging-on{-webkit-user-select:none;user-select:none}
 #mvOv .stu-exp i{font-style:normal;font-size:13px}
 
 /* ---------- 2. Rangee centrale : rail / apercu / formats ---------- */
-#mvOv .stu-mid{flex:1 1 auto;min-height:0;display:flex;align-items:stretch;gap:8px;padding:2px 14px 0}
+#mvOv .stu-mid{flex:1 1 0;min-height:120px;display:flex;align-items:stretch;gap:8px;padding:2px 14px 0;overflow:hidden}
 #mvOv .stu-tools{width:48px;flex:0 0 48px;background:#101B2E;border-radius:16px;padding:6px 0;
   display:flex;flex-direction:column;justify-content:space-between;gap:2px;overflow:hidden}
 #mvOv .stu-tools::-webkit-scrollbar{display:none}
@@ -1815,7 +1817,7 @@ body.dragging-on{-webkit-user-select:none;user-select:none}
 #mvOv .stu-tool.on i{filter:none}
 #mvOv .stu-tool.on::before{content:"";position:absolute;left:0;top:12px;bottom:12px;width:3px;
   border-radius:0 3px 3px 0;background:var(--sGold,#E0A33E)}
-#mvOv.cine .mv-stage{flex:1 1 auto;min-width:0;min-height:150px;height:auto;max-height:none;
+#mvOv.cine .mv-stage{flex:1 1 0;min-width:0;min-height:0;height:100%;max-height:100%;
   align-self:stretch;position:relative;border-radius:14px;overflow:hidden;background:#000;
   display:flex;align-items:center;justify-content:center}
 #mvOv .stu-right{width:56px;flex:0 0 56px;align-self:stretch;display:flex;flex-direction:column;
@@ -1872,6 +1874,12 @@ body.dragging-on{-webkit-user-select:none;user-select:none}
 #mvOv .stu-ck i{flex:0 0 15px;width:15px;height:15px;border-radius:50%;border:1px solid var(--sGold,#E0A33E);
   color:var(--sGold,#E0A33E);font-style:normal;font-size:9px;line-height:13px;text-align:center}
 #mvOv .stu-ck.warn i{border-color:#B98A2E;color:#B98A2E}
+#mvOv .stu-dir-h b{font-size:15px}
+#dirDetOv .dd-g{display:grid;grid-template-columns:1fr;gap:9px;padding:4px 4px 12px}
+#dirDetOv .stu-ck{display:flex;align-items:center;gap:9px;font-size:13.5px;color:#C3D0E4;line-height:1.3}
+#dirDetOv .stu-ck i{flex:0 0 18px;width:18px;height:18px;border-radius:50%;border:1px solid #E0A33E;
+  color:#E0A33E;font-style:normal;font-size:10px;line-height:16px;text-align:center}
+#dirDetOv .stu-ck.warn i{border-color:#B98A2E;color:#B98A2E}
 #mvOv .stu-dir-f{display:flex;justify-content:flex-end;margin-top:9px}
 #mvOv .stu-dir-b{display:flex;align-items:center;gap:7px;height:32px;padding:0 15px;border-radius:12px;
   background:#16213A;border:1px solid rgba(224,163,62,.30);color:#F5F7FA;font:600 12.5px system-ui;cursor:pointer}
@@ -6415,7 +6423,7 @@ function openMontage(tr,version,autoplay){ tr=tr||souvTrip(); if(!tr) return; _m
     <div id="mvStudio" class="stu" style="display:none">
       <div class="stu-top">
         <button class="stu-back" id="stuBack" aria-label="Retour">\u2039</button>
-        <div class="stu-ttl"><b>Studio Magot<i>\u2727</i></b><span>Montage vid\u00e9o \u00b7 v393</span></div>
+        <div class="stu-ttl"><b>Studio Magot<i>\u2727</i></b><span>Montage vid\u00e9o \u00b7 v394</span></div>
         <button class="stu-ico" id="stuUndo" title="Annuler">\u21b6</button>
         <button class="stu-ico" id="stuRedo" title="R\u00e9tablir">\u21b7</button>
         <button class="stu-exp" id="mvSave"><i>\u2b06</i>Exporter</button>
@@ -7094,8 +7102,7 @@ function mvDirCardPaint(){
   const segs=_mvState.segs||[], keep=_mvState.keep||[];
   const ready=!!(segs.length && _mvState.audio);
   if(!ready){
-    el.innerHTML=`<div class="stu-dir-h"><span class="ttx"><span class="stu-dir-k">\u2726 R\u00c9ALISATEUR IA</span><b>Aucun film pour l'instant</b></span></div>
-      <div class="stu-dir-g"><span class="stu-ck warn"><i>!</i>Choisis une musique puis cr\u00e9e le film</span></div>`;
+    el.innerHTML=`<div class="stu-dir-h"><span class="ttx"><span class="stu-dir-k">\u2726 R\u00c9ALISATEUR IA</span><b>Choisis une musique puis cr\u00e9e le film</b></span></div>`;
     return;
   }
   const nPh=keep.filter(x=>x&&!x.vid).length;
@@ -7116,15 +7123,35 @@ function mvDirCardPaint(){
     [(drops?("Transitions "+sty.toLowerCase()+" \u00b7 "+drops+" temps fort"+(drops>1?"s":"")):("Transitions \u00b7 "+sty)), true],
     [rest?(rest+" m\u00e9dia"+(rest>1?"s":"")+" non utilis\u00e9"+(rest>1?"s":"")):(nVid?(nVid+" vid\u00e9o"+(nVid>1?"s":"")+" int\u00e9gr\u00e9e"+(nVid>1?"s":"")):"Aucune photo \u00e9cart\u00e9e"), !rest]
   ];
-  el.innerHTML=`<div class="stu-dir-h" id="stuNote"><span class="ttx"><span class="stu-dir-k">\u2726 R\u00c9ALISATEUR IA</span><b>Film pr\u00eat \u00e0 \u00eatre visionn\u00e9</b></span><span class="cv">\u203a</span></div>
-    <div class="stu-dir-g">${I.map(x=>`<span class="stu-ck${x[1]?"":" warn"}"><i>${x[1]?"\u2713":"!"}</i>${escapeHtml(x[0])}</span>`).join("")}</div>
-    <div class="stu-dir-f"><button class="stu-dir-b" id="stuAdjust" type="button"><i>\u2632</i>Ajuster le film</button></div>`;
-  { const h=el.querySelector("#stuNote"); if(h) h.onclick=()=>openDirectorNote(); }
-  { const b=el.querySelector("#stuAdjust");
-    if(b) b.onclick=()=>{ const t=_mvState.tr||souvTrip(); if(t) openStudioSheet(t,"opts",(rb)=>{
-      if(!(_mvState.segs&&_mvState.segs.length&&_mvState.audio)) return;
-      mvStudioApply(t, rb?"segments":"grade"); }); }; }
+  /* La carte reste sur UNE ligne : le detail s'ouvre au clic (place gagnee pour
+     l'apercu et pour les commandes du bas, qui ne doivent jamais etre coupees). */
+  _mvState._dirItems=I;
+  el.innerHTML=`<div class="stu-dir-h" id="stuNote"><span class="ttx"><span class="stu-dir-k">\u2726 R\u00c9ALISATEUR IA</span><b>Film pr\u00eat \u00e0 \u00eatre visionn\u00e9</b></span><span class="cv">\u203a</span></div>`;
+  { const h=el.querySelector("#stuNote"); if(h) h.onclick=()=>openDirDetail(); }
 }
+/* Detail du realisateur : ce que le moteur a REELLEMENT fait, plus les deux
+   actions qui etaient sur la carte (note ecrite, reglages du film). */
+function openDirDetail(){
+  const I=_mvState._dirItems||[];
+  let ov=document.getElementById("dirDetOv"); if(ov) ov.remove();
+  ov=document.createElement("div"); ov.id="dirDetOv"; ov.className="cal-ov show"; ov.style.zIndex="9400";
+  ov.innerHTML=`<div class="cal-sheet" style="max-width:460px"><div class="cal-head"><div class="cal-title">\u2726 R\u00e9alisateur IA</div><button class="cal-x" id="ddX" type="button">\u2715</button></div>
+    <div class="dd-g">${I.map(x=>`<span class="stu-ck${x[1]?"":" warn"}"><i>${x[1]?"\u2713":"!"}</i>${escapeHtml(x[0])}</span>`).join("")}</div>
+    <div class="ss-blocks" style="padding:2px 2px 12px">
+      <button class="ss-fam" id="ddNote" type="button"><b>Note du r\u00e9alisateur</b><span>Fid\u00e8le explique ses choix, phrase par phrase</span></button>
+      <button class="ss-fam" id="ddAdj" type="button"><b>Ajuster le film</b><span>Dur\u00e9e, transitions, ambiance</span></button>
+    </div></div>`;
+  document.body.appendChild(ov);
+  const close=()=>{ try{ ov.remove(); }catch(e){} };
+  ov.querySelector("#ddX").onclick=close;
+  ov.onclick=(e)=>{ if(e.target===ov) close(); };
+  ov.querySelector("#ddNote").onclick=()=>{ close(); try{ openDirectorNote(); }catch(e){} };
+  ov.querySelector("#ddAdj").onclick=()=>{ close();
+    const t=_mvState.tr||souvTrip(); if(!t) return;
+    openStudioSheet(t,"opts",(rb)=>{ if(!(_mvState.segs&&_mvState.segs.length&&_mvState.audio)) return;
+      mvStudioApply(t, rb?"segments":"grade"); }); };
+}
+
 /* ============ NOTE DU RÉALISATEUR ============
    Fidèle explique ses choix. Chaque phrase s'appuie sur une décision RÉELLE
    déjà prise par le moteur (tri, cadrage, rythme, musique). Aucune IA n'est
