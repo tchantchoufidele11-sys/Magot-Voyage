@@ -399,7 +399,7 @@
            la photo est découpée en lames verticales qui basculent l'une après
            l'autre, comme les volets d'un panneau d'affichage de gare ou
            d'aéroport. Chaque lame révèle la photo suivante en se retournant. */
-        var N = 7, sg = 0.5 / (N - 1), win = 0.5;
+        var N = 7, sg = 0.55 / (N - 1), win = 0.40;   /* cascade plus posée, et toutes les lames finissent avant la fin */
         for (var i = 0; i < N; i++) {
           var p = (k - i * sg) / win;
           p = p < 0 ? 0 : (p > 1 ? 1 : p);
@@ -424,7 +424,7 @@
       if (to)   API.draw(to,   opts({ alpha: e }));
     },
 
-    version: "1.5",
+    version: "1.6",
     kinds: ["cube3d", "cubeX3d", "flip3d", "carousel3d", "door3d", "zoomThrough3d", "carnet3d", "boussole3d", "reminiscence3d", "depart3d", "fade"],
     labels: { cube3d:"Cube", cubeX3d:"Cube vertical", flip3d:"Retournement", carousel3d:"Carrousel", door3d:"Portes", zoomThrough3d:"Traversée", carnet3d:"\u2726 Carnet de voyage", boussole3d:"\u2726 Boussole", reminiscence3d:"\u2726 Réminiscence", depart3d:"\u2726 Tableau des départs", fade:"Fondu" }
   };
