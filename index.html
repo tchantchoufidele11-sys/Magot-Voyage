@@ -5940,7 +5940,7 @@ function openMontage(tr,version,autoplay){ tr=tr||souvTrip(); if(!tr) return; _m
     <div id="mvStudio" class="stu" style="display:none">
       <div class="stu-top">
         <button class="stu-back" id="stuBack">\u2190</button>
-        <div class="stu-ttl"><b>Studio Magot</b><span>Montage vidéo · v366</span></div>
+        <div class="stu-ttl"><b>Studio Magot</b><span>Montage vidéo · v367</span></div>
         <button class="stu-ico" id="stuUndo" title="Annuler">\u21b6</button>
         <button class="stu-ico" id="stuRedo" title="Rétablir">\u21b7</button>
         <button class="stu-exp" id="mvSave">\u2b06 Exporter</button>
@@ -6158,6 +6158,25 @@ function openMontage(tr,version,autoplay){ tr=tr||souvTrip(); if(!tr) return; _m
         const d=await loadMedia(m.id); if(!d) continue; const im=new Image(); im.src=d; await new Promise(r=>{ im.onload=r; im.onerror=r; }); if(im.width) all.push({im,m,q:mvScore(im)}); }
       if(!all.length){ toast(mvT("noPhotos")); go.disabled=false; go.textContent=mvT("create"); return; }
       /* on écarte les floues/trop sombres, sauf s'il ne reste plus assez de photos */
+      /* ORDRE CHRONOLOGIQUE — grâce aux dates de prise de vue (EXIF) désormais lues
+         à l'import : le film raconte le voyage dans l'ordre où tu l'as vécu.
+         On ne réordonne QUE si l'on a des heures réelles pour au moins la moitié
+         des photos ; sinon on garde l'ordre existant plutôt que d'inventer. */
+      {
+        const withTime=all.filter(x=>x.m&&x.m.takenAt).length;
+        if(withTime>=Math.ceil(all.length/2) && all.length>1){
+          const jour=x=>(x.m&&x.m.day!=null)?x.m.day:9999;
+          all.sort((a,b)=>{
+            const dj=jour(a)-jour(b); if(dj) return dj;          /* le jour choisi reste prioritaire */
+            const ta=(a.m&&a.m.takenAt)||null, tb=(b.m&&b.m.takenAt)||null;
+            if(ta&&tb) return ta-tb;
+            if(ta&&!tb) return -1;
+            if(!ta&&tb) return 1;
+            return (a.m.createdAt||0)-(b.m.createdAt||0);
+          });
+          toast("\ud83d\udd52 Film remis dans l'ordre de la journ\u00e9e ("+withTime+" photo"+(withTime>1?"s dat\u00e9es":" dat\u00e9e")+")");
+        }
+      }
       let keep=all.filter(x=>x.m.lock || (!x.q.blur && !x.q.dark));
       const dropped=all.length-keep.length;
       if(keep.length<Math.max(3,Math.ceil(all.length*0.4))) keep=all.slice();
