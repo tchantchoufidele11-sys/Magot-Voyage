@@ -23,6 +23,9 @@
     "uniform sampler2D uTex;",
     "uniform float uAlpha;",
     "uniform float uBright;",
+    "uniform float uExpo;",
+    "uniform float uTempK;",
+    "uniform float uTintG;",
     "uniform float uContrast;",
     "uniform float uSat;",
     "uniform vec3  uTint;",
@@ -44,6 +47,10 @@
     "      s += texture2D(uTex, vUV + o); w += 1.0; } }",
     "    c = s / w;",
     "  } else { c = texture2D(uTex, vUV); }",
+    "  c.rgb *= pow(2.0, uExpo);",                       /* exposition, en diaphragmes */
+    "  c.r *= (1.0 + uTempK); c.b *= (1.0 - uTempK);",   /* balance chaud / froid */
+    "  c.g *= (1.0 + uTintG);",                          /* teinte vert / magenta */
+    "  c.rgb = clamp(c.rgb, 0.0, 1.0);",
     "  c.rgb = (c.rgb - 0.5) * uContrast + 0.5;",       /* contraste */
     "  c.rgb *= uBright;",                               /* luminosité */
     "  float l = dot(c.rgb, vec3(0.299, 0.587, 0.114));",
@@ -85,6 +92,9 @@
     "uniform float uSat2;",
     "uniform float uCon2;",
     "uniform float uBri2;",
+    "uniform float uExpo;",
+    "uniform float uTempK;",
+    "uniform float uTintG;",
     "uniform vec3 uShadow;",   /* teinte des ombres */
     "uniform vec3 uHigh;",     /* teinte des lumières */
     "uniform float uSplit;",   /* dosage du split-toning (signature Magot) */
@@ -278,6 +288,10 @@
     "    p  += flakes(uv, 24.0, 0.08, 0.11, 17.0, 1.0, 0.65) * 0.45;",
     "    c += vec3(1.0) * (p + g2) * 1.45; }",
     /* ---- Étalonnage (ambiance) : contraste, saturation, luminosité, sépia ---- */
+    "  c *= pow(2.0, uExpo);",                          /* exposition, en diaphragmes */
+    "  c.r *= (1.0 + uTempK); c.b *= (1.0 - uTempK);",  /* balance des blancs */
+    "  c.g *= (1.0 + uTintG);",                         /* teinte vert / magenta */
+    "  c = clamp(c, 0.0, 1.0);",
     "  c = (c - 0.5) * uCon2 + 0.5;",
     "  c *= uBri2;",
     "  float l2 = dot(c, vec3(0.299, 0.587, 0.114));",
@@ -413,7 +427,7 @@
 
         loc.aPos = gl.getAttribLocation(prog, "aPos");
         loc.aUV = gl.getAttribLocation(prog, "aUV");
-        ["uMVP","uTex","uAlpha","uBright","uContrast","uSat","uTint","uTintAmt","uVignette","uBlur","uTexel","uGray","uMask","uMaskMode","uFadeY","uFadeOn"]
+        ["uMVP","uTex","uAlpha","uBright","uExpo","uTempK","uTintG","uContrast","uSat","uTint","uTintAmt","uVignette","uBlur","uTexel","uGray","uMask","uMaskMode","uFadeY","uFadeOn"]
           .forEach(function (n) { loc[n] = gl.getUniformLocation(prog, n); });
 
         /* Second programme : la passe d'effets. */
@@ -425,7 +439,7 @@
         if (progPost) {
           locP.aPos = gl.getAttribLocation(progPost, "aPos");
           locP.aUV = gl.getAttribLocation(progPost, "aUV");
-          ["uMVP","uTex","uTexel","uAmt","uTime","uDrop","uFx","uVig","uAsp","uTint","uTintAmt","uGrain","uSepia","uSat2","uCon2","uBri2","uShadow","uHigh","uSplit"]
+          ["uMVP","uTex","uTexel","uAmt","uTime","uDrop","uFx","uVig","uAsp","uTint","uTintAmt","uGrain","uSepia","uSat2","uCon2","uBri2","uExpo","uTempK","uTintG","uShadow","uHigh","uSplit"]
             .forEach(function (n) { locP[n] = gl.getUniformLocation(progPost, n); });
         }
 
@@ -508,6 +522,9 @@
         gl.uniform1f(locP.uGrain, o.grain || 0);
         gl.uniform1f(locP.uSepia, o.sepia || 0);
         gl.uniform1f(locP.uSat2, o.sat == null ? 1 : o.sat);
+        gl.uniform1f(locP.uExpo, o.expo || 0);
+        gl.uniform1f(locP.uTempK, o.tempK || 0);
+        gl.uniform1f(locP.uTintG, o.tintG || 0);
         gl.uniform1f(locP.uCon2, o.contrast == null ? 1 : o.contrast);
         gl.uniform1f(locP.uBri2, o.bright == null ? 1 : o.bright);
         gl.uniform3fv(locP.uShadow, o.shadow || [0, 0, 0]);
@@ -611,6 +628,9 @@
       gl.uniformMatrix4fv(loc.uMVP, false, mvp);
       gl.uniform1f(loc.uAlpha, o.alpha == null ? 1 : o.alpha);
       gl.uniform1f(loc.uBright, o.bright == null ? 1 : o.bright);
+      gl.uniform1f(loc.uExpo, o.expo || 0);      /* 0 = photo inchangée */
+      gl.uniform1f(loc.uTempK, o.tempK || 0);    /* >0 réchauffe, <0 refroidit */
+      gl.uniform1f(loc.uTintG, o.tintG || 0);    /* >0 vert, <0 magenta */
       gl.uniform1f(loc.uContrast, o.contrast == null ? 1 : o.contrast);
       gl.uniform1f(loc.uSat, o.sat == null ? 1 : o.sat);
       gl.uniform1f(loc.uGray, o.gray || 0);
