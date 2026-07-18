@@ -5900,7 +5900,7 @@ function openMontage(tr,version,autoplay){ tr=tr||souvTrip(); if(!tr) return; _m
     <div id="mvStudio" class="stu" style="display:none">
       <div class="stu-top">
         <button class="stu-back" id="stuBack">\u2190</button>
-        <div class="stu-ttl"><b>Studio Magot</b><span>Montage vidéo · v349</span></div>
+        <div class="stu-ttl"><b>Studio Magot</b><span>Montage vidéo · v350</span></div>
         <button class="stu-ico" id="stuUndo" title="Annuler">\u21b6</button>
         <button class="stu-ico" id="stuRedo" title="Rétablir">\u21b7</button>
         <button class="stu-exp" id="mvSave">\u2b06 Exporter</button>
@@ -6643,7 +6643,13 @@ function openStudioSheet(tr,kind,after){
       <div class="mv-lab">Synchro sur le rythme ${_mvState.bpm?`<small>(\u2248 ${_mvState.bpm} BPM d\u00e9tect\u00e9)</small>`:""}</div>
       <div class="shot-dur"><span class="ss-hint" style="margin:0 8px 0 0">\u2212</span><input type="range" class="shot-slider" id="syncSl" min="-0.25" max="0.25" step="0.01" value="${(+(_mvState.syncOffset||0)).toFixed(2)}"><b class="shot-durv" id="syncV">${((_mvState.syncOffset||0)>0?"+":"")+((_mvState.syncOffset||0)*1000|0)} ms</b></div>
       <p class="ss-hint">Si les coupes tombent un poil trop t\u00f4t ou trop tard, glisse pour recaler pile sur la batterie.</p>
-      <div class="mv-lab">Analyse des photos (Fidèle)</div><div class="mv-vis" id="stuVis"></div>`;
+      <div class="mv-lab">Analyse des photos (Fidèle)</div><div class="mv-vis" id="stuVis"></div>
+      ${mvGLReady()?`<div class="mv-lab">Rendu</div>
+      <div class="mv-durs mv-grades">
+        <button class="mv-dur${_mvState.gpu!==false?" on":""}" data-gpu="1">Accéléré (GPU)</button>
+        <button class="mv-dur${_mvState.gpu===false?" on":""}" data-gpu="0">Classique</button>
+      </div>
+      <p class="ss-hint">Le rendu accéléré confie le cadrage et le flou de fond à la puce graphique. L'image est la même ; si tu constates un souci, repasse en classique.</p>`:""}`;
   }
   ov.innerHTML=`<div class="cal-sheet" style="max-width:460px"><div class="cal-head"><div class="cal-title">${kind==="grade"?"\u2726 Ambiance":kind==="trans"?"\u25e7 Transitions":kind==="fx"?"\u2749 Effets":"\u2699 Options"}</div><button class="cal-x" id="ssX" type="button">\u2715</button></div>
     <div style="padding:4px 2px 10px">${body}</div>
@@ -6655,6 +6661,7 @@ function openStudioSheet(tr,kind,after){
   ov.querySelectorAll("[data-sg]").forEach(b=>b.onclick=()=>{ ov.querySelectorAll("[data-sg]").forEach(x=>x.classList.remove("on")); b.classList.add("on"); _mvState.grade=b.dataset.sg; filmProjSave(tr); if(after) after(false); });     /* ambiance : direct */
   ov.querySelectorAll("[data-ss]").forEach(b=>b.onclick=()=>{ ov.querySelectorAll("[data-ss]").forEach(x=>x.classList.remove("on")); b.classList.add("on"); _mvState.style=b.dataset.ss; filmProjSave(tr); if(after) after(true); });      /* transitions : recompose direct */
   ov.querySelectorAll("[data-sd]").forEach(b=>b.onclick=()=>{ ov.querySelectorAll("[data-sd]").forEach(x=>x.classList.remove("on")); b.classList.add("on"); _mvState.dur=+b.dataset.sd; filmProjSave(tr); if(after) after(true); });        /* durée : recompose direct */
+  ov.querySelectorAll("[data-gpu]").forEach(b=>b.onclick=()=>{ ov.querySelectorAll("[data-gpu]").forEach(x=>x.classList.remove("on")); b.classList.add("on"); _mvState.gpu=(b.dataset.gpu==="1"); filmProjSave(tr); if(after) after(); });
   ov.querySelectorAll("[data-fx]").forEach(b=>b.onclick=()=>{ ov.querySelectorAll("[data-fx]").forEach(x=>x.classList.remove("on")); b.classList.add("on"); _mvState.fx=b.dataset.fx; filmProjSave(tr); if(after) after(); });     /* effets : appliqués en direct */
   { const sl=ov.querySelector("#syncSl"), sv=ov.querySelector("#syncV");
     if(sl){ let tmo=0; sl.oninput=()=>{ _mvState.syncOffset=+sl.value; if(sv) sv.textContent=((+sl.value>0?"+":"")+((+sl.value)*1000|0))+" ms"; filmProjSave(tr);
@@ -6874,7 +6881,7 @@ function mvGLLoad(){
   _mvGLtried=true;
   return new Promise(res=>{
     if(window.MVGL){ res(mvGLInit()); return; }
-    const s=document.createElement("script"); s.src="./moteur/mvgl.js?v=16";
+    const s=document.createElement("script"); s.src="./moteur/mvgl.js?v=17";
     s.onload=()=>res(mvGLInit()); s.onerror=()=>{ _mvGL=null; res(false); };
     document.head.appendChild(s);
   });
@@ -7358,6 +7365,39 @@ function mvRun(tr,total){
     const swap=(ROT===90||ROT===270);
     const iw=(im.videoWidth||im.width), ih=(im.videoHeight||im.height);
     const ar=(swap?ih/iw:iw/ih), car=W/H;
+    /* ---- RENDU GPU (étape 2) ------------------------------------------
+       Le cadrage, le zoom et le fond flouté sont calculés par le moteur
+       WebGL (beaucoup plus rapide que le flou fait à la main). L'étalonnage
+       des couleurs, le vignettage et le grain restent au 2D : rien ne change
+       à l'image. Si le GPU n'est pas disponible, on continue en 2D. */
+    if(mvGLReady() && _mvState.gpu!==false && !swap){
+      const tex=mvGLTex(im);
+      if(tex){
+        try{
+          if(_mvGLcv.width!==W||_mvGLcv.height!==H){ _mvGLcv.width=W; _mvGLcv.height=H; }
+          let sxw,syw;
+          if(fp.mode==="fill"){ if(ar>car){ syw=1; sxw=ar; } else { sxw=car; syw=car/ar; } }
+          else { if(ar>car){ sxw=car; syw=car/ar; } else { syw=1; sxw=ar; } }
+          sxw*=z; syw*=z;
+          let oX=(ox||0)*2*car, oY=-(oy||0)*2;   /* décalage écran → repère du moteur */
+          if(fp.mode==="fill"){
+            const wpx=(sxw/car)*W, hpx=syw*H;
+            oX+=((0.5-(fp.cx!=null?fp.cx:0.5))*(wpx-W))*2*car/W;
+            oY-=((0.5-(fp.cy!=null?fp.cy:0.5))*(hpx-H))*2/H;
+          }
+          _mvGL.clear(0,0,0);
+          if(fp.mode!=="fill") _mvGL.background(tex,{});
+          _mvGL.draw(tex,{mode:(fp.mode==="fill"?"fill":"fit"), zoom:z, rotZ:(rr||0), offX:oX, offY:oY});
+          g.save(); g.globalAlpha=(alpha==null?1:alpha);
+          if(useCtx() && GR.f){ try{ g.filter=GR.f; }catch(e3){} }
+          g.drawImage(_mvGLcv,0,0,W,H);
+          g.restore();
+          if(fp.mode==="fill") _mvState._imgRect=null;
+          else { const wpx=(sxw/car)*W, hpx=syw*H; _mvState._imgRect={x:(W-wpx)/2,y:(H-hpx)/2,w:wpx,h:hpx}; }
+          return;
+        }catch(err){ _mvState.gpu=false; }   /* le moindre souci → on repasse en 2D pour de bon */
+      }
+    }
     g.save(); g.globalAlpha=(alpha==null?1:alpha);
     if(useCtx() && GR.f){ try{ g.filter=GR.f; }catch(e3){} }
     g.translate(W/2+(ox||0)*W, H/2+(oy||0)*H); if(rr) g.rotate(rr); if(ROT) g.rotate(ROT*Math.PI/180);
@@ -7910,7 +7950,7 @@ function clipChunks(tr,m){
 /* ===================== Le projet de film survit à la fermeture ===================== */
 function filmProjSave(tr){
   if(!tr) return;
-  tr.filmProject={ dur:_mvState.dur, fmt:_mvState.fmt, grade:_mvState.grade, style:_mvState.style, fx:(_mvState.fx||""), overlay:(_mvState.overlay||""), overlayTr:(_mvState.overlayTr||""), overlayInt:(_mvState.overlayInt!=null?_mvState.overlayInt:0.55),
+  tr.filmProject={ dur:_mvState.dur, fmt:_mvState.fmt, grade:_mvState.grade, style:_mvState.style, fx:(_mvState.fx||""), overlay:(_mvState.overlay||""), overlayTr:(_mvState.overlayTr||""), overlayInt:(_mvState.overlayInt!=null?_mvState.overlayInt:0.55), gpu:(_mvState.gpu!==false),
                    musicId:_mvState.musicId||null, at:Date.now() };
   saveState();
 }
@@ -7924,6 +7964,7 @@ function filmProjLoad(tr){
   if(P.overlay!=null) _mvState.overlay=P.overlay;
   if(P.overlayTr!=null) _mvState.overlayTr=P.overlayTr;
   if(P.overlayInt!=null) _mvState.overlayInt=P.overlayInt;
+  if(P.gpu!=null) _mvState.gpu=!!P.gpu;
   if(P.musicId) _mvState.musicId=P.musicId;
   return true;
 }
