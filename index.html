@@ -1639,20 +1639,104 @@ body.dragging-on{-webkit-user-select:none;user-select:none}
 /* Forme d'onde plus haute (audit : trop fine) */
 #mvOv .stu-wave{height:40px}
 
-/* ---- Corrections ciblées sur les classes RÉELLES (les précédentes visaient
-   des sélecteurs inexistants : .stu-tools button et .stu-lab) ---- */
-#mvOv .stu-tools{width:60px;flex:0 0 60px;padding:6px 2px}
-#mvOv .stu-tool{width:100%;padding:8px 1px}
-#mvOv .stu-tool i{font-size:14px}
-#mvOv .stu-tool span{display:block;font-size:8.6px;line-height:1.1;white-space:normal;
-  overflow-wrap:break-word;text-overflow:clip;overflow:visible;max-width:100%;text-align:center}
-/* Nom du plan : une seule ligne, coupé proprement */
-#mvOv .stu-cname{display:flex;align-items:center;gap:4px;max-width:60px;white-space:nowrap;
-  overflow:hidden;text-overflow:ellipsis;font-size:9.5px;color:var(--sTx2)}
-#mvOv .stu-cname b{flex:0 0 auto}
-/* La vidéo doit remplir la scène : plus de bandes noires sur les côtés */
-#mvOv .mv-stage{padding:0;display:flex;align-items:center;justify-content:center;background:#000}
-#mvOv canvas#mvCanvas{width:auto;height:100%;max-width:100%;object-fit:contain;display:block}
+
+/* ============================================================
+   STUDIO MAGOT — REDESIGN MOBILE PREMIUM (iPhone 16 Pro)
+   Ajout GPT : priorité à la prévisualisation, commandes compactes,
+   réalisateur IA lisible, timeline cinéma et zones tactiles >= 44 px.
+   ============================================================ */
+#mvOv.cine .souvmap-sheet{background:#070f1d!important}
+#mvOv .stu{height:100dvh;overflow-y:auto;overflow-x:hidden;background:
+  radial-gradient(80% 35% at 50% -5%,rgba(41,75,132,.22),transparent 70%),#070f1d;color:#f5f7fb}
+#mvOv .stu::-webkit-scrollbar{display:none}
+#mvOv .stu-top{position:sticky;top:0;z-index:30;padding:calc(8px + env(safe-area-inset-top,0px)) 12px 8px;
+  background:rgba(7,15,29,.92);-webkit-backdrop-filter:blur(18px);backdrop-filter:blur(18px);border-bottom:1px solid rgba(255,255,255,.055)}
+#mvOv .stu-back{width:44px;height:44px;border-radius:15px;background:#111d33;border:1px solid rgba(255,255,255,.07);font-size:20px}
+#mvOv .stu-ttl b{font:700 18px Georgia,serif;color:#e4aa3e;letter-spacing:-.2px}
+#mvOv .stu-ttl span{font-size:11px;color:#93a1b8;margin-top:2px}
+#mvOv .stu-ico{width:36px;height:40px;color:#9eabc0;font-size:19px}
+#mvOv .stu-exp{height:44px;padding:0 14px;border-radius:14px;background:linear-gradient(135deg,#f0b63f,#d99621);color:#201402;
+  border:0;box-shadow:0 7px 20px rgba(224,163,62,.23);font-size:13px}
+
+/* La vidéo domine l’écran ; les outils restent discrets sur les côtés. */
+#mvOv .stu-mid{flex:0 0 auto;height:min(54vh,510px);min-height:390px;display:grid;grid-template-columns:48px minmax(0,1fr) 45px;
+  align-items:stretch;gap:7px;padding:8px 9px 0;overflow:visible}
+#mvOv .stu-tools{width:48px!important;max-height:none;align-self:stretch;display:flex;justify-content:flex-start;gap:3px;padding:6px 3px;
+  background:linear-gradient(180deg,#101c31,#0c1729);border:1px solid rgba(255,255,255,.055);border-radius:17px;overflow-y:auto}
+#mvOv .stu-tool{width:42px;min-height:47px;padding:6px 1px;border-radius:11px;gap:2px;color:#8f9db5}
+#mvOv .stu-tool i{font-size:17px}
+#mvOv .stu-tool span{font-size:7.8px;line-height:1.05;max-width:40px;white-space:normal}
+#mvOv .stu-tool.on,#mvOv .stu-tool:active{background:rgba(224,163,62,.13);color:#edb44a;box-shadow:inset 2px 0 0 #e0a33e}
+#mvOv.cine .mv-stage{min-height:0!important;height:100%;width:100%;border-radius:18px!important;border:1px solid rgba(255,255,255,.07)!important;
+  background:#000;box-shadow:0 16px 38px rgba(0,0,0,.42)!important;overflow:hidden}
+#mvOv .mv-stage canvas{max-width:100%;max-height:100%;object-fit:contain}
+#mvOv .stu-right{width:45px;align-self:stretch;justify-content:center;gap:8px;overflow:visible}
+#mvOv .stu-fmts{width:45px;padding:4px 3px;border-radius:14px;background:#101c31;border:1px solid rgba(255,255,255,.055)}
+#mvOv .stu-fmt{width:39px;min-height:48px;padding:5px 0;border-radius:10px}
+#mvOv .stu-fmt i{font-size:15px}#mvOv .stu-fmt span{font-size:8px}
+#mvOv .stu-fmt.on{background:linear-gradient(180deg,#4c3913,#2f250e);color:#efb54b;box-shadow:inset 0 0 0 1px rgba(224,163,62,.62)}
+#mvOv .stu-round{width:44px;height:44px;background:#121f36;border:1px solid rgba(255,255,255,.065);font-size:17px}
+#mvOv .stu-round.ghost{width:44px;height:44px}
+
+/* Infos du film : une seule bande compacte, facile à scanner. */
+#mvOv .mv-fiche{order:0;display:flex;gap:6px;margin:10px 9px 0!important;padding:0!important;background:none!important;overflow-x:auto;scroll-snap-type:x proximity}
+#mvOv .mv-fiche .mvf{min-width:72px;flex:1 0 72px;scroll-snap-align:start;padding:8px 6px!important;border-radius:12px!important;
+  background:linear-gradient(180deg,#111f35,#0d192c)!important;border:1px solid rgba(224,163,62,.13)!important}
+#mvOv .mv-fiche .mvf i{font-size:13px}#mvOv .mv-fiche .mvf b{font-size:12px}#mvOv .mv-fiche .mvf em{font-size:8.7px}
+
+/* Réalisateur IA : devient le cerveau visible du studio. */
+#mvOv .stu-dir{display:grid;grid-template-columns:40px minmax(0,1fr) auto;align-items:center;gap:10px;margin:10px 9px 0;width:calc(100% - 18px);
+  padding:12px;border-radius:16px;background:linear-gradient(135deg,#101e34,#0b1729);border:1px solid rgba(224,163,62,.35);box-shadow:0 10px 25px rgba(0,0,0,.18)}
+#mvOv .stu-dir-ic{width:40px;height:40px;background:#0b1730}
+#mvOv .stu-dir-t b{font-size:10px;color:#edb44a;letter-spacing:.09em}
+#mvOv .stu-dir-t span{font-size:11.5px;line-height:1.35;color:#d5dbea;-webkit-line-clamp:2}
+#mvOv .stu-dir-c{width:30px;height:30px;border-radius:50%;display:grid;place-items:center;background:rgba(224,163,62,.10);color:#e8ad43}
+#mvOv .stu-ai-status{grid-column:2/4;display:grid;grid-template-columns:1fr 1fr;gap:5px;margin-top:2px}
+#mvOv .stu-ai-status span{display:flex;align-items:center;gap:5px;color:#9eabc0;font:600 9px/1.25 Inter,system-ui}
+#mvOv .stu-ai-status span::before{content:'✓';width:14px;height:14px;border-radius:50%;display:grid;place-items:center;
+  border:1px solid rgba(224,163,62,.55);color:#e8ad43;font-size:8px}
+
+/* Contrôles de lecture : compact et immédiatement sous le réalisateur. */
+#mvOv .stu-play{padding:9px 12px 3px;gap:7px}
+#mvOv .stu-jp{width:36px;height:36px;border-radius:11px;background:#12213b}
+#mvOv .stu-pp{width:38px;height:38px;background:#1a3159;box-shadow:0 5px 14px rgba(0,0,0,.22)}
+#mvOv .stu-seek{height:30px}#mvOv .stu-seek::before,#mvOv .stu-seek-f{height:5px}
+#mvOv .stu-seek-h{width:15px;height:15px;transform:translateX(-7px)}
+#mvOv .stu-tc{font-size:10.5px;min-width:34px}
+
+/* Storyboard cinéma : chapitres lisibles, vignettes plus grandes. */
+#mvOv .stu-ruler{height:28px;margin-top:1px;padding-left:12px}
+#mvOv .stu-strip{gap:8px;padding:2px 10px 8px;min-height:112px;align-items:flex-start}
+#mvOv .stu-add{width:67px;height:88px;border-radius:13px}
+#mvOv .stu-clip{width:82px!important}
+#mvOv .stu-cth{height:88px!important;border-radius:11px!important;border-width:2px!important}
+#mvOv .stu-clip.on .stu-cth{border-color:#efb247;box-shadow:0 0 0 2px rgba(224,163,62,.16),0 8px 18px rgba(0,0,0,.2)}
+#mvOv .stu-cname{font-size:9.5px;line-height:1.2;margin-top:4px;color:#b7c3d6}
+#mvOv .stu-tr{margin-top:31px;width:24px;height:24px}
+
+/* Waveform plus généreuse, clairement séparée. */
+#mvOv .stu-wave{height:auto!important;margin:0 9px 4px;padding:7px 9px 8px;border-radius:14px;background:#0d1a2e;border:1px solid rgba(255,255,255,.05)}
+#mvOv .stu-times{font-size:9px;margin-bottom:2px}
+#mvOv .stu-wave canvas{height:58px!important}
+
+/* Barre d’actions finale : un CTA dominant, deux actions secondaires. */
+#mvOv .stu-bot{position:sticky;bottom:0;z-index:25;display:grid;grid-template-columns:.85fr 1.45fr .85fr;gap:8px;
+  padding:9px 10px calc(10px + env(safe-area-inset-bottom,0px));margin:0;background:linear-gradient(180deg,rgba(7,15,29,.75),#070f1d 34%);
+  -webkit-backdrop-filter:blur(16px);backdrop-filter:blur(16px)}
+#mvOv .stu-bot button{height:48px!important;border-radius:15px!important;font-size:12.5px!important;border:1px solid rgba(255,255,255,.07)!important}
+#mvOv .stu-bot .stu-main,#mvOv #mvPlay{background:linear-gradient(135deg,#f0b63f,#d99621)!important;color:#201402!important;
+  box-shadow:0 8px 24px rgba(224,163,62,.25);font-weight:800!important}
+#mvOv .stu-bot button:not(.stu-main){background:#111f35!important;color:#eef2f8!important}
+
+/* Petit écran réel : préserver une vidéo utile sans écraser la timeline. */
+@media(max-width:390px), (max-height:760px){
+ #mvOv .stu-mid{height:46vh;min-height:330px;grid-template-columns:44px minmax(0,1fr) 42px;gap:5px;padding-left:6px;padding-right:6px}
+ #mvOv .stu-tools{width:44px!important;flex-basis:44px}.stu-tool{width:38px!important}
+ #mvOv .stu-right{width:42px}.stu-fmts{width:42px!important}.stu-fmt{width:36px!important}
+ #mvOv .stu-dir{padding:9px 10px}.stu-ai-status{display:none!important}
+ #mvOv .stu-strip{min-height:103px}.stu-cth{height:80px!important}.stu-clip{width:74px!important}
+ #mvOv .stu-wave canvas{height:48px!important}
+}
 </style>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
@@ -6082,7 +6166,7 @@ function openMontage(tr,version,autoplay){ tr=tr||souvTrip(); if(!tr) return; _m
     <div id="mvStudio" class="stu" style="display:none">
       <div class="stu-top">
         <button class="stu-back" id="stuBack">\u2190</button>
-        <div class="stu-ttl"><b>Studio Magot</b><span>Montage vidéo · v385</span></div>
+        <div class="stu-ttl"><b>Studio Magot</b><span>Montage vidéo · Studio Premium v385</span></div>
         <button class="stu-ico" id="stuUndo" title="Annuler">\u21b6</button>
         <button class="stu-ico" id="stuRedo" title="Rétablir">\u21b7</button>
         <button class="stu-exp" id="mvSave">\u2b06 Exporter</button>
@@ -6118,8 +6202,9 @@ function openMontage(tr,version,autoplay){ tr=tr||souvTrip(); if(!tr) return; _m
         <span class="stu-dir-ic">
           <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M15.2 8.8 13.4 13.4 8.8 15.2 10.6 10.6z"/></svg>
         </span>
-        <span class="stu-dir-t"><b>R\u00e9alisateur</b><span id="stuNoteX">Touche pour voir mes choix de montage.</span></span>
+        <span class="stu-dir-t"><b>R\u00c9ALISATEUR IA</b><span id="stuNoteX">Film pr\u00eat : cadrages, rythme et couleurs ont \u00e9t\u00e9 harmonis\u00e9s.</span></span>
         <span class="stu-dir-c">\u203a</span>
+        <span class="stu-ai-status" aria-hidden="true"><span>M\u00e9dias analys\u00e9s</span><span>Rythme synchronis\u00e9</span><span>Cadrages optimis\u00e9s</span><span>Transitions cin\u00e9ma</span></span>
       </button>
 
       <div class="stu-play" id="stuPlayBar">
