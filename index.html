@@ -1654,6 +1654,20 @@ body.dragging-on{-webkit-user-select:none;user-select:none}
 /* NE PAS forcer la taille du canevas : il est dimensionné par le moteur de rendu
    (1080x1920 selon le format). Toute règle width/height ici vide l'aperçu. */
 #mvOv .mv-stage{background:#000}
+
+/* ---- Panneau du bas : carte Réalisateur + commandes réunies (maquette) ---- */
+#mvOv .stu-dir{margin:8px 12px 0;border-bottom-left-radius:0;border-bottom-right-radius:0;
+  border-bottom:0;padding-bottom:12px}
+#mvOv .stu-bot{display:flex;flex-direction:column;gap:8px;margin:0 12px 0;
+  background:var(--sCard);border:1px solid rgba(214,162,63,.30);border-top:0;
+  border-radius:0 0 13px 13px;padding:0 12px 12px;
+  margin-bottom:calc(8px + env(safe-area-inset-bottom,0px))}
+#mvOv .stu-foot-row{display:flex;gap:8px}
+#mvOv .stu-foot-row .stu-b{flex:1 1 0;height:38px;border-radius:10px;background:var(--sBlue);
+  color:var(--sTx);font-size:12.5px;border:0}
+#mvOv .stu-bot .stu-main{width:100%;height:46px;border-radius:12px;background:var(--sGold);
+  color:#0B1730;font-weight:700;font-size:15px;border:0}
+#mvOv .stu-bot .stu-main:active{filter:brightness(.94)}
 </style>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
@@ -6083,7 +6097,7 @@ function openMontage(tr,version,autoplay){ tr=tr||souvTrip(); if(!tr) return; _m
     <div id="mvStudio" class="stu" style="display:none">
       <div class="stu-top">
         <button class="stu-back" id="stuBack">\u2190</button>
-        <div class="stu-ttl"><b>Studio Magot</b><span>Montage vidéo · v386</span></div>
+        <div class="stu-ttl"><b>Studio Magot</b><span>Montage vidéo · v387</span></div>
         <button class="stu-ico" id="stuUndo" title="Annuler">\u21b6</button>
         <button class="stu-ico" id="stuRedo" title="Rétablir">\u21b7</button>
         <button class="stu-exp" id="mvSave">\u2b06 Exporter</button>
@@ -6141,9 +6155,11 @@ function openMontage(tr,version,autoplay){ tr=tr||souvTrip(); if(!tr) return; _m
       </div>
 
       <div class="stu-bot">
-        <button class="stu-b" id="mvRestart">\u21ba Recommencer</button>
-        <button class="stu-b gold" id="mvPlay">\u25b6 Lire le film</button>
-        <button class="stu-b" id="mvShots">\u2637 Plans</button>
+        <div class="stu-foot-row">
+          <button class="stu-b" id="mvRestart">\u21ba Recommencer</button>
+          <button class="stu-b" id="mvShots">\u2637 Plans</button>
+        </div>
+        <button class="stu-b gold stu-main" id="mvPlay">\u25b6 Lire le film</button>
       </div>
       <button class="stu-exit" id="stuExit">\u2922 R\u00e9duire</button>
     </div></div>`;
