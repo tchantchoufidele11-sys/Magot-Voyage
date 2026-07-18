@@ -1480,8 +1480,16 @@ body.dragging-on{-webkit-user-select:none;user-select:none}
 #mvOv.stufull .stu-exit{display:inline-flex}
 #mvOv.cine .mv-fiche{flex:0 0 auto;background:#101B2E;margin:10px;border-radius:12px}
 /* ---- Barre de lecture : grande prévisualisation façon studio ---- */
-#mvOv .mv-fiche{cursor:pointer;position:relative}
-#mvOv .mv-fiche::after{content:"\u2726 Note du r\u00e9alisateur";position:absolute;right:10px;bottom:4px;font-size:9.5px;color:var(--gold,#E0A33E);opacity:.85}
+.mrp{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin:6px 0 14px}
+.mrp-i{background:var(--paper,#F7F8FB);border:1px solid var(--line,#E6E9F0);border-radius:11px;padding:9px 6px;text-align:center}
+.mrp-i b{display:block;font-size:19px;color:var(--navy,#0E2148);line-height:1.2}
+.mrp-i span{font-size:10.5px;color:var(--muted,#6b7280);line-height:1.3;display:block;margin-top:2px}
+.mrp-i.warn b{color:#B45309}
+.mrp-i.ok b{color:#15803D}
+.mrp-n{margin:0 0 14px;font-size:12.5px;color:var(--muted,#6b7280);line-height:1.5}
+.stu-note{flex:0 0 auto;margin:6px 12px 0;background:none;border:1px solid rgba(224,163,62,.34);color:var(--gold,#E0A33E);border-radius:10px;padding:7px 10px;font-size:12px;cursor:pointer;font-family:inherit}
+.stu-note:active{background:rgba(224,163,62,.12)}
+.stu-tools{overflow-y:auto;-webkit-overflow-scrolling:touch;padding-bottom:8px}
 .stu-play{flex:0 0 auto;display:flex;align-items:center;gap:10px;padding:8px 12px 2px}
 .stu-pp{width:34px;height:34px;flex:0 0 auto;border:0;border-radius:50%;background:#16213A;color:#fff;font-size:14px;cursor:pointer}
 .stu-tc{flex:0 0 auto;font-size:11px;color:#8FA1BC;font-variant-numeric:tabular-nums;min-width:36px;text-align:center}
@@ -5952,7 +5960,7 @@ function openMontage(tr,version,autoplay){ tr=tr||souvTrip(); if(!tr) return; _m
     <div id="mvStudio" class="stu" style="display:none">
       <div class="stu-top">
         <button class="stu-back" id="stuBack">\u2190</button>
-        <div class="stu-ttl"><b>Studio Magot</b><span>Montage vidéo · v369</span></div>
+        <div class="stu-ttl"><b>Studio Magot</b><span>Montage vidéo · v371</span></div>
         <button class="stu-ico" id="stuUndo" title="Annuler">\u21b6</button>
         <button class="stu-ico" id="stuRedo" title="Rétablir">\u21b7</button>
         <button class="stu-exp" id="mvSave">\u2b06 Exporter</button>
@@ -5983,7 +5991,8 @@ function openMontage(tr,version,autoplay){ tr=tr||souvTrip(); if(!tr) return; _m
         </div>
       </div>
 
-      <div class="mv-fiche" id="mvFiche" role="button" title="Note du réalisateur"></div>
+      <div class="mv-fiche" id="mvFiche"></div>
+      <button class="stu-note" id="stuNote" type="button">✦ Note du réalisateur</button>
 
       <div class="stu-play" id="stuPlayBar">
         <button class="stu-pp" id="stuPP" type="button" aria-label="Lecture">\u23f8</button>
@@ -6104,7 +6113,7 @@ function openMontage(tr,version,autoplay){ tr=tr||souvTrip(); if(!tr) return; _m
   { const un=ov.querySelector("#stuUndo"), re2=ov.querySelector("#stuRedo");
     if(un) un.onclick=()=>{ if(mvUndo()){ stripPaint(); if(_mvState._rebuild) _mvState._rebuild("Annul\u00e9"); } else toast("Rien \u00e0 annuler"); };
     if(re2) re2.onclick=()=>{ if(mvRedo()){ stripPaint(); if(_mvState._rebuild) _mvState._rebuild("R\u00e9tabli"); } else toast("Rien \u00e0 r\u00e9tablir"); }; }
-  { const fi=ov.querySelector("#mvFiche"); if(fi) fi.onclick=()=>openDirectorNote(); }
+  { const fi=ov.querySelector("#stuNote"); if(fi) fi.onclick=()=>openDirectorNote(); }
   _mvState._refreshStudio=()=>{ try{ mvSeekBind(ov); mvSeekUpdate(); }catch(e){}
     try{ _mvState.fiche=mvBuildFiche(_mvState.tr||souvTrip());
     const fe=document.getElementById("mvFiche"); if(fe && _mvState.fiche){ fe.style.display="flex"; fe.innerHTML=_mvState.fiche.map(([k,v])=>`<span class="mvf"><b>${v}</b>${k}</span>`).join(""); }
@@ -6207,9 +6216,15 @@ function openMontage(tr,version,autoplay){ tr=tr||souvTrip(); if(!tr) return; _m
       const nBlur=all.filter(x=>x.q.blur && !x.m.lock).length;
       const nDark=all.filter(x=>x.q.dark && !x.q.blur && !x.m.lock).length;
       const forced=(keep.length<Math.max(3,Math.ceil(all.length*0.4)));
+      const dup=mvCountDuplicates(all);
+      const nPort=all.filter(x=>{ const w=(x.im&&(x.im.naturalWidth||x.im.width))||0, h=(x.im&&(x.im.naturalHeight||x.im.height))||0; return h>w; }).length;
       _mvState._report={ total:all.length, blur:nBlur, dark:nDark, dropped:dropped,
                          forced:forced, chrono:!!_mvState._chrono, dated:(_mvState._dated||0),
-                         locked:all.filter(x=>x.m.lock).length };
+                         locked:all.filter(x=>x.m.lock).length,
+                         dup:dup.extra, dupGroups:dup.groupes,
+                         portrait:nPort, paysage:all.length-nPort,
+                         located:all.filter(x=>x.m&&x.m.lat!=null).length,
+                         videos:((_mvState.tr&&_mvState.tr.memories)||[]).filter(m=>m&&m.kind==="video").length };
       if(forced) keep=all.slice();
       const imgs=keep.map(x=>x.im);
       if(dropped>0 && keep.length<all.length) toast(dropped+(dropped>1?" photos \u00e9cart\u00e9es (floues ou sombres)":" photo \u00e9cart\u00e9e (floue ou sombre)"));
@@ -6511,6 +6526,35 @@ function mvBuildFiche(tr){
    déjà prise par le moteur (tri, cadrage, rythme, musique). Aucune IA n'est
    appelée ici, donc aucun risque d'invention : si l'information n'existe pas,
    la ligne n'apparaît pas. */
+/* ---- Doublons : empreinte perceptive (8x8 en gris, comparee au seuil moyen).
+   Deux photos d'une meme rafale donnent des empreintes quasi identiques. ---- */
+function mvPHash(im){
+  try{
+    const c=document.createElement("canvas"); c.width=8; c.height=8;
+    const g=c.getContext("2d"); g.drawImage(im,0,0,8,8);
+    const d=g.getImageData(0,0,8,8).data, px=[];
+    for(let i=0;i<64;i++){ px.push(0.299*d[i*4]+0.587*d[i*4+1]+0.114*d[i*4+2]); }
+    const moy=px.reduce((a,b)=>a+b,0)/64;
+    return px.map(v=>v>moy?1:0);
+  }catch(e){ return null; }
+}
+function mvHashDist(a,b){ if(!a||!b) return 99; let n=0; for(let i=0;i<64;i++) if(a[i]!==b[i]) n++; return n; }
+/* Regroupe les photos trop semblables. Renvoie le nombre de photos EN TROP
+   (on garde toujours une photo par groupe). */
+function mvCountDuplicates(list){
+  const hs=list.map(x=>{ try{ return mvPHash(x.im); }catch(e){ return null; } });
+  const vus=new Array(list.length).fill(false); let extra=0, groupes=0;
+  for(let i=0;i<list.length;i++){
+    if(vus[i]||!hs[i]) continue;
+    let n=0;
+    for(let j=i+1;j<list.length;j++){
+      if(vus[j]||!hs[j]) continue;
+      if(mvHashDist(hs[i],hs[j])<=6){ vus[j]=true; n++; }
+    }
+    if(n){ groupes++; extra+=n; }
+  }
+  return {extra, groupes};
+}
 function mvDirectorNotes(){
   const R=_mvState._report||{}, segs=_mvState.segs||[], out=[];
   const n=(x)=>String(x);
@@ -6527,6 +6571,8 @@ function mvDirectorNotes(){
     if(R.locked) l+=" "+n(R.locked)+" photo"+(R.locked>1?"s sont épinglées":" est épinglée")+" : je la"+(R.locked>1?"s":"")+" garde quoi qu'il arrive.";
     out.push(l);
   }
+  if(R.dup) out.push("J'ai repéré "+n(R.dup)+" photo"+(R.dup>1?"s":"")+" très proche"+(R.dup>1?"s":"")+" d'une autre (rafales ou clichés répétés), réparti"+(R.dup>1?"es":"e")+" en "+n(R.dupGroups)+" groupe"+(R.dupGroups>1?"s":"")+" : je les espace pour éviter l'effet de répétition.");
+  if(R.portrait!=null && R.total) out.push(n(R.portrait)+" photo"+(R.portrait>1?"s":"")+" en hauteur, "+n(R.paysage)+" en largeur"+(R.located?" \u00b7 "+n(R.located)+" localis\u00e9e"+(R.located>1?"s":""):"")+".");
   /* 2. L'ordre */
   if(R.chrono) out.push("J'ai remis le film dans l'ordre de la journée, grâce à l'heure de prise de vue de "+n(R.dated)+" photo"+(R.dated>1?"s":"")+".");
   else if(R.total>1) out.push("Trop peu de photos portaient une heure de prise de vue : j'ai conservé ton ordre plutôt que d'en inventer un.");
@@ -6551,6 +6597,27 @@ function mvDirectorNotes(){
   else if(MV_GRADE_LBL[gk]) out.push("Couleurs : ambiance "+MV_GRADE_LBL[gk]+(_mvState.grade==="auto"?" (choisie d'après ton voyage)":"")+".");
   return out;
 }
+/* ---- Rapport médias : l'état réel de tes photos avant le montage ---- */
+function mvMediaReportHtml(){
+  const R=_mvState._report||{};
+  if(!R.total) return "";
+  const li=(v,l,ton)=>`<div class="mrp-i${ton?" "+ton:""}"><b>${v}</b><span>${l}</span></div>`;
+  let h=`<div class="mrp">`;
+  h+=li(R.total, "photo"+(R.total>1?"s":"")+" analysée"+(R.total>1?"s":""));
+  if(R.videos) h+=li(R.videos,"vidéo"+(R.videos>1?"s":""));
+  h+=li(R.blur||0, "floue"+((R.blur||0)>1?"s":""), (R.blur?"warn":"ok"));
+  h+=li(R.dark||0, "sombre"+((R.dark||0)>1?"s":""), (R.dark?"warn":"ok"));
+  h+=li(R.dup||0, "quasi identique"+((R.dup||0)>1?"s":""), (R.dup?"warn":"ok"));
+  h+=li(R.portrait||0,"en hauteur");
+  h+=li(R.paysage||0,"en largeur");
+  if(R.located) h+=li(R.located,"localisée"+(R.located>1?"s":""));
+  if(R.dated) h+=li(R.dated,"datée"+(R.dated>1?"s":""));
+  h+=`</div>`;
+  if(R.forced && R.dropped) h+=`<p class="mrp-n">La plupart étaient floues ou sombres : les écarter aurait vidé le film, je les ai toutes gardées.</p>`;
+  else if(R.dropped) h+=`<p class="mrp-n">${R.dropped} photo${R.dropped>1?"s":""} écartée${R.dropped>1?"s":""} du montage.</p>`;
+  else h+=`<p class="mrp-n">Toutes tes photos sont exploitables : aucune n'a été écartée.</p>`;
+  return h;
+}
 function openDirectorNote(){
   const notes=mvDirectorNotes();
   let ov=document.getElementById("dirNoteOv"); if(ov) ov.remove();
@@ -6559,6 +6626,7 @@ function openDirectorNote(){
   ov.innerHTML=`<div class="cal-sheet" style="max-height:88vh;overflow-y:auto">
     <div class="cal-h"><b>\u2726 Note du r\u00e9alisateur</b><button class="cal-x" id="dnX" type="button">\u2715</button></div>
     <div style="padding:4px 16px 20px">
+      ${mvMediaReportHtml()}
       ${notes.map(x=>`<p style="margin:0 0 12px;line-height:1.55;color:#0E2148;font-size:14.2px">${escapeHtml(x)}</p>`).join("")}
       <p style="margin:14px 0 0;font-size:12px;color:#6b7280;line-height:1.5">Ces explications d\u00e9crivent des d\u00e9cisions r\u00e9ellement prises par le montage \u2014 rien n'est invent\u00e9.</p>
     </div></div>`;
