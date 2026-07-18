@@ -98,6 +98,10 @@
     var c = Math.cos(a), s = Math.sin(a), m = mat4Identity();
     m[0]=c; m[2]=-s; m[8]=s; m[10]=c; return m;
   }
+  function mat4RotateZ(a) {
+    var c = Math.cos(a), s = Math.sin(a), m = mat4Identity();
+    m[0]=c; m[1]=s; m[4]=-s; m[5]=c; return m;
+  }
   function mat4RotateX(a) {
     var c = Math.cos(a), s = Math.sin(a), m = mat4Identity();
     m[5]=c; m[6]=s; m[9]=-s; m[10]=c; return m;
@@ -231,6 +235,7 @@
       var proj = mat4Perspective(Math.PI / 4, car, 0.1, 100);
       var dist = 1 / Math.tan(Math.PI / 8);
       var m = mat4Scale(sx, sy, 1);
+      if (o.rotZ) m = mat4Multiply(mat4RotateZ(o.rotZ), m);
       if (o.rotY) m = mat4Multiply(mat4RotateY(o.rotY), m);
       if (o.rotX) m = mat4Multiply(mat4RotateX(o.rotX), m);
       m = mat4Multiply(mat4Translate(o.offX || 0, o.offY || 0, -dist + (o.z || 0)), m);
@@ -424,7 +429,7 @@
       if (to)   API.draw(to,   opts({ alpha: e }));
     },
 
-    version: "1.6",
+    version: "1.7",
     kinds: ["cube3d", "cubeX3d", "flip3d", "carousel3d", "door3d", "zoomThrough3d", "carnet3d", "boussole3d", "reminiscence3d", "depart3d", "fade"],
     labels: { cube3d:"Cube", cubeX3d:"Cube vertical", flip3d:"Retournement", carousel3d:"Carrousel", door3d:"Portes", zoomThrough3d:"Traversée", carnet3d:"\u2726 Carnet de voyage", boussole3d:"\u2726 Boussole", reminiscence3d:"\u2726 Réminiscence", depart3d:"\u2726 Tableau des départs", fade:"Fondu" }
   };
