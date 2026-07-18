@@ -1,0 +1,167 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Magot — test moteur 3D</title>
+<style>
+  :root{ --nav:#0f1c33; --gold:#c9a227; --line:#22304d; }
+  *{box-sizing:border-box}
+  body{margin:0;background:#0b1424;color:#eaf0fb;font:15px/1.45 -apple-system,system-ui,sans-serif;
+       padding:14px 14px calc(14px + env(safe-area-inset-bottom,0px))}
+  h1{font:800 19px system-ui;color:var(--gold);margin:4px 0 2px}
+  p.sub{color:#93a4c4;margin:0 0 14px;font-size:13px}
+  canvas{width:100%;max-width:420px;aspect-ratio:9/16;background:#000;border-radius:14px;display:block;margin:0 auto}
+  .row{display:flex;flex-wrap:wrap;gap:8px;margin:12px 0;justify-content:center}
+  button,label.file{background:var(--nav);color:#eaf0fb;border:1px solid var(--line);border-radius:11px;
+    padding:11px 14px;font:700 14px system-ui;cursor:pointer}
+  button.on{background:var(--gold);color:#10203a;border-color:var(--gold)}
+  button.big{background:var(--gold);color:#10203a;border-color:var(--gold);flex:1;max-width:200px}
+  #log{background:#0a1020;border:1px solid var(--line);border-radius:11px;padding:11px;
+       font:12px/1.5 ui-monospace,monospace;color:#b9c8e4;white-space:pre-wrap;margin-top:12px;max-width:420px;margin-left:auto;margin-right:auto}
+  .hint{color:#93a4c4;font-size:12.5px;text-align:center;max-width:420px;margin:8px auto}
+</style>
+</head>
+<body>
+
+<h1>Test du moteur 3D</h1>
+<p class="sub">Vérifie que la vraie 3D et surtout l'export tiennent sur cet iPhone.</p>
+
+<canvas id="cv" width="720" height="1280"></canvas>
+
+<div class="row">
+  <label class="file">📷 Choisir 2 photos
+    <input id="pick" type="file" accept="image/*" multiple hidden>
+  </label>
+</div>
+
+<div class="row" id="kinds"></div>
+
+<div class="row">
+  <button class="big" id="play">▶︎ Jouer</button>
+  <button class="big" id="rec">⏺ Tester l'export (5 s)</button>
+</div>
+
+<p class="hint">1) Choisis 2 photos. 2) Choisis une transition. 3) « Jouer » pour voir la fluidité. 4) « Tester l'export » : c'est le point décisif.</p>
+
+<div id="log">En attente…</div>
+
+<script src="./mvgl.js?v=11"></script>
+<script>
+(function(){
+  var cv=document.getElementById("cv"), logEl=document.getElementById("log");
+  var texA=null, texB=null, kind="cube3d", raf=0, t0=0, frames=0, fpsTxt="—";
+
+  function log(s){ logEl.textContent = s; }
+  function addLog(s){ logEl.textContent += "\n" + s; }
+
+  if(!MVGL.init(cv)){
+    log("❌ WebGL indisponible sur cet appareil.\nL'application garderait son moteur 2D actuel.");
+    return;
+  }
+  log("✅ Moteur 3D prêt (WebGL) — version "+(MVGL.version||"?")+"\n(si ce n'est pas 1.1, le fichier est en cache)\nChoisis 2 photos pour commencer.");
+
+  MVGL.kinds.forEach(function(k){
+    var b=document.createElement("button");
+    b.textContent=k; b.className=(k===kind?"on":"");
+    b.onclick=function(){ kind=k;
+      Array.prototype.forEach.call(document.querySelectorAll("#kinds button"),function(x){x.className="";});
+      b.className="on"; };
+    document.getElementById("kinds").appendChild(b);
+  });
+
+  document.getElementById("pick").onchange=function(ev){
+    var fs=Array.prototype.slice.call(ev.target.files||[]).slice(0,2);
+    if(!fs.length) return;
+    var done=0;
+    fs.forEach(function(f,i){
+      var img=new Image();
+      img.onload=function(){
+        var t=MVGL.texture(img);
+        if(i===0){ MVGL.free(texA); texA=t; } else { MVGL.free(texB); texB=t; }
+        if(++done===fs.length){
+          if(!texB) texB=texA;
+          addLog("📷 "+fs.length+" photo(s) chargée(s)."
+            +"\nTexture 1 : "+(texA?texA._w+"×"+texA._h:"échec")
+            +(texB&&texB!==texA?("\nTexture 2 : "+texB._w+"×"+texB._h):"")
+            +"\nAppuie sur Jouer.");
+          drawStill();
+        }
+      };
+      img.onerror=function(){ addLog("⚠️ Photo illisible."); };
+      img.src=URL.createObjectURL(f);
+    });
+  };
+
+  function drawStill(){
+    MVGL.clear(0,0,0);
+    if(texA){ MVGL.background(texA,{}); MVGL.draw(texA,{mode:"fit",vignette:0.35}); }
+  }
+
+  function loop(ts){
+    if(!t0) t0=ts;
+    var el=(ts-t0)/1000, cycle=3.0, k=(el%cycle)/cycle;
+    frames++;
+    MVGL.clear(0,0,0);
+    var bg = (k<0.5?texA:texB);
+    if(bg) MVGL.background(bg,{});
+    /* 1 s de transition au milieu de chaque cycle */
+    if(k>0.35 && k<0.65){
+      var tk=(k-0.35)/0.30;
+      MVGL.transition(kind, texA, texB, tk, {mode:"fit",vignette:0.35});
+    } else if(k<=0.35){
+      MVGL.draw(texA,{mode:"fit",vignette:0.35, zoom:1+0.05*(k/0.35)});
+    } else {
+      MVGL.draw(texB,{mode:"fit",vignette:0.35, zoom:1+0.05*((k-0.65)/0.35)});
+    }
+    if(el>=1){ fpsTxt=Math.round(frames/el)+" i/s"; }
+    raf=requestAnimationFrame(loop);
+  }
+
+  document.getElementById("play").onclick=function(){
+    if(!texA){ addLog("⚠️ Choisis d'abord 2 photos."); return; }
+    if(raf){ cancelAnimationFrame(raf); raf=0; drawStill(); log("⏸ Arrêté. Fluidité mesurée : "+fpsTxt); return; }
+    t0=0; frames=0; log("▶︎ Lecture en cours…");
+    raf=requestAnimationFrame(loop);
+  };
+
+  document.getElementById("rec").onclick=function(){
+    if(!texA){ addLog("⚠️ Choisis d'abord 2 photos."); return; }
+    if(typeof MediaRecorder==="undefined"){ addLog("❌ Enregistrement non supporté ici."); return; }
+    var stream, rec, chunks=[];
+    try{ stream=cv.captureStream(30); }
+    catch(e){ addLog("❌ captureStream indisponible : "+e); return; }
+    var mime="";
+    ["video/mp4","video/webm;codecs=vp9","video/webm"].forEach(function(m){
+      if(!mime && MediaRecorder.isTypeSupported && MediaRecorder.isTypeSupported(m)) mime=m;
+    });
+    try{ rec=new MediaRecorder(stream, mime?{mimeType:mime}:undefined); }
+    catch(e){ addLog("❌ MediaRecorder refusé : "+e); return; }
+
+    chunks=[];
+    rec.ondataavailable=function(e){ if(e.data&&e.data.size) chunks.push(e.data); };
+    rec.onstop=function(){
+      var blob=new Blob(chunks,{type:mime||"video/webm"});
+      var url=URL.createObjectURL(blob);
+      var old=document.getElementById("dl"); if(old) old.parentNode.removeChild(old);
+      var a=document.createElement("a");
+      a.id="dl";
+      a.href=url; a.download="test-3d"+(mime.indexOf("mp4")>=0?".mp4":".webm");
+      a.textContent="⬇︎ Ouvrir la vidéo exportée";
+      a.style.cssText="display:block;text-align:center;color:#c9a227;font-weight:800;margin-top:10px";
+      logEl.parentNode.insertBefore(a,logEl.nextSibling);
+      addLog("✅ Export terminé — format "+(mime||"webm")+", taille "+Math.round(blob.size/1024)+" Ko."
+        +"\nFluidité pendant l'export : "+fpsTxt
+        +"\n\n👉 Ouvre la vidéo : si elle est fluide et complète, la 3D passe à l'export.");
+    };
+
+    t0=0; frames=0;
+    if(!raf) raf=requestAnimationFrame(loop);
+    log("⏺ Enregistrement 5 s en cours…");
+    rec.start();
+    setTimeout(function(){ try{ rec.stop(); }catch(e){} }, 5000);
+  };
+})();
+</script>
+</body>
+</html>
