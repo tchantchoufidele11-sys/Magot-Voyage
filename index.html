@@ -5900,7 +5900,7 @@ function openMontage(tr,version,autoplay){ tr=tr||souvTrip(); if(!tr) return; _m
     <div id="mvStudio" class="stu" style="display:none">
       <div class="stu-top">
         <button class="stu-back" id="stuBack">\u2190</button>
-        <div class="stu-ttl"><b>Studio Magot</b><span>Montage vidéo · v361</span></div>
+        <div class="stu-ttl"><b>Studio Magot</b><span>Montage vidéo · v362</span></div>
         <button class="stu-ico" id="stuUndo" title="Annuler">\u21b6</button>
         <button class="stu-ico" id="stuRedo" title="Rétablir">\u21b7</button>
         <button class="stu-exp" id="mvSave">\u2b06 Exporter</button>
@@ -8339,7 +8339,7 @@ async function addMemPhotos(files,fromCamera){ const tr=souvTrip(); if(!tr||!fil
   if(fromCamera){ geo=await new Promise(res=>{ if(!navigator.geolocation){ res(null); return; } let d=false; const to=setTimeout(()=>{ if(!d){ d=true; res(null); } },6000);
     navigator.geolocation.getCurrentPosition(p=>{ if(d)return; d=true; clearTimeout(to); res({lat:p.coords.latitude,lng:p.coords.longitude}); }, ()=>{ if(!d){ d=true; clearTimeout(to); res(null); } }, {enableHighAccuracy:true,timeout:5000,maximumAge:60000}); }); }
   if(fromCamera && !placeId){ const near=await nearestPlaceByGeo(tr); if(near){ placeId=near.id; if(day==null){ const st=(tr.plan||[]).find(s=>s.placeId===near.id&&s.day!=null); if(st) day=st.day; } toast(t("mem.linkedNearest",{p:near.name})); } }
-  toast(t("mem.processing")); tr.memories=tr.memories||[]; let added=0, nExif=0, nDate=0;
+  toast(t("mem.processing")); tr.memories=tr.memories||[]; let added=0, nExif=0, nDate=0; const newIds=[];
   let skipped=0, why="";
   for(const file of Array.from(files)){ const ty=(file.type||"").toLowerCase();
     if(/^video\//.test(ty) || /\.(mp4|mov|m4v|webm)$/i.test(file.name||"")){
@@ -8357,7 +8357,7 @@ async function addMemPhotos(files,fromCamera){ const tr=souvTrip(); if(!tr||!fil
       if(ex.iso){ mem.shotDate=ex.iso; mem.shotTime=ex.time||null;
         const ts=Date.parse(ex.iso+"T"+(ex.time||"12:00")+":00"); if(!isNaN(ts)) mem.takenAt=ts; nDate++; }
     }
-    tr.memories.push(mem); added++; }
+    tr.memories.push(mem); newIds.push(mem.id); added++; }
   photoTarget={placeId:null,day:null};
   if(added){ saveState(); renderMemories();
     let msg;
@@ -8365,7 +8365,11 @@ async function addMemPhotos(files,fromCamera){ const tr=souvTrip(); if(!tr||!fil
     else if(nExif) msg="\ud83d\udccd "+nExif+" photo"+(nExif>1?"s":"")+" localis\u00e9e"+(nExif>1?"s":"")+" (lieu de la photo)";
     else if(nDate) msg="\ud83d\udcc5 Date de prise de vue r\u00e9cup\u00e9r\u00e9e sur "+nDate+" photo"+(nDate>1?"s":"");
     else msg=t("mem.added");
-    toast(msg); }
+    toast(msg);
+    /* On montre TOUJOURS ce qui vient d'être ajouté : sans cela, une photo prise
+       depuis l'accueil était bien enregistrée mais restait introuvable. */
+    if(!placeId) openPhotoAssign(tr, newIds, {fromCamera:!!fromCamera});
+    else { souvState.filter="photos"; try{ switchTab("memories"); }catch(e){ renderMemories(); } } }
   else if(skipped){ toast("Photo non lue ("+why+"). R\u00e9essaie en choisissant la photo depuis la galerie."); } }
 function nearestPlaceByGeo(tr){ return new Promise(resolve=>{ const pls=(tr.places||[]).filter(p=>p.lat!=null); if(!pls.length||!navigator.geolocation){ resolve(null); return; }
   let done=false; const to=setTimeout(()=>{ if(!done){ done=true; resolve(null); } },6000);
@@ -8720,6 +8724,48 @@ function openPhotoAdd(){ const tr=souvTrip(); if(!tr){ toast(t("mem.noTrip")); r
   b.querySelector("#paImport").onclick=()=>{ grab(); closePhotoAdd(); document.getElementById("memFile").click(); };
   b.querySelector("#paCamera").onclick=()=>{ grab(); closePhotoAdd(); document.getElementById("memCamera").click(); };
   document.getElementById("photoAddSheet").classList.add("show"); }
+/* Après une prise de vue ou un import : on montre ce qui a été ajouté et on
+   propose de l'affecter au lieu visité. Si la photo porte un GPS (EXIF ou appareil),
+   le lieu le plus proche est présélectionné — mais jamais imposé. */
+function openPhotoAssign(tr, ids, info){
+  if(!tr || !ids || !ids.length) return;
+  const mems=(tr.memories||[]).filter(m=>ids.indexOf(m.id)>=0);
+  if(!mems.length) return;
+  /* Suggestion à partir du GPS de la photo */
+  let sugg=null, suggKm=null;
+  const withGeo=mems.find(m=>m.lat!=null);
+  if(withGeo){ let best=null,bd=Infinity;
+    (tr.places||[]).forEach(pl=>{ if(pl.lat==null) return;
+      const d=haversineKm({lat:withGeo.lat,lng:withGeo.lng},{lat:pl.lat,lng:pl.lng});
+      if(d<bd){ bd=d; best=pl; } });
+    if(best && bd<=2){ sugg=best; suggKm=bd; } }
+  const days=tripDays(tr);
+  document.getElementById("photoAddHd").textContent =
+    (mems.length>1? mems.length+" photos ajoutées" : "Photo ajoutée");
+  const b=document.getElementById("photoAddBody");
+  const hint = sugg
+    ? `<p class="ss-hint">📍 Prise à ${escapeHtml(sugg.name)} (${suggKm<1?Math.round(suggKm*1000)+" m":suggKm.toFixed(1)+" km"}) d'après la photo. Corrige si besoin.</p>`
+    : `<p class="ss-hint">Associe ${mems.length>1?"ces photos":"cette photo"} à un lieu visité pour la retrouver facilement.</p>`;
+  b.innerHTML=`${hint}
+    <div class="fld"><label>${t("mem.atPlace")}</label><select id="pgPlace"><option value="">${t("mem.noPlaceOpt")}</option>${(tr.places||[]).map(pl=>`<option value="${escapeHtml(pl.id)}"${(sugg&&sugg.id===pl.id)?" selected":""}>${escapeHtml(pl.name)}</option>`).join("")}</select></div>
+    <div class="fld"><label>${t("mem.assignDay")}</label><select id="pgDay"><option value="">${t("mem.noDay")}</option>${days.map(dd=>`<option value="${dd.i}">${t("plan.day")} ${dd.i+1}</option>`).join("")}</select></div>
+    <button class="btn gold block" id="pgSave" style="margin-top:6px">Enregistrer</button>
+    <button class="btn ghostline2 block" id="pgSkip" style="margin-top:10px">Voir mes photos</button><div style="height:18px"></div>`;
+  const ps=b.querySelector("#pgPlace"), pd=b.querySelector("#pgDay");
+  const syncDay=()=>{ const pid=ps.value||null; if(pid){ const st=(tr.plan||[]).find(x=>x.placeId===pid&&x.day!=null); if(st) pd.value=String(st.day); } };
+  ps.onchange=syncDay; syncDay();
+  const show=()=>{ closePhotoAdd(); souvState.filter="photos";
+    /* On emmène vraiment l'utilisateur à ses photos : une photo prise depuis
+       l'accueil était enregistrée mais restait invisible, faute de changer d'onglet. */
+    try{ switchTab("memories"); }catch(e){ try{ renderMemories(); }catch(e2){} } };
+  b.querySelector("#pgSave").onclick=()=>{
+    const pid=ps.value||null, dy=(pd.value===""?null:parseInt(pd.value,10));
+    mems.forEach(m=>{ if(pid) m.placeId=pid; if(dy!=null) m.day=dy; });
+    saveState(); show();
+    toast(pid? ("Photo"+(mems.length>1?"s associées":" associée")+" au lieu") : "Photo"+(mems.length>1?"s enregistrées":" enregistrée")); };
+  b.querySelector("#pgSkip").onclick=show;
+  document.getElementById("photoAddSheet").classList.add("show");
+}
 function closePhotoAdd(){ document.getElementById("photoAddSheet").classList.remove("show"); }
 function toggleFav(pid){ const tr=souvTrip(); if(!tr) return; const p=(tr.places||[]).find(x=>x.id===pid); if(!p) return; p.fav=!p.fav; saveState(); renderMemories(); }
 function openMemViewer(id){ const tr=souvTrip(); if(!tr) return; const m=(tr.memories||[]).find(x=>x.id===id); if(!m) return; const days=tripDays(tr);
