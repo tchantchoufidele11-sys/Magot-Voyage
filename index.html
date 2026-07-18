@@ -1480,6 +1480,11 @@ body.dragging-on{-webkit-user-select:none;user-select:none}
 #mvOv.stufull .stu-exit{display:inline-flex}
 #mvOv.cine .mv-fiche{flex:0 0 auto;background:#101B2E;margin:10px;border-radius:12px}
 /* ---- Barre de lecture : grande prévisualisation façon studio ---- */
+/* ---- Règle temporelle du studio (tête de lecture traversante) ---- */
+.stu-ruler{position:relative;flex:0 0 auto;margin:2px 12px 0;height:26px}
+.stu-ruler canvas{width:100%;height:26px;display:block}
+.stu-ph{position:absolute;top:0;bottom:-92px;width:2px;background:var(--gold,#E0A33E);left:0;pointer-events:none;z-index:5;box-shadow:0 0 6px rgba(224,163,62,.6)}
+.stu-ph::before{content:"";position:absolute;top:-1px;left:-5px;width:12px;height:12px;border-radius:50%;background:var(--gold,#E0A33E)}
 .ep-row{display:flex;gap:8px}
 .ep-c{flex:1 1 0;background:var(--paper,#F7F8FB);border:1.5px solid var(--line,#E6E9F0);border-radius:12px;padding:11px 6px;cursor:pointer;font-family:inherit;display:flex;flex-direction:column;align-items:center;gap:3px}
 .ep-c b{font-size:14px;color:var(--navy,#0E2148)}
@@ -5984,7 +5989,7 @@ function openMontage(tr,version,autoplay){ tr=tr||souvTrip(); if(!tr) return; _m
     <div id="mvStudio" class="stu" style="display:none">
       <div class="stu-top">
         <button class="stu-back" id="stuBack">\u2190</button>
-        <div class="stu-ttl"><b>Studio Magot</b><span>Montage vidéo · v377</span></div>
+        <div class="stu-ttl"><b>Studio Magot</b><span>Montage vidéo · v379</span></div>
         <button class="stu-ico" id="stuUndo" title="Annuler">\u21b6</button>
         <button class="stu-ico" id="stuRedo" title="Rétablir">\u21b7</button>
         <button class="stu-exp" id="mvSave">\u2b06 Exporter</button>
@@ -6025,6 +6030,7 @@ function openMontage(tr,version,autoplay){ tr=tr||souvTrip(); if(!tr) return; _m
         <span class="stu-tc" id="stuTcB">00:00</span>
       </div>
 
+      <div class="stu-ruler" id="stuRuler"><canvas id="stuRulerC" height="26"></canvas><div class="stu-ph" id="stuPh"></div></div>
       <div class="stu-strip" id="stuStrip"></div>
 
       <div class="stu-wave">
@@ -6138,7 +6144,7 @@ function openMontage(tr,version,autoplay){ tr=tr||souvTrip(); if(!tr) return; _m
     if(un) un.onclick=()=>{ if(mvUndo()){ stripPaint(); if(_mvState._rebuild) _mvState._rebuild("Annul\u00e9"); } else toast("Rien \u00e0 annuler"); };
     if(re2) re2.onclick=()=>{ if(mvRedo()){ stripPaint(); if(_mvState._rebuild) _mvState._rebuild("R\u00e9tabli"); } else toast("Rien \u00e0 r\u00e9tablir"); }; }
   { const fi=ov.querySelector("#stuNote"); if(fi) fi.onclick=()=>openDirectorNote(); }
-  _mvState._refreshStudio=()=>{ try{ mvSeekBind(ov); mvSeekUpdate(); }catch(e){}
+  _mvState._refreshStudio=()=>{ try{ mvSeekBind(ov); mvRulerPaint(); mvSeekUpdate(); }catch(e){}
     try{ _mvState.fiche=mvBuildFiche(_mvState.tr||souvTrip());
     const fe=document.getElementById("mvFiche"); if(fe && _mvState.fiche){ fe.style.display="flex"; fe.innerHTML=_mvState.fiche.map(([k,v])=>`<span class="mvf"><b>${v}</b>${k}</span>`).join(""); }
     stripPaint(); fmtsPaint(); wavePaint(); }catch(e){} };
@@ -6443,9 +6449,9 @@ function openCropEditor(tr,i){
   };
 }
 /* ===================== Éditeur de plans (le film, plan par plan) ===================== */
-const MV_TR_LBL={fade:"Fondu",dissolve:"Dissolve",whiteFade:"Fondu blanc",blackFade:"Fondu noir",flash:"Flash",lightLeak:"Fuite de lumière",ink:"Encre",
-  iris:"Iris",curtain:"Rideau",blinds:"Store",softReveal:"Révélation",split:"Split",panLeft:"Glissement \u2190",panRight:"Glissement \u2192",panUp:"Glissement \u2191",panDown:"Glissement \u2193",
-  parallax:"Parallaxe",traveling:"Travelling",pushIn:"Zoom avant",pushOut:"Zoom arrière",dolly:"Dolly",slowReveal:"Révélation lente",flip:"Flip",rotate:"Rotation",fold:"Pli"};
+const MV_TR_LBL={fade:"Fondu",dissolve:"Fondu enchaîné",whiteFade:"Fondu blanc",blackFade:"Fondu noir",flash:"Flash",lightLeak:"Fuite de lumière",ink:"Encre",
+  iris:"Iris",curtain:"Rideau",blinds:"Store",softReveal:"Révélation",split:"Séparation",panLeft:"Glissement \u2190",panRight:"Glissement \u2192",panUp:"Glissement \u2191",panDown:"Glissement \u2193",
+  parallax:"Parallaxe",traveling:"Travelling latéral",pushIn:"Zoom avant",pushOut:"Zoom arrière",dolly:"Travelling avant",slowReveal:"Révélation lente",flip:"Retournement",rotate:"Rotation",fold:"Pli"};
 const MV_MO_LBL={slowZoom:"Zoom lent",drone:"Recul drone",focus:"Focus",travel:"Travelling"};
 /* Recalcule les temps des plans sur la grille musicale après une modification */
 function mvAssignChunks(){
@@ -6722,6 +6728,31 @@ function mvSetPlaying(on){ _mvState.playing=!!on;
 /* ---- Barre de lecture : avancement, temps et déplacement au doigt ---- */
 function mvFmtTc(x){ x=Math.max(0,Math.floor(x||0)); const m=Math.floor(x/60), sec=x%60;
   return (m<10?"0":"")+m+":"+(sec<10?"0":"")+sec; }
+/* Dessine la règle temporelle : graduations à la seconde, repères chiffrés,
+   et tête de lecture qui traverse la bande de plans. */
+function mvRulerPaint(){
+  const c=document.getElementById("stuRulerC"); if(!c) return;
+  const total=Math.max(1,_mvState.total||_mvState.dur||60);
+  const w=c.clientWidth||c.parentNode.clientWidth||300;
+  const dpr=Math.min(2,window.devicePixelRatio||1);
+  if(c.width!==Math.round(w*dpr)){ c.width=Math.round(w*dpr); c.height=Math.round(26*dpr); }
+  const g=c.getContext("2d"); g.setTransform(dpr,0,0,dpr,0,0);
+  g.clearRect(0,0,w,26);
+  /* pas adapté à la durée : 1 s, 5 s ou 10 s selon la place disponible */
+  const pas=(w/total>18)?1:((w/total>4)?5:10);
+  g.font="9px -apple-system,system-ui,sans-serif"; g.textBaseline="top";
+  for(let t=0;t<=total;t+=pas){
+    const x=Math.round((t/total)*w)+0.5;
+    const gros=(t%(pas*5)===0)||t===0;
+    g.strokeStyle=gros?"rgba(224,163,62,.55)":"rgba(143,161,188,.34)";
+    g.beginPath(); g.moveTo(x,gros?8:14); g.lineTo(x,24); g.stroke();
+    if(gros){ const m=Math.floor(t/60), sec=Math.floor(t%60);
+      const lab=m+":"+(sec<10?"0":"")+sec;
+      g.fillStyle="#8FA1BC";
+      const tw=g.measureText(lab).width;
+      g.fillText(lab, Math.min(w-tw-1,Math.max(1,x-tw/2)), 0); }
+  }
+}
 function mvSeekUpdate(){
   const A=_mvState.audio; const f=document.getElementById("stuSeekF");
   if(!f) return;
@@ -6730,6 +6761,8 @@ function mvSeekUpdate(){
   const pct=Math.max(0,Math.min(1,cur/total));
   f.style.width=(pct*100)+"%";
   const h=document.getElementById("stuSeekH"); if(h) h.style.left=(pct*100)+"%";
+  const ph=document.getElementById("stuPh"); const rl=document.getElementById("stuRuler");
+  if(ph&&rl) ph.style.left=(pct*(rl.clientWidth||1))+"px";
   const a=document.getElementById("stuTcA"); if(a) a.textContent=mvFmtTc(cur);
   const b=document.getElementById("stuTcB"); if(b) b.textContent=mvFmtTc(total);
 }
