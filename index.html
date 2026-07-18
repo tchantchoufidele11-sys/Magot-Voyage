@@ -5900,7 +5900,7 @@ function openMontage(tr,version,autoplay){ tr=tr||souvTrip(); if(!tr) return; _m
     <div id="mvStudio" class="stu" style="display:none">
       <div class="stu-top">
         <button class="stu-back" id="stuBack">\u2190</button>
-        <div class="stu-ttl"><b>Studio Magot</b><span>Montage vidéo · v346</span></div>
+        <div class="stu-ttl"><b>Studio Magot</b><span>Montage vidéo · v349</span></div>
         <button class="stu-ico" id="stuUndo" title="Annuler">\u21b6</button>
         <button class="stu-ico" id="stuRedo" title="Rétablir">\u21b7</button>
         <button class="stu-exp" id="mvSave">\u2b06 Exporter</button>
@@ -6608,7 +6608,6 @@ function openStudioSheet(tr,kind,after){
   const famLbl={ douces:["Douces","Fondu · dissolve · fondu blanc"], premium:["Premium","Zoom avant/arrière · dolly · révélation"],
     cinema:["Cinéma","Panoramiques · travelling · parallaxe"], elegant:["Élégant","Iris · rideau · store · révélation"],
     dynamique:["Dynamique","Split · flip · rotation · pli"], creatif:["Créatif","Flash · fuite de lumière · encre"],
-    tridi:["3D","Cube · flip 3D · balancement · traversée"],
     reelle3d:["3D réelle \u2726","Vrai relief · Carnet · Boussole · Réminiscence · Départs"] };
   let body="";
   if(kind==="grade"){
@@ -6623,7 +6622,7 @@ function openStudioSheet(tr,kind,after){
         <button class="ss-fam${(_mvState.style||"")==="all"?" on":""}" data-ss="all"><b>\ud83c\udf9e Toutes</b><span>Mélange de toutes les familles</span></button>
       </div>
       <div class="ss-sec">Familles</div>
-      <div class="ss-blocks">${["douces","premium","cinema","elegant","dynamique","creatif","tridi"].concat(mvGLReady()?["reelle3d"]:[]).map(fam).join("")}</div>
+      <div class="ss-blocks">${["douces","premium","cinema","elegant","dynamique","creatif"].concat(mvGLReady()?["reelle3d"]:[]).map(fam).join("")}</div>
       ${mvGLReady()?"":'<p class="ss-hint">La « 3D réelle » apparaîtra ici si le moteur 3D est disponible sur cet appareil.</p>'}
       <p class="ss-hint">Le choix s'applique immédiatement. Pour régler un plan précis, ouvre « Plans ».</p>`;
   } else if(kind==="fx"){
@@ -6775,16 +6774,48 @@ async function mvRecord(tr,total,btn){ _mvState.rec=true;
   if(!mime){ toast(mvT("noRec")); return; }
   try{
     const vs=cv.captureStream(30);
-    /* on branche l'audio dans le flux enregistré */
-    const AC=window.AudioContext||window.webkitAudioContext; const actx=new AC();
-    const src=actx.createMediaElementSource(au); const dest=actx.createMediaStreamDestination();
-    src.connect(dest); src.connect(actx.destination);
-    dest.stream.getAudioTracks().forEach(tk=>vs.addTrack(tk));
+    /* On branche l'audio dans le flux enregistré.
+       ATTENTION : un élément <audio> ne peut être "sourcé" qu'UNE seule fois.
+       Le réglage du volume (fondus) a déjà créé cette source via mvAudioAttach :
+       on se greffe donc sur le gain existant au lieu d'en créer une deuxième,
+       ce qui faisait échouer tout l'export. */
+    let actx=null, src=null, dest=null, recGain=null, tapped=false;
+    try{
+      mvAudioAttach(au); mvAudioResume();
+      if(_mvAC && _mvSrcNode){
+        /* On prend le son À LA SOURCE, à plein volume : en passant par le
+           réglage du film, l'enregistrement récupérait aussi les baisses de
+           volume (fondus, atténuation) et la musique sortait trop faible. */
+        actx=_mvAC; dest=actx.createMediaStreamDestination();
+        recGain=actx.createGain(); recGain.gain.value=1;
+        _mvSrcNode.connect(recGain); recGain.connect(dest); tapped=true;
+      }
+    }catch(e){ tapped=false; }
+    if(!tapped){
+      try{
+        const AC=window.AudioContext||window.webkitAudioContext; actx=new AC();
+        src=actx.createMediaElementSource(au); dest=actx.createMediaStreamDestination();
+        src.connect(dest); src.connect(actx.destination);
+      }catch(e){ actx=null; dest=null; }
+    }
+    if(dest) dest.stream.getAudioTracks().forEach(tk=>vs.addTrack(tk));   /* sans audio, on exporte quand même l'image */
     const rec=new MediaRecorder(vs,{mimeType:mime,videoBitsPerSecond:6000000});
     const chunks=[]; rec.ondataavailable=e=>{ if(e.data&&e.data.size) chunks.push(e.data); };
     const done=new Promise(r=>{ rec.onstop=r; });
     btn.disabled=true;
     au.currentTime=0; await au.play().catch(()=>{}); _mvState.playing=true;
+    /* Fondu de fin DANS le fichier exporté : on programme sur la dérivation
+       d'enregistrement la même courbe que le film (mêmes durée et forme),
+       sans toucher au volume de la lecture. */
+    if(recGain && actx){
+      try{
+        const FADE=Math.min(9,Math.max(4,total*0.16));
+        const t0a=actx.currentTime, st=t0a+Math.max(0,total-FADE);
+        recGain.gain.cancelScheduledValues(t0a);
+        recGain.gain.setValueAtTime(1,st);
+        for(let i=1;i<=12;i++){ const f=1-i/12; recGain.gain.linearRampToValueAtTime(Math.max(0.0001,Math.pow(f,0.7)), st+FADE*(i/12)); }
+      }catch(e){}
+    }
     rec.start(200);
     const t0=Date.now();
     const tick=setInterval(()=>{ const pc=Math.min(99,Math.round((au.currentTime/total)*100)); btn.textContent=mvT("saving").replace("{n}",pc); },300);
@@ -6792,7 +6823,10 @@ async function mvRecord(tr,total,btn){ _mvState.rec=true;
     try{ rec.stop(); }catch(e){}
     await done; clearInterval(tick);
     try{ au.pause(); }catch(e){} _mvState.playing=false;
-    try{ src.disconnect(); actx.close(); }catch(e){}
+    try{
+      if(tapped){ if(recGain){ try{ _mvSrcNode.disconnect(recGain); }catch(e){} try{ recGain.disconnect(); }catch(e){} } }
+      else { if(src) src.disconnect(); if(actx) actx.close(); }
+    }catch(e){}
     const ext=mime.indexOf("mp4")>=0?"mp4":"webm";
     const blob=new Blob(chunks,{type:mime});
     const url=URL.createObjectURL(blob);
@@ -6873,7 +6907,6 @@ const MV_TRANS={
   elegant:["iris","curtain","blinds","softReveal"],
   dynamique:["split","flip","rotate","fold"],
   creatif:["flash","lightLeak","ink"],
-  tridi:["flip3d","cube3d","swing3d","zoomThrough","doorway"],
   reelle3d:MV_GL3D
 };
 const MV_VERSIONS=[
@@ -7277,7 +7310,9 @@ function mvFxDraw(name,g,W,H,u,e,seed,t,cv,drop){
   g.restore();
 }
 function mvTransPool(style){
-  if(style==="all"){ const all=[]; Object.values(MV_TRANS).forEach(a=>a.forEach(t=>{ if(all.indexOf(t)<0) all.push(t); })); return all; }
+  if(style==="tridi") style="reelle3d";   /* ancien style « 3D » des projets déjà enregistrés */
+  if(style==="reelle3d" && !mvGLReady()) return ["flip","fold","rotate","blinds"];   /* moteur absent : équivalents 2D */
+  if(style==="all"){ const all=[]; Object.keys(MV_TRANS).forEach(k=>{ if(k==="reelle3d"&&!mvGLReady()) return; MV_TRANS[k].forEach(t=>{ if(all.indexOf(t)<0) all.push(t); }); }); return all; }
   if(style&&MV_TRANS[style]) return MV_TRANS[style].slice();
   return MV_AUTO.slice();
 }
