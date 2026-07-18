@@ -5900,7 +5900,7 @@ function openMontage(tr,version,autoplay){ tr=tr||souvTrip(); if(!tr) return; _m
     <div id="mvStudio" class="stu" style="display:none">
       <div class="stu-top">
         <button class="stu-back" id="stuBack">\u2190</button>
-        <div class="stu-ttl"><b>Studio Magot</b><span>Montage vidéo · v355</span></div>
+        <div class="stu-ttl"><b>Studio Magot</b><span>Montage vidéo · v356</span></div>
         <button class="stu-ico" id="stuUndo" title="Annuler">\u21b6</button>
         <button class="stu-ico" id="stuRedo" title="Rétablir">\u21b7</button>
         <button class="stu-exp" id="mvSave">\u2b06 Exporter</button>
@@ -6853,6 +6853,16 @@ const MV_GRADE={
   bw:     {f:"grayscale(1) contrast(1.15)",  tint:null},
   vintage:{f:"sepia(0.35) saturate(0.9) contrast(0.95)", tint:"rgba(190,140,80,0.12)"}
 };
+/* Les mêmes ambiances, exprimées pour le GPU (identiques aux filtres 2D ci-dessus). */
+const MV_GRADE_GL={
+  natural:{contrast:1,    sat:1,    bright:1,    sepia:0,    tint:null,               tintAmt:0},
+  cinema: {contrast:1.12, sat:0.92, bright:1,    sepia:0,    tint:[0.039,0.118,0.235], tintAmt:0.16},
+  warm:   {contrast:1.04, sat:1.12, bright:1,    sepia:0,    tint:[1,0.588,0.235],     tintAmt:0.12},
+  cold:   {contrast:1.06, sat:0.95, bright:1,    sepia:0,    tint:[0.275,0.510,0.863], tintAmt:0.14},
+  golden: {contrast:1,    sat:1.18, bright:1.04, sepia:0,    tint:[1,0.686,0.275],     tintAmt:0.20},
+  bw:     {contrast:1.15, sat:0,    bright:1,    sepia:0,    tint:null,               tintAmt:0},
+  vintage:{contrast:0.95, sat:0.9,  bright:1,    sepia:0.35, tint:[0.745,0.549,0.314], tintAmt:0.12}
+};
 const MV_GRADE_LBL={natural:"Naturelle",cinema:"Cinéma",warm:"Chaude",cold:"Froide",golden:"Golden hour",bw:"Noir & blanc",vintage:"Vintage"};
 /* Couleur "Auto" : Fidèle choisit une ambiance qui va avec le voyage, et VARIE d'un montage à l'autre. */
 function mvAutoGrade(tr){
@@ -6881,7 +6891,7 @@ function mvGLLoad(){
   _mvGLtried=true;
   return new Promise(res=>{
     if(window.MVGL){ res(mvGLInit()); return; }
-    const s=document.createElement("script"); s.src="./moteur/mvgl.js?v=24";
+    const s=document.createElement("script"); s.src="./moteur/mvgl.js?v=25";
     s.onload=()=>res(mvGLInit()); s.onerror=()=>{ _mvGL=null; res(false); };
     document.head.appendChild(s);
   });
@@ -7439,10 +7449,12 @@ function mvRun(tr,total){
              le glisser DERRIÈRE les personnes. */
           const ovEl=_mvState._ovNow||null;
           const ovTex=(ovEl && ovEl.readyState>=2)?mvGLTex(ovEl):null;
-          const mask=ovTex?mvMaskFor(im):null;   /* masque calculé une seule fois par photo */
+          const mask=(ovTex && _mvState.maskPeople)?mvMaskFor(im):null;   /* desactive par defaut : overlays devant, plus naturel */
           const geo={mode:(fp.mode==="fill"?"fill":"fit"), zoom:z, rotZ:(rr||0), offX:oX, offY:oY};
 
-          const scene=(gpuFx||ovTex)?_mvGL.beginScene():false;
+          const gk=(_mvState.grade==="auto"?(_mvState._autoGrade||"cinema"):(_mvState.grade||"natural"));
+          const GG=MV_GRADE_GL[gk]||MV_GRADE_GL.natural;
+          const scene=_mvGL.beginScene();   /* ambiance, grain et vignettage sont désormais faits ici */
           if(!scene) _mvGL.clear(0,0,0);
           if(fp.mode!=="fill") _mvGL.background(tex,{});
           _mvGL.draw(tex,geo);
@@ -7453,17 +7465,22 @@ function mvRun(tr,total){
             /* Feux d'artifice : remontés dans le ciel ET estompés vers le bas, pour
                qu'aucune gerbe ne retombe sur le sol ni sur les personnes. */
             _mvGL.draw(ovTex,{mode:"fill", alpha:oi, additive:true,
-                              offY:(fw?0.16:0), fadeY:(fw?[0.34,0.72]:null)});
+                              offY:(fw?0.16:0), fadeY:(fw?[0.16,0.50]:null)});
             /* la personne est redessinée PAR-DESSUS l'overlay → l'overlay passe derrière elle */
             if(mask){ const g2={}; for(const k in geo) g2[k]=geo[k]; g2.mask=mask; g2.maskMode=1; _mvGL.draw(tex,g2); }
             _mvState._ovDone=true;
           }
-          if(scene) _mvGL.endScene(fxN,{amt:(_mvState._fxAmt||0), time:(_mvState._fxTime||0), drop:!!_mvState._fxDrop});
+          if(scene){
+            _mvGL.endScene(fxN,{amt:(_mvState._fxAmt||0), time:(_mvState._fxTime||0), drop:!!_mvState._fxDrop,
+              contrast:GG.contrast, sat:GG.sat, bright:GG.bright, sepia:GG.sepia,
+              tint:(GG.tint||[1,1,1]), tintAmt:(GG.tint?GG.tintAmt:0),
+              grain:(MV_GRAIN[gk]||0), vignette:0.34});
+            _mvState._fxDone=true; _mvState._gradeDone=true;   /* le 2D ne refait ni l'effet ni l'ambiance */
+          }
           g.save(); g.globalAlpha=(alpha==null?1:alpha);
-          if(useCtx() && GR.f){ try{ g.filter=GR.f; }catch(e3){} }
+          if(!scene && useCtx() && GR.f){ try{ g.filter=GR.f; }catch(e3){} }
           g.drawImage(_mvGLcv,0,0,W,H);
           g.restore();
-          if(scene) _mvState._fxDone=true;   /* déjà appliqué : le 2D ne le refera pas */
           if(fp.mode==="fill") _mvState._imgRect=null;
           else { const wpx=(sxw/car)*W, hpx=syw*H; _mvState._imgRect={x:(W-wpx)/2,y:(H-hpx)/2,w:wpx,h:hpx}; }
           return;
@@ -7496,7 +7513,8 @@ function mvRun(tr,total){
     }
     g.restore();
   };
-  const vign=()=>{ if(GR.tint){ g.fillStyle=GR.tint; g.fillRect(0,0,W,H); }
+  const vign=()=>{ if(_mvState._gradeDone) return;   /* déjà fait sur GPU (teinte, grain, vignettage) */
+    if(GR.tint){ g.fillStyle=GR.tint; g.fillRect(0,0,W,H); }
     const _gk=(_mvState.grade==="auto"?(_mvState._autoGrade||"cinema"):(_mvState.grade||"natural"));
     const GRAIN=MV_GRAIN[_gk]||0, gtile=GRAIN?mvGrainTile():null;
     if(gtile){ g.save(); g.globalAlpha=GRAIN; g.globalCompositeOperation="overlay";
@@ -7676,7 +7694,7 @@ function mvRun(tr,total){
             if(it.im.currentTime > (c.start||0)+(c.len||4) || it.im.currentTime < (c.start||0)-0.1){ try{ it.im.currentTime=c.start||0; }catch(e){} } } }
         /* Effet du plan communiqué au moteur GPU avant le dessin.
            Pendant une transition on n'applique pas d'effet (deux images à la fois). */
-        _mvState._fxDone=false; _mvState._ovDone=false;
+        _mvState._fxDone=false; _mvState._ovDone=false; _mvState._gradeDone=false;
         _mvState._ovNow=((!prev || into>=TR) && seg.overlay)?(_mvOverlayEls[seg.overlay]||null):null;
         _mvState._ovInt=(_mvState.overlayInt!=null?_mvState.overlayInt:0.55);
         _mvState._fxNow=(prev && into<TR)?"":(seg.fx||"");
@@ -7693,7 +7711,7 @@ function mvRun(tr,total){
             const biasY=(ovl._cat==="Feux d'artifice")? -H*0.16 : 0;   /* feux d'artifice : dans le ciel, pas au sol */
             try{ ovg.clearRect(0,0,W,H); ovg.drawImage(ovl,(W-dw)/2,(H-dh)/2+biasY,dw,dh);
               if(biasY){ /* feux d'artifice : on efface le bas pour que rien ne retombe au sol */
-                const gr=ovg.createLinearGradient(0,H*0.34,0,H*0.72);
+                const gr=ovg.createLinearGradient(0,H*0.16,0,H*0.50);
                 gr.addColorStop(0,"rgba(0,0,0,0)"); gr.addColorStop(1,"rgba(0,0,0,1)");
                 ovg.save(); ovg.globalCompositeOperation="destination-out"; ovg.fillStyle=gr; ovg.fillRect(0,0,W,H); ovg.restore(); }
               g.save();
