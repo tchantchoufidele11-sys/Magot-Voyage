@@ -1751,6 +1751,29 @@ body.dragging-on{-webkit-user-select:none;user-select:none}
 /* Bandes latérales du studio, resserrées */
 #mvOv .stu-tools{width:54px;flex:0 0 54px}
 #mvOv .stu-tool span{font-size:8.2px}
+
+/* ============================================================
+   ALIGNEMENT EXACT SUR LA MAQUETTE (v391)
+   1. Les vignettes n'ont PAS de nom : seuls le numéro et la durée.
+   2. L'aperçu et les deux barres latérales ont la MÊME hauteur.
+   3. La rangée centrale absorbe la place restante -> rien ne peut
+      déborder ni recouvrir le bandeau musique et les commandes.
+   ============================================================ */
+#mvOv .stu-cname{display:none}
+#mvOv .stu-mid{flex:1 1 auto;min-height:0;display:flex;align-items:stretch;gap:6px;padding:6px 10px 0}
+#mvOv .stu-mid > .stu-tools,#mvOv .stu-mid > .stu-right{height:100%;align-self:stretch;
+  display:flex;flex-direction:column;justify-content:space-around;overflow-y:auto}
+#mvOv .mv-stage{flex:1 1 auto;height:auto;max-height:none;min-height:0;align-self:stretch}
+#mvOv .stu-tools{width:54px;flex:0 0 54px;padding:4px 2px}
+#mvOv .stu-right{width:50px;flex:0 0 50px}
+/* La bande de plans perd la ligne de noms : hauteur réduite d'autant */
+#mvOv .stu-strip{padding:4px 12px 6px}
+#mvOv .stu-cth{height:64px}
+#mvOv .stu-clip{width:50px}
+#mvOv .stu-ph{bottom:-58px}
+/* Marges basses garanties : le bandeau musique ne peut plus être recouvert */
+#mvOv .stu-mus{margin:4px 12px 5px}
+#mvOv .stu-bot{margin:0 0 calc(10px + env(safe-area-inset-bottom,0px))}
 </style>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
@@ -6180,7 +6203,7 @@ function openMontage(tr,version,autoplay){ tr=tr||souvTrip(); if(!tr) return; _m
     <div id="mvStudio" class="stu" style="display:none">
       <div class="stu-top">
         <button class="stu-back" id="stuBack">\u2190</button>
-        <div class="stu-ttl"><b>Studio Magot</b><span>Montage vidéo · v390</span></div>
+        <div class="stu-ttl"><b>Studio Magot</b><span>Montage vidéo · v391</span></div>
         <button class="stu-ico" id="stuUndo" title="Annuler">\u21b6</button>
         <button class="stu-ico" id="stuRedo" title="Rétablir">\u21b7</button>
         <button class="stu-exp" id="mvSave">\u2b06 Exporter</button>
