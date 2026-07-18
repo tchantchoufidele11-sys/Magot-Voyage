@@ -1615,9 +1615,9 @@ body.dragging-on{-webkit-user-select:none;user-select:none}
 #mvOv .stu-seek-f{background:var(--sGold)}
 #mvOv .stu-tc{color:var(--sTx2);font-size:11px}
 /* Boutons du bas : proportions de la maquette */
-#mvOv .stu-bot{gap:8px;padding:10px 12px calc(10px + env(safe-area-inset-bottom,0px));
-  position:relative;z-index:6;background:var(--sBg);flex:0 0 auto;margin-top:auto}
-#mvOv .stu-wave{margin-bottom:2px;flex:0 0 auto}
+/* Le panneau du bas suit le flux normal : épinglé (margin-top:auto + z-index),
+   il recouvrait le bandeau musique ajouté ensuite. */
+#mvOv .stu-wave{flex:0 0 auto}
 #mvOv .stu-bot button{height:31px;border-radius:9px;font-size:12.5px}
 #mvOv .stu-bot .stu-main{flex:1.7 1 0;background:var(--sGold);color:#0B1730;font-weight:700}
 #mvOv .stu-bot button:not(.stu-main){flex:1 1 0;background:var(--sCard);color:var(--sTx)}
@@ -1678,6 +1678,79 @@ body.dragging-on{-webkit-user-select:none;user-select:none}
   white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 #mvOv .stu-mus canvas{flex:1 1 auto;height:34px;min-width:0}
 #mvOv .stu-mus-c{flex:0 0 auto;color:var(--sTx2);font-size:17px}
+
+/* Hauteurs resserrées : la colonne du studio doit tenir sans recouvrement */
+#mvOv .stu-bot{position:static;z-index:auto;margin-top:0;flex:0 0 auto}
+#mvOv .mv-stage{min-height:44vh}
+#mvOv .stu-mus{margin:5px 12px 6px;padding:6px 10px}
+#mvOv .stu-mus canvas{height:26px}
+#mvOv .stu-mus-ic{width:26px;height:26px}
+#mvOv .stu-ruler{height:20px}
+#mvOv .stu-ruler canvas{height:20px}
+#mvOv .stu-dir{padding:8px 12px;min-height:0}
+#mvOv .stu-dir-t span{-webkit-line-clamp:1}
+#mvOv .stu-foot-row .stu-b{height:34px}
+#mvOv .stu-bot .stu-main{height:42px}
+#mvOv .mv-fiche{padding:6px 12px}
+#mvOv .mv-fiche .mvf{padding:7px 8px;min-width:70px}
+
+/* La colonne du studio défile : l'empilement (aperçu + cartes + réalisateur +
+   lecture + règle + plans + musique + commandes) dépasse la hauteur d'un iPhone.
+   Comprimer davantage rendrait tout illisible ; on laisse donc défiler. */
+#mvOv #mvStudio.stu{overflow-y:auto;-webkit-overflow-scrolling:touch;overscroll-behavior:contain}
+#mvOv #mvStudio.stu > *{flex-shrink:0}
+#mvOv .mv-stage{min-height:46vh}
+#mvOv .stu-bot{margin-bottom:calc(14px + env(safe-area-inset-bottom,0px))}
+
+/* ============================================================
+   TENIR SANS DÉFILEMENT (maquette) — budget mesuré sur 852 pt :
+   en-tête 56 + aperçu 38vh (324) + cartes 52 + réalisateur 54
+   + timeline 104 + musique 36 + commandes 44 + marges 24 = 694 pt.
+   Clé : les commandes de lecture sont POSÉES SUR l'image, et le
+   panneau du bas tient en UNE rangée.
+   ============================================================ */
+#mvOv #mvStudio.stu{overflow:hidden;display:flex;flex-direction:column}
+#mvOv #mvStudio.stu > *{flex-shrink:0}
+/* Aperçu : 38 % de la hauteur, commandes en surimpression */
+#mvOv .mv-stage{position:relative;min-height:0;height:38vh;max-height:38vh;margin-bottom:0}
+#mvOv .stu-play{position:absolute;left:0;right:0;bottom:0;z-index:4;margin:0;padding:6px 9px 7px;
+  background:linear-gradient(180deg,rgba(0,0,0,0),rgba(0,0,0,.62));border-radius:0 0 11px 11px}
+#mvOv .stu-play .stu-pp{width:28px;height:28px;background:rgba(255,255,255,.16)}
+#mvOv .stu-play .stu-jp{width:28px;height:26px;background:rgba(255,255,255,.12);font-size:10px}
+#mvOv .stu-tc{font-size:10.5px;color:#EAF0FA}
+/* Cartes d'information */
+#mvOv .mv-fiche{padding:5px 12px}
+#mvOv .mv-fiche .mvf{padding:6px 8px;min-width:68px}
+#mvOv .mv-fiche .mvf b{font-size:11.5px}
+#mvOv .mv-fiche .mvf em{font-size:9px}
+/* Carte Réalisateur : compacte, sans visage ni note inventée */
+#mvOv .stu-dir{margin:5px 12px 0;padding:7px 11px;border-radius:12px;border-bottom:1px solid rgba(214,162,63,.30)}
+#mvOv .stu-dir-ic{width:28px;height:28px}
+#mvOv .stu-dir-t b{font-size:9.5px}
+#mvOv .stu-dir-t span{font-size:11.5px;-webkit-line-clamp:1}
+/* Timeline resserrée */
+#mvOv .stu-ruler{height:18px;margin-top:4px}
+#mvOv .stu-ruler canvas{height:18px}
+#mvOv .stu-strip{padding:5px 12px;gap:7px}
+#mvOv .stu-cth{height:62px}
+#mvOv .stu-clip{width:48px}
+#mvOv .stu-cname{font-size:9px;max-width:52px}
+#mvOv .stu-ph{bottom:-74px}
+/* Bandeau musique */
+#mvOv .stu-mus{margin:4px 12px;padding:5px 9px}
+#mvOv .stu-mus canvas{height:22px}
+#mvOv .stu-mus-ic{width:24px;height:24px;font-size:12px}
+#mvOv .stu-mus-t{font-size:11px;max-width:120px}
+/* Commandes : une seule rangée */
+#mvOv .stu-bot{display:flex;flex-direction:row;gap:7px;padding:0 12px;margin:0 0 calc(8px + env(safe-area-inset-bottom,0px));
+  background:none;border:0;border-radius:0}
+#mvOv .stu-bot .stu-b{flex:1 1 0;height:40px;border-radius:11px;background:var(--sCard);
+  color:var(--sTx);font-size:11.5px;border:1px solid rgba(214,162,63,.16)}
+#mvOv .stu-bot .stu-main{flex:1.9 1 0;height:40px;background:var(--sGold);color:#0B1730;
+  font-weight:700;font-size:13.5px;border:0}
+/* Bandes latérales du studio, resserrées */
+#mvOv .stu-tools{width:54px;flex:0 0 54px}
+#mvOv .stu-tool span{font-size:8.2px}
 </style>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
@@ -6107,7 +6180,7 @@ function openMontage(tr,version,autoplay){ tr=tr||souvTrip(); if(!tr) return; _m
     <div id="mvStudio" class="stu" style="display:none">
       <div class="stu-top">
         <button class="stu-back" id="stuBack">\u2190</button>
-        <div class="stu-ttl"><b>Studio Magot</b><span>Montage vidéo · v388</span></div>
+        <div class="stu-ttl"><b>Studio Magot</b><span>Montage vidéo · v390</span></div>
         <button class="stu-ico" id="stuUndo" title="Annuler">\u21b6</button>
         <button class="stu-ico" id="stuRedo" title="Rétablir">\u21b7</button>
         <button class="stu-exp" id="mvSave">\u2b06 Exporter</button>
@@ -6170,11 +6243,9 @@ function openMontage(tr,version,autoplay){ tr=tr||souvTrip(); if(!tr) return; _m
       </div>
 
       <div class="stu-bot">
-        <div class="stu-foot-row">
-          <button class="stu-b" id="mvRestart">\u21ba Recommencer</button>
-          <button class="stu-b" id="mvShots">\u2637 Plans</button>
-        </div>
+        <button class="stu-b" id="mvRestart">\u21ba Recommencer</button>
         <button class="stu-b gold stu-main" id="mvPlay">\u25b6 Lire le film</button>
+        <button class="stu-b" id="mvShots">\u2637 Plans</button>
       </div>
       <button class="stu-exit" id="stuExit">\u2922 R\u00e9duire</button>
     </div></div>`;
@@ -6278,6 +6349,11 @@ function openMontage(tr,version,autoplay){ tr=tr||souvTrip(); if(!tr) return; _m
     if(un) un.onclick=()=>{ if(mvUndo()){ stripPaint(); if(_mvState._rebuild) _mvState._rebuild("Annul\u00e9"); } else toast("Rien \u00e0 annuler"); };
     if(re2) re2.onclick=()=>{ if(mvRedo()){ stripPaint(); if(_mvState._rebuild) _mvState._rebuild("R\u00e9tabli"); } else toast("Rien \u00e0 r\u00e9tablir"); }; }
   { const fi=ov.querySelector("#stuNote"); if(fi) fi.onclick=()=>openDirectorNote(); }
+  /* Les commandes de lecture sont déplacées DANS l'image (comme la maquette) :
+     c'est ce qui libère la hauteur nécessaire pour tout afficher sans défilement. */
+  try{ const st=ov.querySelector("#mvStage")||ov.querySelector(".mv-stage");
+       const pb=ov.querySelector("#stuPlayBar");
+       if(st&&pb&&pb.parentNode!==st) st.appendChild(pb); }catch(e){}
   _mvState._refreshStudio=()=>{ try{ mvSeekBind(ov); mvRulerPaint(); mvSeekUpdate(); }catch(e){}
     try{ _mvState.fiche=mvBuildFiche(_mvState.tr||souvTrip());
     const fe=document.getElementById("mvFiche"); if(fe && _mvState.fiche){ fe.style.display="flex"; const IC={Genre:"\u2665",Musique:"\u266b",Dur\u00e9e:"\u23f1",Couleurs:"\u25d0",Transitions:"\u2726",Plans:"\u25a4",Chapitres:"\u2637",Photos:"\u25a3"};
