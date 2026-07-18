@@ -5937,7 +5937,7 @@ function openMontage(tr,version,autoplay){ tr=tr||souvTrip(); if(!tr) return; _m
     <div id="mvStudio" class="stu" style="display:none">
       <div class="stu-top">
         <button class="stu-back" id="stuBack">\u2190</button>
-        <div class="stu-ttl"><b>Studio Magot</b><span>Montage vidéo · v363</span></div>
+        <div class="stu-ttl"><b>Studio Magot</b><span>Montage vidéo · v364</span></div>
         <button class="stu-ico" id="stuUndo" title="Annuler">\u21b6</button>
         <button class="stu-ico" id="stuRedo" title="Rétablir">\u21b7</button>
         <button class="stu-exp" id="mvSave">\u2b06 Exporter</button>
@@ -8370,7 +8370,13 @@ function mvExifRead(file){
   });
 }
 
-async function addMemPhotos(files,fromCamera){ const tr=souvTrip(); if(!tr||!files||!files.length){ photoTarget={placeId:null,day:null}; return; }
+async function addMemPhotos(files,fromCamera){
+  /* ON COPIE LA LISTE TOUT DE SUITE, avant la moindre attente.
+     Le champ <input> est vidé juste après l'appel ; pour une photo prise, la
+     géolocalisation nous fait patienter jusqu'à 6 s, et à la reprise la liste
+     d'origine était déjà effacée par le navigateur — la photo disparaissait. */
+  const list=Array.from(files||[]);
+  const tr=souvTrip(); if(!tr||!list.length){ photoTarget={placeId:null,day:null}; return; }
   let placeId=photoTarget.placeId||null, day=photoTarget.day;
   let geo=null;
   if(fromCamera){ geo=await new Promise(res=>{ if(!navigator.geolocation){ res(null); return; } let d=false; const to=setTimeout(()=>{ if(!d){ d=true; res(null); } },6000);
@@ -8378,7 +8384,7 @@ async function addMemPhotos(files,fromCamera){ const tr=souvTrip(); if(!tr||!fil
   if(fromCamera && !placeId){ const near=await nearestPlaceByGeo(tr); if(near){ placeId=near.id; if(day==null){ const st=(tr.plan||[]).find(s=>s.placeId===near.id&&s.day!=null); if(st) day=st.day; } toast(t("mem.linkedNearest",{p:near.name})); } }
   toast(t("mem.processing")); tr.memories=tr.memories||[]; let added=0, nExif=0, nDate=0; const newIds=[];
   let skipped=0, why="";
-  for(const file of Array.from(files)){ const ty=(file.type||"").toLowerCase();
+  for(const file of list){ const ty=(file.type||"").toLowerCase();
     if(/^video\//.test(ty) || /\.(mp4|mov|m4v|webm)$/i.test(file.name||"")){
       const okv=await addMemVideo(file,tr,placeId,day); if(okv) added++; else { skipped++; why=(file.name||"").split(".").pop()||"vid\u00e9o"; }
       continue; }
