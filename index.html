@@ -1504,8 +1504,16 @@ body.dragging-on{-webkit-user-select:none;user-select:none}
 .mrp-i.warn b{color:#B45309}
 .mrp-i.ok b{color:#15803D}
 .mrp-n{margin:0 0 14px;font-size:12.5px;color:var(--muted,#6b7280);line-height:1.5}
-.stu-note{flex:0 0 auto;margin:6px 12px 0;background:none;border:1px solid rgba(224,163,62,.34);color:var(--gold,#E0A33E);border-radius:10px;padding:7px 10px;font-size:12px;cursor:pointer;font-family:inherit}
-.stu-note:active{background:rgba(224,163,62,.12)}
+.stu-jp{flex:0 0 auto;width:34px;height:30px;border:0;border-radius:9px;background:#16213A;color:#C3D0E4;font-size:11px;font-weight:600;cursor:pointer;font-family:inherit}
+.stu-jp:active{background:#22304C}
+.stu-dir{flex:0 0 auto;display:flex;align-items:center;gap:10px;margin:8px 12px 0;background:#101B2E;border:1px solid rgba(224,163,62,.26);border-radius:13px;padding:10px 12px;cursor:pointer;font-family:inherit;text-align:left;width:calc(100% - 24px)}
+.stu-dir:active{background:#16213A}
+.stu-dir-ic{flex:0 0 auto;width:34px;height:34px;border-radius:50%;background:#0B1730;border:1px solid rgba(224,163,62,.45);display:flex;align-items:center;justify-content:center}
+.stu-dir-ic svg{width:20px;height:20px;fill:none;stroke:var(--gold,#E0A33E);stroke-width:1.5;stroke-linejoin:round}
+.stu-dir-t{flex:1 1 auto;min-width:0;display:flex;flex-direction:column;gap:2px}
+.stu-dir-t b{color:var(--gold,#E0A33E);font-size:10.5px;letter-spacing:.06em;text-transform:uppercase}
+.stu-dir-t span{color:#C3D0E4;font-size:12.3px;line-height:1.4;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.stu-dir-c{flex:0 0 auto;color:#8FA1BC;font-size:19px}
 .stu-tools{overflow-y:auto;-webkit-overflow-scrolling:touch;padding-bottom:8px}
 .stu-play{flex:0 0 auto;display:flex;align-items:center;gap:10px;padding:8px 12px 2px}
 .stu-pp{width:34px;height:34px;flex:0 0 auto;border:0;border-radius:50%;background:#16213A;color:#fff;font-size:14px;cursor:pointer}
@@ -5989,7 +5997,7 @@ function openMontage(tr,version,autoplay){ tr=tr||souvTrip(); if(!tr) return; _m
     <div id="mvStudio" class="stu" style="display:none">
       <div class="stu-top">
         <button class="stu-back" id="stuBack">\u2190</button>
-        <div class="stu-ttl"><b>Studio Magot</b><span>Montage vidéo · v380</span></div>
+        <div class="stu-ttl"><b>Studio Magot</b><span>Montage vidéo · v381</span></div>
         <button class="stu-ico" id="stuUndo" title="Annuler">\u21b6</button>
         <button class="stu-ico" id="stuRedo" title="Rétablir">\u21b7</button>
         <button class="stu-exp" id="mvSave">\u2b06 Exporter</button>
@@ -6021,10 +6029,18 @@ function openMontage(tr,version,autoplay){ tr=tr||souvTrip(); if(!tr) return; _m
       </div>
 
       <div class="mv-fiche" id="mvFiche"></div>
-      <button class="stu-note" id="stuNote" type="button">✦ Note du réalisateur</button>
+      <button class="stu-dir" id="stuNote" type="button">
+        <span class="stu-dir-ic">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M15.2 8.8 13.4 13.4 8.8 15.2 10.6 10.6z"/></svg>
+        </span>
+        <span class="stu-dir-t"><b>R\u00e9alisateur</b><span id="stuNoteX">Touche pour voir mes choix de montage.</span></span>
+        <span class="stu-dir-c">\u203a</span>
+      </button>
 
       <div class="stu-play" id="stuPlayBar">
+        <button class="stu-jp" id="stuBack10" type="button" aria-label="Reculer de 10 secondes">\u21ba10</button>
         <button class="stu-pp" id="stuPP" type="button" aria-label="Lecture">\u23f8</button>
+        <button class="stu-jp" id="stuFwd10" type="button" aria-label="Avancer de 10 secondes">10\u21bb</button>
         <span class="stu-tc" id="stuTcA">00:00</span>
         <div class="stu-seek" id="stuSeek"><div class="stu-seek-f" id="stuSeekF"></div><div class="stu-seek-h" id="stuSeekH"></div></div>
         <span class="stu-tc" id="stuTcB">00:00</span>
@@ -6824,6 +6840,16 @@ function mvSeekBind(ov){
     if(strip && strip.dataset.rb!=="1"){ strip.dataset.rb="1";
       strip.addEventListener("scroll",()=>{ mvRulerScroll(); mvSeekUpdate(); },{passive:true}); } }
   const pp=ov.querySelector("#stuPP"); if(pp) pp.onclick=()=>mvTogglePlay();
+  /* Reculer / avancer de 10 s, borné au film. */
+  const saut=(d)=>{ const A=_mvState.audio; if(!A) return;
+    const total=Math.max(0.1,_mvState.total||_mvState.dur||60);
+    try{ A.currentTime=Math.max(0,Math.min(total-0.05,(A.currentTime||0)+d)); }catch(e){}
+    mvSeekUpdate(); };
+  { const b1=ov.querySelector("#stuBack10"); if(b1) b1.onclick=(e)=>{ e.stopPropagation(); saut(-10); };
+    const b2=ov.querySelector("#stuFwd10");  if(b2) b2.onclick=(e)=>{ e.stopPropagation(); saut(10); }; }
+  /* Extrait de la note du réalisateur, directement lisible. */
+  { const x=ov.querySelector("#stuNoteX");
+    if(x){ try{ const n=mvDirectorNotes(); if(n && n.length) x.textContent=n[0]; }catch(e){} } }
   /* Appui sur l'image = lecture / pause, comme dans un vrai lecteur. */
   const st=ov.querySelector("#mvStage"); if(st && st.dataset.b!=="1"){ st.dataset.b="1"; st.onclick=()=>mvTogglePlay(); }
 }
