@@ -1774,6 +1774,182 @@ body.dragging-on{-webkit-user-select:none;user-select:none}
 /* Marges basses garanties : le bandeau musique ne peut plus être recouvert */
 #mvOv .stu-mus{margin:4px 12px 5px}
 #mvOv .stu-bot{margin:0 0 calc(10px + env(safe-area-inset-bottom,0px))}
+
+/* ============================================================
+   STUDIO MAGOT — MAQUETTE v392 (iPhone 16 Pro, 393 pt de large)
+   Mesures relevees sur la maquette a 2,05 px/pt, converties en CSS.
+   Fond #08111F · cartes #111C30 · bleu #16284D · or #E0A33E
+   Cette section est la DERNIERE : elle fait autorite sur tout ce
+   qui precede (les anciennes passes de compression sont neutralisees).
+   ============================================================ */
+#mvOv.cine #mvStudio.stu{overflow-y:auto;overflow-x:hidden;-webkit-overflow-scrolling:touch;
+  overscroll-behavior:contain;display:flex;flex-direction:column;gap:0;background:var(--sBg,#08111F)}
+#mvOv #mvStudio.stu > *{flex-shrink:0}
+
+/* ---------- 1. En-tete (hauteur 52) ---------- */
+#mvOv .stu-top{display:flex;align-items:center;gap:6px;padding:8px 14px 6px;background:none}
+#mvOv .stu-back{width:34px;height:34px;flex:0 0 34px;border-radius:50%;background:none;
+  border:1px solid rgba(255,255,255,.16);color:#EAF0FA;font-size:19px;line-height:1;padding:0 2px 2px 0}
+#mvOv .stu-ttl{flex:1 1 auto;min-width:0;padding-left:2px}
+#mvOv .stu-ttl b{display:flex;align-items:center;gap:4px;font:700 19px/1.1 Georgia,serif;color:var(--sGold,#E0A33E)}
+#mvOv .stu-ttl b i{font-style:normal;font-size:12px;opacity:.9}
+#mvOv .stu-ttl span{display:block;font-size:11.5px;color:#8A9AB5;margin-top:1px}
+#mvOv .stu-ico{width:30px;height:30px;flex:0 0 30px;background:none;border:0;color:#C3D0E4;font-size:19px;padding:0}
+#mvOv .stu-ico:disabled,#mvOv .stu-ico.off{color:#3F4C63}
+#mvOv .stu-exp{flex:0 0 auto;display:flex;align-items:center;gap:6px;height:38px;padding:0 15px;
+  border:0;border-radius:14px;background:var(--sGold,#E0A33E);color:#231603;font:700 14px system-ui}
+#mvOv .stu-exp i{font-style:normal;font-size:13px}
+
+/* ---------- 2. Rangee centrale : rail / apercu / formats ---------- */
+#mvOv .stu-mid{flex:1 1 auto;min-height:0;display:flex;align-items:stretch;gap:8px;padding:2px 14px 0}
+#mvOv .stu-tools{width:48px;flex:0 0 48px;background:#101B2E;border-radius:16px;padding:6px 0;
+  display:flex;flex-direction:column;justify-content:space-between;gap:2px;
+  overflow-y:auto;-webkit-overflow-scrolling:touch;scrollbar-width:none}
+#mvOv .stu-tools::-webkit-scrollbar{display:none}
+#mvOv .stu-tool{position:relative;width:100%;flex:1 1 0;min-height:56px;background:none;border:0;
+  color:#8FA1BC;padding:4px 2px;border-radius:12px;display:flex;flex-direction:column;
+  align-items:center;justify-content:center;gap:5px;cursor:pointer}
+#mvOv .stu-tool i{font-style:normal;font-size:18px;line-height:1;filter:grayscale(1) opacity(.75)}
+#mvOv .stu-tool span{display:block;font-size:9.5px;line-height:1.15;text-align:center;white-space:normal;
+  overflow:visible;text-overflow:clip;max-width:100%}
+#mvOv .stu-tool.on{color:var(--sGold,#E0A33E);background:rgba(224,163,62,.08)}
+#mvOv .stu-tool.on i{filter:none}
+#mvOv .stu-tool.on::before{content:"";position:absolute;left:0;top:12px;bottom:12px;width:3px;
+  border-radius:0 3px 3px 0;background:var(--sGold,#E0A33E)}
+#mvOv.cine .mv-stage{flex:1 1 auto;min-width:0;min-height:334px;height:auto;max-height:none;
+  align-self:stretch;position:relative;border-radius:14px;overflow:hidden;background:#000;
+  display:flex;align-items:center;justify-content:center}
+#mvOv .stu-right{width:56px;flex:0 0 56px;align-self:stretch;display:flex;flex-direction:column;
+  align-items:center;gap:9px;overflow-y:auto;scrollbar-width:none}
+#mvOv .stu-right::-webkit-scrollbar{display:none}
+#mvOv .stu-flab{font:700 9.5px system-ui;letter-spacing:.10em;color:#8A9AB5;margin-top:4px}
+#mvOv .stu-fmts{background:none;padding:0;display:flex;flex-direction:column;gap:7px;align-items:center}
+#mvOv .stu-fmt{width:50px;height:46px;background:none;border:0;border-radius:14px;color:#8FA1BC;
+  display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;padding:0;cursor:pointer}
+#mvOv .stu-fmt i{font-style:normal;font-size:17px;line-height:1}
+#mvOv .stu-fmt span{font-size:10.5px;font-weight:600}
+#mvOv .stu-fmt.on{color:var(--sGold,#E0A33E);background:rgba(224,163,62,.10);
+  box-shadow:inset 0 0 0 1.5px var(--sGold,#E0A33E)}
+#mvOv .stu-right .stu-round{width:44px;height:44px;flex:0 0 44px;border-radius:50%;border:0;
+  background:#16213A;color:#EAF0FA;font-size:17px;cursor:pointer;display:flex;align-items:center;justify-content:center}
+#mvOv .stu-right .stu-round.gold{margin-top:2px;background:rgba(224,163,62,.14);
+  box-shadow:inset 0 0 0 1px rgba(224,163,62,.35);color:var(--sGold,#E0A33E);font-size:20px}
+
+/* ---------- 3. Barre de lecture posee sur l'image ---------- */
+#mvOv .stu-play{position:absolute;left:0;right:0;bottom:0;z-index:4;margin:0;
+  display:flex;align-items:center;gap:7px;padding:16px 10px 9px;
+  background:linear-gradient(180deg,rgba(0,0,0,0),rgba(0,0,0,.62))}
+#mvOv .stu-play .stu-pp{width:26px;height:26px;flex:0 0 26px;border:0;border-radius:50%;
+  background:none;color:#fff;font-size:14px;padding:0}
+#mvOv .stu-play .stu-tc{font-size:11px;color:#EAF0FA;min-width:0;font-variant-numeric:tabular-nums}
+#mvOv .stu-play .stu-tcx{font-size:11px;color:rgba(234,240,250,.55)}
+#mvOv .stu-play .stu-seek{flex:1 1 auto;height:20px}
+#mvOv .stu-play .stu-seek::before{background:rgba(255,255,255,.28);height:3px}
+#mvOv .stu-play .stu-seek-f{height:3px;background:var(--sGold,#E0A33E)}
+#mvOv .stu-play .stu-seek-h{width:11px;height:11px;background:var(--sGold,#E0A33E)}
+#mvOv .stu-pic{width:24px;height:24px;flex:0 0 24px;border:0;background:none;color:#EAF0FA;font-size:14px;padding:0}
+
+/* ---------- 4. Bandeau d'informations (6 cartes) ---------- */
+#mvOv .mv-fiche{display:flex;gap:8px;overflow-x:auto;-webkit-overflow-scrolling:touch;
+  background:none;padding:12px 14px 0;scrollbar-width:none}
+#mvOv .mv-fiche::-webkit-scrollbar{display:none}
+#mvOv .mv-fiche .mvf{flex:1 0 auto;min-width:58px;display:flex;flex-direction:column;align-items:center;
+  gap:3px;background:#111C30;border:1px solid rgba(224,163,62,.14);border-radius:14px;padding:9px 6px 8px}
+#mvOv .mv-fiche .mvf i{font-style:normal;font-size:15px;line-height:1;color:var(--sGold,#E0A33E)}
+#mvOv .mv-fiche .mvf b{font:700 12.5px system-ui;color:#F5F7FA;white-space:nowrap}
+#mvOv .mv-fiche .mvf em{font-style:normal;font-size:9.5px;color:#8A9AB5;white-space:nowrap}
+
+/* ---------- 5. Carte Realisateur IA ---------- */
+#mvOv .stu-dir{display:block;width:auto;margin:12px 14px 0;padding:13px 14px 12px;background:#111C30;
+  border:1px solid rgba(224,163,62,.16);border-radius:18px;text-align:left;cursor:default;min-height:0}
+#mvOv .stu-dir-h{display:flex;align-items:center;gap:8px;cursor:pointer}
+#mvOv .stu-dir-h .ttx{flex:1 1 auto;min-width:0}
+#mvOv .stu-dir-k{display:block;font:700 10.5px system-ui;letter-spacing:.07em;color:var(--sGold,#E0A33E)}
+#mvOv .stu-dir-h b{display:block;font:700 15.5px system-ui;color:#F5F7FA;margin-top:3px}
+#mvOv .stu-dir-h .cv{flex:0 0 auto;color:#8A9AB5;font-size:19px}
+#mvOv .stu-dir-g{display:grid;grid-template-columns:1fr 1fr;gap:7px 10px;margin-top:11px}
+#mvOv .stu-ck{display:flex;align-items:center;gap:6px;font-size:11.5px;color:#C3D0E4;line-height:1.25}
+#mvOv .stu-ck i{flex:0 0 15px;width:15px;height:15px;border-radius:50%;border:1px solid var(--sGold,#E0A33E);
+  color:var(--sGold,#E0A33E);font-style:normal;font-size:9px;line-height:13px;text-align:center}
+#mvOv .stu-ck.warn i{border-color:#B98A2E;color:#B98A2E}
+#mvOv .stu-dir-f{display:flex;justify-content:flex-end;margin-top:12px}
+#mvOv .stu-dir-b{display:flex;align-items:center;gap:7px;height:36px;padding:0 15px;border-radius:12px;
+  background:#16213A;border:1px solid rgba(224,163,62,.30);color:#F5F7FA;font:600 12.5px system-ui;cursor:pointer}
+#mvOv .stu-dir-b i{font-style:normal;color:var(--sGold,#E0A33E);font-size:12px}
+
+/* ---------- 6. Timeline : regle, chapitres, plans ---------- */
+#mvOv .stu-tl{position:relative;margin-top:12px;padding-bottom:2px}
+#mvOv .stu-ruler{position:relative;height:24px;margin:0;padding:0 14px;overflow:hidden}
+#mvOv .stu-ruler canvas{height:24px;display:block;transform:none!important}
+#mvOv .stu-rph{position:absolute;top:9px;left:0;width:11px;height:11px;margin-left:-5.5px;border-radius:50%;
+  background:var(--sGold,#E0A33E);pointer-events:none;z-index:6;opacity:0;transition:opacity .15s}
+#mvOv .stu-chaps{display:flex;gap:6px;padding:6px 14px 0;overflow:hidden}
+#mvOv .stu-chap{flex:1 1 0;min-width:0;height:26px;padding:0 6px;border:1px solid transparent;border-radius:9px;
+  background:#16213A;color:#8FA1BC;font:700 9.5px system-ui;letter-spacing:.06em;cursor:pointer;
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#mvOv .stu-chap.on{background:rgba(224,163,62,.14);border-color:var(--sGold,#E0A33E);color:var(--sGold,#E0A33E)}
+#mvOv .stu-strip{position:relative;display:flex;align-items:flex-start;gap:0;overflow-x:auto;
+  padding:8px 14px 4px;-webkit-overflow-scrolling:touch;scrollbar-width:none}
+#mvOv .stu-strip::-webkit-scrollbar{display:none}
+#mvOv .stu-clip{flex:0 0 auto;width:52px;margin-right:2px;cursor:pointer}
+#mvOv .stu-cth{position:relative;display:block;width:52px;height:66px;border-radius:10px;
+  background:#16213A center/cover no-repeat;border:1.5px solid transparent;overflow:hidden}
+#mvOv .stu-clip.on .stu-cth{border-color:var(--sGold,#E0A33E)}
+#mvOv .stu-clip.on{outline:0}
+#mvOv .stu-cnum{position:absolute;top:3px;left:3px;min-width:14px;height:14px;padding:0 3px;border-radius:5px;
+  background:rgba(8,17,31,.78);color:var(--sGold,#E0A33E);font:800 9px/14px system-ui;text-align:center}
+#mvOv .stu-cdur{position:absolute;right:3px;bottom:3px;background:rgba(8,17,31,.72);color:#EAF0FA;
+  font:700 8.5px/1 system-ui;padding:3px 4px;border-radius:5px}
+#mvOv .stu-cvid{position:absolute;top:3px;right:3px;width:15px;height:15px;border-radius:5px;
+  background:rgba(8,17,31,.78);color:#fff;font-size:8px;line-height:15px;text-align:center}
+#mvOv .stu-cmenu{position:absolute;left:3px;bottom:3px;width:15px;height:15px;border-radius:5px;
+  background:rgba(8,17,31,.72);border:0;color:#EAF0FA;font-size:10px;line-height:1;padding:0;cursor:pointer}
+#mvOv .stu-cname{display:none}
+#mvOv .stu-tr{flex:0 0 auto;align-self:center;margin:0 3px;width:20px;height:20px;border-radius:6px;
+  background:rgba(224,163,62,.10);border:1px solid rgba(224,163,62,.55);color:var(--sGold,#E0A33E);
+  font-size:10px;line-height:1;cursor:pointer;padding:0}
+#mvOv .stu-add{flex:0 0 auto;width:52px;height:66px;margin-right:6px;border-radius:10px;background:#101B2E;
+  border:1px dashed #2A3B58;color:#8FA1BC;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px}
+#mvOv .stu-add i{font-style:normal;font-size:15px}
+#mvOv .stu-add span{font-size:9px}
+#mvOv .stu-ph{position:absolute;top:20px;width:2px;background:var(--sGold,#E0A33E);left:0;opacity:0;
+  height:88px;pointer-events:none;z-index:5;box-shadow:0 0 6px rgba(224,163,62,.55);bottom:auto}
+#mvOv .stu-ph::before{display:none}
+
+/* ---------- 7. Bandeau musique ---------- */
+#mvOv .stu-mus{display:flex;align-items:center;gap:8px;margin:10px 14px 0;padding:0 12px;height:52px;
+  background:#111C30;border:1px solid rgba(224,163,62,.16);border-radius:16px;cursor:pointer}
+#mvOv .stu-mus-ic{flex:0 0 auto;width:auto;height:auto;background:none;color:var(--sGold,#E0A33E);font-size:15px;display:block}
+#mvOv .stu-mus-t{flex:0 0 auto;max-width:132px;color:#F5F7FA;font:600 11.5px system-ui;
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#mvOv .stu-mus-c{flex:0 0 auto;color:#8A9AB5;font-size:13px;margin-right:2px}
+#mvOv .stu-mus canvas{flex:1 1 auto;height:34px;min-width:0}
+#mvOv .stu-mus-x{flex:0 0 auto;border:0;background:none;color:#EAF0FA;font-size:13px;padding:0 0 0 6px;cursor:pointer}
+
+/* ---------- 8. Commandes du bas ---------- */
+#mvOv .stu-bot{display:flex;flex-direction:row;gap:9px;padding:12px 14px calc(10px + env(safe-area-inset-bottom,0px));
+  margin:0;background:none;border:0;border-radius:0}
+#mvOv .stu-bot .stu-b{flex:1 1 0;height:52px;border-radius:16px;background:#111C30;
+  border:1px solid rgba(224,163,62,.14);color:#F5F7FA;font:600 14px system-ui;
+  display:flex;align-items:center;justify-content:center;gap:7px}
+#mvOv .stu-bot .stu-b i{font-style:normal;font-size:14px;color:var(--sGold,#E0A33E)}
+#mvOv .stu-bot .stu-main{flex:1.75 1 0;height:52px;background:var(--sGold,#E0A33E);color:#231603;
+  border:0;font:700 15.5px system-ui}
+#mvOv .stu-bot .stu-main i{color:#231603}
+
+/* ---------- 9. Plein ecran ---------- */
+#mvOv.stufull .stu-top,#mvOv.stufull .stu-tools,#mvOv.stufull .stu-right,#mvOv.stufull .mv-fiche,
+#mvOv.stufull .stu-dir,#mvOv.stufull .stu-tl,#mvOv.stufull .stu-mus,#mvOv.stufull .stu-bot{display:none!important}
+#mvOv.stufull .stu-mid{padding:0;gap:0}
+#mvOv.stufull.cine .mv-stage{border-radius:0;min-height:100dvh}
+#mvOv.stufull .stu-exit{display:inline-flex}
+
+/* ---------- 10. Ecrans courts : rien ne se chevauche, la colonne defile ---------- */
+@media (max-height:760px){
+  #mvOv.cine .mv-stage{min-height:300px}
+  #mvOv .stu-tool{min-height:48px}
+  #mvOv .stu-dir-g{gap:6px 8px}
+}
 </style>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
@@ -5955,11 +6131,11 @@ const ICO_FILM_SV='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" st
 /* ===================== Moteur de montage (photos rythmées sur ta musique) ===================== */
 let _mvState={audio:null,url:"",beats:[],imgs:[],raf:0,playing:false,dur:60,segs:[]};
 function mvT(k){ const D={
- fr:{title:"Montage vid\u00e9o",music:"1. Ta musique",musicPick:"\ud83c\udfb5 Choisir un fichier audio",musicHint:"MP3, M4A ou WAV (dans Suno : t\u00e9l\u00e9charge en MP3). Le fichier reste sur ton t\u00e9l\u00e9phone. L'AVI n'est pas lu par l'iPhone.",photos:"2. Tes photos",noPhotos:"Ajoute d'abord des photos \u00e0 ce voyage (bouton + en haut).",count:"{n} photos disponibles",dur:"3. Dur\u00e9e",create:"\u25b6 Cr\u00e9er le montage",analyzing:"Analyse du rythme\u2026",loading:"Pr\u00e9paration des photos\u2026",play:"\u25b6 Lire",pause:"\u23f8 Pause",restart:"\u21ba Recommencer",close:"Fermer",needMusic:"Choisis d'abord une musique.",bpm:"Rythme : {n}",fmt:"4. Format",fmtA:"Auto",fmtV:"Vertical 9:16",fmtC:"Carr\u00e9 1:1",fmtH:"Paysage 16:9",trans:"5. Transitions",trAll:"Toutes (vari\u00e9es)",trFade:"Fondu",trSlide:"Glissement",trZoom:"Zoom",save:"\u2b07 Enregistrer la vid\u00e9o",saving:"Enregistrement\u2026 {n}%",saved:"Vid\u00e9o enregistr\u00e9e",noRec:"Ton iPhone ne permet pas encore d'enregistrer la vid\u00e9o depuis le navigateur. Le montage reste rejouable ici.",badFmt:"Format non lu par l'iPhone ({x}). Utilise un MP3, M4A ou WAV \u2014 dans Suno, t\u00e9l\u00e9charge en MP3.",noBeat:"Rythme non d\u00e9tectable : cadence r\u00e9guli\u00e8re.",exportSoon:"L'enregistrement en fichier vid\u00e9o (MP4) arrivera avec la migration d'h\u00e9bergement. Pour l'instant, le montage se regarde ici.",err:"Fichier audio illisible."},
- en:{title:"Video montage",music:"1. Your music",musicPick:"\ud83c\udfb5 Choose an audio file",musicHint:"Your music stays on your phone.",photos:"2. Your photos",noPhotos:"Add photos to this trip first.",count:"{n} photos available",dur:"3. Length",create:"\u25b6 Create the montage",analyzing:"Analysing the beat\u2026",loading:"Preparing photos\u2026",play:"\u25b6 Play",pause:"\u23f8 Pause",restart:"\u21ba Restart",close:"Close",needMusic:"Pick a music file first.",bpm:"{n} beats detected",exportSoon:"MP4 export will come with the hosting migration. For now, watch it here.",err:"Audio file unreadable."},
- es:{title:"Montaje de v\u00eddeo",music:"1. Tu m\u00fasica",musicPick:"\ud83c\udfb5 Elegir un archivo de audio",musicHint:"Tu m\u00fasica se queda en tu tel\u00e9fono.",photos:"2. Tus fotos",noPhotos:"A\u00f1ade fotos a este viaje.",count:"{n} fotos disponibles",dur:"3. Duraci\u00f3n",create:"\u25b6 Crear el montaje",analyzing:"Analizando el ritmo\u2026",loading:"Preparando fotos\u2026",play:"\u25b6 Reproducir",pause:"\u23f8 Pausa",restart:"\u21ba Reiniciar",close:"Cerrar",needMusic:"Elige una m\u00fasica.",bpm:"{n} tiempos",exportSoon:"La exportaci\u00f3n MP4 llegar\u00e1 despu\u00e9s.",err:"Audio ilegible."},
- it:{title:"Montaggio video",music:"1. La tua musica",musicPick:"\ud83c\udfb5 Scegli un file audio",musicHint:"La musica resta sul telefono.",photos:"2. Le tue foto",noPhotos:"Aggiungi foto a questo viaggio.",count:"{n} foto disponibili",dur:"3. Durata",create:"\u25b6 Crea il montaggio",analyzing:"Analisi del ritmo\u2026",loading:"Preparazione foto\u2026",play:"\u25b6 Riproduci",pause:"\u23f8 Pausa",restart:"\u21ba Ricomincia",close:"Chiudi",needMusic:"Scegli prima una musica.",bpm:"{n} battiti",exportSoon:"L'export MP4 arriver\u00e0 dopo.",err:"Audio illeggibile."},
- de:{title:"Video-Montage",music:"1. Deine Musik",musicPick:"\ud83c\udfb5 Audiodatei w\u00e4hlen",musicHint:"Die Musik bleibt auf deinem Handy.",photos:"2. Deine Fotos",noPhotos:"F\u00fcge zuerst Fotos hinzu.",count:"{n} Fotos verf\u00fcgbar",dur:"3. L\u00e4nge",create:"\u25b6 Montage erstellen",analyzing:"Rhythmus wird analysiert\u2026",loading:"Fotos werden vorbereitet\u2026",play:"\u25b6 Abspielen",pause:"\u23f8 Pause",restart:"\u21ba Neustart",close:"Schlie\u00dfen",needMusic:"W\u00e4hle zuerst Musik.",bpm:"{n} Beats",exportSoon:"MP4-Export kommt sp\u00e4ter.",err:"Audiodatei unlesbar."}
+ fr:{title:"Montage vid\u00e9o",music:"1. Ta musique",musicPick:"\ud83c\udfb5 Choisir un fichier audio",musicHint:"MP3, M4A ou WAV (dans Suno : t\u00e9l\u00e9charge en MP3). Le fichier reste sur ton t\u00e9l\u00e9phone. L'AVI n'est pas lu par l'iPhone.",photos:"2. Tes photos",noPhotos:"Ajoute d'abord des photos \u00e0 ce voyage (bouton + en haut).",count:"{n} photos disponibles",dur:"3. Dur\u00e9e",create:"\u25b6 Cr\u00e9er le montage",analyzing:"Analyse du rythme\u2026",loading:"Pr\u00e9paration des photos\u2026",play:"\u25b6 Lire",playFilm:"\u25b6 Lire le film",pause:"\u23f8 Pause",restart:"\u21ba Recommencer",close:"Fermer",needMusic:"Choisis d'abord une musique.",bpm:"Rythme : {n}",fmt:"4. Format",fmtA:"Auto",fmtV:"Vertical 9:16",fmtC:"Carr\u00e9 1:1",fmtH:"Paysage 16:9",trans:"5. Transitions",trAll:"Toutes (vari\u00e9es)",trFade:"Fondu",trSlide:"Glissement",trZoom:"Zoom",save:"\u2b07 Enregistrer la vid\u00e9o",saving:"Enregistrement\u2026 {n}%",saved:"Vid\u00e9o enregistr\u00e9e",noRec:"Ton iPhone ne permet pas encore d'enregistrer la vid\u00e9o depuis le navigateur. Le montage reste rejouable ici.",badFmt:"Format non lu par l'iPhone ({x}). Utilise un MP3, M4A ou WAV \u2014 dans Suno, t\u00e9l\u00e9charge en MP3.",noBeat:"Rythme non d\u00e9tectable : cadence r\u00e9guli\u00e8re.",exportSoon:"L'enregistrement en fichier vid\u00e9o (MP4) arrivera avec la migration d'h\u00e9bergement. Pour l'instant, le montage se regarde ici.",err:"Fichier audio illisible."},
+ en:{title:"Video montage",music:"1. Your music",musicPick:"\ud83c\udfb5 Choose an audio file",musicHint:"Your music stays on your phone.",photos:"2. Your photos",noPhotos:"Add photos to this trip first.",count:"{n} photos available",dur:"3. Length",create:"\u25b6 Create the montage",analyzing:"Analysing the beat\u2026",loading:"Preparing photos\u2026",play:"\u25b6 Play",playFilm:"\u25b6 Play the film",pause:"\u23f8 Pause",restart:"\u21ba Restart",close:"Close",needMusic:"Pick a music file first.",bpm:"{n} beats detected",exportSoon:"MP4 export will come with the hosting migration. For now, watch it here.",err:"Audio file unreadable."},
+ es:{title:"Montaje de v\u00eddeo",music:"1. Tu m\u00fasica",musicPick:"\ud83c\udfb5 Elegir un archivo de audio",musicHint:"Tu m\u00fasica se queda en tu tel\u00e9fono.",photos:"2. Tus fotos",noPhotos:"A\u00f1ade fotos a este viaje.",count:"{n} fotos disponibles",dur:"3. Duraci\u00f3n",create:"\u25b6 Crear el montaje",analyzing:"Analizando el ritmo\u2026",loading:"Preparando fotos\u2026",play:"\u25b6 Reproducir",playFilm:"\u25b6 Reproducir la pel\u00edcula",pause:"\u23f8 Pausa",restart:"\u21ba Reiniciar",close:"Cerrar",needMusic:"Elige una m\u00fasica.",bpm:"{n} tiempos",exportSoon:"La exportaci\u00f3n MP4 llegar\u00e1 despu\u00e9s.",err:"Audio ilegible."},
+ it:{title:"Montaggio video",music:"1. La tua musica",musicPick:"\ud83c\udfb5 Scegli un file audio",musicHint:"La musica resta sul telefono.",photos:"2. Le tue foto",noPhotos:"Aggiungi foto a questo viaggio.",count:"{n} foto disponibili",dur:"3. Durata",create:"\u25b6 Crea il montaggio",analyzing:"Analisi del ritmo\u2026",loading:"Preparazione foto\u2026",play:"\u25b6 Riproduci",playFilm:"\u25b6 Riproduci il film",pause:"\u23f8 Pausa",restart:"\u21ba Ricomincia",close:"Chiudi",needMusic:"Scegli prima una musica.",bpm:"{n} battiti",exportSoon:"L'export MP4 arriver\u00e0 dopo.",err:"Audio illeggibile."},
+ de:{title:"Video-Montage",music:"1. Deine Musik",musicPick:"\ud83c\udfb5 Audiodatei w\u00e4hlen",musicHint:"Die Musik bleibt auf deinem Handy.",photos:"2. Deine Fotos",noPhotos:"F\u00fcge zuerst Fotos hinzu.",count:"{n} Fotos verf\u00fcgbar",dur:"3. L\u00e4nge",create:"\u25b6 Montage erstellen",analyzing:"Rhythmus wird analysiert\u2026",loading:"Fotos werden vorbereitet\u2026",play:"\u25b6 Abspielen",playFilm:"\u25b6 Film abspielen",pause:"\u23f8 Pause",restart:"\u21ba Neustart",close:"Schlie\u00dfen",needMusic:"W\u00e4hle zuerst Musik.",bpm:"{n} Beats",exportSoon:"MP4-Export kommt sp\u00e4ter.",err:"Audiodatei unlesbar."}
 }; return (D[lang()]||D.fr)[k]||D.fr[k]||k; }
 /* --- Détection des temps forts (Web Audio, 100% local) --- */
 async function mvBeats(file){
@@ -6202,73 +6378,68 @@ function openMontage(tr,version,autoplay){ tr=tr||souvTrip(); if(!tr) return; _m
     </div>
     <div id="mvStudio" class="stu" style="display:none">
       <div class="stu-top">
-        <button class="stu-back" id="stuBack">\u2190</button>
-        <div class="stu-ttl"><b>Studio Magot</b><span>Montage vidéo · v391</span></div>
+        <button class="stu-back" id="stuBack" aria-label="Retour">\u2039</button>
+        <div class="stu-ttl"><b>Studio Magot<i>\u2727</i></b><span>Montage vid\u00e9o \u00b7 v392</span></div>
         <button class="stu-ico" id="stuUndo" title="Annuler">\u21b6</button>
-        <button class="stu-ico" id="stuRedo" title="Rétablir">\u21b7</button>
-        <button class="stu-exp" id="mvSave">\u2b06 Exporter</button>
+        <button class="stu-ico" id="stuRedo" title="R\u00e9tablir">\u21b7</button>
+        <button class="stu-exp" id="mvSave"><i>\u2b06</i>Exporter</button>
       </div>
 
       <div class="stu-mid">
         <div class="stu-tools">
-          <button class="stu-tool" data-tool="crop"><i>\u2317</i><span>Recadrer</span></button>
-          <button class="stu-tool" data-tool="grade"><i>\u2726</i><span>Ambiance</span></button>
-          <button class="stu-tool" data-tool="trans"><i>\u25e7</i><span>Transitions</span></button>
-          <button class="stu-tool" data-tool="fx"><i>\u2749</i><span>Effets</span></button>
-          <button class="stu-tool" data-tool="overlay"><i>\u25c8</i><span>Overlays</span></button>
-          <button class="stu-tool" data-tool="music"><i>\u266a</i><span>Musique</span></button>
-          <button class="stu-tool" data-tool="shots"><i>\u2637</i><span>Plans</span></button>
-          <button class="stu-tool" data-tool="opts"><i>\u2699</i><span>Options</span></button>
+          <button class="stu-tool on" data-tool="media"><i>\ud83c\udfac</i><span>M\u00e9dias</span></button>
+          <button class="stu-tool" data-tool="style"><i>\u25d0</i><span>Style</span></button>
+          <button class="stu-tool" data-tool="music"><i>\u266b</i><span>Musique</span></button>
+          <button class="stu-tool" data-tool="fx"><i>\u2726</i><span>Effets</span></button>
+          <button class="stu-tool" data-tool="ia"><i>\u2687</i><span>R\u00e9alisateur IA</span></button>
         </div>
 
-        <div id="mvStage" class="mv-stage"><canvas id="mvCanvas" width="1080" height="1920"></canvas></div>
+        <div id="mvStage" class="mv-stage"><canvas id="mvCanvas" width="1080" height="1920"></canvas>
+          <div class="stu-play" id="stuPlayBar">
+            <button class="stu-pp" id="stuPP" type="button" aria-label="Lecture">\u25b6</button>
+            <span class="stu-tc" id="stuTcA">00:00</span><span class="stu-tcx">/</span><span class="stu-tc" id="stuTcB">00:00</span>
+            <div class="stu-seek" id="stuSeek"><div class="stu-seek-f" id="stuSeekF"></div><div class="stu-seek-h" id="stuSeekH"></div></div>
+            <button class="stu-pic" id="stuFull" type="button" aria-label="Plein \u00e9cran">\u26f6</button>
+            <button class="stu-pic" id="stuGear" type="button" aria-label="R\u00e9glages de lecture">\u2699</button>
+          </div>
+        </div>
 
         <div class="stu-right">
+          <div class="stu-flab">FORMAT</div>
           <div class="stu-fmts">
             <button class="stu-fmt" data-sfmt="v"><i>\u25af</i><span>9:16</span></button>
             <button class="stu-fmt" data-sfmt="c"><i>\u25fb</i><span>1:1</span></button>
             <button class="stu-fmt" data-sfmt="h"><i>\u25ad</i><span>16:9</span></button>
           </div>
-          <button class="stu-round" id="stuPlay">\u25b6</button>
-          <button class="stu-round ghost" id="stuFull">\u26f6</button>
+          <button class="stu-round gold" id="stuPlay" aria-label="Lire">\u25b6</button>
+          <button class="stu-round" id="stuFull2" aria-label="Plein \u00e9cran">\u26f6</button>
+          <button class="stu-round" id="stuAdj" aria-label="Ajuster le film">\u2632</button>
         </div>
       </div>
 
       <div class="mv-fiche" id="mvFiche"></div>
-      <button class="stu-dir" id="stuNote" type="button">
-        <span class="stu-dir-ic">
-          <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M15.2 8.8 13.4 13.4 8.8 15.2 10.6 10.6z"/></svg>
-        </span>
-        <span class="stu-dir-t"><b>R\u00e9alisateur</b><span id="stuNoteX">Touche pour voir mes choix de montage.</span></span>
-        <span class="stu-dir-c">\u203a</span>
-      </button>
+      <div class="stu-dir" id="stuDir"></div>
 
-      <div class="stu-play" id="stuPlayBar">
-        <button class="stu-jp" id="stuBack10" type="button" aria-label="Reculer de 10 secondes">\u21ba10</button>
-        <button class="stu-pp" id="stuPP" type="button" aria-label="Lecture">\u23f8</button>
-        <button class="stu-jp" id="stuFwd10" type="button" aria-label="Avancer de 10 secondes">10\u21bb</button>
-        <span class="stu-tc" id="stuTcA">00:00</span>
-        <div class="stu-seek" id="stuSeek"><div class="stu-seek-f" id="stuSeekF"></div><div class="stu-seek-h" id="stuSeekH"></div></div>
-        <span class="stu-tc" id="stuTcB">00:00</span>
+      <div class="stu-tl">
+        <div class="stu-ruler" id="stuRuler"><canvas id="stuRulerC" height="26"></canvas></div>
+        <div class="stu-chaps" id="stuChaps"></div>
+        <div class="stu-strip" id="stuStrip"></div>
+        <div class="stu-rph" id="stuRph"></div>
+        <div class="stu-ph" id="stuPh"></div>
       </div>
 
-      <div class="stu-ruler" id="stuRuler"><canvas id="stuRulerC" height="26"></canvas><div class="stu-ph" id="stuPh"></div></div>
-      <div class="stu-strip" id="stuStrip"></div>
-
-      <div class="stu-wave">
-        <div class="stu-times"><span id="stuT0">00:00</span><span id="stuT1">00:00</span><span id="stuT2">00:00</span></div>
-        <div class="stu-mus" id="stuMus">
+      <div class="stu-mus" id="stuMus">
         <span class="stu-mus-ic">\u266b</span>
         <span class="stu-mus-t" id="stuMusT">Musique</span>
+        <span class="stu-mus-c">\u02c5</span>
         <canvas id="stuWave" height="46"></canvas>
-        <span class="stu-mus-c">\u203a</span>
-      </div>
+        <button class="stu-mus-x" id="stuMusSync" type="button" aria-label="Recaler la musique">\u2AF6|\u2AF6</button>
       </div>
 
       <div class="stu-bot">
-        <button class="stu-b" id="mvRestart">\u21ba Recommencer</button>
+        <button class="stu-b" id="mvIA"><i>\u26a1</i>IA</button>
         <button class="stu-b gold stu-main" id="mvPlay">\u25b6 Lire le film</button>
-        <button class="stu-b" id="mvShots">\u2637 Plans</button>
+        <button class="stu-b" id="mvShots"><i>\ud83c\udfac</i>Plans</button>
       </div>
       <button class="stu-exit" id="stuExit">\u2922 R\u00e9duire</button>
     </div></div>`;
@@ -6303,11 +6474,11 @@ function openMontage(tr,version,autoplay){ tr=tr||souvTrip(); if(!tr) return; _m
         const d=Math.max(0,(sg.end-sg.start)).toFixed(1);
         return `<div class="stu-clip${_mvState._cur===i?" on":""}" data-clip="${i}">
           <span class="stu-cth" ${mid?`data-media="${mid}"`:""}>
+            <span class="stu-cnum">${i+1}</span>
             ${(it&&it.vid)?`<span class="stu-cvid">\u25b6</span>`:""}
             <span class="stu-cdur">${d}s</span>
             <button class="stu-cmenu" data-cmenu="${i}">\u22ee</button>
           </span>
-          <span class="stu-cname"><b>${i+1}</b>${escapeHtml(((sg.pt&&sg.pt.title)||"Plan").slice(0,18))}</span>
         </div>${i<segs.length-1?`<button class="stu-tr" data-ctr="${i}" title="${MV_TR_LBL[sg.mode]||"Transition"}">\u00bb</button>`:""}`; }).join("");
     hydratePhotos(el);
     try{ requestAnimationFrame(()=>{ mvRulerPaint(); mvSeekUpdate(); }); }catch(e){}
@@ -6334,9 +6505,6 @@ function openMontage(tr,version,autoplay){ tr=tr||souvTrip(); if(!tr) return; _m
     }
     const px=prog*c.width;
     g2.fillStyle="#fff"; g2.fillRect(px-1,0,2,c.height);
-    const fmt=(t2)=>{ const m=Math.floor(t2/60), sc=Math.floor(t2%60); return String(m).padStart(2,"0")+":"+String(sc).padStart(2,"0"); };
-    const a=ov.querySelector("#stuT0"), b2=ov.querySelector("#stuT1"), c3=ov.querySelector("#stuT2");
-    if(a) a.textContent="00:00"; if(b2) b2.textContent=fmt(total/2); if(c3) c3.textContent=fmt(total);
   };
   _mvState._paint=()=>{ wavePaint();
     const segs=_mvState.segs||[], au=_mvState.audio; if(!au) return;
@@ -6346,24 +6514,63 @@ function openMontage(tr,version,autoplay){ tr=tr||souvTrip(); if(!tr) return; _m
   { const wv=ov.querySelector("#stuWave");
     if(wv) wv.onclick=(e)=>{ const r=wv.getBoundingClientRect(); const p=(e.clientX-r.left)/r.width;
       if(_mvState.audio){ _mvState.audio.currentTime=Math.max(0,Math.min(_mvState.total||60, p*(_mvState.total||60))); } }; }
-  ov.querySelectorAll("[data-tool]").forEach(b=>b.onclick=()=>{ const k=b.dataset.tool;
-    if(k==="crop") openCropList(tr);
-    else if(k==="music") openMusicLib((f,name,id)=>{ musicFile2(f,name); filmProjSave(tr);
-      if(_mvState.segs && _mvState.segs.length) mvRemusic(tr,f,name,id);   /* film déjà créé : on ne recharge QUE la musique */
-      else { _mvState.musicId=id||null; toast("Musique choisie"); } });
-    else if(k==="shots") openShots(tr);
-    else if(k==="fx") openStudioSheet(tr,"fx",()=>{ if(_mvState.segs&&_mvState.segs.length){ mvFxAssign(); if(_mvState._refreshStudio) _mvState._refreshStudio(); } });   /* effets : appliqués en direct, la boucle lit seg.fx */
-    else if(k==="overlay") openOverlaySheet(tr);
-    else openStudioSheet(tr,k,(needRebuild)=>{
+  const stuSheet=(k)=>openStudioSheet(tr,k,(needRebuild)=>{
       if(!(_mvState.segs && _mvState.segs.length && _mvState.audio)){ if(needRebuild) rebuild(); else stripPaint(); return; }
       if(needRebuild) mvStudioApply(tr,"segments");   /* durée / transitions : recompose léger */
-      else mvStudioApply(tr,"grade"); }); });          /* ambiance : couleur en direct */
+      else mvStudioApply(tr,"grade"); });             /* ambiance : couleur en direct */
+  const pickMusic=()=>openMusicLib((f,name,id)=>{ musicFile2(f,name); filmProjSave(tr);
+      if(_mvState.segs && _mvState.segs.length) mvRemusic(tr,f,name,id);   /* film déjà créé : on ne recharge QUE la musique */
+      else { _mvState.musicId=id||null; toast("Musique choisie"); } });
+  const fxSheet=()=>openStudioSheet(tr,"fx",()=>{ if(_mvState.segs&&_mvState.segs.length){ mvFxAssign(); if(_mvState._refreshStudio) _mvState._refreshStudio(); } });
+  _mvState._pickMusic=pickMusic;
+  /* Les cinq entrées du rail de la maquette. Aucune fonction n'est perdue :
+     celles qui n'ont plus d'icône propre sont regroupées dans le menu de leur famille. */
+  ov.querySelectorAll("[data-tool]").forEach(b=>b.onclick=()=>{ const k=b.dataset.tool;
+    ov.querySelectorAll("[data-tool]").forEach(x=>x.classList.toggle("on",x===b));
+    if(k==="media") openStuMenu("\ud83c\udfac M\u00e9dias",[
+      ["Pr\u00e9parer les m\u00e9dias","Photos et vid\u00e9os retenues, \u00e9cart\u00e9es, \u00e0 v\u00e9rifier",()=>openMediaPrep(tr)],
+      ["Recadrer les photos","Choisir ce qu'on garde dans le cadre",()=>openCropList(tr)],
+      ["Plans du film","Ordre, dur\u00e9e et transition de chaque plan",()=>openShots(tr)]]);
+    else if(k==="style") openStuMenu("\u25d0 Style",[
+      ["Ambiance (couleurs)","Le rendu colorim\u00e9trique du film",()=>stuSheet("grade")],
+      ["Transitions","La fa\u00e7on dont les plans s'encha\u00eenent",()=>stuSheet("trans")],
+      ["Overlays vid\u00e9o","Grain, lumi\u00e8res, textures pos\u00e9es sur l'image",()=>openOverlaySheet(tr)]]);
+    else if(k==="music") pickMusic();
+    else if(k==="fx") fxSheet();
+    else if(k==="ia") openStuMenu("\u2687 R\u00e9alisateur IA",[
+      ["Note du r\u00e9alisateur","Les choix de montage, expliqu\u00e9s",()=>openDirectorNote()],
+      ["Recomposer avec Fid\u00e8le","Ordre, chapitres et rythme repens\u00e9s",()=>{ const rb=ov.querySelector("#mvIA");
+        const run=()=>mvAutoFidele(tr,ov,version,rb); if(!visionOn()) visionAsk(()=>run()); else run(); }]]);
+    else stuSheet(k); });
   ov.querySelectorAll("[data-sfmt]").forEach(b=>b.onclick=()=>{ _mvState.fmt=b.dataset.sfmt; filmProjSave(tr); fmtsPaint();
     if(_mvState.segs && _mvState.segs.length && _mvState.audio){ mvStudioApply(tr,"format"); toast("Format "+({v:"9:16",c:"1:1",h:"16:9"}[b.dataset.sfmt])); }
     else rebuild(); });
   { const pb=ov.querySelector("#stuPlay"); if(pb) pb.onclick=()=>mvTogglePlay(); }
-  { const fb=ov.querySelector("#stuFull"); if(fb) fb.onclick=()=>{ ov.classList.add("stufull"); if(_mvState._refreshStudio) _mvState._refreshStudio(); };
+  { const goFull=(e)=>{ if(e) e.stopPropagation(); ov.classList.add("stufull"); if(_mvState._refreshStudio) _mvState._refreshStudio(); };
+    const fb=ov.querySelector("#stuFull"); if(fb) fb.onclick=goFull;
+    const fb2=ov.querySelector("#stuFull2"); if(fb2) fb2.onclick=goFull;
     const xb=ov.querySelector("#stuExit"); if(xb) xb.onclick=()=>{ ov.classList.remove("stufull"); if(_mvState._refreshStudio) _mvState._refreshStudio(); }; }
+  /* Engrenage de l'image : les commandes de lecture que la maquette ne montre pas
+     restent accessibles ici (aucune fonction supprimée). */
+  { const gb=ov.querySelector("#stuGear");
+    if(gb) gb.onclick=(e)=>{ e.stopPropagation(); openStuMenu("\u2699 Lecture",[
+      ["Recommencer depuis le d\u00e9but","",()=>{ if(_mvState.audio){ _mvState.playing=true; mvStageRestart(0); mvSetPlaying(true); } else toast("Cr\u00e9e d\u2019abord le film."); }],
+      ["Reculer de 10 secondes","",()=>{ if(_mvState._saut) _mvState._saut(-10); }],
+      ["Avancer de 10 secondes","",()=>{ if(_mvState._saut) _mvState._saut(10); }],
+      ["Options du film","Dur\u00e9e, recalage sur le rythme, analyse",()=>openStudioSheet(tr,"opts",(rb)=>{
+        if(!(_mvState.segs&&_mvState.segs.length&&_mvState.audio)){ if(rb) rebuild(); return; }
+        mvStudioApply(tr, rb?"segments":"grade"); })]]); }; }
+  { const ab=ov.querySelector("#stuAdj");
+    if(ab) ab.onclick=()=>openStudioSheet(tr,"opts",(rb)=>{
+      if(!(_mvState.segs&&_mvState.segs.length&&_mvState.audio)){ if(rb) rebuild(); return; }
+      mvStudioApply(tr, rb?"segments":"grade"); }); }
+  { const ib=ov.querySelector("#mvIA");
+    if(ib) ib.onclick=()=>{ const run=()=>mvAutoFidele(tr,ov,version,ib);
+      if(!visionOn()) visionAsk(()=>run()); else run(); }; }
+  { const sy=ov.querySelector("#stuMusSync");
+    if(sy) sy.onclick=(e)=>{ e.stopPropagation(); openStudioSheet(tr,"opts",(rb)=>{
+      if(!(_mvState.segs&&_mvState.segs.length&&_mvState.audio)) return;
+      mvStudioApply(tr, rb?"segments":"grade"); }); }; }
   { const bb=ov.querySelector("#stuBack"); if(bb) bb.onclick=()=>{ stop(); ov.classList.remove("cine");
       ov.querySelector("#mvStudio").style.display="none"; ov.querySelector(".smh").style.display="";
       ov.querySelector("#mvSetup").style.display=""; }; }
@@ -6378,10 +6585,11 @@ function openMontage(tr,version,autoplay){ tr=tr||souvTrip(); if(!tr) return; _m
        const pb=ov.querySelector("#stuPlayBar");
        if(st&&pb&&pb.parentNode!==st) st.appendChild(pb); }catch(e){}
   _mvState._refreshStudio=()=>{ try{ mvSeekBind(ov); mvRulerPaint(); mvSeekUpdate(); }catch(e){}
+    try{ const pl=ov.querySelector("#mvPlay"); if(pl && !_mvState.playing) pl.innerHTML=mvT("playFilm"); }catch(e){}
     try{ _mvState.fiche=mvBuildFiche(_mvState.tr||souvTrip());
-    const fe=document.getElementById("mvFiche"); if(fe && _mvState.fiche){ fe.style.display="flex"; const IC={Genre:"\u2665",Musique:"\u266b",Dur\u00e9e:"\u23f1",Couleurs:"\u25d0",Transitions:"\u2726",Plans:"\u25a4",Chapitres:"\u2637",Photos:"\u25a3"};
-      fe.innerHTML=_mvState.fiche.map(([k,v])=>`<span class="mvf"><i>${IC[k]||"\u25cf"}</i><b>${v}</b><em>${k}</em></span>`).join(""); }
-    stripPaint(); fmtsPaint(); wavePaint(); }catch(e){} };
+    mvFichePaint(); }catch(e){}
+    try{ mvChapsPaint(); mvDirCardPaint(); }catch(e){}
+    stripPaint(); fmtsPaint(); wavePaint(); };
   /* Reconstruit le film sur-le-champ avec les nouveaux réglages (même musique). */
   const rebuild=(msg)=>{ if(msg) toast(msg);
     if(_mvState.segs && _mvState.segs.length && _mvState.audio){ mvStageRestart(0); if(_mvState._refreshStudio) _mvState._refreshStudio(); return; }
@@ -6392,8 +6600,7 @@ function openMontage(tr,version,autoplay){ tr=tr||souvTrip(); if(!tr) return; _m
     const has=()=>!!(_mvState.segs && _mvState.segs.length && _mvState.audio);
     const p2=ov.querySelector("#mvPlay");
     if(p2) p2.onclick=()=>{ if(!has()){ mk(); return; } mvTogglePlay(); };
-    const r2=ov.querySelector("#mvRestart");
-    if(r2) r2.onclick=()=>{ if(!has()){ mk(); return; } _mvState.playing=true; mvStageRestart(0); mvSetPlaying(true); };
+    _mvState._restart=()=>{ if(!has()){ mk(); return; } _mvState.playing=true; mvStageRestart(0); mvSetPlaying(true); };
     const s2=ov.querySelector("#mvSave");
     if(s2) s2.onclick=()=>{ if(!has()){ toast("Cr\u00e9e d\u2019abord le film."); return; } openExportPick(tr,s2); };
     const h2=ov.querySelector("#mvShots");
@@ -6573,9 +6780,7 @@ function openMontage(tr,version,autoplay){ tr=tr||souvTrip(); if(!tr) return; _m
         const nFit=plans.filter(x=>x.mode==="fit").length;
         if(nFit) toast(nFit+" photo"+(nFit>1?"s affichées entières":" affichée entière")+" (sujet préservé)");
       }
-      { const fe=ov.querySelector("#mvFiche"); if(fe && _mvState.fiche){ fe.style.display="flex";
-          const IC={Genre:"\u2665",Musique:"\u266b",Dur\u00e9e:"\u23f1",Couleurs:"\u25d0",Transitions:"\u2726",Plans:"\u25a4",Chapitres:"\u2637",Photos:"\u25a3"};
-      fe.innerHTML=_mvState.fiche.map(([k,v])=>`<span class="mvf"><i>${IC[k]||"\u25cf"}</i><b>${v}</b><em>${k}</em></span>`).join(""); } }
+      try{ mvFichePaint(); mvChapsPaint(); mvDirCardPaint(); }catch(e){}
       ov.classList.add("cine");
       ov.querySelector("#mvSetup").style.display="none";
       ov.querySelector(".smh").style.display="none";
@@ -6592,7 +6797,7 @@ function openMontage(tr,version,autoplay){ tr=tr||souvTrip(); if(!tr) return; _m
       if(visionOn()) mvPhotoStory(tr,_mvState.keep).catch(()=>{});   /* les sous-titres apparaissent au fil de leur arrivée */
       const pb=ov.querySelector("#mvPlay");
       pb.onclick=()=>mvTogglePlay();
-      ov.querySelector("#mvRestart").onclick=()=>{ _mvState.playing=true; mvStageRestart(0); mvSetPlaying(true); };
+      _mvState._restart=()=>{ _mvState.playing=true; mvStageRestart(0); mvSetPlaying(true); };
       { const sv=ov.querySelector("#mvSave"); if(sv) sv.onclick=()=>mvRecord(tr,total,sv); }
       { const cb=ov.querySelector("#mvCrop"); if(cb) cb.onclick=()=>openCropList(tr); }
       { const sb2=ov.querySelector("#mvShots"); if(sb2) sb2.onclick=()=>openShots(tr); }
@@ -6791,12 +6996,98 @@ function mvBuildFiche(tr){
   const segs=_mvState.segs||[]; const drops=segs.filter(x=>x.drop).length;
   const nCh=new Set(segs.filter(x=>x.first).map(x=>x.idx)).size;
   const trLbl={douces:"Douces",premium:"Premium",cinema:"Cinéma",elegant:"Élégant",dynamique:"Dynamique",creatif:"Créatif",all:"Toutes"};
-  return [["Genre",d.n||"\u2014"],
-    ["Musique",(_mvState.bpm?_mvState.bpm+" BPM":"cadence régulière")+(drops?" \u00b7 "+drops+" temps forts":"")],
-    ["Durée",Math.floor(total/60)+" min "+String(Math.round(total%60)).padStart(2,"0")],
+  const mm=Math.floor(total/60), ss=String(Math.round(total%60)).padStart(2,"0");
+  return [["Style du film",d.n||"\u2014"],
+    ["Musique",(_mvState.bpm?Math.round(_mvState.bpm)+" BPM":"Cadence")],
+    ["Sc\u00e8nes",segs.length+" plan"+(segs.length>1?"s":"")],
+    ["Dur\u00e9e",mm+":"+ss],
     ["Couleurs",(_mvState.grade==="auto"?"Auto":(MV_GRADE_LBL[_mvState.grade||"natural"]||"Naturelle"))],
-    ["Transitions",(_mvState.style?(trLbl[_mvState.style]||"Auto"):"Auto")],
-    ["Plans",segs.length],["Chapitres",nCh||"\u2014"],["Photos",(_mvState.imgs||[]).length]];
+    ["Transitions",(_mvState.style?(trLbl[_mvState.style]||"Auto"):"Auto")]];
+}
+/* Bandeau d'informations : 6 cartes, exactement comme la maquette.
+   Chaque valeur vient du montage r\u00e9el (aucune n'est d\u00e9corative). */
+function mvFichePaint(){
+  const fe=document.getElementById("mvFiche"); if(!fe) return;
+  let F=null; try{ F=mvBuildFiche(_mvState.tr||souvTrip()); }catch(e){ F=null; }
+  if(!F){ fe.innerHTML=""; return; }
+  _mvState.fiche=F;
+  const IC={"Style du film":"\u2665","Musique":"\u266b","Sc\u00e8nes":"\ud83c\udfac","Dur\u00e9e":"\u23f1",
+    "Couleurs":"\u25d0","Transitions":"\u2726"};
+  fe.style.display="flex";
+  fe.innerHTML=F.map(([k,v])=>`<span class="mvf"><i>${IC[k]||"\u25cf"}</i><b>${escapeHtml(String(v))}</b><em>${escapeHtml(k)}</em></span>`).join("");
+}
+/* ---- Chapitres : intro, un bandeau par lieu (titre r\u00e9el si Mistral en a donn\u00e9 un), outro.
+   Les bornes viennent des segments : rien n'est invent\u00e9. ---- */
+function mvChapBands(){
+  const segs=_mvState.segs||[]; if(!segs.length) return [];
+  const total=Math.max(0.1,_mvState.total||_mvState.dur||60);
+  const B=[];
+  if(segs[0].start>0.4) B.push({t:"Intro",a:0,b:segs[0].start});
+  let cur=null, k=0;
+  segs.forEach(sg=>{ const c=(sg.chap==null?0:sg.chap);
+    if(!cur||c!==cur.c){ k++; cur={c:c,t:(sg.chapTitle||("Chapitre "+k)),a:sg.start,b:sg.end}; B.push(cur); }
+    else cur.b=sg.end; });
+  const last=segs[segs.length-1].end;
+  if(total-last>0.4) B.push({t:"Outro",a:last,b:total});
+  return B;
+}
+function mvChapsPaint(){
+  const el=document.getElementById("stuChaps"); if(!el) return;
+  const B=mvChapBands(); _mvState._chaps=B;
+  if(!B.length){ el.innerHTML=""; return; }
+  const total=Math.max(0.1,_mvState.total||60);
+  el.innerHTML=B.map((x,i)=>`<button class="stu-chap" data-chap="${i}" style="flex:${Math.max(7,Math.round((x.b-x.a)/total*100))} 1 0">${escapeHtml(String(x.t).toUpperCase())}</button>`).join("");
+  el.querySelectorAll("[data-chap]").forEach(b=>b.onclick=()=>{
+    const x=B[+b.dataset.chap], A=_mvState.audio;
+    if(A&&x){ try{ A.currentTime=Math.min(total-0.05,x.a+0.02); }catch(e){} mvSeekUpdate(); } });
+  mvChapsActive();
+}
+function mvChapsActive(){
+  const el=document.getElementById("stuChaps"), B=_mvState._chaps||[];
+  if(!el||!B.length) return;
+  const A=_mvState.audio, t=(A&&A.currentTime)||0;
+  let k=-1; for(let i=0;i<B.length;i++){ if(t>=B[i].a && t<B[i].b){ k=i; break; } }
+  if(k<0) k=(t<B[0].a?0:B.length-1);
+  el.querySelectorAll(".stu-chap").forEach((b,i)=>b.classList.toggle("on",i===k));
+}
+/* ---- Carte R\u00e9alisateur IA : six constats, tous tir\u00e9s de l'\u00e9tat r\u00e9el du montage.
+   Pas de visage, pas de note : ce que la maquette montrait \u00e0 ces deux endroits
+   serait invent\u00e9, donc on ne l'affiche pas. ---- */
+function mvDirCardPaint(){
+  const el=document.getElementById("stuDir"); if(!el) return;
+  const segs=_mvState.segs||[], keep=_mvState.keep||[];
+  const ready=!!(segs.length && _mvState.audio);
+  if(!ready){
+    el.innerHTML=`<div class="stu-dir-h"><span class="ttx"><span class="stu-dir-k">\u2726 R\u00c9ALISATEUR IA</span><b>Aucun film pour l'instant</b></span></div>
+      <div class="stu-dir-g"><span class="stu-ck warn"><i>!</i>Choisis une musique puis cr\u00e9e le film</span></div>`;
+    return;
+  }
+  const nPh=keep.filter(x=>x&&!x.vid).length;
+  const nVid=keep.filter(x=>x&&x.vid).length;
+  const used=new Set(segs.map(x=>x.img)).size;
+  const rest=Math.max(0,keep.length-used);
+  const bpm=Math.round(_mvState.bpm||0);
+  const drops=segs.filter(x=>x.drop).length;
+  const nFit=(_mvState.plans||[]).filter(x=>x&&x.mode==="fit").length;
+  const grade=(_mvState.grade==="auto"?"Auto":(MV_GRADE_LBL[_mvState.grade||"natural"]||"Naturelle"));
+  const trLbl={douces:"Douces",premium:"Premium",cinema:"Cin\u00e9ma",elegant:"\u00c9l\u00e9gant",dynamique:"Dynamique",creatif:"Cr\u00e9atif",all:"Toutes"};
+  const sty=(_mvState.style?(trLbl[_mvState.style]||"Auto"):"Auto");
+  const I=[
+    [nPh+" photo"+(nPh>1?"s":"")+" analys\u00e9e"+(nPh>1?"s":""), true],
+    [bpm?("Rythme d\u00e9tect\u00e9 \u00b7 "+bpm+" BPM"):"Cadence r\u00e9guli\u00e8re", true],
+    [nFit?("Cadrage optimis\u00e9 \u00b7 "+nFit+" enti\u00e8re"+(nFit>1?"s":"")):"Cadrage optimis\u00e9", true],
+    ["Couleurs \u00b7 "+grade, true],
+    [(drops?("Transitions "+sty.toLowerCase()+" \u00b7 "+drops+" temps fort"+(drops>1?"s":"")):("Transitions \u00b7 "+sty)), true],
+    [rest?(rest+" m\u00e9dia"+(rest>1?"s":"")+" non utilis\u00e9"+(rest>1?"s":"")):(nVid?(nVid+" vid\u00e9o"+(nVid>1?"s":"")+" int\u00e9gr\u00e9e"+(nVid>1?"s":"")):"Aucune photo \u00e9cart\u00e9e"), !rest]
+  ];
+  el.innerHTML=`<div class="stu-dir-h" id="stuNote"><span class="ttx"><span class="stu-dir-k">\u2726 R\u00c9ALISATEUR IA</span><b>Film pr\u00eat \u00e0 \u00eatre visionn\u00e9</b></span><span class="cv">\u203a</span></div>
+    <div class="stu-dir-g">${I.map(x=>`<span class="stu-ck${x[1]?"":" warn"}"><i>${x[1]?"\u2713":"!"}</i>${escapeHtml(x[0])}</span>`).join("")}</div>
+    <div class="stu-dir-f"><button class="stu-dir-b" id="stuAdjust" type="button"><i>\u2632</i>Ajuster le film</button></div>`;
+  { const h=el.querySelector("#stuNote"); if(h) h.onclick=()=>openDirectorNote(); }
+  { const b=el.querySelector("#stuAdjust");
+    if(b) b.onclick=()=>{ const t=_mvState.tr||souvTrip(); if(t) openStudioSheet(t,"opts",(rb)=>{
+      if(!(_mvState.segs&&_mvState.segs.length&&_mvState.audio)) return;
+      mvStudioApply(t, rb?"segments":"grade"); }); }; }
 }
 /* ============ NOTE DU RÉALISATEUR ============
    Fidèle explique ses choix. Chaque phrase s'appuie sur une décision RÉELLE
@@ -6956,7 +7247,7 @@ function openExportPick(tr, btn){
   };
 }
 function mvSetPlaying(on){ _mvState.playing=!!on;
-  const a=document.getElementById("mvPlay"); if(a) a.textContent=(on?mvT("pause"):mvT("play"));
+  const a=document.getElementById("mvPlay"); if(a) a.innerHTML=(on?mvT("pause"):mvT("playFilm"));
   const b=document.getElementById("stuPlay"); if(b) b.textContent=(on?"\u23f8":"\u25b6");
   const c=document.getElementById("stuPP"); if(c) c.textContent=(on?"\u23f8":"\u25b6"); }
 
@@ -6965,45 +7256,41 @@ function mvFmtTc(x){ x=Math.max(0,Math.floor(x||0)); const m=Math.floor(x/60), s
   return (m<10?"0":"")+m+":"+(sec<10?"0":"")+sec; }
 /* Dessine la règle temporelle : graduations à la seconde, repères chiffrés,
    et tête de lecture qui traverse la bande de plans. */
+/* R\u00e8gle temporelle de la maquette : lin\u00e9aire, sur toute la largeur,
+   avec cinq rep\u00e8res chiffr\u00e9s (d\u00e9but, quarts, fin) et des graduations \u00e0 la seconde.
+   La t\u00eate de lecture ronde se d\u00e9place \u00e0 la m\u00eame \u00e9chelle : les deux disent
+   la m\u00eame chose, contrairement \u00e0 la bande de plans dont les vignettes ont
+   toutes la m\u00eame largeur. */
 function mvRulerPaint(){
-  /* La bande de plans défile et ses vignettes ont une largeur fixe : une règle
-     linéaire ne peut donc PAS coïncider avec elle. On dessine donc les repères
-     à l'emplacement RÉEL de chaque vignette, en affichant l'instant où ce plan
-     commence. Ainsi règle, tête de lecture et vignettes disent la même chose. */
-  const c=document.getElementById("stuRulerC"), strip=document.getElementById("stuStrip");
-  if(!c||!strip) return;
-  const segs=_mvState.segs||[]; if(!segs.length) return;
+  const c=document.getElementById("stuRulerC"); if(!c||!c.parentNode) return;
   const wrap=c.parentNode;
-  const contentW=Math.max(strip.scrollWidth, wrap.clientWidth||1);
+  const w=Math.max(60,(wrap.clientWidth||320)-28);   /* 14 px de marge de chaque c\u00f4t\u00e9 */
+  const total=Math.max(1,_mvState.total||_mvState.dur||60);
   const dpr=Math.min(2,window.devicePixelRatio||1);
-  c.style.width=contentW+"px";
-  if(c.width!==Math.round(contentW*dpr)){ c.width=Math.round(contentW*dpr); c.height=Math.round(26*dpr); }
-  const g=c.getContext("2d"); g.setTransform(dpr,0,0,dpr,0,0);
-  g.clearRect(0,0,contentW,26);
-  g.font="9px -apple-system,system-ui,sans-serif"; g.textBaseline="top";
-  const tc=(x)=>{ const m=Math.floor(x/60), sec=Math.floor(x%60); return m+":"+(sec<10?"0":"")+sec; };
-  segs.forEach((sg,k)=>{
-    const el=strip.querySelector('[data-clip="'+k+'"]'); if(!el) return;
-    const x=Math.round(el.offsetLeft)+0.5, w=el.offsetWidth;
-    g.strokeStyle="rgba(224,163,62,.55)";
-    g.beginPath(); g.moveTo(x,8); g.lineTo(x,24); g.stroke();
-    const lab=tc(sg.start||0);
-    g.fillStyle="#8FA1BC"; g.fillText(lab, x+3, 0);
-    /* petites graduations internes : une par seconde du plan */
-    const dsec=Math.max(0.1,(sg.end-sg.start));
-    const n=Math.min(12,Math.floor(dsec));
-    for(let q=1;q<n;q++){ const xx=Math.round(x+(w*q/n))+0.5;
-      g.strokeStyle="rgba(143,161,188,.28)";
-      g.beginPath(); g.moveTo(xx,17); g.lineTo(xx,24); g.stroke(); }
+  c.style.width=w+"px"; c.style.height="24px";
+  if(c.width!==Math.round(w*dpr)){ c.width=Math.round(w*dpr); c.height=Math.round(24*dpr); }
+  const g=c.getContext("2d"); if(!g) return;
+  g.setTransform(dpr,0,0,dpr,0,0); g.clearRect(0,0,w,24);
+  g.font="9.5px -apple-system,system-ui,sans-serif"; g.textBaseline="top";
+  const n2=Math.max(10,Math.min(90,Math.round(total)));
+  for(let i=0;i<=n2;i++){
+    const x=Math.round(i/n2*(w-1))+0.5, big=(i%5===0);
+    g.strokeStyle=big?"rgba(143,161,188,.55)":"rgba(143,161,188,.26)";
+    g.beginPath(); g.moveTo(x,big?15:18); g.lineTo(x,24); g.stroke();
+  }
+  const tc=(x)=>{ const m=Math.floor(x/60), sec=Math.floor(x%60);
+    return (m<10?"0":"")+m+":"+(sec<10?"0":"")+sec; };
+  g.fillStyle="#8A9AB5";
+  [0,0.25,0.5,0.75,1].forEach((p,k,arr)=>{
+    const lab=tc(p*total), tw=g.measureText(lab).width;
+    let x=p*(w-1)-tw/2;
+    if(k===0) x=0; if(k===arr.length-1) x=w-tw;
+    g.fillText(lab,x,1);
   });
-  mvRulerScroll();
 }
-/* Fait glisser la règle en même temps que la bande de plans. */
-function mvRulerScroll(){
-  const c=document.getElementById("stuRulerC"), strip=document.getElementById("stuStrip");
-  if(!c||!strip) return;
-  c.style.transform="translateX("+(-strip.scrollLeft)+"px)";
-}
+/* La r\u00e8gle ne d\u00e9file plus avec la bande de plans : elle est lin\u00e9aire. */
+function mvRulerScroll(){}
+function segsExist(){ return !!((_mvState.segs||[]).length); }
 function mvSeekUpdate(){
   const A=_mvState.audio; const f=document.getElementById("stuSeekF");
   if(!f) return;
@@ -7015,6 +7302,9 @@ function mvSeekUpdate(){
   /* Tête de lecture : on la place SUR la vignette du plan en cours, à la
      progression exacte à l'intérieur de ce plan. C'est la seule façon d'être
      d'accord avec une bande dont les vignettes ont toutes la même largeur. */
+  { const rp=document.getElementById("stuRph"), rw=document.getElementById("stuRuler");
+    if(rp&&rw){ const w=Math.max(60,(rw.clientWidth||320)-28);
+      rp.style.left=(14+pct*(w-1))+"px"; rp.style.opacity=(segsExist()?"1":"0"); } }
   { const ph=document.getElementById("stuPh"), strip=document.getElementById("stuStrip");
     const segs=_mvState.segs||[];
     if(ph&&strip&&segs.length){
@@ -7024,7 +7314,9 @@ function mvSeekUpdate(){
       if(el){ const sg=segs[k], d=Math.max(0.01,(sg.end-sg.start));
         const pr=Math.max(0,Math.min(1,(cur-sg.start)/d));
         const x=el.offsetLeft + pr*el.offsetWidth - strip.scrollLeft;
-        ph.style.left=x+"px";
+        ph.style.left=(strip.offsetLeft + x)+"px";
+        ph.style.top=(strip.offsetTop+6)+"px";
+        ph.style.height=Math.max(40,strip.clientHeight-8)+"px";
         ph.style.opacity=(x<-4||x>strip.clientWidth+4)?"0":"1";
         /* on garde le plan en cours visible, comme dans un vrai studio */
         if(_mvState.playing && (x<30 || x>strip.clientWidth-30)){
@@ -7032,6 +7324,7 @@ function mvSeekUpdate(){
         }
       }
     } }
+  try{ mvChapsActive(); }catch(e){}
   const a=document.getElementById("stuTcA"); if(a) a.textContent=mvFmtTc(cur);
   const b=document.getElementById("stuTcB"); if(b) b.textContent=mvFmtTc(total);
 }
@@ -7076,11 +7369,11 @@ function mvSeekBind(ov){
     const total=Math.max(0.1,_mvState.total||_mvState.dur||60);
     try{ A.currentTime=Math.max(0,Math.min(total-0.05,(A.currentTime||0)+d)); }catch(e){}
     mvSeekUpdate(); };
-  { const b1=ov.querySelector("#stuBack10"); if(b1) b1.onclick=(e)=>{ e.stopPropagation(); saut(-10); };
-    const b2=ov.querySelector("#stuFwd10");  if(b2) b2.onclick=(e)=>{ e.stopPropagation(); saut(10); }; }
-  /* Extrait de la note du réalisateur, directement lisible. */
-  { const x=ov.querySelector("#stuNoteX");
-    if(x){ try{ const n=mvDirectorNotes(); if(n && n.length) x.textContent=n[0]; }catch(e){} } }
+  _mvState._saut=saut;
+  /* La barre de lecture est POSÉE sur l'image : ses boutons ne doivent pas
+     déclencher aussi le lecture/pause de l'image en dessous. */
+  { const bar=ov.querySelector("#stuPlayBar");
+    if(bar && bar.dataset.sp!=="1"){ bar.dataset.sp="1"; bar.addEventListener("click",(e)=>e.stopPropagation()); } }
   /* Appui sur l'image = lecture / pause, comme dans un vrai lecteur. */
   const st=ov.querySelector("#mvStage"); if(st && st.dataset.b!=="1"){ st.dataset.b="1"; st.onclick=()=>mvTogglePlay(); }
 }
@@ -7272,6 +7565,20 @@ function openOverlaySheet(tr){
       document.body.appendChild(inp); inp.click(); setTimeout(()=>{ try{inp.remove();}catch(e){} },1500); }; }
 }
 /* Panneaux du studio : Ambiance, Transitions, Options */
+/* Menu court du studio : sert aux entr\u00e9es du rail qui regroupent plusieurs
+   r\u00e9glages, sans jamais cacher une fonction existante. */
+function openStuMenu(title,items){
+  let ov=document.getElementById("stuMenuOv"); if(ov) ov.remove();
+  ov=document.createElement("div"); ov.id="stuMenuOv"; ov.className="cal-ov show"; ov.style.zIndex="9400";
+  ov.innerHTML=`<div class="cal-sheet" style="max-width:460px"><div class="cal-head"><div class="cal-title">${escapeHtml(title)}</div><button class="cal-x" id="smX" type="button">\u2715</button></div>
+    <div class="ss-blocks" style="padding:6px 2px 12px">${items.map((it,i)=>`<button class="ss-fam" data-smi="${i}" type="button"><b>${escapeHtml(it[0])}</b>${it[1]?`<span>${escapeHtml(it[1])}</span>`:""}</button>`).join("")}</div></div>`;
+  document.body.appendChild(ov);
+  const close=()=>ov.remove();
+  ov.querySelector("#smX").onclick=close;
+  ov.onclick=(e)=>{ if(e.target===ov) close(); };
+  ov.querySelectorAll("[data-smi]").forEach(b=>b.onclick=()=>{ const it=items[+b.dataset.smi]; close();
+    try{ if(it&&it[2]) it[2](); }catch(e){ console.warn("stuMenu",e); } });
+}
 function openStudioSheet(tr,kind,after){
   let ov=document.getElementById("stuSheet"); if(ov) ov.remove();
   ov=document.createElement("div"); ov.id="stuSheet"; ov.className="cal-ov show"; ov.style.zIndex="9000";
