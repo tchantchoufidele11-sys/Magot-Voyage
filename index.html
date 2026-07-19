@@ -1107,7 +1107,12 @@ body.dragging-on{-webkit-user-select:none;user-select:none}
 .sv-mvt{font:700 11.5px system-ui;font-size:clamp(10.8px,2.949vw,11.5px);color:var(--ink)}
 .sv-mvs{font-size:clamp(10.5px,2.692vw,10.5px);color:var(--muted);line-height:1.3}
 .sv-mvdur{text-align:center;color:var(--muted);font-size:clamp(10.8px,2.949vw,11.5px);margin-top:8px}
-.sv-albums{display:grid;grid-template-columns:repeat(2,1fr);gap:12px}
+.sv-albums{display:flex;gap:11px;overflow-x:auto;-webkit-overflow-scrolling:touch;
+  padding-bottom:4px;scroll-snap-type:x proximity;scrollbar-width:none;
+  -webkit-mask-image:linear-gradient(90deg,#000 0,#000 calc(100% - 26px),transparent 100%);
+  mask-image:linear-gradient(90deg,#000 0,#000 calc(100% - 26px),transparent 100%)}
+.sv-albums::-webkit-scrollbar{display:none}
+.sv-albums .sv-alb{flex:0 0 clamp(140px,42vw,168px);scroll-snap-align:start}
 @media(min-width:620px){.sv-albums{grid-template-columns:repeat(4,1fr)}}
 .sv-alb{border:0;background:none;padding:0;cursor:pointer;text-align:left}
 .sv-albc{display:block;position:relative;height:clamp(83px,26.67vw,104px);border-radius:13px;background-size:cover;background-position:center;margin-bottom:7px}
@@ -1165,6 +1170,8 @@ body.dragging-on{-webkit-user-select:none;user-select:none}
 .sv-chips{display:flex;gap:8px;overflow-x:auto;-webkit-overflow-scrolling:touch;
   padding:10px 0 2px;scrollbar-width:none}
 .sv-chips::-webkit-scrollbar{display:none}
+.sv-chips{-webkit-mask-image:linear-gradient(90deg,#000 0,#000 calc(100% - 26px),transparent 100%);
+  mask-image:linear-gradient(90deg,#000 0,#000 calc(100% - 26px),transparent 100%)}
 .sv-chip{flex:0 0 auto;display:flex;align-items:center;gap:8px;padding:7px 12px 7px 7px;
   background:var(--surface-2,#F3F6FB);border:1px solid var(--line,#E5E9F1);border-radius:999px;
   cursor:pointer;transition:transform .16s cubic-bezier(.2,.7,.3,1),border-color .2s ease}
@@ -1392,8 +1399,12 @@ body.dragging-on{-webkit-user-select:none;user-select:none}
 .mus-tab{flex:1;background:var(--paper,#F7F8FB);border:1px solid var(--line);border-radius:11px;padding:10px;font:700 12.5px system-ui;font-size:clamp(11.8px,3.205vw,12.5px);color:var(--muted);cursor:pointer}
 .mus-tab.on{background:var(--navy,#0E2148);color:#fff;border-color:var(--navy,#0E2148)}
 
-.sv-quote{width:100%;text-align:left;background:var(--gold-soft,#FBEED4);border:1px solid var(--gold,#E0A33E);border-radius:14px;padding:14px 16px;cursor:pointer;display:flex;flex-direction:column;gap:4px;position:relative}
-.sv-qmark{position:absolute;top:2px;left:10px;font:700 34px Georgia,serif;font-size:clamp(30.6px,8.718vw,34px);color:var(--gold,#E0A33E);opacity:.5;line-height:1}
+.sv-quote{width:100%;text-align:left;background:var(--paper,#F7F8FB);border:1px solid var(--line-soft,#EEF1F7);
+  border-left:3px solid var(--gold,#E0A33E);border-radius:4px 14px 14px 4px;padding:14px 16px 13px;
+  cursor:pointer;display:flex;flex-direction:column;gap:4px;position:relative;
+  transition:transform .18s cubic-bezier(.2,.7,.3,1),border-color .2s ease,background .2s ease}
+.sv-quote:active{transform:scale(.985);background:var(--gold-soft,#FBEED4)}
+.sv-qmark{position:absolute;top:4px;left:12px;font:700 34px Georgia,serif;font-size:clamp(30.6px,8.718vw,34px);color:var(--gold,#E0A33E);opacity:.28;line-height:1}
 .sv-qtxt{font-family:var(--font-serif,Georgia,serif);font-style:italic;font-size:clamp(14.1px,3.846vw,15px);line-height:1.55;color:var(--ink);padding-left:18px}
 .sv-qmore{font:700 12.5px system-ui;font-size:clamp(11.8px,3.205vw,12.5px);color:var(--gold-d,#C2872A);padding-left:18px;margin-top:3px}
 .sv-qempty{background:var(--paper,#F7F8FB);border-color:var(--line);cursor:default}
@@ -6645,7 +6656,7 @@ function openMontage(tr,version,autoplay){ tr=tr||souvTrip(); if(!tr) return; _m
     <div id="mvStudio" class="stu" style="display:none">
       <div class="stu-top">
         <button class="stu-back" id="stuBack" aria-label="Retour">\u2039</button>
-        <div class="stu-ttl"><b>Studio Magot<i>\u2727</i></b><span>Montage vid\u00e9o \u00b7 v424</span></div>
+        <div class="stu-ttl"><b>Studio Magot<i>\u2727</i></b><span>Montage vid\u00e9o \u00b7 v425</span></div>
         <button class="stu-ico" id="stuUndo" title="Annuler">\u21b6</button>
         <button class="stu-ico" id="stuRedo" title="R\u00e9tablir">\u21b7</button>
         <button class="stu-exp" id="mvSave"><i>\u2b06</i>Exporter</button>
@@ -9526,17 +9537,17 @@ function renderMemories(){ const body=document.getElementById("memBody"); if(!bo
         btn=`<button class="sv-hero-btn" id="heroPlay" data-replay="${seen?1:0}">\u25b6 ${seen?"Lire ton film":"Créer ton film"}</button>`
            + (seen?`<button class="sv-hero-alt" id="heroEdit">Modifier le film \u203a</button>`:"");
       } else if(!pts.length){ sub="Ajoute des lieux à ton planning : ils deviendront les scènes de ton film.";
-        meta=`<span><b>${nPh}</b>photos</span><span><b>0</b>scènes</span>`;
+        meta=nPh?`<span><b>${nPh}</b>photo${nPh>1?"s":""}</span>`:"";
         btn=`<button class="sv-hero-btn ghost" id="heroPlan">Ouvrir le planning ›</button>`;
       } else { sub=(pts.length>1?("Ajoute des photos : elles donneront vie à tes "+pts.length+" scènes."):"Ajoute des photos : elles donneront vie à ta scène.");
-        meta=`<span><b>0</b>photos</span><span><b>${pts.length}</b>${pts.length>1?"scènes":"scène"}</span>`;
+        meta=`<span><b>${pts.length}</b>${pts.length>1?"scènes":"scène"}</span>`;
         btn=`<button class="sv-hero-btn ghost" id="heroAdd">Ajouter des photos ›</button>`;
       }
       /* Le compte des medias, en une ligne, sans jamais afficher un zero :
          un zero n'informe pas, il fait un trou. */
       const _nV=(tr.memories||[]).filter(m=>m&&m.kind==="video").length;
-      const _cnt=[[nPh,"photo","photos"],[_nV,"vid\u00e9o","vid\u00e9os"],[pts.length,"lieu","lieux"]]
-        .filter(x=>x[0]>0).map(x=>x[0]+" "+(x[0]>1?x[2]:x[1])).join("  \u00b7  ");
+      const _cnt=(nPh||_nV)?[[nPh,"photo","photos"],[_nV,"vid\u00e9o","vid\u00e9os"],[pts.length,"lieu","lieux"]]
+        .filter(x=>x[0]>0).map(x=>x[0]+" "+(x[0]>1?x[2]:x[1])).join("  \u00b7  "):"";
       h+=`<div class="sv-hero"><div class="sv-hero-bg" ${bgAttr}></div><div class="sv-hero-in">
         <div class="sv-hero-kick">\u2728 ${ready?"Revivez":"Ton film"}</div>
         <h2 class="sv-hero-t">${escapeHtml(tripTitle(tr))}</h2>
@@ -9549,7 +9560,8 @@ function renderMemories(){ const body=document.getElementById("memBody"); if(!bo
       /* Les lieux deviennent des pastilles horizontales sous la carte :
          meme information, une hauteur au lieu de quatre. */
       const steps=pts.map((pp,i)=>`<button class="sv-chip" data-svstep="${i}"><span class="sv-n">${i+1}</span><span class="sv-cb"><span class="sv-ct">${escapeHtml(pp.title||"\u2014")}</span><span class="sv-cd">${t("plan.day")} ${pp.day+1}${pp.time?" \u2022 "+escapeHtml(pp.time):""}</span></span></button>`).join("");
-      const _nD=(typeof tripDays==="function"?tripDays(tr).length:0);
+      /* Les journees OU L'ON A VISITE quelque chose, pas la longueur du sejour. */
+      const _nD=new Set(pts.map(p=>p.day)).size;
       h+=`<div class="sv-card">
         <div class="sv-head"><span class="sv-ic">${ICO_MAP_SV}</span><div class="sv-ht"><h3>${svT("mapTitle")}</h3><p>${svT("mapSub")}</p></div><button class="sv-big" id="svBig">\u26F6 ${svT("big")}</button></div>
         <div class="sv-body">
