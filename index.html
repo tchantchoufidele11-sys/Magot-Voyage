@@ -1823,11 +1823,14 @@ body.dragging-on{-webkit-user-select:none;user-select:none}
 /* L'image donne sa taille au cadre : aucune marge noire a gauche ni a droite. */
 #mvOv.cine .mv-stage>canvas,#mvOv.cine .mv-stage>video,#mvOv.cine .mv-stage>img{
   display:block;height:100%;width:auto;max-width:100%;max-height:100%;object-fit:contain;background:transparent}
-/* Cette colonne ne contient plus que le format : elle porte enfin son titre. */
+/* Cette colonne ne contient plus que le format : elle porte enfin son titre.
+   Le selecteur reprend la forme de l'ancienne regle (.stu-mid > .stu-right), sans
+   quoi celle-ci gagnait et etalait le titre et les icones aux deux bouts. */
 #mvOv .stu-right{width:56px;flex:0 0 56px;align-self:stretch;display:flex;flex-direction:column;
-  align-items:center;justify-content:center;gap:10px;overflow:hidden}
+  align-items:center;justify-content:center;gap:8px;overflow:hidden}
+#mvOv .stu-mid > .stu-right{justify-content:center;gap:8px;overflow:hidden}
 #mvOv .stu-right::-webkit-scrollbar{display:none}
-#mvOv .stu-flab{font:700 9.5px system-ui;letter-spacing:.10em;color:#8A9AB5;margin-top:4px}
+#mvOv .stu-flab{font:700 9.5px system-ui;letter-spacing:.10em;color:#8A9AB5;margin:0 0 2px}
 #mvOv .stu-fmts{background:none;padding:0;display:flex;flex-direction:column;gap:8px;align-items:center;
   flex:0 1 auto;min-height:0}
 #mvOv .stu-fmt{width:50px;height:46px;flex:0 1 46px;min-height:32px;background:none;border:0;border-radius:14px;color:#8FA1BC;
@@ -1929,7 +1932,8 @@ body.dragging-on{-webkit-user-select:none;user-select:none}
 #mvOv .stu-strip{display:flex;align-items:flex-start;gap:0;padding-top:6px;padding-bottom:2px}
 /* Quatre plans visibles \u00e0 la fois : la largeur se calcule sur l'\u00e9cran r\u00e9el.
    134px = marges (28) + tuile Ajouter (44+6) + marges des vignettes (32) + chevrons (24). */
-#mvOv .stu-strip{--ch:calc((100vw - 120px)/4*1.27)}
+/* Hauteur fixe et sobre : c'est la largeur qui porte le temps, pas la hauteur. */
+#mvOv .stu-strip{--ch:64px}
 /* Largeur d'un plan = sa dur\u00e9e (pos\u00e9e par le JS). Aucune marge : sinon le
    temps et les pixels ne diraient plus la m\u00eame chose. */
 #mvOv .stu-clip{position:relative;flex:0 0 auto;margin:0;cursor:pointer}
@@ -1978,6 +1982,7 @@ body.dragging-on{-webkit-user-select:none;user-select:none}
 #mvOv .stu-bot{display:flex;flex-direction:row;gap:9px;padding:9px 14px calc(8px + env(safe-area-inset-bottom,0px));
   margin:0;background:none;border:0;border-radius:0}
 #mvOv .stu-bot .stu-b{flex:1 1 0;height:48px;border-radius:16px;background:#111C30;
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
   border:1px solid rgba(224,163,62,.14);color:#F5F7FA;font:600 14px system-ui;
   display:flex;align-items:center;justify-content:center;gap:7px}
 #mvOv .stu-bot .stu-b i{font-style:normal;font-size:14px;color:var(--sGold,#E0A33E)}
@@ -1997,7 +2002,7 @@ body.dragging-on{-webkit-user-select:none;user-select:none}
 @media (max-height:800px){
   #mvOv .mv-fiche .mvf{padding:6px 6px 5px}
   #mvOv .mv-fiche .mvf b{font-size:12px}
-  #mvOv .stu-strip{--ch:calc((100vw - 134px)/4*1.2)}
+  #mvOv .stu-strip{--ch:58px}
   #mvOv .stu-bot .stu-b,#mvOv .stu-bot .stu-main{height:46px}
   #mvOv .stu-mus{height:46px}
 }
@@ -2015,7 +2020,7 @@ body.dragging-on{-webkit-user-select:none;user-select:none}
   #mvOv .stu-ruler,#mvOv .stu-ruler canvas{height:18px}
   #mvOv .stu-rph{top:6px}
   #mvOv .stu-chap{height:23px}
-  #mvOv .stu-strip{--ch:calc((100vw - 134px)/4*1.12)}
+  #mvOv .stu-strip{--ch:52px}
   #mvOv .stu-mus{height:44px;margin-top:6px}
   #mvOv .stu-mus canvas{height:28px}
   #mvOv .stu-bot{padding-top:7px}
@@ -2030,7 +2035,7 @@ body.dragging-on{-webkit-user-select:none;user-select:none}
   #mvOv .stu-ck{font-size:10.5px}
   #mvOv .stu-ck i{flex:0 0 13px;width:13px;height:13px;line-height:11px;font-size:8px}
   #mvOv .stu-dir-f{margin-top:6px}
-  #mvOv .stu-strip{--ch:calc((100vw - 134px)/4*1)}
+  #mvOv .stu-strip{--ch:46px}
   #mvOv .stu-mus{height:42px}
   #mvOv .stu-bot .stu-b,#mvOv .stu-bot .stu-main{height:42px}
 }
@@ -6463,7 +6468,7 @@ function openMontage(tr,version,autoplay){ tr=tr||souvTrip(); if(!tr) return; _m
     <div id="mvStudio" class="stu" style="display:none">
       <div class="stu-top">
         <button class="stu-back" id="stuBack" aria-label="Retour">\u2039</button>
-        <div class="stu-ttl"><b>Studio Magot<i>\u2727</i></b><span>Montage vid\u00e9o \u00b7 v403</span></div>
+        <div class="stu-ttl"><b>Studio Magot<i>\u2727</i></b><span>Montage vid\u00e9o \u00b7 v404</span></div>
         <button class="stu-ico" id="stuUndo" title="Annuler">\u21b6</button>
         <button class="stu-ico" id="stuRedo" title="R\u00e9tablir">\u21b7</button>
         <button class="stu-exp" id="mvSave"><i>\u2b06</i>Exporter</button>
@@ -6475,7 +6480,6 @@ function openMontage(tr,version,autoplay){ tr=tr||souvTrip(); if(!tr) return; _m
           <button class="stu-tool" data-tool="style"><i>\u25d0</i><span>Style</span></button>
           <button class="stu-tool" data-tool="music"><i>\u266b</i><span>Musique</span></button>
           <button class="stu-tool" data-tool="fx"><i>\u2726</i><span>Effets</span></button>
-          <button class="stu-tool" data-tool="ia"><i>\u2687</i><span>R\u00e9alisateur IA</span></button>
         </div>
 
         <div class="stu-stagewrap"><div id="mvStage" class="mv-stage"><canvas id="mvCanvas" width="1080" height="1920"></canvas>
@@ -6649,7 +6653,6 @@ function openMontage(tr,version,autoplay){ tr=tr||souvTrip(); if(!tr) return; _m
       ["Overlays vid\u00e9o","Grain, lumi\u00e8res, textures pos\u00e9es sur l'image",()=>openOverlaySheet(tr)]]);
     else if(k==="music") pickMusic();
     else if(k==="fx") fxSheet();
-    else if(k==="ia") openDirDetail();
     else stuSheet(k); });
   ov.querySelectorAll("[data-sfmt]").forEach(b=>b.onclick=()=>{ _mvState.fmt=b.dataset.sfmt; filmProjSave(tr); fmtsPaint();
     if(_mvState.segs && _mvState.segs.length && _mvState.audio){ mvStudioApply(tr,"format"); toast("Format "+({v:"9:16",c:"1:1",h:"16:9"}[b.dataset.sfmt])); }
@@ -7748,7 +7751,10 @@ function mvPickMusicByMood(mood){
   return choice || musicDefault() || lib[0];
 }
 async function mvAutoFidele(tr,ov,version,rb){
-  if(rb){ rb.disabled=true; rb.textContent="Fid\u00e8le pr\u00e9pare le film\u2026"; }
+  /* On garde le libelle d'origine du bouton appelant : la barre du bas affiche
+     "IA", une feuille affiche une phrase. Chacun retrouve le sien a la fin. */
+  if(rb){ rb.disabled=true; if(rb._lbl==null) rb._lbl=rb.innerHTML;
+    rb.textContent=(rb.id==="mvIA")?"Fid\u00e8le\u2026":"Fid\u00e8le pr\u00e9pare le film\u2026"; }
   let nCh=0;
   try{
     mvApplyDirector(tr);                                   /* style, ambiance et rythme d'après tes lieux réels */
@@ -7760,7 +7766,9 @@ async function mvAutoFidele(tr,ov,version,rb){
     try{ const story=await souvStory(tr); if(story){ tr.souvStory=story; saveState(); } }catch(e){}   /* une phrase par lieu */
     filmProjSave(tr);
   }catch(e){}
-  if(rb){ rb.disabled=false; rb.textContent=(tr&&tr.filmPlan)?"\u2728 Recomposer avec Fid\u00e8le":"\u2728 Montage automatique (Fid\u00e8le)"; }
+  if(rb){ rb.disabled=false;
+    if(rb._lbl!=null){ rb.innerHTML=rb._lbl; rb._lbl=null; }
+    else rb.textContent=(tr&&tr.filmPlan)?"\u2728 Recomposer avec Fid\u00e8le":"\u2728 Montage automatique (Fid\u00e8le)"; }
   const go=ov.querySelector("#mvGo");
   if(go){ toast("Fid\u00e8le compose le film"+(nCh?(" \u00b7 "+nCh+" chapitre"+(nCh>1?"s":"")):"")+(visionOn()?" \u00b7 photos analys\u00e9es":"")+" \u00b7 effets vari\u00e9s"); try{ go.click(); }catch(e){} }
   else toast("Choisis d'abord une musique.");
