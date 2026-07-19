@@ -1904,6 +1904,11 @@ body.dragging-on{-webkit-user-select:none;user-select:none}
   will-change:transform;transform:translate3d(0,0,0)}
 #mvOv .stu-wave{height:46px;padding:2px 0 0}
 #mvOv .stu-wave canvas{display:block;height:44px}
+/* La partie jou\u00e9e est la m\u00eame onde, en or, r\u00e9v\u00e9l\u00e9e par une fen\u00eatre qui
+   s'\u00e9largit. Une seule \u00e9criture de largeur par image : rien n'est redessin\u00e9. */
+#mvOv .wv-wrap{position:relative}
+#mvOv .wv-on{position:absolute;left:0;top:0;bottom:0;width:0;overflow:hidden;pointer-events:none}
+#mvOv .wv-on canvas{position:absolute;left:0;top:0}
 #mvOv .stu-ruler{height:20px;margin:0}
 #mvOv #stuLaneR{height:auto}
 #mvOv .stu-ruler canvas{height:20px;display:block;transform:none!important}
@@ -6457,7 +6462,7 @@ function openMontage(tr,version,autoplay){ tr=tr||souvTrip(); if(!tr) return; _m
     <div id="mvStudio" class="stu" style="display:none">
       <div class="stu-top">
         <button class="stu-back" id="stuBack" aria-label="Retour">\u2039</button>
-        <div class="stu-ttl"><b>Studio Magot<i>\u2727</i></b><span>Montage vid\u00e9o \u00b7 v400</span></div>
+        <div class="stu-ttl"><b>Studio Magot<i>\u2727</i></b><span>Montage vid\u00e9o \u00b7 v401</span></div>
         <button class="stu-ico" id="stuUndo" title="Annuler">\u21b6</button>
         <button class="stu-ico" id="stuRedo" title="R\u00e9tablir">\u21b7</button>
         <button class="stu-exp" id="mvSave"><i>\u2b06</i>Exporter</button>
@@ -6508,7 +6513,7 @@ function openMontage(tr,version,autoplay){ tr=tr||souvTrip(); if(!tr) return; _m
           <span class="stu-mus-c">\u02c5</span>
           <button class="stu-mus-x" id="stuMusSync" type="button" aria-label="Recaler la musique">\u2AF6|\u2AF6</button>
         </div>
-        <div class="stu-lane stu-wave" id="stuWaveLane"><div class="stu-in" id="stuWaveIn"><canvas id="stuWave" height="46"></canvas></div></div>
+        <div class="stu-lane stu-wave" id="stuWaveLane"><div class="stu-in" id="stuWaveIn"><div class="wv-wrap"><canvas id="stuWave" height="46"></canvas><div class="wv-on" id="stuWaveOn"><canvas id="stuWaveG" height="46"></canvas></div></div></div></div>
         <div class="stu-rph" id="stuRph"></div>
         <div class="stu-ph" id="stuPh"></div>
       </div>
@@ -6573,7 +6578,8 @@ function openMontage(tr,version,autoplay){ tr=tr||souvTrip(); if(!tr) return; _m
       `<button class="stu-add" id="stuAdd" title="Ajouter une photo" aria-label="Ajouter une photo"><i>\uff0b</i><span>Ajouter</span></button>`;
     hydratePhotos(el);
     try{ mvGeoInvalidate(); mvLanesBind(); }catch(e){}
-    _mvState._panX=0; _mvState._phX=null; _mvState._chapK=null; _mvState._tcSec=null; _mvState._phGeo=null;
+    _mvState._panX=0; _mvState._phX=null; _mvState._chapK=null; _mvState._tcSec=null;
+    _mvState._phGeo=null; _mvState._waveFill=null;
     try{ requestAnimationFrame(()=>{ mvRulerPaint(); mvChapsPaint(); wavePaint();
       mvGeoInvalidate(); mvGeoMeasure(); mvPanSet(0,true); mvSeekUpdate(); }); }catch(e){}
     el.querySelectorAll("[data-cmenu]").forEach(b=>b.onclick=(e)=>{ e.stopPropagation(); openShots(tr); });
@@ -6589,21 +6595,30 @@ function openMontage(tr,version,autoplay){ tr=tr||souvTrip(); if(!tr) return; _m
      qui traverse d\u00e9sormais les quatre pistes. */
   const wavePaint=()=>{
     const c=ov.querySelector("#stuWave"); if(!c) return;
+    const cg=ov.querySelector("#stuWaveG");
     const S=mvScale(), total=S.total;
     const w=Math.max(60,Math.round(total*S.pps)), H=44;
     const dpr=Math.min(2,window.devicePixelRatio||1);
-    c.style.width=w+"px"; c.style.height=H+"px";
-    if(c.width!==Math.round(w*dpr)||c.height!==Math.round(H*dpr)){ c.width=Math.round(w*dpr); c.height=Math.round(H*dpr); }
-    const g2=c.getContext("2d"); if(!g2) return;
-    g2.setTransform(dpr,0,0,dpr,0,0); g2.clearRect(0,0,w,H);
     const E=_mvState.energy||[];
     const pas=3, nb=Math.max(1,Math.floor(w/pas));
-    g2.fillStyle="rgba(155,175,210,.5)";
-    for(let i=0;i<nb;i++){
-      const e=E.length?E[Math.floor(i/nb*E.length)]:0.4;
-      const hh=Math.max(3, e*H*0.86);
-      g2.fillRect(i*pas,(H-hh)/2,2,hh);
-    }
+    const dessine=(cv,couleur)=>{
+      if(!cv) return;
+      cv.style.width=w+"px"; cv.style.height=H+"px";
+      if(cv.width!==Math.round(w*dpr)||cv.height!==Math.round(H*dpr)){ cv.width=Math.round(w*dpr); cv.height=Math.round(H*dpr); }
+      const g2=cv.getContext("2d"); if(!g2) return;
+      g2.setTransform(dpr,0,0,dpr,0,0); g2.clearRect(0,0,w,H);
+      g2.fillStyle=couleur;
+      for(let i=0;i<nb;i++){
+        const e=E.length?E[Math.floor(i/nb*E.length)]:0.4;
+        const hh=Math.max(3, e*H*0.86);
+        g2.fillRect(i*pas,(H-hh)/2,2,hh);
+      }
+    };
+    dessine(c,"rgba(150,170,205,.42)");          /* ce qui reste \u00e0 venir */
+    dessine(cg,"var(--sGold,#E0A33E)"==="x"?"#E0A33E":"#E0A33E");  /* ce qui est jou\u00e9 */
+    const wrap=ov.querySelector(".wv-wrap"); if(wrap){ wrap.style.width=w+"px"; wrap.style.height=H+"px"; }
+    _mvState._waveW=w;
+    try{ mvWaveFill(); }catch(e){}
   };
   _mvState._wavePaint=wavePaint;
   _mvState._paint=()=>{ wavePaint();
@@ -7489,6 +7504,19 @@ function mvPanSet(x,force){
   mvLanes().forEach(el=>{ el.style.transform=t; });
 }
 function mvPanX(){ return _mvState._panX||0; }
+/* La piste musicale se remplit exactement au rythme de la t\u00eate de lecture :
+   m\u00eame instant, m\u00eame \u00e9chelle, donc jamais de d\u00e9calage entre les deux. */
+function mvWaveFill(){
+  const on=document.getElementById("stuWaveOn"); if(!on) return;
+  const A=_mvState.audio;
+  const total=Math.max(0.1,_mvState.total||_mvState.dur||60);
+  const cur=Math.max(0,Math.min(total,(A&&A.currentTime)||0));
+  const pps=_mvState._pps||0;
+  const w=Math.round(cur*pps);
+  if(w===_mvState._waveFill) return;
+  _mvState._waveFill=w;
+  on.style.width=w+"px";
+}
 /* Geste : on fait glisser la ligne de temps au doigt, les quatre pistes
    bougent ensemble puisqu'elles n'ont qu'une seule origine. */
 function mvPanBind(){
@@ -7553,6 +7581,7 @@ function mvSeekUpdate(){
     if(ph){ ph.style.left=x+"px"; ph.style.opacity=(vis && x>=8 && x<=G.W-2)?"1":"0";
       if(_mvState._phGeo!==G){ _mvState._phGeo=G; ph.style.top=G.top+"px"; ph.style.height=G.h+"px"; } }
   }
+  try{ mvWaveFill(); }catch(e){}
   try{ mvChapsActive(); }catch(e){}
   const sec=Math.floor(cur);
   if(sec!==_mvState._tcSec){ _mvState._tcSec=sec;
