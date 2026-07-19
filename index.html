@@ -6457,7 +6457,7 @@ function openMontage(tr,version,autoplay){ tr=tr||souvTrip(); if(!tr) return; _m
     <div id="mvStudio" class="stu" style="display:none">
       <div class="stu-top">
         <button class="stu-back" id="stuBack" aria-label="Retour">\u2039</button>
-        <div class="stu-ttl"><b>Studio Magot<i>\u2727</i></b><span>Montage vid\u00e9o \u00b7 v399</span></div>
+        <div class="stu-ttl"><b>Studio Magot<i>\u2727</i></b><span>Montage vid\u00e9o \u00b7 v400</span></div>
         <button class="stu-ico" id="stuUndo" title="Annuler">\u21b6</button>
         <button class="stu-ico" id="stuRedo" title="R\u00e9tablir">\u21b7</button>
         <button class="stu-exp" id="mvSave"><i>\u2b06</i>Exporter</button>
@@ -7436,13 +7436,18 @@ function segsExist(){ return !!((_mvState.segs||[]).length); }
    nombre de pixels par seconde et la meme marge de d\u00e9part. Un instant donn\u00e9
    tombe donc sur la meme verticale sur les quatre, et elles d\u00e9filent ensemble. */
 function mvScale(){
-  const lane=document.getElementById("stuStrip");
-  const W=Math.max(140,((lane&&lane.clientWidth)||360)-28);
+  /* On mesure la FENETRE, jamais le contenu : mesurer le contenu ferait grandir
+     l'echelle a chaque passage, donc le contenu, donc l'echelle... */
+  const win=document.getElementById("stuLaneS")||document.querySelector("#mvStudio .stu-tl");
+  let W=(win&&win.clientWidth)||0;
+  if(W<160) W=(window.innerWidth||393);
+  W=Math.max(140, W-28);
   const total=Math.max(0.5,_mvState.total||_mvState.dur||60);
   const segs=_mvState.segs||[];
   const moy=Math.max(0.6, total/Math.max(1,segs.length));
   let pps=W/(4*moy);                 /* quatre plans visibles \u00e0 la fois */
   if(pps*total<W) pps=W/total;       /* film court : tout tient, rien ne d\u00e9file */
+  pps=Math.max(2,Math.min(400,pps)); /* garde-fou : jamais d'echelle aberrante */
   _mvState._pps=pps; _mvState._laneW=W;
   return {pps:pps,W:W,total:total};
 }
