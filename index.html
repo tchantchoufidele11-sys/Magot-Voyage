@@ -2006,6 +2006,13 @@ body.dragging-on{-webkit-user-select:none;user-select:none}
    qu'il y a une suite a faire glisser. */
 #mvOv .mv-fiche{-webkit-mask-image:linear-gradient(90deg,#000 0,#000 calc(100% - 34px),transparent 100%);
   mask-image:linear-gradient(90deg,#000 0,#000 calc(100% - 34px),transparent 100%)}
+/* Separation entre l'apercu et le banc de montage. Le filet est pose sur le
+   conteneur du milieu, pas sur la ligne de metadonnees : celle-ci porte un
+   masque de fondu horizontal qui rognerait aussi le trait. */
+#mvOv.cine .stu-mid{position:relative}
+#mvOv.cine .stu-mid::after{content:"";position:absolute;left:var(--stuPad);right:var(--stuPad);bottom:0;height:1px;
+  background:rgba(255,255,255,.13);pointer-events:none}
+#mvOv.cine .mv-fiche{padding-top:calc(var(--stuGap) * 1.15)}
 /* Ces valeurs ne se touchent pas : ce sont des metadonnees, pas des boutons.
    Pas de cadre, pas de fond, une seule ligne. */
 #mvOv .mv-fiche .mvf{flex:0 0 auto;min-width:0;display:flex;flex-direction:row;align-items:baseline;
@@ -6719,7 +6726,7 @@ function openMontage(tr,version,autoplay){ tr=tr||souvTrip(); if(!tr) return; _m
     <div id="mvStudio" class="stu" style="display:none">
       <div class="stu-top">
         <button class="stu-back" id="stuBack" aria-label="Retour">\u2039</button>
-        <div class="stu-ttl"><b>Studio Magot<i>\u2727</i></b><span>Montage vid\u00e9o \u00b7 v431</span></div>
+        <div class="stu-ttl"><b>Studio Magot<i>\u2727</i></b><span>Montage vid\u00e9o \u00b7 v432</span></div>
         <button class="stu-ico" id="stuUndo" title="Annuler">\u21b6</button>
         <button class="stu-ico" id="stuRedo" title="R\u00e9tablir">\u21b7</button>
         <button class="stu-exp" id="mvSave"><i>\u2b06</i>Exporter</button>
