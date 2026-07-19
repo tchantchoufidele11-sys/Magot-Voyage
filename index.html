@@ -1581,8 +1581,6 @@ body.dragging-on{-webkit-user-select:none;user-select:none}
 /* Prévisualisation : l'élément prioritaire, ~48 % de la hauteur */
 #mvOv .mv-stage{min-height:52vh;border-radius:11px;background:#050C17}
 #mvOv canvas#mvCanvas{border-radius:11px}
-#mvOv.cine .mv-stage>canvas,#mvOv.cine .mv-stage>video,#mvOv.cine .mv-stage>img{
-  max-width:100%;max-height:100%;width:auto;height:auto;object-fit:contain}
 /* Barres d'outils latérales */
 /* Largeur mesurée sur le texte le plus long ("Transitions"), pas convertie
    mécaniquement : à 39 pt tous les libellés étaient tronqués. */
@@ -1817,9 +1815,14 @@ body.dragging-on{-webkit-user-select:none;user-select:none}
 #mvOv .stu-tool.on i{filter:none}
 #mvOv .stu-tool.on::before{content:"";position:absolute;left:0;top:12px;bottom:12px;width:3px;
   border-radius:0 3px 3px 0;background:var(--sGold,#E0A33E)}
-#mvOv.cine .mv-stage{flex:1 1 0;min-width:0;min-height:0;height:100%;max-height:100%;
-  align-self:stretch;position:relative;border-radius:14px;overflow:hidden;background:#000;
+#mvOv .stu-stagewrap{flex:1 1 0;min-width:0;min-height:0;align-self:stretch;
   display:flex;align-items:center;justify-content:center}
+#mvOv.cine .mv-stage{flex:0 1 auto;width:auto;max-width:100%;min-width:0;min-height:0;
+  height:100%;max-height:100%;position:relative;border-radius:14px;overflow:hidden;
+  background:transparent;display:flex;align-items:center;justify-content:center}
+/* L'image donne sa taille au cadre : aucune marge noire a gauche ni a droite. */
+#mvOv.cine .mv-stage>canvas,#mvOv.cine .mv-stage>video,#mvOv.cine .mv-stage>img{
+  display:block;height:100%;width:auto;max-width:100%;max-height:100%;object-fit:contain;background:transparent}
 #mvOv .stu-right{width:56px;flex:0 0 56px;align-self:stretch;display:flex;flex-direction:column;
   align-items:center;justify-content:flex-start;gap:2.2%;overflow:hidden}
 #mvOv .stu-right::-webkit-scrollbar{display:none}
@@ -1949,7 +1952,8 @@ body.dragging-on{-webkit-user-select:none;user-select:none}
 #mvOv.stufull .stu-top,#mvOv.stufull .stu-tools,#mvOv.stufull .stu-right,#mvOv.stufull .mv-fiche,
 #mvOv.stufull .stu-dir,#mvOv.stufull .stu-tl,#mvOv.stufull .stu-mus,#mvOv.stufull .stu-bot{display:none!important}
 #mvOv.stufull .stu-mid{padding:0;gap:0}
-#mvOv.stufull.cine .mv-stage{border-radius:0;min-height:100dvh}
+#mvOv.stufull .stu-stagewrap{flex:1 1 auto}
+#mvOv.stufull.cine .mv-stage{border-radius:0;min-height:100dvh;max-width:100%;background:#000}
 #mvOv.stufull .stu-exit{display:inline-flex}
 
 /* ---------- 10. Ecrans courts : on comprime, jamais de defilement ---------- */
@@ -6423,7 +6427,7 @@ function openMontage(tr,version,autoplay){ tr=tr||souvTrip(); if(!tr) return; _m
     <div id="mvStudio" class="stu" style="display:none">
       <div class="stu-top">
         <button class="stu-back" id="stuBack" aria-label="Retour">\u2039</button>
-        <div class="stu-ttl"><b>Studio Magot<i>\u2727</i></b><span>Montage vid\u00e9o \u00b7 v394</span></div>
+        <div class="stu-ttl"><b>Studio Magot<i>\u2727</i></b><span>Montage vid\u00e9o \u00b7 v395</span></div>
         <button class="stu-ico" id="stuUndo" title="Annuler">\u21b6</button>
         <button class="stu-ico" id="stuRedo" title="R\u00e9tablir">\u21b7</button>
         <button class="stu-exp" id="mvSave"><i>\u2b06</i>Exporter</button>
@@ -6438,7 +6442,7 @@ function openMontage(tr,version,autoplay){ tr=tr||souvTrip(); if(!tr) return; _m
           <button class="stu-tool" data-tool="ia"><i>\u2687</i><span>R\u00e9alisateur IA</span></button>
         </div>
 
-        <div id="mvStage" class="mv-stage"><canvas id="mvCanvas" width="1080" height="1920"></canvas>
+        <div class="stu-stagewrap"><div id="mvStage" class="mv-stage"><canvas id="mvCanvas" width="1080" height="1920"></canvas>
           <div class="stu-play" id="stuPlayBar">
             <button class="stu-pp" id="stuPP" type="button" aria-label="Lecture">\u25b6</button>
             <span class="stu-tc" id="stuTcA">00:00</span><span class="stu-tcx">/</span><span class="stu-tc" id="stuTcB">00:00</span>
@@ -6446,7 +6450,7 @@ function openMontage(tr,version,autoplay){ tr=tr||souvTrip(); if(!tr) return; _m
             <button class="stu-pic" id="stuFull" type="button" aria-label="Plein \u00e9cran">\u26f6</button>
             <button class="stu-pic" id="stuGear" type="button" aria-label="R\u00e9glages de lecture">\u2699</button>
           </div>
-        </div>
+        </div></div>
 
         <div class="stu-right">
           <div class="stu-flab">FORMAT</div>
