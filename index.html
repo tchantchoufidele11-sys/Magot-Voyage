@@ -1529,7 +1529,7 @@ body.dragging-on{-webkit-user-select:none;user-select:none}
 .stu-seek-f{position:absolute;left:0;height:4px;border-radius:3px;background:var(--gold,#E0A33E);width:0}
 .stu-seek-h{position:absolute;width:13px;height:13px;border-radius:50%;background:#fff;box-shadow:0 1px 4px rgba(0,0,0,.5);left:0;transform:translateX(-6px)}
 #mvOv.stufull .stu-play{display:flex!important;position:fixed;left:0;right:0;bottom:calc(10px + env(safe-area-inset-bottom,0px));z-index:60;background:linear-gradient(180deg,rgba(0,0,0,0),rgba(0,0,0,.55));padding:14px 16px 10px}
-#mvOv.cine .mv-stage{min-height:52dvh}
+#mvOv.cine .mv-stage{min-height:0}
 .stu-strip{flex:0 0 auto;display:flex;gap:6px;align-items:flex-start;overflow-x:auto;padding:0 10px 6px;-webkit-overflow-scrolling:touch}
 .stu-add{flex:0 0 auto;width:64px;height:82px;border-radius:12px;background:#101B2E;border:1px dashed #2A3B58;color:#8FA1BC;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;cursor:pointer}
 .stu-add i{font-style:normal;font-size:clamp(16.2px,4.615vw,21.2px)}
@@ -1829,7 +1829,7 @@ body.dragging-on{-webkit-user-select:none;user-select:none}
 /* ---------- 2. Rangee centrale : rail / apercu / formats ---------- */
 /* Une image 9:16 tire sa largeur de sa hauteur : pour l'agrandir il faut lui
    donner de la hauteur, et lui rendre les marges laterales. */
-#mvOv .stu-mid{flex:1 1 auto;min-height:clamp(150px,42dvh,460px);display:flex;align-items:stretch;
+#mvOv .stu-mid{flex:1 1 0;min-height:clamp(120px,20dvh,200px);max-height:47dvh;display:flex;align-items:stretch;
   gap:clamp(4px,1.4vw,9px);padding:2px calc(var(--stuPad) - 2px) 0 calc(var(--stuPad) + 1px);overflow:hidden}
 #mvOv .stu-tools{width:var(--stuRail);flex:0 0 var(--stuRail);background:#101B2E;border-radius:14px;padding:6px 0;
   display:flex;flex-direction:column;justify-content:space-between;gap:2px;overflow:hidden}
@@ -2050,7 +2050,7 @@ body.dragging-on{-webkit-user-select:none;user-select:none}
 #mvOv .stu-mus-x{flex:0 0 auto;border:0;background:none;color:#EAF0FA;font-size:clamp(12.2px,3.333vw,14.6px);padding:0 0 0 6px;cursor:pointer}
 
 /* ---------- 8. Commandes du bas ---------- */
-#mvOv .stu-bot{display:flex;flex-direction:row;gap:8px;
+#mvOv .stu-bot{display:flex;flex-direction:row;gap:8px;margin-top:auto;
   padding:8px var(--stuPad) max(7px, env(safe-area-inset-bottom,0px));
   margin:0;background:none;border:0;border-radius:0}
 #mvOv .stu-bot .stu-b{flex:1 1 0;height:var(--stuBtn);border-radius:16px;background:#111C30;
@@ -6609,7 +6609,7 @@ function openMontage(tr,version,autoplay){ tr=tr||souvTrip(); if(!tr) return; _m
     <div id="mvStudio" class="stu" style="display:none">
       <div class="stu-top">
         <button class="stu-back" id="stuBack" aria-label="Retour">\u2039</button>
-        <div class="stu-ttl"><b>Studio Magot<i>\u2727</i></b><span>Montage vid\u00e9o \u00b7 v417</span></div>
+        <div class="stu-ttl"><b>Studio Magot<i>\u2727</i></b><span>Montage vid\u00e9o \u00b7 v418</span></div>
         <button class="stu-ico" id="stuUndo" title="Annuler">\u21b6</button>
         <button class="stu-ico" id="stuRedo" title="R\u00e9tablir">\u21b7</button>
         <button class="stu-exp" id="mvSave"><i>\u2b06</i>Exporter</button>
