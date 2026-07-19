@@ -972,8 +972,35 @@ body.dragging-on{-webkit-user-select:none;user-select:none}
 .auth-msg.err{background:rgba(220,38,38,.1);color:var(--danger)}
 .auth-msg.ok{background:rgba(22,163,74,.1);color:#16a34a}
 .auth-user{display:flex;align-items:center;gap:8px;font:600 13px "Inter",sans-serif;font-size:clamp(12.2px,3.333vw,13px);color:var(--ink-2)}
-.souv-card{margin:4px 0 16px;padding:14px;border-radius:16px;background:linear-gradient(135deg,var(--gold-soft),var(--surface-2));border:1px solid var(--gold)}
-.souv-h{font:700 14px "Inter",sans-serif;font-size:clamp(13.2px,3.59vw,14px);color:var(--ink);margin-bottom:8px}
+.souv-card{margin:4px 0 16px;padding:clamp(14px,4vw,18px);border-radius:var(--r,20px);
+  background:var(--surface,#fff);border:1px solid var(--line-soft,#EEF1F7);
+  border-left:3px solid var(--gold,#E0A33E);box-shadow:var(--shadow-sm)}
+/* En-tete : icone SVG en pastille doree, comme toutes les autres cartes. */
+.souv-h{display:flex;align-items:center;gap:10px;margin-bottom:12px;
+  font:700 14px "Inter",sans-serif;font-size:clamp(13.2px,3.59vw,14px);color:var(--ink)}
+.souv-h .souv-ic{flex:0 0 auto;width:clamp(32px,8.7vw,36px);height:clamp(32px,8.7vw,36px);border-radius:11px;
+  display:flex;align-items:center;justify-content:center;
+  background:var(--gold-soft,#FBF3E4);color:var(--gold-d,#C2872A)}
+.souv-h .souv-ic svg{width:19px;height:19px;fill:none;stroke:currentColor;stroke-width:1.7;
+  stroke-linecap:round;stroke-linejoin:round}
+/* Le titre du recit est un titre, pas une premiere ligne de paragraphe. */
+.souv-t{font-family:var(--font-serif,Georgia,serif);font-weight:700;line-height:1.25;
+  font-size:clamp(17px,4.9vw,20px);color:var(--ink);margin:0 0 9px}
+.jr-h2{font-family:var(--font-serif,Georgia,serif);font-weight:700;color:var(--ink);
+  font-size:clamp(18px,5.1vw,21px);margin:18px 0 10px}
+.jr-day{background:var(--surface,#fff);border:1px solid var(--line-soft,#EEF1F7);
+  border-radius:var(--r,20px);box-shadow:var(--shadow-sm);padding:clamp(13px,3.6vw,16px);margin-bottom:12px}
+.jr-steps{list-style:none;margin:10px 0 0;padding:0}
+.jr-steps li{display:flex;gap:11px;padding:7px 0;border-top:1px solid var(--line-soft,#EEF1F7)}
+.jr-steps li:first-child{border-top:0}
+.jr-h{flex:0 0 auto;min-width:42px;font:700 12.5px "Inter",sans-serif;
+  font-size:clamp(11.8px,3.2vw,12.5px);color:var(--gold-d,#C2872A);padding-top:1px}
+.jr-b{display:flex;flex-direction:column;gap:2px;min-width:0}
+.jr-t{font:600 14px "Inter",sans-serif;font-size:clamp(13.2px,3.59vw,14px);color:var(--ink)}
+.jr-n{font:400 13px "Inter",sans-serif;font-size:clamp(12.3px,3.33vw,13px);color:var(--muted);line-height:1.45}
+.jr-ph{margin-top:11px}
+.souv-src{margin-top:11px;padding-top:9px;border-top:1px solid var(--line-soft,#EEF1F7);
+  font:500 11.5px "Inter",sans-serif;font-size:clamp(11px,3vw,11.5px);color:var(--muted);line-height:1.4}
 .souv-hint{font:500 12.5px "Inter",sans-serif;font-size:clamp(11.8px,3.205vw,12.5px);color:var(--muted);line-height:1.45}
 .souv-body{font:500 14px "Inter",sans-serif;font-size:clamp(13.2px,3.59vw,14px);color:var(--ink-2);line-height:1.55;white-space:pre-wrap}
 .prefs-intro{font:500 13px "Inter",sans-serif;font-size:clamp(12.2px,3.333vw,13px);color:var(--muted);line-height:1.5;margin-bottom:16px}
@@ -1178,6 +1205,8 @@ body.dragging-on{-webkit-user-select:none;user-select:none}
 #mvOv.cine .cal-x{color:#fff}
 #mvOv.cine .souvmap-foot{background:#000;border-top:0;gap:8px}
 #mvOv.cine .btn.ghostline2{background:rgba(255,255,255,.10);color:#fff;border-color:rgba(255,255,255,.22)}
+.souv-card .btn.ghostline2{background:transparent;color:var(--ink);border:1px solid var(--line)}
+[data-theme="dark"] .souv-card .btn.ghostline2{color:#fff;border-color:rgba(255,255,255,.26);background:rgba(255,255,255,.05)}
 .ph-missing{background:#F1F3F8 !important;position:relative}
 .ph-missing::after{content:"\26A0 photo introuvable";position:absolute;inset:0;display:flex;align-items:center;justify-content:center;color:#94A0B8;font:600 11px system-ui;font-size:clamp(10.3px,2.821vw,11px);text-align:center;padding:6px}
 
@@ -6689,7 +6718,7 @@ function openMontage(tr,version,autoplay){ tr=tr||souvTrip(); if(!tr) return; _m
     <div id="mvStudio" class="stu" style="display:none">
       <div class="stu-top">
         <button class="stu-back" id="stuBack" aria-label="Retour">\u2039</button>
-        <div class="stu-ttl"><b>Studio Magot<i>\u2727</i></b><span>Montage vid\u00e9o \u00b7 v429</span></div>
+        <div class="stu-ttl"><b>Studio Magot<i>\u2727</i></b><span>Montage vid\u00e9o \u00b7 v430</span></div>
         <button class="stu-ico" id="stuUndo" title="Annuler">\u21b6</button>
         <button class="stu-ico" id="stuRedo" title="R\u00e9tablir">\u21b7</button>
         <button class="stu-exp" id="mvSave"><i>\u2b06</i>Exporter</button>
@@ -9504,31 +9533,104 @@ function renderMemChips(){ const el=document.getElementById("memChips"); if(!el)
   el.innerHTML=F.map(([k,lab])=>`<button class="chip ${souvState.filter===k?'on':''}" data-mf="${k}">${svT(lab)}</button>`).join("");
   el.querySelectorAll("[data-mf]").forEach(b=>b.onclick=()=>{ souvState.filter=b.dataset.mf; renderMemories(); }); }
 const SOUV_I18N={
-  fr:{ title:"Carnet de l'agent", gen:"Générer le résumé du voyage", regen:"Régénérer", generating:"L'agent écrit ton carnet…", hint:"Un titre et un résumé de ton voyage, écrits à partir de tes vrais lieux." },
-  en:{ title:"Agent's journal", gen:"Generate trip summary", regen:"Regenerate", generating:"The agent is writing your journal…", hint:"A title and summary of your trip, written from your real places." },
-  es:{ title:"Cuaderno del agente", gen:"Generar resumen del viaje", regen:"Regenerar", generating:"El agente escribe tu cuaderno…", hint:"Un título y un resumen de tu viaje, a partir de tus lugares reales." },
-  it:{ title:"Diario dell'agente", gen:"Genera riepilogo del viaggio", regen:"Rigenera", generating:"L'agente scrive il tuo diario…", hint:"Un titolo e un riassunto del viaggio, dai tuoi luoghi reali." },
-  de:{ title:"Reisetagebuch", gen:"Reisezusammenfassung erstellen", regen:"Neu erstellen", generating:"Der Begleiter schreibt dein Tagebuch…", hint:"Ein Titel und eine Zusammenfassung deiner Reise, aus deinen echten Orten." }
+  fr:{ title:"Carnet de l'agent", gen:"Générer le résumé du voyage", regen:"Régénérer", generating:"L'agent écrit ton carnet…", hint:"Un titre et un résumé de ton voyage, écrits à partir de tes vrais lieux." , jTitle:"Ton journal", jEmpty:"Rien d'écrit pour ce voyage. Les étapes, tes notes et tes photos apparaîtront ici, jour par jour." },
+  en:{ title:"Agent's journal", gen:"Generate trip summary", regen:"Regenerate", generating:"The agent is writing your journal…", hint:"A title and summary of your trip, written from your real places." , jTitle:"Your journal", jEmpty:"Nothing written for this trip yet. Stops, notes and photos will appear here, day by day." },
+  es:{ title:"Cuaderno del agente", gen:"Generar resumen del viaje", regen:"Regenerar", generating:"El agente escribe tu cuaderno…", hint:"Un título y un resumen de tu viaje, a partir de tus lugares reales." , jTitle:"Tu diario", jEmpty:"Nada escrito en este viaje. Las paradas, tus notas y tus fotos aparecerán aquí, día a día." },
+  it:{ title:"Diario dell'agente", gen:"Genera riepilogo del viaggio", regen:"Rigenera", generating:"L'agente scrive il tuo diario…", hint:"Un titolo e un riassunto del viaggio, dai tuoi luoghi reali." , jTitle:"Il tuo diario", jEmpty:"Niente scritto per questo viaggio. Tappe, note e foto appariranno qui, giorno per giorno." },
+  de:{ title:"Reisetagebuch", gen:"Reisezusammenfassung erstellen", regen:"Neu erstellen", generating:"Der Begleiter schreibt dein Tagebuch…", hint:"Ein Titel und eine Zusammenfassung deiner Reise, aus deinen echten Orten." , jTitle:"Dein Tagebuch", jEmpty:"Noch nichts geschrieben. Etappen, Notizen und Fotos erscheinen hier, Tag für Tag." }
 };
 function st_(k){ const l=SOUV_I18N[lang()]||SOUV_I18N.fr; return l[k]||SOUV_I18N.fr[k]||k; }
 function tripEnded(tr){ if(!tr||!tr.dateEnd) return false; const d=new Date(tr.dateEnd+"T23:59:59"); return d.getTime()<Date.now(); }
+/* Le journal du voyage : uniquement ce qui a ete reellement enregistre —
+   etapes du planning (jour + heure), notes ecrites, photos datees.
+   Aucune ligne n'est ecrite quand la donnee n'existe pas. */
+function souvJournalHtml(tr){
+  const days=(typeof tripDays==="function")?tripDays(tr):[];
+  const pts=(typeof souvPoints==="function")?souvPoints(tr):[];
+  const mems=(tr.memories||[]);
+  let out="";
+  days.forEach(dd=>{
+    const st=pts.filter(p=>p.day===dd.i);
+    const ph=mems.filter(m=>m.day===dd.i);
+    if(!st.length && !ph.length) return;
+    out+=`<div class="jr-day"><div class="db-h"><span class="db-n">${dd.i+1}</span><div>`
+       + `<div class="db-t">${t("plan.day")} ${dd.i+1}</div>`
+       + (dd.date?`<div class="db-d">${escapeHtml(fmtDayLong(dd.date))}</div>`:``)
+       + `</div></div>`;
+    if(st.length){ out+=`<ul class="jr-steps">`+st.map(p=>
+        `<li><span class="jr-h">${escapeHtml(p.time||"")}</span><span class="jr-b">`
+        + `<span class="jr-t">${escapeHtml(p.title||"")}</span>`
+        + (p.note?`<span class="jr-n">${escapeHtml(String(p.note))}</span>`:``)
+        + `</span></li>`).join("")+`</ul>`; }
+    if(ph.length){ out+=`<div class="photo-grid jr-ph">`+ph.map(phTile).join("")+`</div>`; }
+    out+=`</div>`;
+  });
+  if(!out) return `<div class="souv-card"><div class="souv-hint">${st_("jEmpty")}</div></div>`;
+  return `<div class="jr-h2">${st_("jTitle")}</div>`+out;
+}
 function paintSouvCard(tr){ const el=document.getElementById("souvAgentCard"); if(!el||!tr) return;
   const saved=tr.souvenirText||"";
   if(saved){
-    el.innerHTML=`<div class="souv-card"><div class="souv-h">🧭 ${st_("title")}</div><div class="souv-body">${escapeHtml(saved)}</div><button class="btn ghostline2" id="souvRegen" style="margin-top:10px;width:100%">${st_("regen")}</button></div>`;
+    const _p=souvSplit(saved);
+    el.innerHTML=`<div class="souv-card"><div class="souv-h"><span class="souv-ic"><svg viewBox="0 0 24 24"><path d="M4 5.2A1.7 1.7 0 0 1 5.7 3.5H19v17H5.7A1.7 1.7 0 0 1 4 18.8z"/><path d="M8 3.5v17M11 8h5M11 11.6h5"/></svg></span><span>${st_("title")}</span></div>`
+      +(_p.title?`<div class="souv-t">${escapeHtml(_p.title)}</div>`:``)
+      +`<div class="souv-body">${escapeHtml(_p.body)}</div>`
+      +`<button class="btn ghostline2" id="souvRegen" style="margin-top:12px;width:100%">${st_("regen")}</button>`
+      +`<div class="souv-src">${escapeHtml(souvSourceLine(tr))}</div></div>`;
     const rb=document.getElementById("souvRegen"); if(rb) rb.onclick=()=>generateSouvenir(tr,true);
   } else {
-    el.innerHTML=`<div class="souv-card"><div class="souv-h">🧭 ${st_("title")}</div><div class="souv-hint">${st_("hint")}</div><button class="btn gold" id="souvGen" style="margin-top:10px;width:100%">${st_("gen")}</button></div>`;
+    el.innerHTML=`<div class="souv-card"><div class="souv-h"><span class="souv-ic"><svg viewBox="0 0 24 24"><path d="M4 5.2A1.7 1.7 0 0 1 5.7 3.5H19v17H5.7A1.7 1.7 0 0 1 4 18.8z"/><path d="M8 3.5v17M11 8h5M11 11.6h5"/></svg></span><span>${st_("title")}</span></div><div class="souv-hint">${st_("hint")}</div><button class="btn navy" id="souvGen" style="margin-top:12px;width:100%">${st_("gen")}</button></div>`;
     const gb=document.getElementById("souvGen"); if(gb) gb.onclick=()=>generateSouvenir(tr,false);
   }
 }
+/* Separe le titre (1re ligne) du corps du recit. */
+function souvSplit(txt){ const c=String(txt||"").replace(/\*\*/g,"").replace(/^#+\s*/gm,"").trim();
+  const ls=c.split(/\n/); const first=(ls[0]||"").trim();
+  /* une 1re ligne courte et sans point final = un titre */
+  const isTitle=first.length>0 && first.length<=70 && !/[.!?]$/.test(first) && ls.length>1;
+  return isTitle ? {title:first, body:ls.slice(1).join("\n").trim()} : {title:"", body:c}; }
+
+/* Ligne de provenance : le lecteur doit savoir sur quoi le texte s'appuie. */
+function souvSourceLine(tr){ const L=lang();
+  const pts=(typeof souvPoints==="function")?souvPoints(tr):[];
+  const nL=new Set(pts.map(p=>p.title).filter(Boolean)).size;
+  const nJ=new Set(pts.map(p=>p.day)).size;
+  const nP=((tr.memories||[]).length);
+  const FR=["\u00c9crit \u00e0 partir de","lieu","lieux","journ\u00e9e","journ\u00e9es","photo","photos"];
+  const w={fr:FR,
+           en:["Written from","place","places","day","days","photo","photos"],
+           es:["Escrito a partir de","lugar","lugares","jornada","jornadas","foto","fotos"],
+           it:["Scritto a partire da","luogo","luoghi","giornata","giornate","foto","foto"],
+           de:["Geschrieben aus","Ort","Orten","Tag","Tagen","Foto","Fotos"]}[L];
+  const W=Array.isArray(w)?w:FR;
+  const parts=[];
+  if(nL) parts.push(nL+" "+(nL>1?W[2]:W[1]));
+  if(nJ) parts.push(nJ+" "+(nJ>1?W[4]:W[3]));
+  if(nP) parts.push(nP+" "+(nP>1?W[6]:W[5]));
+  return parts.length? (W[0]+" "+parts.join(" \u00b7 "))+"." : ""; }
+
 async function generateSouvenir(tr,regen){ const el=document.getElementById("souvAgentCard"); if(!el||!tr) return;
-  el.innerHTML=`<div class="souv-card"><div class="souv-h">🧭 ${st_("title")}</div><div class="agent-thinking">${st_("generating")}</div></div>`;
+  el.innerHTML=`<div class="souv-card"><div class="souv-h"><span class="souv-ic"><svg viewBox="0 0 24 24"><path d="M4 5.2A1.7 1.7 0 0 1 5.7 3.5H19v17H5.7A1.7 1.7 0 0 1 4 18.8z"/><path d="M8 3.5v17M11 8h5M11 11.6h5"/></svg></span><span>${st_("title")}</span></div><div class="agent-thinking">${st_("generating")}</div></div>`;
   const places=(tr.places||[]).map(p=>p.name).filter(Boolean).slice(0,10);
   const nDays=tripDays(tr).length, nPhotos=(tr.memories||[]).length;
   const dest=(tr.dest&&(tr.dest.city||tr.dest.label))||tr.name||"";
+  /* Ce qui part au Realisateur : uniquement des faits verifiables du voyage.
+     Etapes reelles (jour + heure + lieu), notes ecrites par le voyageur,
+     legendes de photos. Rien d'autre : pas d'ambiance a broder. */
+  const _pts=(typeof souvPoints==="function")?souvPoints(tr):[];
+  const _etapes=_pts.slice(0,40).map(p=>("J"+(p.day+1)+(p.time?" "+p.time:"")+" \u2014 "+(p.title||"")).trim());
+  const _notes=[];
+  _pts.forEach(p=>{ if(p.note) _notes.push((p.title||"")+" : "+String(p.note).slice(0,180)); });
+  (tr.places||[]).forEach(p=>{ if(p.note && !_notes.some(n=>n.indexOf(p.name)===0)) _notes.push(p.name+" : "+String(p.note).slice(0,180)); });
+  const _legendes=(tr.memories||[]).map(m=>m.caption).filter(Boolean).slice(0,20);
+  const _nJ=new Set(_pts.map(p=>p.day)).size;
   const payload={ lang:lang(), destination:dest, jours:nDays, lieux:places.length?places.join(", "):"aucun lieu enregistré", photos:nPhotos,
-    dates:(tr.dateStart&&tr.dateEnd)?(tr.dateStart+" → "+tr.dateEnd):"non précisées" };
+    dates:(tr.dateStart&&tr.dateEnd)?(tr.dateStart+" → "+tr.dateEnd):"non précisées",
+    jours_visites:_nJ,
+    etapes:_etapes.length?_etapes.join("\n"):"aucune étape enregistrée",
+    notes:_notes.length?_notes.join("\n"):"aucune note écrite par le voyageur",
+    legendes:_legendes.length?_legendes.join("\n"):"aucune légende",
+    regles:"N'invente aucun détail sensoriel, aucune ambiance, aucune météo, aucune émotion, aucune anecdote qui ne figure pas dans les étapes, les notes ou les légendes ci-dessus. N'ajoute aucun lieu absent de la liste. Si les données sont maigres, écris court plutôt que d'étoffer. Mieux vaut sobre et vrai que joli et inventé." };
   const out=await workerFetch("/agent/souvenir",payload);
   if(out&&out.text){ tr.souvenirText=out.text.trim().replace(/^[«"'"]\s*([\s\S]*?)\s*[»"'"]$/,"$1"); saveState(); paintSouvCard(tr); }
   else { paintSouvCard(tr); toast(t("agent.busy")); }
@@ -9551,7 +9653,7 @@ function renderMemories(){ const body=document.getElementById("memBody"); if(!bo
   else if(f==="places"){ h+= places.length? `<div class="mem-places">`+places.map(p=>memPlaceCard(tr,p)).join("")+`</div>` : `<div class="empty" style="padding:24px 8px"><p>${t("mem.noPlaces")}</p></div>`; }
   else if(f==="days"){ h+= byDayHtml(tr,mems); }
   else if(f==="videos"){ h+=`<div class="empty" style="padding:34px 14px"><p>${svT("noVideo")}</p></div>`; }
-  else if(f==="journal"){ h+=`<div id="souvAgentCard"></div>`; }
+  else if(f==="journal"){ h+=`<div id="souvAgentCard"></div>`+souvJournalHtml(tr); }
   else if(f==="montage"){ h+=souvMontageCard(tr); }
   else if(f==="moments"){ const favs=places.filter(p=>p.fav); const list=favs.length?favs:places;
     h+= list.length? `<div class="mem-places">`+list.map(p=>memPlaceCard(tr,p)).join("")+`</div>` : `<div class="empty" style="padding:24px 8px"><p>${t("mem.noPlaces")}</p></div>`; }
