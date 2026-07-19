@@ -1803,7 +1803,7 @@ body.dragging-on{-webkit-user-select:none;user-select:none}
 /* ---------- 2. Rangee centrale : rail / apercu / formats ---------- */
 /* Une image 9:16 tire sa largeur de sa hauteur : pour l'agrandir il faut lui
    donner de la hauteur, et lui rendre les marges laterales. */
-#mvOv .stu-mid{flex:1 1 0;min-height:120px;display:flex;align-items:stretch;gap:5px;padding:2px 8px 0;overflow:hidden}
+#mvOv .stu-mid{flex:1 1 0;min-height:120px;display:flex;align-items:stretch;gap:5px;padding:2px 8px 0 11px;overflow:hidden}
 #mvOv .stu-tools{width:44px;flex:0 0 44px;background:#101B2E;border-radius:14px;padding:6px 0;
   display:flex;flex-direction:column;justify-content:space-between;gap:2px;overflow:hidden}
 #mvOv .stu-tools::-webkit-scrollbar{display:none}
@@ -6405,6 +6405,19 @@ function mvSegments(beats,total,nImg,period,opts){
   { let seen2={}, c=0; segs.forEach(sg=>{ const key=String(sg.idx); if(!(key in seen2)){ seen2[key]=c++; sg.first=true; } sg.chap=seen2[key]; }); }
   return segs;
 }
+/* Aucun monteur ne fait remplir un formulaire avant d'avoir montre une image.
+   On ouvre donc le studio directement : Fidele a deja repondu aux questions, et
+   tout reste modifiable avec le film sous les yeux (fleche retour = reglages).
+   Deux cas ou l'on montre d'abord les reglages, et ils sont legitimes :
+   trop peu de medias, ou consentement d'analyse jamais vu. */
+function mvDirectEntry(tr){
+  try{
+    if(!tr) return false;
+    if(((tr.memories||[]).length)<3) return false;
+    if(!(S.settings && (S.settings.visionOk || S.settings.visionAsked))) return false;
+    return true;
+  }catch(e){ return false; }
+}
 function openMontage(tr,version,autoplay){ tr=tr||souvTrip(); if(!tr) return; _mvState.style=""; _mvState.pace=1; _mvState.soft=false; _mvState.grade="natural"; _mvState.fx=""; _mvState.overlay=""; _mvState.overlayTr=""; if(_mvState.overlayInt==null) _mvState.overlayInt=0.55; try{ overlayCatalog(); }catch(e){} let _dir=null;
   if(version==="director"){ _dir=mvApplyDirector(tr); } else if(version) mvApplyVersion(version);
   const mems=(tr.memories||[]).slice();
@@ -6422,20 +6435,20 @@ function openMontage(tr,version,autoplay){ tr=tr||souvTrip(); if(!tr) return; _m
     <div class="souvmap-scroll" id="mvSetup">
       <div class="mv-auto"><b>\u2728 ${A.mood}</b> \u2014 ${escapeHtml(A.why)}. Ton film est <b>déjà réglé</b> : ${A.dur<60?(A.dur+" s"):(Math.floor(A.dur/60)+" min")}, ${gradeLbl().toLowerCase()}, transitions ${styleLbl().toLowerCase()}.</div>
 
-      <div class="mv-blk open" data-blk="media"><button class="mv-blkh" data-open="media"><span>1. Médias</span><em id="mvMedSum">\u2026</em><i>\u203a</i></button>
+      <div class="mv-blk open" data-blk="media"><button class="mv-blkh" data-open="media"><span>Médias</span><em id="mvMedSum">\u2026</em><i>\u203a</i></button>
         <div class="mv-blkb">
           <div class="mv-medsum" id="mvMedBox">Analyse des m\u00e9dias\u2026</div>
           <button class="btn ghostline2 block" id="mvPrep">Pr\u00e9parer les m\u00e9dias \u203a</button>
         </div></div>
 
-      <div class="mv-blk" data-blk="music"><button class="mv-blkh" data-open="music"><span>4. Musique</span><em id="mvMusicName">${mvT("musicHint")}</em><i>\u203a</i></button>
+      <div class="mv-blk" data-blk="music"><button class="mv-blkh" data-open="music"><span>Musique</span><em id="mvMusicName">${mvT("musicHint")}</em><i>\u203a</i></button>
         <div class="mv-blkb">
           <button class="btn navy block" id="mvLib">Choisir dans la bibliothèque</button>
           <button class="btn ghostline2 block" id="mvPick" style="margin-top:8px">${mvT("musicPick")}</button>
           <input type="file" id="mvFile" accept="audio/*,.mp3,.m4a,.wav,.aac" style="display:none">
         </div></div>
 
-      <div class="mv-blk" data-blk="opts"><button class="mv-blkh" data-open="opts"><span>3. Style</span><em id="mvOptSum">${durLbl()} \u00b7 ${fmtLbl()} \u00b7 ${gradeLbl()} \u00b7 ${styleLbl()}</em><i>\u203a</i></button>
+      <div class="mv-blk" data-blk="opts"><button class="mv-blkh" data-open="opts"><span>Style</span><em id="mvOptSum">${durLbl()} \u00b7 ${fmtLbl()} \u00b7 ${gradeLbl()} \u00b7 ${styleLbl()}</em><i>\u203a</i></button>
         <div class="mv-blkb">
           <div class="mv-sec">
             <div class="mv-lab">Durée <small>(proposée d'après tes ${(tr.memories||[]).length} photos)</small></div>
@@ -6462,7 +6475,7 @@ function openMontage(tr,version,autoplay){ tr=tr||souvTrip(); if(!tr) return; _m
           </div>
         </div></div>
 
-      <div class="mv-blk" data-blk="film"><button class="mv-blkh" data-open="film"><span>2. Histoire</span><em id="mvFilmSum">${souvFilmPoints(tr).length} scènes \u00b7 storyboard</em><i>\u203a</i></button>
+      <div class="mv-blk" data-blk="film"><button class="mv-blkh" data-open="film"><span>Histoire</span><em id="mvFilmSum">${souvFilmPoints(tr).length} scènes \u00b7 storyboard</em><i>\u203a</i></button>
         <div class="mv-blkb">
           <div class="mv-real">
             <div class="mv-realt">\u2728 Faire composer l'histoire par Fidèle</div>
@@ -6496,7 +6509,7 @@ function openMontage(tr,version,autoplay){ tr=tr||souvTrip(); if(!tr) return; _m
             return `<button class="vers" data-vers2="${v.k}"><span class="vers-band" style="background:${D[1]}">${Math.floor(v.d/60)}:${String(v.d%60).padStart(2,"0")}</span><b>${v.n}</b><span class="vers-d">${D[0]}</span></button>`; }).join("")}</div>
         </div></div>
 
-      <div class="mv-blk" data-blk="vis"><button class="mv-blkh" data-open="vis"><span>5. Analyse (option)</span><em>${visionOn()?"activée":"désactivée"}</em><i>\u203a</i></button>
+      <div class="mv-blk" data-blk="vis"><button class="mv-blkh" data-open="vis"><span>Analyse (option)</span><em>${visionOn()?"activée":"désactivée"}</em><i>\u203a</i></button>
         <div class="mv-blkb"><div class="mv-vis" id="mvVisCard"></div></div></div>
       <div class="mv-priv" id="mvPriv"></div>
 
@@ -6506,7 +6519,7 @@ function openMontage(tr,version,autoplay){ tr=tr||souvTrip(); if(!tr) return; _m
     <div id="mvStudio" class="stu" style="display:none">
       <div class="stu-top">
         <button class="stu-back" id="stuBack" aria-label="Retour">\u2039</button>
-        <div class="stu-ttl"><b>Studio Magot<i>\u2727</i></b><span>Montage vid\u00e9o \u00b7 v410</span></div>
+        <div class="stu-ttl"><b>Studio Magot<i>\u2727</i></b><span>Montage vid\u00e9o \u00b7 v411</span></div>
         <button class="stu-ico" id="stuUndo" title="Annuler">\u21b6</button>
         <button class="stu-ico" id="stuRedo" title="R\u00e9tablir">\u21b7</button>
         <button class="stu-exp" id="mvSave"><i>\u2b06</i>Exporter</button>
@@ -6579,7 +6592,7 @@ function openMontage(tr,version,autoplay){ tr=tr||souvTrip(); if(!tr) return; _m
   /* musique par défaut de la bibliothèque, si elle existe */
   { const pid=_mvState.musicId, d=(pid?musicLib().find(m=>m.id===pid):null)||musicDefault();
     if(d){ musicById(d.id).then(f=>{ if(f && !musicFile_){ musicFile2(f, d.name+(pid===d.id?"":" (par défaut)")); _mvState.musicId=d.id;
-      if(autoplay){ const go=ov.querySelector("#mvGo"); if(go) setTimeout(()=>go.click(),120); } } }); }
+      if(autoplay || mvDirectEntry(tr)){ const go=ov.querySelector("#mvGo"); if(go) setTimeout(()=>go.click(),120); } } }); }
     else if(autoplay){ toast("Choisis d\u2019abord une musique."); } }
   fileIn.onchange=async()=>{ const f=fileIn.files&&fileIn.files[0]; if(!f) return; musicFile2(f,f.name); await musicAdd([f]); };
   ov.querySelectorAll("[data-dur]").forEach(b=>b.onclick=()=>{ ov.querySelectorAll("[data-dur]").forEach(x=>x.classList.remove("on")); b.classList.add("on"); _mvState.dur=+b.dataset.dur; sumUp(); });
@@ -6722,6 +6735,8 @@ function openMontage(tr,version,autoplay){ tr=tr||souvTrip(); if(!tr) return; _m
       mvStudioApply(tr, rb?"segments":"grade"); }); }; }
   { const bb=ov.querySelector("#stuBack"); if(bb) bb.onclick=()=>{ stop(); ov.classList.remove("cine");
       ov.querySelector("#mvStudio").style.display="none"; ov.querySelector(".smh").style.display="";
+      /* Le film existe : cette page n'est plus une creation, ce sont ses reglages. */
+      { const t2=ov.querySelector(".smh-t"); if(t2) t2.textContent="\u2699 R\u00e9glages du montage"; }
       ov.querySelector("#mvSetup").style.display=""; }; }
   /* Annuler / Rétablir sur les modifications de plans */
   { const un=ov.querySelector("#stuUndo"), re2=ov.querySelector("#stuRedo");
@@ -8341,9 +8356,10 @@ function visionAsk(cb){
   </div>`;
   document.body.appendChild(ov);
   const close=()=>ov.remove();
-  ov.querySelector("#visX").onclick=close; ov.querySelector("#visNo").onclick=()=>{ close(); cb&&cb(false); };
+  ov.querySelector("#visX").onclick=close;
+  ov.querySelector("#visNo").onclick=()=>{ S.settings.visionAsked=true; saveState(); close(); cb&&cb(false); };
   ov.querySelector("#visChk").onchange=e=>{ ov.querySelector("#visYes").disabled=!e.target.checked; };
-  ov.querySelector("#visYes").onclick=()=>{ S.settings.visionOk=true; saveState(); close(); cb&&cb(true); };
+  ov.querySelector("#visYes").onclick=()=>{ S.settings.visionOk=true; S.settings.visionAsked=true; saveState(); close(); cb&&cb(true); };
 }
 function _thumb(im,max){ const c=document.createElement("canvas"); const r=Math.min(1,max/Math.max(im.width,im.height));
   c.width=Math.round(im.width*r); c.height=Math.round(im.height*r); const g=c.getContext("2d"); if(!g) return "";
