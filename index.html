@@ -1801,8 +1801,10 @@ body.dragging-on{-webkit-user-select:none;user-select:none}
 #mvOv .stu-exp i{font-style:normal;font-size:13px}
 
 /* ---------- 2. Rangee centrale : rail / apercu / formats ---------- */
-#mvOv .stu-mid{flex:1 1 0;min-height:120px;display:flex;align-items:stretch;gap:8px;padding:2px 14px 0;overflow:hidden}
-#mvOv .stu-tools{width:48px;flex:0 0 48px;background:#101B2E;border-radius:16px;padding:6px 0;
+/* Une image 9:16 tire sa largeur de sa hauteur : pour l'agrandir il faut lui
+   donner de la hauteur, et lui rendre les marges laterales. */
+#mvOv .stu-mid{flex:1 1 0;min-height:120px;display:flex;align-items:stretch;gap:5px;padding:2px 8px 0;overflow:hidden}
+#mvOv .stu-tools{width:44px;flex:0 0 44px;background:#101B2E;border-radius:14px;padding:6px 0;
   display:flex;flex-direction:column;justify-content:space-between;gap:2px;overflow:hidden}
 #mvOv .stu-tools::-webkit-scrollbar{display:none}
 #mvOv .stu-tool{position:relative;width:100%;flex:1 1 0;min-height:0;background:none;border:0;
@@ -1820,7 +1822,7 @@ body.dragging-on{-webkit-user-select:none;user-select:none}
 #mvOv.cine .mv-stage{flex:0 1 auto;width:auto;max-width:100%;min-width:0;min-height:0;
   height:100%;max-height:100%;position:relative;border-radius:14px;overflow:hidden;
   background:transparent;display:flex;align-items:center;justify-content:center;
-  padding-bottom:34px;box-sizing:border-box;
+  padding-bottom:30px;box-sizing:border-box;
   border:1px solid rgba(236,244,255,.09);
   box-shadow:0 14px 34px -10px rgba(0,0,0,.62), 0 2px 10px -4px rgba(0,0,0,.5)}
 /* L'image donne sa taille au cadre : aucune marge noire a gauche ni a droite. */
@@ -1829,14 +1831,14 @@ body.dragging-on{-webkit-user-select:none;user-select:none}
 /* Cette colonne ne contient plus que le format : elle porte enfin son titre.
    Le selecteur reprend la forme de l'ancienne regle (.stu-mid > .stu-right), sans
    quoi celle-ci gagnait et etalait le titre et les icones aux deux bouts. */
-#mvOv .stu-right{width:56px;flex:0 0 56px;align-self:stretch;display:flex;flex-direction:column;
+#mvOv .stu-right{width:48px;flex:0 0 48px;align-self:stretch;display:flex;flex-direction:column;
   align-items:center;justify-content:center;gap:8px;overflow:hidden}
 #mvOv .stu-mid > .stu-right{justify-content:center;gap:8px;overflow:hidden}
 #mvOv .stu-right::-webkit-scrollbar{display:none}
 #mvOv .stu-flab{font:700 9.5px system-ui;letter-spacing:.10em;color:#8A9AB5;margin:0 0 2px}
 #mvOv .stu-fmts{background:none;padding:0;display:flex;flex-direction:column;gap:8px;align-items:center;
   flex:0 1 auto;min-height:0}
-#mvOv .stu-fmt{width:50px;height:46px;flex:0 1 46px;min-height:32px;background:none;border:0;border-radius:14px;color:#8FA1BC;
+#mvOv .stu-fmt{width:46px;height:42px;flex:0 1 42px;min-height:30px;background:none;border:0;border-radius:14px;color:#8FA1BC;
   display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;padding:0;cursor:pointer}
 #mvOv .stu-fmt i{font-style:normal;font-size:17px;line-height:1}
 #mvOv .stu-fmt span{font-size:10.5px;font-weight:600}
@@ -1850,7 +1852,7 @@ body.dragging-on{-webkit-user-select:none;user-select:none}
 /* ---------- 3. Barre de lecture posee sur l'image ---------- */
 /* Elle occupe la reserve laissee sous l'image : le sous-titre du film et les
    phrases de Fidele restent enti\u00e8rement lisibles, quoi qu'il arrive. */
-#mvOv .stu-play{position:absolute;left:0;right:0;bottom:0;height:34px;z-index:4;margin:0;
+#mvOv .stu-play{position:absolute;left:0;right:0;bottom:0;height:30px;z-index:4;margin:0;
   display:flex;align-items:center;gap:7px;padding:0 8px;
   background:#0B1524;border-radius:0 0 14px 14px}
 #mvOv .stu-play .stu-pp{width:26px;height:26px;flex:0 0 26px;border:0;border-radius:50%;
@@ -1864,11 +1866,11 @@ body.dragging-on{-webkit-user-select:none;user-select:none}
 #mvOv .stu-pic{width:24px;height:24px;flex:0 0 24px;border:0;background:none;color:#EAF0FA;font-size:14px;padding:0}
 
 /* ---------- 4. Bandeau d'informations (6 cartes) ---------- */
-#mvOv .mv-fiche{display:flex;gap:8px;overflow-x:auto;overflow-y:hidden;-webkit-overflow-scrolling:touch;
-  background:none;padding:8px 14px 0;scrollbar-width:none}
+#mvOv .mv-fiche{display:flex;gap:7px;overflow-x:auto;overflow-y:hidden;-webkit-overflow-scrolling:touch;
+  background:none;padding:7px 12px 0;scrollbar-width:none}
 #mvOv .mv-fiche::-webkit-scrollbar{display:none}
 #mvOv .mv-fiche .mvf{flex:1 0 auto;min-width:58px;display:flex;flex-direction:column;align-items:center;
-  gap:2px;background:#111C30;border:1px solid rgba(224,163,62,.14);border-radius:14px;padding:7px 6px 6px}
+  gap:1px;background:#111C30;border:1px solid rgba(224,163,62,.14);border-radius:12px;padding:5px 6px 5px}
 #mvOv .mv-fiche .mvf i{font-style:normal;font-size:15px;line-height:1;color:var(--sGold,#E0A33E)}
 #mvOv .mv-fiche .mvf b{font:700 12.5px system-ui;color:#F5F7FA;white-space:nowrap}
 #mvOv .mv-fiche .mvf em{font-style:normal;font-size:9.5px;color:#8A9AB5;white-space:nowrap}
@@ -1899,7 +1901,8 @@ body.dragging-on{-webkit-user-select:none;user-select:none}
 #trOv .tr-dur b{flex:0 0 auto;color:#EAF0FA;font-size:12px;min-width:86px;text-align:right}
 #trOv .tr-foot{padding:0 4px 12px}
 #trOv .tr-all{width:100%;height:44px;border-radius:13px;border:1px solid #24344F;background:#111C30;
-  color:#EAF0FA;font:700 13px system-ui;cursor:pointer}
+  color:#EAF0FA;font:700 13px system-ui;cursor:pointer;padding:0 10px}
+#trOv .tr-all.warn{border-color:var(--sGold,#E0A33E);background:rgba(224,163,62,.14);color:var(--sGold,#E0A33E)}
 #dirDetOv .dd-g{display:grid;grid-template-columns:1fr;gap:9px;padding:4px 4px 12px}
 #dirDetOv .stu-ck{display:flex;align-items:center;gap:9px;font-size:13.5px;color:#C3D0E4;line-height:1.3}
 #dirDetOv .stu-ck i{flex:0 0 18px;width:18px;height:18px;border-radius:50%;border:1px solid #E0A33E;
@@ -1918,7 +1921,7 @@ body.dragging-on{-webkit-user-select:none;user-select:none}
 /* La timeline n'est plus un bloc parmi d'autres : c'est une table de montage.
    Fond plus sombre, filet lumineux au-dessus, l\u00e9g\u00e8re ombre interne : l'oeil
    comprend d'un coup qu'il change de zone de travail. */
-#mvOv .stu-tl{position:relative;margin-top:9px;padding:7px 0 8px;touch-action:pan-y;
+#mvOv .stu-tl{position:relative;margin-top:7px;padding:5px 0 6px;touch-action:pan-y;
   background:#050B15;border-top:1px solid rgba(224,163,62,.18);
   box-shadow:inset 0 1px 0 rgba(255,255,255,.045), inset 0 14px 22px -18px rgba(0,0,0,.9)}
 /* Le d\u00e9filement natif est abandonn\u00e9 : quatre zones scrollables ne peuvent pas
@@ -1927,17 +1930,17 @@ body.dragging-on{-webkit-user-select:none;user-select:none}
 #mvOv .stu-lane{position:relative;overflow:hidden;touch-action:pan-y}
 #mvOv .stu-in{position:relative;width:max-content;padding-left:14px;padding-right:14px;
   will-change:transform;transform:translate3d(0,0,0)}
-#mvOv .stu-wave{height:46px;padding:2px 0 0}
-#mvOv .stu-wave canvas{display:block;height:44px}
+#mvOv .stu-wave{height:36px;padding:2px 0 0}
+#mvOv .stu-wave canvas{display:block;height:34px}
 /* La partie jou\u00e9e est la m\u00eame onde, en or, r\u00e9v\u00e9l\u00e9e par une fen\u00eatre qui
    s'\u00e9largit. Une seule \u00e9criture de largeur par image : rien n'est redessin\u00e9. */
 #mvOv .wv-wrap{position:relative}
 #mvOv .wv-on{position:absolute;left:0;top:0;bottom:0;width:0;overflow:hidden;pointer-events:none}
 #mvOv .wv-on canvas{position:absolute;left:0;top:0}
-#mvOv .stu-ruler{height:20px;margin:0}
+#mvOv .stu-ruler{height:18px;margin:0}
 #mvOv #stuLaneR{height:auto}
 #mvOv .stu-ruler canvas{height:20px;display:block;transform:none!important}
-#mvOv .stu-rph{position:absolute;top:7px;left:0;transform:translateX(-50%);width:11px;height:11px;margin-left:-5.5px;border-radius:50%;
+#mvOv .stu-rph{position:absolute;top:5px;left:0;transform:translateX(-50%);width:11px;height:11px;margin-left:-5.5px;border-radius:50%;
   background:var(--sGold,#E0A33E);pointer-events:none;z-index:6;opacity:0;transition:opacity .15s}
 #mvOv .stu-chaps{display:flex;gap:0;padding-top:5px}
 #mvOv #stuLaneC{padding-top:0}
@@ -1945,7 +1948,7 @@ body.dragging-on{-webkit-user-select:none;user-select:none}
    replient sur leur rep\u00e8re court (I / 1 / 2 / O) pour ne jamais \u00eatre tronqu\u00e9s. */
 /* La largeur d'un chapitre = sa dur\u00e9e. Il commence donc exactement l\u00e0 o\u00f9
    il commence sur la r\u00e8gle et sur la bande. */
-#mvOv .stu-chap{flex:0 0 auto;height:26px;padding:0 6px;border:1px solid transparent;border-radius:9px;
+#mvOv .stu-chap{flex:0 0 auto;height:24px;padding:0 6px;border:1px solid transparent;border-radius:9px;
   background:#16213A;color:#8FA1BC;font:700 9.5px system-ui;letter-spacing:.06em;cursor:pointer;
   white-space:nowrap;overflow:hidden;display:flex;align-items:center;justify-content:center;
   box-shadow:inset -2px 0 0 0 #08111F;transition:background .18s ease,color .18s ease}
@@ -1954,7 +1957,7 @@ body.dragging-on{-webkit-user-select:none;user-select:none}
 /* Quatre plans visibles \u00e0 la fois : la largeur se calcule sur l'\u00e9cran r\u00e9el.
    134px = marges (28) + tuile Ajouter (44+6) + marges des vignettes (32) + chevrons (24). */
 /* Hauteur fixe et sobre : c'est la largeur qui porte le temps, pas la hauteur. */
-#mvOv .stu-strip{--ch:64px}
+#mvOv .stu-strip{--ch:58px}
 /* Largeur d'un plan = sa dur\u00e9e (pos\u00e9e par le JS). Aucune marge : sinon le
    temps et les pixels ne diraient plus la m\u00eame chose. */
 #mvOv .stu-clip{position:relative;flex:0 0 auto;margin:0;cursor:pointer}
@@ -2001,7 +2004,7 @@ body.dragging-on{-webkit-user-select:none;user-select:none}
 #mvOv .stu-ph::before{display:none}
 
 /* ---------- 7. Bandeau musique ---------- */
-#mvOv .stu-mus{display:flex;align-items:center;gap:8px;margin:6px 14px 0;padding:0 10px;height:30px;
+#mvOv .stu-mus{display:flex;align-items:center;gap:8px;margin:5px 12px 0;padding:0 10px;height:28px;
   background:#111C30;border:1px solid rgba(224,163,62,.16);border-radius:16px;cursor:pointer}
 #mvOv .stu-mus-ic{flex:0 0 auto;width:auto;height:auto;background:none;color:var(--sGold,#E0A33E);font-size:15px;display:block}
 #mvOv .stu-mus-t{flex:0 0 auto;max-width:132px;color:#F5F7FA;font:600 11.5px system-ui;
@@ -2013,7 +2016,7 @@ body.dragging-on{-webkit-user-select:none;user-select:none}
 #mvOv .stu-mus-x{flex:0 0 auto;border:0;background:none;color:#EAF0FA;font-size:13px;padding:0 0 0 6px;cursor:pointer}
 
 /* ---------- 8. Commandes du bas ---------- */
-#mvOv .stu-bot{display:flex;flex-direction:row;gap:9px;padding:9px 14px calc(8px + env(safe-area-inset-bottom,0px));
+#mvOv .stu-bot{display:flex;flex-direction:row;gap:8px;padding:8px 12px calc(7px + env(safe-area-inset-bottom,0px));
   margin:0;background:none;border:0;border-radius:0}
 #mvOv .stu-bot .stu-b{flex:1 1 0;height:48px;border-radius:16px;background:#111C30;
   white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
@@ -6503,7 +6506,7 @@ function openMontage(tr,version,autoplay){ tr=tr||souvTrip(); if(!tr) return; _m
     <div id="mvStudio" class="stu" style="display:none">
       <div class="stu-top">
         <button class="stu-back" id="stuBack" aria-label="Retour">\u2039</button>
-        <div class="stu-ttl"><b>Studio Magot<i>\u2727</i></b><span>Montage vid\u00e9o \u00b7 v407</span></div>
+        <div class="stu-ttl"><b>Studio Magot<i>\u2727</i></b><span>Montage vid\u00e9o \u00b7 v409</span></div>
         <button class="stu-ico" id="stuUndo" title="Annuler">\u21b6</button>
         <button class="stu-ico" id="stuRedo" title="R\u00e9tablir">\u21b7</button>
         <button class="stu-exp" id="mvSave"><i>\u2b06</i>Exporter</button>
@@ -6615,7 +6618,7 @@ function openMontage(tr,version,autoplay){ tr=tr||souvTrip(); if(!tr) return; _m
             ${(w>=44)?`<span class="stu-cdur">${d}s</span>`:""}
             ${(w>=52)?`<button class="stu-cmenu" data-cmenu="${i}">\u22ee</button>`:""}
           </span>
-          ${i<segs.length-1?`<button class="stu-tr" data-ctr="${i}" aria-label="Transition : ${MV_TR_LBL[sg.mode]||"Fondu"}" title="${MV_TR_LBL[sg.mode]||"Fondu"}"></button>`:""}
+          ${i<segs.length-1?`<button class="stu-tr" data-ctr="${i}" aria-label="Transition : ${MV_TR_LBL[segs[i+1].mode]||"Fondu"}" title="${MV_TR_LBL[segs[i+1].mode]||"Fondu"}"></button>`:""}
         </div>`; }).join("")+
       (apres>0.15?`<div class="stu-gap" style="width:${(apres*pps).toFixed(1)}px"><span>Outro</span></div>`:"")+
       `<button class="stu-add" id="stuAdd" title="Ajouter une photo" aria-label="Ajouter une photo"><i>\uff0b</i><span>Ajouter</span></button>`;
@@ -6641,7 +6644,7 @@ function openMontage(tr,version,autoplay){ tr=tr||souvTrip(); if(!tr) return; _m
     const c=ov.querySelector("#stuWave"); if(!c) return;
     const cg=ov.querySelector("#stuWaveG");
     const S=mvScale(), total=S.total;
-    const w=Math.max(60,Math.round(total*S.pps)), H=44;
+    const w=Math.max(60,Math.round(total*S.pps)), H=34;
     const dpr=Math.min(2,window.devicePixelRatio||1);
     const E=_mvState.energy||[];
     const pas=3, nb=Math.max(1,Math.floor(w/pas));
@@ -7249,7 +7252,10 @@ function mvDirCardPaint(){
    l'\u00e9tendre \u00e0 tout le film d'un geste. Rien n'est invent\u00e9 : ce sont les
    transitions que le moteur sait r\u00e9ellement rendre. */
 function openTransSheet(i,after,tr){
-  const segs=_mvState.segs||[], sg=segs[i]; if(!sg) return;
+  /* i est la COUPE entre le plan i et le plan i+1. Le moteur applique la
+     transition du plan qui arrive : c'est donc segs[i+1] qu'on modifie, lui
+     seul, et jamais les autres. */
+  const segs=_mvState.segs||[], sg=segs[i+1]; if(!sg) return;
   let ov=document.getElementById("trOv"); if(ov) ov.remove();
   ov=document.createElement("div"); ov.id="trOv"; ov.className="cal-ov show"; ov.style.zIndex="9400";
   const mode=()=>sg.mode||"fade";
@@ -7272,15 +7278,21 @@ function openTransSheet(i,after,tr){
     try{ mvSnap(); }catch(e){}
     sg.mode=b.dataset.k;
     ov.querySelectorAll("[data-k]").forEach(x=>x.classList.toggle("on",x===b));
-    save(); });
+    save(); toast(MV_TR_LBL[sg.mode]+" \u00b7 coupe "+(i+1)+" \u2192 "+(i+2)); });
   { const sl=ov.querySelector("#trDur"), lab=ov.querySelector("#trDurV");
     sl.oninput=()=>{ const v=parseFloat(sl.value)||0.5; sg.tr=v; if(lab) lab.textContent=txtDur(v); };
     sl.onchange=()=>{ try{ mvSnap(); }catch(e){} save(); }; }
-  ov.querySelector("#trAll").onclick=()=>{
-    try{ mvSnap(); }catch(e){}
-    const m=mode(), v=dur();
-    segs.forEach(x=>{ x.mode=m; x.tr=v; });
-    save(); toast("Transition appliqu\u00e9e \u00e0 tout le film"); close(); };
+  { const ba=ov.querySelector("#trAll"); let arme=false;
+    ba.onclick=()=>{
+      if(!arme){ arme=true; ba.classList.add("warn");
+        ba.textContent="Confirmer : remplacer les "+Math.max(0,segs.length-1)+" transitions";
+        setTimeout(()=>{ if(arme){ arme=false; ba.classList.remove("warn");
+          ba.textContent="Appliquer \u00e0 toutes les coupes"; } },4000);
+        return; }
+      try{ mvSnap(); }catch(e){}
+      const m=mode(), v=dur();
+      segs.forEach(x=>{ x.mode=m; x.tr=v; });
+      save(); toast("Toutes les coupes en "+MV_TR_LBL[m]); close(); }; }
 }
 function openDirDetail(){
   const I=_mvState._dirItems||[];
