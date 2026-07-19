@@ -6506,7 +6506,7 @@ function openMontage(tr,version,autoplay){ tr=tr||souvTrip(); if(!tr) return; _m
     <div id="mvStudio" class="stu" style="display:none">
       <div class="stu-top">
         <button class="stu-back" id="stuBack" aria-label="Retour">\u2039</button>
-        <div class="stu-ttl"><b>Studio Magot<i>\u2727</i></b><span>Montage vid\u00e9o \u00b7 v409</span></div>
+        <div class="stu-ttl"><b>Studio Magot<i>\u2727</i></b><span>Montage vid\u00e9o \u00b7 v410</span></div>
         <button class="stu-ico" id="stuUndo" title="Annuler">\u21b6</button>
         <button class="stu-ico" id="stuRedo" title="R\u00e9tablir">\u21b7</button>
         <button class="stu-exp" id="mvSave"><i>\u2b06</i>Exporter</button>
@@ -8999,31 +8999,35 @@ function mvRun(tr,total){
   };
   /* --- cartons --- */
   const F=(sz)=>Math.round(W*sz);
+  /* Echelle des TEXTES : le petit cote. En 9:16 et en 1:1 c'est la largeur,
+     donc rien ne change ; en 16:9 la hauteur commande, et les titres cessent
+     d'etre geants puis coupes. */
+  const FT=(sz)=>Math.round(Math.min(W,H)*sz);
   const wrap=(txt,max,fnt)=>{ g.font=fnt; const out=[]; let ln=""; String(txt).split(" ").forEach(w=>{ const tst=ln?ln+" "+w:w; if(g.measureText(tst).width>max){ out.push(ln); ln=w; } else ln=tst; }); if(ln) out.push(ln); return out; };
   const intro=(t)=>{ g.fillStyle="#0B1A38"; g.fillRect(0,0,W,H);
     const a1=Math.min(1,t/0.6), a2=Math.max(0,Math.min(1,(t-1.1)/0.7)), a3=Math.max(0,Math.min(1,(t-1.9)/0.8));
     g.textAlign="center";
     g.globalAlpha=a1*(t>INTRO-0.5?Math.max(0,(INTRO-t)/0.5):1);
-    g.fillStyle="#E0A33E"; g.font="700 "+F(0.032)+"px system-ui"; g.letterSpacing="4px";
+    g.fillStyle="#E0A33E"; g.font="700 "+FT(0.032)+"px system-ui"; g.letterSpacing="4px";
     g.fillText("MAGOT VOYAGE",W/2,H*0.40); g.letterSpacing="0px";
-    g.fillStyle="#E0A33E"; g.fillRect(W/2-F(0.05),H*0.42,F(0.10),3);
+    g.fillStyle="#E0A33E"; g.fillRect(W/2-FT(0.05),H*0.42,FT(0.10),3);
     g.globalAlpha=a2*(t>INTRO-0.5?Math.max(0,(INTRO-t)/0.5):1);
-    g.fillStyle="#fff"; const ls=wrap(title,W*0.84,"700 "+F(0.072)+"px Georgia,serif");
-    ls.slice(0,2).forEach((l,i)=>g.fillText(l,W/2,H*0.50+i*F(0.082)));
+    g.fillStyle="#fff"; const ls=wrap(title,W*0.84,"700 "+FT(0.072)+"px Georgia,serif");
+    ls.slice(0,2).forEach((l,i)=>g.fillText(l,W/2,H*0.50+i*FT(0.082)));
     g.globalAlpha=a3*(t>INTRO-0.5?Math.max(0,(INTRO-t)/0.5):1);
-    g.fillStyle="#C9D2E4"; g.font="400 "+F(0.034)+"px system-ui";
+    g.fillStyle="#C9D2E4"; g.font="400 "+FT(0.034)+"px system-ui";
     const info=[sub, (stats.days?stats.days+(stats.days>1?" jours":" journée"):""), (stats.places?stats.places+" lieux visités":""), (stats.km?stats.km+" km parcourus":"")].filter(Boolean);
-    info.forEach((l,i)=>g.fillText(l,W/2,H*0.50+ls.length*F(0.082)+F(0.03)+i*F(0.048)));
+    info.forEach((l,i)=>g.fillText(l,W/2,H*0.50+ls.length*FT(0.082)+FT(0.03)+i*FT(0.048)));
     g.globalAlpha=1; };
   const outro=(t)=>{ g.fillStyle="#0B1A38"; g.fillRect(0,0,W,H); const a=Math.min(1,t/0.6);
     g.globalAlpha=a; g.textAlign="center";
-    g.fillStyle="#fff"; g.font="400 "+F(0.040)+"px system-ui"; g.fillText("Merci d'avoir voyagé avec",W/2,H*0.40);
-    g.fillStyle="#E0A33E"; g.font="700 "+F(0.062)+"px Georgia,serif"; g.fillText("Magot Voyage",W/2,H*0.47);
-    g.fillStyle="#E0A33E"; g.fillRect(W/2-F(0.05),H*0.50,F(0.10),3);
-    g.fillStyle="#C9D2E4"; g.font="italic 400 "+F(0.032)+"px Georgia,serif";
-    ["Les plus beaux voyages ne se mesurent","pas en kilomètres, mais en souvenirs."].forEach((l,i)=>g.fillText(l,W/2,H*0.56+i*F(0.046)));
+    g.fillStyle="#fff"; g.font="400 "+FT(0.040)+"px system-ui"; g.fillText("Merci d'avoir voyagé avec",W/2,H*0.40);
+    g.fillStyle="#E0A33E"; g.font="700 "+FT(0.062)+"px Georgia,serif"; g.fillText("Magot Voyage",W/2,H*0.47);
+    g.fillStyle="#E0A33E"; g.fillRect(W/2-FT(0.05),H*0.50,FT(0.10),3);
+    g.fillStyle="#C9D2E4"; g.font="italic 400 "+FT(0.032)+"px Georgia,serif";
+    ["Les plus beaux voyages ne se mesurent","pas en kilomètres, mais en souvenirs."].forEach((l,i)=>g.fillText(l,W/2,H*0.56+i*FT(0.046)));
     const st=[(stats.places?stats.places+" lieux":""),(stats.km?stats.km+" km":""),(stats.photos?stats.photos+" photos":"")].filter(Boolean).join("   ·   ");
-    if(st){ g.fillStyle="#8FA0BF"; g.font="600 "+F(0.030)+"px system-ui"; g.fillText(st,W/2,H*0.68); }
+    if(st){ g.fillStyle="#8FA0BF"; g.font="600 "+FT(0.030)+"px system-ui"; g.fillText(st,W/2,H*0.68); }
     g.globalAlpha=1; };
   const story=tr.souvStory||{};
   const chapter=(seg,t)=>{ const pp=seg&&seg.pt; if(!pp) return; const line=story[seg.idx]; if(!line) return;
@@ -9034,13 +9038,13 @@ function mvRun(tr,total){
     g.save(); g.globalAlpha=a;
     g.fillStyle="rgba(6,12,26,0.52)"; g.fillRect(0,0,W,H);   /* on assombrit : le texte devient le sujet */
     g.textAlign="center";
-    g.fillStyle="#E0A33E"; g.font="700 "+F(0.028)+"px system-ui"; g.letterSpacing="3px";
+    g.fillStyle="#E0A33E"; g.font="700 "+FT(0.028)+"px system-ui"; g.letterSpacing="3px";
     g.fillText(("CHAPITRE "+((seg.chap||0)+1)).toUpperCase(), W/2, H*0.40); g.letterSpacing="0px";
-    g.fillStyle="#fff"; g.font="700 "+F(0.050)+"px Georgia,serif";
-    wrap(String((seg.chapTitle)||pp.title||""),W*0.82,"700 "+F(0.050)+"px Georgia,serif").slice(0,2).forEach((l,i)=>g.fillText(l,W/2,H*0.47+i*F(0.058)));
-    g.fillStyle="#E0A33E"; g.fillRect(W/2-F(0.04),H*0.50+F(0.02),F(0.08),3);
-    g.fillStyle="rgba(255,255,255,.92)"; g.font="italic 400 "+F(0.034)+"px Georgia,serif";
-    wrap(line,W*0.80,"italic 400 "+F(0.034)+"px Georgia,serif").slice(0,4).forEach((l,i)=>g.fillText(l,W/2,H*0.57+i*F(0.048)));
+    g.fillStyle="#fff"; g.font="700 "+FT(0.050)+"px Georgia,serif";
+    wrap(String((seg.chapTitle)||pp.title||""),W*0.82,"700 "+FT(0.050)+"px Georgia,serif").slice(0,2).forEach((l,i)=>g.fillText(l,W/2,H*0.47+i*FT(0.058)));
+    g.fillStyle="#E0A33E"; g.fillRect(W/2-FT(0.04),H*0.50+FT(0.02),FT(0.08),3);
+    g.fillStyle="rgba(255,255,255,.92)"; g.font="italic 400 "+FT(0.034)+"px Georgia,serif";
+    wrap(line,W*0.80,"italic 400 "+FT(0.034)+"px Georgia,serif").slice(0,4).forEach((l,i)=>g.fillText(l,W/2,H*0.57+i*FT(0.048)));
     g.restore(); };
   /* Bandeau de texte : il ne change qu'au changement de plan, mais il était
      redessiné 60 fois par seconde (dégradé + ombres portées + polices).
@@ -9060,26 +9064,41 @@ function mvRun(tr,total){
     g=gSave; _txtEmpty=false; _mvState._txtCv=_txtCv;
     g.drawImage(_txtCv,0,0); };
   const lowerPaint=(seg,pp,line,tm)=>{
-    const bh=Math.round(H*0.24); const bg=g.createLinearGradient(0,H-bh,0,H);
+    /* Deux corrections de fond pour que le texte tienne dans TOUS les formats :
+       1) la taille suit le PETIT coté (en 16:9 la largeur est énorme, la hauteur
+          non : un texte calculé sur la largeur y devenait géant) ;
+       2) le bloc est posé depuis le BAS et empilé vers le haut, donc la dernière
+          ligne est toujours au-dessus de la marge, quelle que soit sa hauteur. */
+    const S=Math.min(W,H), F2=(sz)=>Math.round(S*sz);
+    const bh=Math.round(H*0.30); const bg=g.createLinearGradient(0,H-bh,0,H);
     bg.addColorStop(0,"rgba(0,0,0,0)"); bg.addColorStop(0.5,"rgba(0,0,0,0.42)"); bg.addColorStop(1,"rgba(0,0,0,0.82)");
     g.fillStyle=bg; g.fillRect(0,H-bh,W,bh);
-    const M2=Math.round(W*0.06), SAFE=Math.round(H*0.045);   /* marge de sécurité : rien n'est coupé */
+    const M2=Math.round(W*0.06), SAFE=Math.round(H*0.055);   /* marge de sécurité : rien n'est coupé */
+    const base=H-SAFE;
     g.textAlign="left";
     if(line){
       /* Une phrase par photo, façon sous-titre de film, avec un petit repère lieu/jour au-dessus */
-      if(pp){ g.fillStyle="#E0A33E"; g.font="700 "+F(0.026)+"px system-ui"; g.letterSpacing="1px";
-        g.fillText((String(pp.title||"").slice(0,26)+(tm?"  ·  "+tm:"")), M2, H-SAFE-Math.round(H*0.058)); g.letterSpacing="0px"; }
-      g.fillStyle="#fff"; g.shadowColor="rgba(0,0,0,.72)"; g.shadowBlur=12;
-      g.font="italic 600 "+F(0.040)+"px Georgia,serif";
-      wrap(line,W*0.88,"italic 600 "+F(0.040)+"px Georgia,serif").slice(0,2).forEach((l,i)=>g.fillText(l,M2,H-SAFE-Math.round(H*0.018)+i*F(0.046)));
+      const fs=F2(0.042), lh=Math.round(fs*1.20), fnt="italic 600 "+fs+"px Georgia,serif";
+      const ls=wrap(line,W*0.86,fnt).slice(0,2);
+      g.fillStyle="#fff"; g.shadowColor="rgba(0,0,0,.72)"; g.shadowBlur=12; g.font=fnt;
+      ls.forEach((l,i)=>g.fillText(l,M2,base-(ls.length-1-i)*lh));
       g.shadowBlur=0;
+      if(pp){ const fk=F2(0.027);
+        g.fillStyle="#E0A33E"; g.font="700 "+fk+"px system-ui"; g.letterSpacing="1px";
+        g.fillText((String(pp.title||"").slice(0,26)+(tm?"  ·  "+tm:"")),
+                   M2, base-(ls.length-1)*lh-Math.round(fs*1.30));
+        g.letterSpacing="0px"; }
     } else {
-    g.fillStyle="#E0A33E"; g.fillRect(M2,H-SAFE-Math.round(H*0.068),Math.round(W*0.06),4);
-    g.fillStyle="#fff"; g.font="700 "+F(0.042)+"px system-ui";
-    g.shadowColor="rgba(0,0,0,.65)"; g.shadowBlur=12;
-    g.fillText(String(pp.title||"").slice(0,30),M2,H-SAFE-Math.round(H*0.026));
-    g.fillStyle="rgba(255,255,255,.85)"; g.font="500 "+F(0.028)+"px system-ui";
-    g.fillText((t("plan.day")+" "+(pp.day+1))+(tm?"  ·  "+tm:""),M2,H-SAFE+Math.round(H*0.004));
+      const f1=F2(0.044), f2=F2(0.030);
+      g.fillStyle="rgba(255,255,255,.85)"; g.font="500 "+f2+"px system-ui";
+      g.fillText((t("plan.day")+" "+(pp.day+1))+(tm?"  ·  "+tm:""),M2,base);
+      const yT=base-Math.round(f2*1.60);
+      g.fillStyle="#fff"; g.font="700 "+f1+"px system-ui";
+      g.shadowColor="rgba(0,0,0,.65)"; g.shadowBlur=12;
+      g.fillText(String(pp.title||"").slice(0,30),M2,yT);
+      g.shadowBlur=0;
+      g.fillStyle="#E0A33E";
+      g.fillRect(M2, yT-Math.round(f1*1.15), Math.round(W*0.05), Math.max(3,Math.round(S*0.004)));
     }
     g.shadowBlur=0; };
   const step=()=>{ if(myLoop!==_mvState._loop) return;   /* boucle périmée : on l'arrête net (pas de re-planification) */
