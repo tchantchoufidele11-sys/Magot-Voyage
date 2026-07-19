@@ -1589,7 +1589,8 @@ body.dragging-on{-webkit-user-select:none;user-select:none}
   --stuSide:clamp(42px,12.3vw,62px);   /* colonne FORMAT                  */
   --stuBar:clamp(20px,5.6vw,27px);     /* barre de lecture sous l'image   */
   --stuBtn:clamp(42px,12.3vw,58px);    /* boutons du bas                  */
-  --stuThumb:clamp(48px,14.9vw,78px)}  /* vignettes de plans              */
+  --stuThumb:clamp(48px,14.9vw,78px);  /* vignettes de plans              */
+  --stuGap:clamp(10px,3.3vw,16px)}     /* respiration entre les blocs     */
 #mvOv{background:var(--sBg)}
 #mvOv .stu-top{background:var(--sBg)}
 #mvOv .stu-top h3,#mvOv .stu-title{font-size:clamp(14.1px,3.846vw,16.8px);color:var(--sGold)}
@@ -1904,9 +1905,14 @@ body.dragging-on{-webkit-user-select:none;user-select:none}
 
 /* ---------- 4. Bandeau d'informations (6 cartes) ---------- */
 #mvOv .mv-fiche{display:flex;align-items:baseline;gap:7px;overflow-x:auto;overflow-y:hidden;
-  -webkit-overflow-scrolling:touch;background:none;padding:6px var(--stuPad) 2px;
+  -webkit-overflow-scrolling:touch;background:none;
+  padding:var(--stuGap) var(--stuPad) 0;
   scrollbar-width:none;flex:0 0 auto}
 #mvOv .mv-fiche::-webkit-scrollbar{display:none}
+/* Le texte ne se coupe plus net au bord : il s'efface, ce qui montre
+   qu'il y a une suite a faire glisser. */
+#mvOv .mv-fiche{-webkit-mask-image:linear-gradient(90deg,#000 0,#000 calc(100% - 34px),transparent 100%);
+  mask-image:linear-gradient(90deg,#000 0,#000 calc(100% - 34px),transparent 100%)}
 /* Ces valeurs ne se touchent pas : ce sont des metadonnees, pas des boutons.
    Pas de cadre, pas de fond, une seule ligne. */
 #mvOv .mv-fiche .mvf{flex:0 0 auto;min-width:0;display:flex;flex-direction:row;align-items:baseline;
@@ -1919,7 +1925,7 @@ body.dragging-on{-webkit-user-select:none;user-select:none}
 #mvOv .mv-fiche .mvf em{display:none}   /* l'icone dit deja de quoi il s'agit */
 
 /* ---------- 5. Carte Realisateur IA ---------- */
-#mvOv .stu-dir{display:block;width:auto;margin:4px var(--stuPad) 0;padding:0 11px;
+#mvOv .stu-dir{display:block;width:auto;margin:var(--stuGap) var(--stuPad) 0;padding:0 11px;
   height:clamp(28px,8.2vw,37px);background:rgba(17,28,48,.75);
   border:1px solid rgba(224,163,62,.16);border-radius:18px;text-align:left;cursor:default;min-height:0}
 #mvOv .stu-dir-h{display:flex;align-items:center;gap:8px;height:clamp(28px,8.2vw,37px);cursor:pointer}
@@ -1965,7 +1971,7 @@ body.dragging-on{-webkit-user-select:none;user-select:none}
 /* La timeline n'est plus un bloc parmi d'autres : c'est une table de montage.
    Fond plus sombre, filet lumineux au-dessus, l\u00e9g\u00e8re ombre interne : l'oeil
    comprend d'un coup qu'il change de zone de travail. */
-#mvOv .stu-tl{position:relative;flex:0 0 auto;margin-top:6px;padding:5px 0 6px;touch-action:pan-y;
+#mvOv .stu-tl{position:relative;flex:0 0 auto;margin-top:var(--stuGap);padding:6px 0 7px;touch-action:pan-y;
   background:#050B15;border-top:1px solid rgba(224,163,62,.18);
   box-shadow:inset 0 1px 0 rgba(255,255,255,.045), inset 0 14px 22px -18px rgba(0,0,0,.9)}
 /* Le d\u00e9filement natif est abandonn\u00e9 : quatre zones scrollables ne peuvent pas
@@ -2048,7 +2054,7 @@ body.dragging-on{-webkit-user-select:none;user-select:none}
 #mvOv .stu-ph::before{display:none}
 
 /* ---------- 7. Bandeau musique ---------- */
-#mvOv .stu-mus{display:flex;align-items:center;gap:8px;margin:5px var(--stuPad) 0;padding:0 10px;
+#mvOv .stu-mus{display:flex;align-items:center;gap:8px;margin:7px var(--stuPad) 0;padding:0 10px;
   height:clamp(25px,7.2vw,34px);
   background:#111C30;border:1px solid rgba(224,163,62,.16);border-radius:16px;cursor:pointer}
 #mvOv .stu-mus-ic{flex:0 0 auto;width:auto;height:auto;background:none;color:var(--sGold,#E0A33E);font-size:clamp(14.1px,3.846vw,16.8px);display:block}
@@ -2140,9 +2146,9 @@ body.dragging-on{-webkit-user-select:none;user-select:none}
 @media (max-height:740px){
   #mvOv .stu-top{padding:6px 14px 4px}
   #mvOv .stu-exp{height:34px;padding:0 13px}
-  #mvOv .mv-fiche{padding-top:6px}
+  #mvOv{--stuGap:clamp(7px,2.4vw,11px)}
   #mvOv .mv-fiche .mvf i{font-size:clamp(12.2px,3.333vw,14.6px)}
-  #mvOv .stu-dir{margin-top:6px;padding:8px 12px 8px}
+  #mvOv .stu-dir{padding:0 11px}
   #mvOv .stu-dir-h b{font-size:clamp(11.3px,3.077vw,13.4px)}
   #mvOv .stu-dir-g{gap:4px 8px;margin-top:6px}
   #mvOv .stu-ck{font-size:clamp(10.3px,2.821vw,12.3px)}
@@ -6620,7 +6626,7 @@ function openMontage(tr,version,autoplay){ tr=tr||souvTrip(); if(!tr) return; _m
     <div id="mvStudio" class="stu" style="display:none">
       <div class="stu-top">
         <button class="stu-back" id="stuBack" aria-label="Retour">\u2039</button>
-        <div class="stu-ttl"><b>Studio Magot<i>\u2727</i></b><span>Montage vid\u00e9o \u00b7 v420</span></div>
+        <div class="stu-ttl"><b>Studio Magot<i>\u2727</i></b><span>Montage vid\u00e9o \u00b7 v422</span></div>
         <button class="stu-ico" id="stuUndo" title="Annuler">\u21b6</button>
         <button class="stu-ico" id="stuRedo" title="R\u00e9tablir">\u21b7</button>
         <button class="stu-exp" id="mvSave"><i>\u2b06</i>Exporter</button>
