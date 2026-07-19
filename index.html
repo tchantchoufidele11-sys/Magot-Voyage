@@ -550,7 +550,14 @@ a.btn{text-decoration:none}
 .bilan-verdict.ok{background:var(--gold-soft);color:var(--gold-d)}
 .bilan-verdict.over{background:rgba(220,38,38,.12);color:var(--danger)}
 .bilan-sub{font:600 12.5px "Inter",sans-serif;font-size:clamp(11.8px,3.205vw,12.5px);color:var(--muted)}
-.mem-bilan{display:flex;align-items:center;gap:8px;width:100%;margin:0 0 12px;padding:11px 14px;border-radius:13px;border:1px solid var(--gold);background:var(--gold-soft);color:var(--gold-d);font:700 14px "Inter",sans-serif;font-size:clamp(13.2px,3.59vw,14px);cursor:pointer}
+.mem-bilan{display:flex;align-items:center;justify-content:space-between;gap:8px;width:100%;
+  margin:0 0 12px;padding:13px 15px;border-radius:var(--r,20px);
+  border:1px solid var(--line-soft,#EEF1F7);border-left:3px solid var(--gold,#E0A33E);
+  background:var(--surface,#fff);box-shadow:var(--shadow-sm);color:var(--ink);
+  font:700 14px "Inter",sans-serif;font-size:clamp(13.2px,3.59vw,14px);cursor:pointer;
+  transition:transform .18s cubic-bezier(.2,.7,.3,1),background .2s ease}
+.mem-bilan:active{transform:scale(.985);background:var(--gold-soft)}
+.mem-bilan::after{content:"\203a";color:var(--gold-d,#C2872A);font-size:clamp(16px,4.4vw,18px);line-height:1}
 .mem-del{display:block;width:100%;margin:24px 0 10px;padding:10px;border:none;background:none;color:var(--danger);font:600 13px "Inter",sans-serif;font-size:clamp(12.2px,3.333vw,13px);cursor:pointer;text-align:center}
 .exsug-lbl{font:600 11px "Inter",sans-serif;font-size:clamp(10.3px,2.821vw,11px);color:var(--muted);text-transform:uppercase;letter-spacing:.3px;margin:8px 0 6px}
 .exsug-chips{display:flex;flex-wrap:wrap;gap:6px}
@@ -6671,7 +6678,7 @@ function openMontage(tr,version,autoplay){ tr=tr||souvTrip(); if(!tr) return; _m
     <div id="mvStudio" class="stu" style="display:none">
       <div class="stu-top">
         <button class="stu-back" id="stuBack" aria-label="Retour">\u2039</button>
-        <div class="stu-ttl"><b>Studio Magot<i>\u2727</i></b><span>Montage vid\u00e9o \u00b7 v426</span></div>
+        <div class="stu-ttl"><b>Studio Magot<i>\u2727</i></b><span>Montage vid\u00e9o \u00b7 v427</span></div>
         <button class="stu-ico" id="stuUndo" title="Annuler">\u21b6</button>
         <button class="stu-ico" id="stuRedo" title="R\u00e9tablir">\u21b7</button>
         <button class="stu-exp" id="mvSave"><i>\u2b06</i>Exporter</button>
@@ -9435,7 +9442,7 @@ function souvMiniMap(tr,el){ const pts=souvPoints(tr); if(!pts.length||!el) retu
   if(mapKey() && navigator.onLine && typeof loadMaps==="function"){
     loadMaps().then(()=>{ if(!el.isConnected) return; el.classList.add("sv-gmap");
       const mode=travelMode(tr); const info=new google.maps.InfoWindow();
-      const map=new google.maps.Map(el,{center:{lat:pts[0].lat,lng:pts[0].lng},zoom:13,mapTypeId:"roadmap",mapTypeControl:true,mapTypeControlOptions:{position:google.maps.ControlPosition.TOP_LEFT},streetViewControl:false,fullscreenControl:false});
+      const map=new google.maps.Map(el,{center:{lat:pts[0].lat,lng:pts[0].lng},zoom:13,mapTypeId:"roadmap",mapTypeControl:false,streetViewControl:false,fullscreenControl:false,keyboardShortcuts:false});
       const bounds=new google.maps.LatLngBounds();
       const lodge=(typeof dayStart==="function")?dayStart(tr):null;
       if(lodge&&lodge.lat!=null){ const sp={lat:lodge.lat,lng:lodge.lng}; mapMarker(map,info,sp,"\ud83c\udfe8 "+(lodge.name||""),mode,{icon:(typeof lodgingIcon==="function"?lodgingIcon():undefined),z:999}); bounds.extend(sp); }
