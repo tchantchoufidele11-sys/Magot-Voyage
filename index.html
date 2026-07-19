@@ -1895,18 +1895,22 @@ body.dragging-on{-webkit-user-select:none;user-select:none}
    Chaque piste a la m\u00eame marge (14 px) et le m\u00eame contenu en largeur
    (dur\u00e9e x pixels-par-seconde). Elles d\u00e9filent ensemble, donc un instant
    donn\u00e9 tombe toujours sur la m\u00eame verticale, comme dans un vrai studio. */
-#mvOv .stu-tl{position:relative;margin-top:8px;padding-bottom:0}
-#mvOv .stu-lane{overflow-x:auto;overflow-y:hidden;-webkit-overflow-scrolling:touch;
-  scrollbar-width:none;overscroll-behavior-x:contain}
-#mvOv .stu-lane::-webkit-scrollbar{display:none}
-#mvOv .stu-lane>*{flex:0 0 auto}
-#mvOv .stu-wave{height:46px;padding:2px 14px 0}
+#mvOv .stu-tl{position:relative;margin-top:8px;padding-bottom:0;touch-action:pan-y}
+/* Le d\u00e9filement natif est abandonn\u00e9 : quatre zones scrollables ne peuvent pas
+   rester d'accord (butt\u00e9es diff\u00e9rentes, \u00e9v\u00e9nements asynchrones). Une seule
+   valeur de temps pilote les quatre contenus par translation. */
+#mvOv .stu-lane{position:relative;overflow:hidden;touch-action:pan-y}
+#mvOv .stu-in{position:relative;width:max-content;padding-left:14px;padding-right:14px;
+  will-change:transform;transform:translate3d(0,0,0)}
+#mvOv .stu-wave{height:46px;padding:2px 0 0}
 #mvOv .stu-wave canvas{display:block;height:44px}
-#mvOv .stu-ruler{position:relative;height:20px;margin:0;padding:0 14px}
+#mvOv .stu-ruler{height:20px;margin:0}
+#mvOv #stuLaneR{height:auto}
 #mvOv .stu-ruler canvas{height:20px;display:block;transform:none!important}
 #mvOv .stu-rph{position:absolute;top:7px;left:0;transform:translateX(-50%);width:11px;height:11px;margin-left:-5.5px;border-radius:50%;
   background:var(--sGold,#E0A33E);pointer-events:none;z-index:6;opacity:0;transition:opacity .15s}
-#mvOv .stu-chaps{display:flex;gap:0;padding:5px 14px 0}
+#mvOv .stu-chaps{display:flex;gap:0;padding-top:5px}
+#mvOv #stuLaneC{padding-top:0}
 /* Un seul chapitre est lisible en entier : celui qui joue. Les autres se
    replient sur leur rep\u00e8re court (I / 1 / 2 / O) pour ne jamais \u00eatre tronqu\u00e9s. */
 /* La largeur d'un chapitre = sa dur\u00e9e. Il commence donc exactement l\u00e0 o\u00f9
@@ -1916,7 +1920,7 @@ body.dragging-on{-webkit-user-select:none;user-select:none}
   white-space:nowrap;overflow:hidden;display:flex;align-items:center;justify-content:center;
   box-shadow:inset -2px 0 0 0 #08111F;transition:background .18s ease,color .18s ease}
 #mvOv .stu-chap.on{background:rgba(224,163,62,.14);border-color:var(--sGold,#E0A33E);color:var(--sGold,#E0A33E)}
-#mvOv .stu-strip{position:relative;display:flex;align-items:flex-start;gap:0;padding:6px 14px 2px}
+#mvOv .stu-strip{display:flex;align-items:flex-start;gap:0;padding-top:6px;padding-bottom:2px}
 /* Quatre plans visibles \u00e0 la fois : la largeur se calcule sur l'\u00e9cran r\u00e9el.
    134px = marges (28) + tuile Ajouter (44+6) + marges des vignettes (32) + chevrons (24). */
 #mvOv .stu-strip{--ch:calc((100vw - 120px)/4*1.27)}
@@ -6453,7 +6457,7 @@ function openMontage(tr,version,autoplay){ tr=tr||souvTrip(); if(!tr) return; _m
     <div id="mvStudio" class="stu" style="display:none">
       <div class="stu-top">
         <button class="stu-back" id="stuBack" aria-label="Retour">\u2039</button>
-        <div class="stu-ttl"><b>Studio Magot<i>\u2727</i></b><span>Montage vid\u00e9o \u00b7 v398</span></div>
+        <div class="stu-ttl"><b>Studio Magot<i>\u2727</i></b><span>Montage vid\u00e9o \u00b7 v399</span></div>
         <button class="stu-ico" id="stuUndo" title="Annuler">\u21b6</button>
         <button class="stu-ico" id="stuRedo" title="R\u00e9tablir">\u21b7</button>
         <button class="stu-exp" id="mvSave"><i>\u2b06</i>Exporter</button>
@@ -6495,16 +6499,16 @@ function openMontage(tr,version,autoplay){ tr=tr||souvTrip(); if(!tr) return; _m
       <div class="stu-dir" id="stuDir"></div>
 
       <div class="stu-tl">
-        <div class="stu-lane stu-ruler" id="stuRuler" data-lane="1"><canvas id="stuRulerC" height="26"></canvas></div>
-        <div class="stu-lane stu-chaps" id="stuChaps" data-lane="1"></div>
-        <div class="stu-lane stu-strip" id="stuStrip" data-lane="1"></div>
+        <div class="stu-lane" id="stuLaneR"><div class="stu-in stu-ruler" id="stuRuler"><canvas id="stuRulerC" height="26"></canvas></div></div>
+        <div class="stu-lane" id="stuLaneC"><div class="stu-in stu-chaps" id="stuChaps"></div></div>
+        <div class="stu-lane" id="stuLaneS"><div class="stu-in stu-strip" id="stuStrip"></div></div>
         <div class="stu-mus" id="stuMus">
           <span class="stu-mus-ic">\u266b</span>
           <span class="stu-mus-t" id="stuMusT">Musique</span>
           <span class="stu-mus-c">\u02c5</span>
           <button class="stu-mus-x" id="stuMusSync" type="button" aria-label="Recaler la musique">\u2AF6|\u2AF6</button>
         </div>
-        <div class="stu-lane stu-wave" id="stuWaveLane" data-lane="1"><canvas id="stuWave" height="46"></canvas></div>
+        <div class="stu-lane stu-wave" id="stuWaveLane"><div class="stu-in" id="stuWaveIn"><canvas id="stuWave" height="46"></canvas></div></div>
         <div class="stu-rph" id="stuRph"></div>
         <div class="stu-ph" id="stuPh"></div>
       </div>
@@ -6569,12 +6573,13 @@ function openMontage(tr,version,autoplay){ tr=tr||souvTrip(); if(!tr) return; _m
       `<button class="stu-add" id="stuAdd" title="Ajouter une photo" aria-label="Ajouter une photo"><i>\uff0b</i><span>Ajouter</span></button>`;
     hydratePhotos(el);
     try{ mvGeoInvalidate(); mvLanesBind(); }catch(e){}
-    _mvState._scrollX=0; _mvState._phX=null; _mvState._chapK=null; _mvState._tcSec=null;
+    _mvState._panX=0; _mvState._phX=null; _mvState._chapK=null; _mvState._tcSec=null; _mvState._phGeo=null;
     try{ requestAnimationFrame(()=>{ mvRulerPaint(); mvChapsPaint(); wavePaint();
-      mvGeoInvalidate(); mvGeoMeasure(); mvSeekUpdate(); }); }catch(e){}
+      mvGeoInvalidate(); mvGeoMeasure(); mvPanSet(0,true); mvSeekUpdate(); }); }catch(e){}
     el.querySelectorAll("[data-cmenu]").forEach(b=>b.onclick=(e)=>{ e.stopPropagation(); openShots(tr); });
     el.querySelectorAll("[data-ctr]").forEach(b=>b.onclick=()=>openShots(tr));
-    el.querySelectorAll("[data-clip]").forEach(b=>b.onclick=()=>{ const i=+b.dataset.clip; const sg=(_mvState.segs||[])[i];
+    el.querySelectorAll("[data-clip]").forEach(b=>b.onclick=()=>{ if(mvPanBlocked()) return;
+      const i=+b.dataset.clip; const sg=(_mvState.segs||[])[i];
       if(sg && _mvState.audio){ _mvState.audio.currentTime=sg.start+0.05; _mvState._cur=i; stripPaint(); } });
     const ad=el.querySelector("#stuAdd"); if(ad) ad.onclick=()=>openShotPhoto(tr,-1,()=>{ mvRelayout(); stripPaint(); });
   };
@@ -7142,6 +7147,7 @@ function mvChapsPaint(){
     return `<button class="stu-chap" data-chap="${i}" title="${escapeHtml(t)}" style="width:${w.toFixed(1)}px">${escapeHtml(lab)}</button>`;
   }).join("");
   el.querySelectorAll("[data-chap]").forEach(b=>b.onclick=()=>{
+    if(mvPanBlocked()) return;
     const x=B[+b.dataset.chap], A=_mvState.audio;
     if(A&&x){ try{ A.currentTime=Math.min(total-0.05,x.a+0.02); }catch(e){} mvSeekUpdate(); } });
   mvChapsActive();
@@ -7441,67 +7447,76 @@ function mvScale(){
   return {pps:pps,W:W,total:total};
 }
 function mvLanes(){
-  if(_mvState._lanes && _mvState._lanes.length) return _mvState._lanes;
-  try{ _mvState._lanes=Array.prototype.slice.call(document.querySelectorAll("#mvStudio [data-lane]")); }
-  catch(e){ _mvState._lanes=[]; }
+  if(_mvState._lanes && _mvState._lanes.length===4) return _mvState._lanes;
+  const L=["stuRuler","stuChaps","stuStrip","stuWaveIn"].map(i=>document.getElementById(i));
+  _mvState._lanes=L.every(Boolean)?L:[];
   return _mvState._lanes;
 }
 /* Toutes les mesures de mise en page sont prises UNE fois, apres chaque
    reconstruction ou changement de taille. Pendant la lecture on ne fait plus
    que des ecritures : c'est ce qui rend le defilement fluide. */
 function mvGeoMeasure(){
-  const strip=document.getElementById("stuStrip");
-  const chaps=document.getElementById("stuChaps");
+  const win=document.getElementById("stuLaneS");
+  const chaps=document.getElementById("stuLaneC");
   const wave=document.getElementById("stuWaveLane");
-  const ruler=document.getElementById("stuRuler");
-  if(!strip||!chaps) return null;
+  const strip=document.getElementById("stuStrip");
+  if(!win||!chaps||!strip) return null;
   const top=chaps.offsetTop;
-  const bas=wave?(wave.offsetTop+wave.offsetHeight):(strip.offsetTop+strip.offsetHeight);
-  _mvState._geo={ W:strip.clientWidth, rulerW:ruler?ruler.clientWidth:strip.clientWidth,
-                  top:top, h:Math.max(30,bas-top) };
+  const bas=wave?(wave.offsetTop+wave.offsetHeight):(win.offsetTop+win.offsetHeight);
+  const W=win.clientWidth;
+  const total=Math.max(0.5,_mvState.total||_mvState.dur||60);
+  const pps=_mvState._pps||mvScale().pps;
+  /* La butt\u00e9e tient compte de la tuile Ajouter, qui vit au bout de la bande. */
+  const contenu=Math.max(strip.scrollWidth||0, total*pps + 28);
+  _mvState._geo={ W:W, top:top, h:Math.max(30,bas-top), max:Math.max(0, contenu - W) };
   return _mvState._geo;
 }
 function mvGeo(){ return _mvState._geo||mvGeoMeasure(); }
 function mvGeoInvalidate(){ _mvState._geo=null; _mvState._lanes=null; }
-/* Ecrire scrollLeft declenche un evenement scroll sur chaque piste, qui
-   relancait la synchro : la boucle mangeait le temps de calcul de la video.
-   On neutralise donc l'ecoute pendant 200 ms apres toute ecriture. */
-function mvSyncBusy(){ return Date.now() < (_mvState._syncUntil||0); }
-function mvLanesSetScroll(x){
-  x=Math.max(0,Math.round(x));
-  if(Math.abs((_mvState._scrollX||0)-x)<1) return;
-  _mvState._scrollX=x; _mvState._syncUntil=Date.now()+200;
-  mvLanes().forEach(l=>{ if(Math.abs(l.scrollLeft-x)>=1){ try{ l.scrollLeft=x; }catch(e){} } });
+/* Deplacement commun. Une seule ecriture par piste, sur le compositeur :
+   aucune remise en page, donc aucune saccade pour la video ni pour le son. */
+function mvPanSet(x,force){
+  const G=mvGeo(); if(!G) return;
+  x=Math.max(0,Math.min(G.max, Math.round(x)));
+  if(!force && x===_mvState._panX) return;
+  _mvState._panX=x;
+  const t="translate3d("+(-x)+"px,0,0)";
+  mvLanes().forEach(el=>{ el.style.transform=t; });
 }
+function mvPanX(){ return _mvState._panX||0; }
+/* Geste : on fait glisser la ligne de temps au doigt, les quatre pistes
+   bougent ensemble puisqu'elles n'ont qu'une seule origine. */
+function mvPanBind(){
+  const tl=document.querySelector("#mvStudio .stu-tl"); if(!tl||tl.dataset.pb==="1") return;
+  tl.dataset.pb="1";
+  let x0=0,p0=0,actif=false,bouge=false;
+  const cx=(e)=>((e.touches&&e.touches[0])?e.touches[0].clientX:e.clientX);
+  tl.addEventListener("touchstart",(e)=>{ if(!e.touches||e.touches.length!==1) return;
+    actif=true; bouge=false; x0=cx(e); p0=mvPanX(); },{passive:true});
+  tl.addEventListener("touchmove",(e)=>{ if(!actif) return;
+    const d=cx(e)-x0;
+    if(!bouge && Math.abs(d)<8) return;
+    bouge=true; _mvState._panBlock=Date.now()+300;
+    if(e.cancelable) e.preventDefault();
+    mvPanSet(p0-d); mvSeekUpdate();
+  },{passive:false});
+  const fin=()=>{ if(bouge) _mvState._panBlock=Date.now()+300; actif=false; };
+  tl.addEventListener("touchend",fin,{passive:true});
+  tl.addEventListener("touchcancel",fin,{passive:true});
+}
+function mvPanBlocked(){ return Date.now() < (_mvState._panBlock||0); }
+function mvLanesBind(){ try{ mvPanBind(); mvRulerTapBind(); }catch(e){} }
 function mvRulerTapBind(){
   const r=document.getElementById("stuRuler"); if(!r||r.dataset.tb==="1") return; r.dataset.tb="1";
-  let x0=0,sc0=0,bouge=false;
-  const pt=(e)=>((e.touches&&e.touches[0])?e.touches[0].clientX:e.clientX);
-  r.addEventListener("touchstart",(e)=>{ x0=pt(e); sc0=r.scrollLeft; bouge=false; },{passive:true});
-  r.addEventListener("touchmove",(e)=>{ if(Math.abs(pt(e)-x0)>6||Math.abs(r.scrollLeft-sc0)>2) bouge=true; },{passive:true});
-  const aller=(cx)=>{ const A=_mvState.audio; if(!A) return;
-    const rect=r.getBoundingClientRect();
+  const aller=(cx)=>{ const A=_mvState.audio; if(!A||mvPanBlocked()) return;
+    const rect=(document.getElementById("stuLaneR")||r).getBoundingClientRect();
     const pps=_mvState._pps||mvScale().pps;
-    const t=(cx-rect.left+r.scrollLeft-14)/Math.max(0.01,pps);
+    const t=(cx-rect.left+mvPanX()-14)/Math.max(0.01,pps);
     const total=Math.max(0.1,_mvState.total||60);
     try{ A.currentTime=Math.max(0,Math.min(total-0.05,t)); }catch(e){}
     mvSeekUpdate(); };
-  r.addEventListener("touchend",(e)=>{ if(bouge) return;
-    const t=(e.changedTouches&&e.changedTouches[0]); if(t) aller(t.clientX); },{passive:true});
+  r.addEventListener("touchend",(e)=>{ const t=(e.changedTouches&&e.changedTouches[0]); if(t) aller(t.clientX); },{passive:true});
   r.addEventListener("click",(e)=>{ if(e.detail===0) return; aller(e.clientX); });
-}
-function mvLanesBind(){
-  try{ mvRulerTapBind(); }catch(e){}
-  mvLanes().forEach(l=>{ if(l.dataset.sb==="1") return; l.dataset.sb="1";
-    l.addEventListener("scroll",()=>{
-      if(mvSyncBusy()) return;
-      const x=l.scrollLeft;
-      if(Math.abs((_mvState._scrollX||0)-x)<1) return;
-      _mvState._scrollX=x; _mvState._syncUntil=Date.now()+200;
-      mvLanes().forEach(o=>{ if(o!==l && Math.abs(o.scrollLeft-x)>=1){ try{ o.scrollLeft=x; }catch(e){} } });
-      try{ mvSeekUpdate(); }catch(e){}
-    },{passive:true});
-  });
 }
 function mvSeekUpdate(){
   const A=_mvState.audio; const f=document.getElementById("stuSeekF");
@@ -7515,24 +7530,22 @@ function mvSeekUpdate(){
   const G=mvGeo(); if(!G) return;
   if(!_mvState._pps){ try{ mvScale(); }catch(e){} }
   const pps=_mvState._pps||0;
-  const sx=_mvState._scrollX||0;
-  const x=Math.round(14+cur*pps-sx);
   const vis=segsExist();
 
-  /* Defilement : on ne suit pas le doigt image par image, on repose la vue
-     quand la tete sort du cadre. Un mouvement toutes les quinze secondes au
-     lieu de soixante par seconde : la video et la musique ne decrochent plus. */
-  if(vis && _mvState.playing && !mvSyncBusy() && (x<10 || x>G.W-26)){
-    mvLanesSetScroll(cur*pps - G.W*0.12);
-    return mvSeekUpdate();
+  /* Pendant la lecture on repose la vue quand la tete atteint le bord, au lieu
+     de la pousser image par image : le film et la musique gardent la priorite. */
+  if(vis && _mvState.playing && !mvPanBlocked()){
+    const x0=14+cur*pps-mvPanX();
+    if(x0<10 || x0>G.W-26) mvPanSet(cur*pps - G.W*0.12);
   }
 
+  const x=Math.round(14+cur*pps-mvPanX());
   if(x!==_mvState._phX){
     _mvState._phX=x;
     const rp=document.getElementById("stuRph");
-    if(rp){ rp.style.left=x+"px"; rp.style.opacity=(vis && x>=10 && x<=G.rulerW-4)?"1":"0"; }
+    if(rp){ rp.style.left=x+"px"; rp.style.opacity=(vis && x>=8 && x<=G.W-4)?"1":"0"; }
     const ph=document.getElementById("stuPh");
-    if(ph){ ph.style.left=x+"px"; ph.style.opacity=(vis && x>=10 && x<=G.W-2)?"1":"0";
+    if(ph){ ph.style.left=x+"px"; ph.style.opacity=(vis && x>=8 && x<=G.W-2)?"1":"0";
       if(_mvState._phGeo!==G){ _mvState._phGeo=G; ph.style.top=G.top+"px"; ph.style.height=G.h+"px"; } }
   }
   try{ mvChapsActive(); }catch(e){}
@@ -7570,7 +7583,7 @@ function mvSeekBind(ov){
       mt.textContent=(nom||"Musique")+(bpm?" \u00b7 "+bpm+" BPM":"");
     }
     const mb=ov.querySelector("#stuMus");
-    if(mb) mb.onclick=(e)=>{ if(e.target.tagName==="CANVAS") return;
+    if(mb) mb.onclick=(e)=>{ if(e.target.tagName==="CANVAS"||mvPanBlocked()) return;
       const b=ov.querySelector('[data-tool="music"]')||ov.querySelector('[data-tool="mus"]');
       if(b) b.click(); }; }
   /* Les quatre pistes d\u00e9filent ensemble : un seul point de v\u00e9rit\u00e9. */
