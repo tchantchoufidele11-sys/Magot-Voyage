@@ -6453,7 +6453,7 @@ function openMontage(tr,version,autoplay){ tr=tr||souvTrip(); if(!tr) return; _m
     <div id="mvStudio" class="stu" style="display:none">
       <div class="stu-top">
         <button class="stu-back" id="stuBack" aria-label="Retour">\u2039</button>
-        <div class="stu-ttl"><b>Studio Magot<i>\u2727</i></b><span>Montage vid\u00e9o \u00b7 v397</span></div>
+        <div class="stu-ttl"><b>Studio Magot<i>\u2727</i></b><span>Montage vid\u00e9o \u00b7 v398</span></div>
         <button class="stu-ico" id="stuUndo" title="Annuler">\u21b6</button>
         <button class="stu-ico" id="stuRedo" title="R\u00e9tablir">\u21b7</button>
         <button class="stu-exp" id="mvSave"><i>\u2b06</i>Exporter</button>
@@ -6568,8 +6568,10 @@ function openMontage(tr,version,autoplay){ tr=tr||souvTrip(); if(!tr) return; _m
       (apres>0.15?`<div class="stu-gap" style="width:${(apres*pps).toFixed(1)}px"><span>Outro</span></div>`:"")+
       `<button class="stu-add" id="stuAdd" title="Ajouter une photo" aria-label="Ajouter une photo"><i>\uff0b</i><span>Ajouter</span></button>`;
     hydratePhotos(el);
-    try{ mvLanesBind(); }catch(e){}
-    try{ requestAnimationFrame(()=>{ mvRulerPaint(); mvChapsPaint(); wavePaint(); mvSeekUpdate(); }); }catch(e){}
+    try{ mvGeoInvalidate(); mvLanesBind(); }catch(e){}
+    _mvState._scrollX=0; _mvState._phX=null; _mvState._chapK=null; _mvState._tcSec=null;
+    try{ requestAnimationFrame(()=>{ mvRulerPaint(); mvChapsPaint(); wavePaint();
+      mvGeoInvalidate(); mvGeoMeasure(); mvSeekUpdate(); }); }catch(e){}
     el.querySelectorAll("[data-cmenu]").forEach(b=>b.onclick=(e)=>{ e.stopPropagation(); openShots(tr); });
     el.querySelectorAll("[data-ctr]").forEach(b=>b.onclick=()=>openShots(tr));
     el.querySelectorAll("[data-clip]").forEach(b=>b.onclick=()=>{ const i=+b.dataset.clip; const sg=(_mvState.segs||[])[i];
@@ -6589,15 +6591,13 @@ function openMontage(tr,version,autoplay){ tr=tr||souvTrip(); if(!tr) return; _m
     if(c.width!==Math.round(w*dpr)||c.height!==Math.round(H*dpr)){ c.width=Math.round(w*dpr); c.height=Math.round(H*dpr); }
     const g2=c.getContext("2d"); if(!g2) return;
     g2.setTransform(dpr,0,0,dpr,0,0); g2.clearRect(0,0,w,H);
-    const E=_mvState.energy||[], au=_mvState.audio;
-    const prog=au?Math.min(1,(au.currentTime||0)/total):0;
+    const E=_mvState.energy||[];
     const pas=3, nb=Math.max(1,Math.floor(w/pas));
+    g2.fillStyle="rgba(155,175,210,.5)";
     for(let i=0;i<nb;i++){
       const e=E.length?E[Math.floor(i/nb*E.length)]:0.4;
       const hh=Math.max(3, e*H*0.86);
-      const x=i*pas;
-      g2.fillStyle=(i/nb<=prog)?"#E0A33E":"rgba(120,140,180,.45)";
-      g2.fillRect(x,(H-hh)/2,2,hh);
+      g2.fillRect(i*pas,(H-hh)/2,2,hh);
     }
   };
   _mvState._wavePaint=wavePaint;
@@ -6679,12 +6679,13 @@ function openMontage(tr,version,autoplay){ tr=tr||souvTrip(); if(!tr) return; _m
   try{ const st=ov.querySelector("#mvStage")||ov.querySelector(".mv-stage");
        const pb=ov.querySelector("#stuPlayBar");
        if(st&&pb&&pb.parentNode!==st) st.appendChild(pb); }catch(e){}
-  _mvState._refreshStudio=()=>{ try{ mvSeekBind(ov); mvLanesBind(); mvRulerPaint(); mvSeekUpdate(); }catch(e){}
+  _mvState._refreshStudio=()=>{ try{ mvGeoInvalidate(); mvSeekBind(ov); mvLanesBind(); mvRulerPaint(); }catch(e){}
     try{ const pl=ov.querySelector("#mvPlay"); if(pl && !_mvState.playing) pl.innerHTML=mvT("playFilm"); }catch(e){}
     try{ _mvState.fiche=mvBuildFiche(_mvState.tr||souvTrip());
     mvFichePaint(); }catch(e){}
     try{ mvChapsPaint(); mvDirCardPaint(); }catch(e){}
-    stripPaint(); fmtsPaint(); wavePaint(); };
+    stripPaint(); fmtsPaint(); wavePaint();
+    try{ requestAnimationFrame(()=>{ mvGeoInvalidate(); mvGeoMeasure(); mvSeekUpdate(); }); }catch(e){} };
   /* Reconstruit le film sur-le-champ avec les nouveaux réglages (même musique). */
   const rebuild=(msg)=>{ if(msg) toast(msg);
     if(_mvState.segs && _mvState.segs.length && _mvState.audio){ mvStageRestart(0); if(_mvState._refreshStudio) _mvState._refreshStudio(); return; }
@@ -7151,6 +7152,8 @@ function mvChapsActive(){
   const A=_mvState.audio, t=(A&&A.currentTime)||0;
   let k=-1; for(let i=0;i<B.length;i++){ if(t>=B[i].a && t<B[i].b){ k=i; break; } }
   if(k<0) k=(t<B[0].a?0:B.length-1);
+  if(k===_mvState._chapK) return;              /* rien n'a chang\u00e9 : on ne touche a rien */
+  _mvState._chapK=k;
   el.querySelectorAll(".stu-chap").forEach((b,i)=>b.classList.toggle("on",i===k));
 }
 /* ---- Carte R\u00e9alisateur IA : six constats, tous tir\u00e9s de l'\u00e9tat r\u00e9el du montage.
@@ -7418,7 +7421,9 @@ function mvRulerPaint(){
 function mvRulerScroll(){}
 /* Rotation ou barre Safari qui appara\u00eet : on recalcule la r\u00e8gle et la t\u00eate. */
 try{ window.addEventListener("resize",()=>{ const st=document.getElementById("mvStudio");
-  if(st && st.style.display!=="none"){ try{ mvRulerPaint(); mvSeekUpdate(); }catch(e){} } }); }catch(e){}
+  if(st && st.style.display!=="none"){ try{ mvGeoInvalidate(); mvRulerPaint();
+    if(_mvState._refreshStudio) _mvState._refreshStudio(); else { mvGeoMeasure(); mvSeekUpdate(); }
+  }catch(e){} } }); }catch(e){}
 function segsExist(){ return !!((_mvState.segs||[]).length); }
 /* ============ ECHELLE COMMUNE DES PISTES ============
    Toutes les pistes (r\u00e8gle, chapitres, plans, forme d'onde) partagent le meme
@@ -7435,11 +7440,38 @@ function mvScale(){
   _mvState._pps=pps; _mvState._laneW=W;
   return {pps:pps,W:W,total:total};
 }
-function mvLanes(){ try{ return Array.prototype.slice.call(document.querySelectorAll("#mvStudio [data-lane]")); }catch(e){ return []; } }
-function mvLanesSetScroll(x,smooth){
-  x=Math.max(0,x); _mvState._syncing=true;
-  mvLanes().forEach(l=>{ try{ if(smooth) l.scrollTo({left:x,behavior:"smooth"}); else l.scrollLeft=x; }catch(e){ l.scrollLeft=x; } });
-  try{ requestAnimationFrame(()=>{ _mvState._syncing=false; }); }catch(e){ _mvState._syncing=false; }
+function mvLanes(){
+  if(_mvState._lanes && _mvState._lanes.length) return _mvState._lanes;
+  try{ _mvState._lanes=Array.prototype.slice.call(document.querySelectorAll("#mvStudio [data-lane]")); }
+  catch(e){ _mvState._lanes=[]; }
+  return _mvState._lanes;
+}
+/* Toutes les mesures de mise en page sont prises UNE fois, apres chaque
+   reconstruction ou changement de taille. Pendant la lecture on ne fait plus
+   que des ecritures : c'est ce qui rend le defilement fluide. */
+function mvGeoMeasure(){
+  const strip=document.getElementById("stuStrip");
+  const chaps=document.getElementById("stuChaps");
+  const wave=document.getElementById("stuWaveLane");
+  const ruler=document.getElementById("stuRuler");
+  if(!strip||!chaps) return null;
+  const top=chaps.offsetTop;
+  const bas=wave?(wave.offsetTop+wave.offsetHeight):(strip.offsetTop+strip.offsetHeight);
+  _mvState._geo={ W:strip.clientWidth, rulerW:ruler?ruler.clientWidth:strip.clientWidth,
+                  top:top, h:Math.max(30,bas-top) };
+  return _mvState._geo;
+}
+function mvGeo(){ return _mvState._geo||mvGeoMeasure(); }
+function mvGeoInvalidate(){ _mvState._geo=null; _mvState._lanes=null; }
+/* Ecrire scrollLeft declenche un evenement scroll sur chaque piste, qui
+   relancait la synchro : la boucle mangeait le temps de calcul de la video.
+   On neutralise donc l'ecoute pendant 200 ms apres toute ecriture. */
+function mvSyncBusy(){ return Date.now() < (_mvState._syncUntil||0); }
+function mvLanesSetScroll(x){
+  x=Math.max(0,Math.round(x));
+  if(Math.abs((_mvState._scrollX||0)-x)<1) return;
+  _mvState._scrollX=x; _mvState._syncUntil=Date.now()+200;
+  mvLanes().forEach(l=>{ if(Math.abs(l.scrollLeft-x)>=1){ try{ l.scrollLeft=x; }catch(e){} } });
 }
 function mvRulerTapBind(){
   const r=document.getElementById("stuRuler"); if(!r||r.dataset.tb==="1") return; r.dataset.tb="1";
@@ -7462,12 +7494,12 @@ function mvLanesBind(){
   try{ mvRulerTapBind(); }catch(e){}
   mvLanes().forEach(l=>{ if(l.dataset.sb==="1") return; l.dataset.sb="1";
     l.addEventListener("scroll",()=>{
-      if(_mvState._syncing) return;
-      _mvState._syncing=true;
+      if(mvSyncBusy()) return;
       const x=l.scrollLeft;
-      mvLanes().forEach(o=>{ if(o!==l && Math.abs(o.scrollLeft-x)>0.5) o.scrollLeft=x; });
+      if(Math.abs((_mvState._scrollX||0)-x)<1) return;
+      _mvState._scrollX=x; _mvState._syncUntil=Date.now()+200;
+      mvLanes().forEach(o=>{ if(o!==l && Math.abs(o.scrollLeft-x)>=1){ try{ o.scrollLeft=x; }catch(e){} } });
       try{ mvSeekUpdate(); }catch(e){}
-      try{ requestAnimationFrame(()=>{ _mvState._syncing=false; }); }catch(e){ _mvState._syncing=false; }
     },{passive:true});
   });
 }
@@ -7477,41 +7509,37 @@ function mvSeekUpdate(){
   const total=Math.max(0.1,_mvState.total||_mvState.dur||60);
   const cur=Math.min(total, (A&&A.currentTime)||0);
   const pct=Math.max(0,Math.min(1,cur/total));
-  f.style.width=(pct*100)+"%";
-  const h=document.getElementById("stuSeekH"); if(h) h.style.left=(pct*100)+"%";
-  /* Une seule position pour les quatre pistes : le temps courant multipli\u00e9 par
-     l'\u00e9chelle, moins le d\u00e9filement commun. Aucune piste ne peut d\u00e9river. */
-  const strip=document.getElementById("stuStrip"), tl=document.getElementById("stuChaps");
-  const pps=_mvState._pps||(mvScale().pps);
-  const sx=strip?strip.scrollLeft:0;
-  const x=14+cur*pps-sx;
+  f.style.width=(pct*100).toFixed(2)+"%";
+  const h=document.getElementById("stuSeekH"); if(h) h.style.left=(pct*100).toFixed(2)+"%";
+
+  const G=mvGeo(); if(!G) return;
+  if(!_mvState._pps){ try{ mvScale(); }catch(e){} }
+  const pps=_mvState._pps||0;
+  const sx=_mvState._scrollX||0;
+  const x=Math.round(14+cur*pps-sx);
   const vis=segsExist();
-  { const rp=document.getElementById("stuRph"), rw=document.getElementById("stuRuler");
-    if(rp&&rw){ rp.style.left=x+"px";
-      rp.style.opacity=(vis && x>=10 && x<=rw.clientWidth-4)?"1":"0"; } }
-  { const ph=document.getElementById("stuPh"), wave=document.getElementById("stuWaveLane");
-    if(ph&&strip&&tl){
-      ph.style.left=x+"px";
-      ph.style.top=tl.offsetTop+"px";
-      const bas=wave?(wave.offsetTop+wave.offsetHeight):(strip.offsetTop+strip.offsetHeight);
-      ph.style.height=Math.max(30,bas-tl.offsetTop)+"px";
-      ph.style.opacity=(vis && x>=10 && x<=strip.clientWidth-2)?"1":"0";
-      /* Pendant la lecture, les quatre pistes suivent ensemble. */
-      if(_mvState.playing && !_mvState._syncing){
-        const W=strip.clientWidth;
-        if(x<44 || x>W-44){
-          const cible=Math.max(0, cur*pps - W/2 + 14);
-          mvLanesSetScroll(cible,false);
-        }
-      }
-    } }
-  /* La forme d'onde ne change que par sa progression : inutile de la redessiner
-     \u00e0 chaque image, cinq fois par seconde suffit et l'iPhone respire. */
-  { const now=Date.now();
-    if(_mvState._wavePaint && now-(_mvState._waveT||0)>200){ _mvState._waveT=now; try{ _mvState._wavePaint(); }catch(e){} } }
+
+  /* Defilement : on ne suit pas le doigt image par image, on repose la vue
+     quand la tete sort du cadre. Un mouvement toutes les quinze secondes au
+     lieu de soixante par seconde : la video et la musique ne decrochent plus. */
+  if(vis && _mvState.playing && !mvSyncBusy() && (x<10 || x>G.W-26)){
+    mvLanesSetScroll(cur*pps - G.W*0.12);
+    return mvSeekUpdate();
+  }
+
+  if(x!==_mvState._phX){
+    _mvState._phX=x;
+    const rp=document.getElementById("stuRph");
+    if(rp){ rp.style.left=x+"px"; rp.style.opacity=(vis && x>=10 && x<=G.rulerW-4)?"1":"0"; }
+    const ph=document.getElementById("stuPh");
+    if(ph){ ph.style.left=x+"px"; ph.style.opacity=(vis && x>=10 && x<=G.W-2)?"1":"0";
+      if(_mvState._phGeo!==G){ _mvState._phGeo=G; ph.style.top=G.top+"px"; ph.style.height=G.h+"px"; } }
+  }
   try{ mvChapsActive(); }catch(e){}
-  const a=document.getElementById("stuTcA"); if(a) a.textContent=mvFmtTc(cur);
-  const b=document.getElementById("stuTcB"); if(b) b.textContent=mvFmtTc(total);
+  const sec=Math.floor(cur);
+  if(sec!==_mvState._tcSec){ _mvState._tcSec=sec;
+    const a=document.getElementById("stuTcA"); if(a) a.textContent=mvFmtTc(cur);
+    const b=document.getElementById("stuTcB"); if(b) b.textContent=mvFmtTc(total); }
 }
 function mvSeekBind(ov){
   const bar=ov.querySelector("#stuSeek"); if(!bar || bar.dataset.b==="1") return;
