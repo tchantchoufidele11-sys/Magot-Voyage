@@ -1158,6 +1158,25 @@ body.dragging-on{-webkit-user-select:none;user-select:none}
 .ph-missing::after{content:"\26A0 photo introuvable";position:absolute;inset:0;display:flex;align-items:center;justify-content:center;color:#94A0B8;font:600 11px system-ui;font-size:clamp(10.3px,2.821vw,11px);text-align:center;padding:6px}
 
 .sv-dir{border-color:var(--gold,#E0A33E)}
+/* Ligne de comptage du heros : discrete, elle complete le titre sans le concurrencer. */
+.sv-hero-cnt{margin:6px 0 12px;font-size:clamp(11.7px,3.333vw,13px);color:rgba(255,255,255,.82);
+  letter-spacing:.01em;text-shadow:0 1px 6px rgba(0,0,0,.5)}
+/* Lieux en pastilles : une seule rangee qui defile. */
+.sv-chips{display:flex;gap:8px;overflow-x:auto;-webkit-overflow-scrolling:touch;
+  padding:10px 0 2px;scrollbar-width:none}
+.sv-chips::-webkit-scrollbar{display:none}
+.sv-chip{flex:0 0 auto;display:flex;align-items:center;gap:8px;padding:7px 12px 7px 7px;
+  background:var(--surface-2,#F3F6FB);border:1px solid var(--line,#E5E9F1);border-radius:999px;
+  cursor:pointer;transition:transform .16s cubic-bezier(.2,.7,.3,1),border-color .2s ease}
+.sv-chip:active{transform:scale(.96);border-color:var(--gold,#E0A33E)}
+.sv-chip .sv-n{flex:0 0 auto;width:22px;height:22px;border-radius:50%;background:var(--gold-soft,rgba(224,163,62,.16));
+  color:var(--gold-d,#D49A38);font-size:clamp(10.7px,2.821vw,11px);font-weight:700;
+  display:flex;align-items:center;justify-content:center}
+.sv-chip .sv-cb{display:flex;flex-direction:column;align-items:flex-start;gap:1px;min-width:0}
+.sv-chip .sv-ct{font-size:clamp(12.2px,3.333vw,13px);font-weight:600;color:var(--ink);white-space:nowrap}
+.sv-chip .sv-cd{font-size:clamp(10px,2.564vw,10px);color:var(--muted);white-space:nowrap}
+/* Une ligne de faits sous la carte, jamais un zero. */
+.sv-mstats{margin-top:9px;font-size:clamp(11.7px,3.077vw,12px);color:var(--muted);letter-spacing:.01em}
 .dir-stats{display:grid;grid-template-columns:repeat(6,1fr);gap:5px;margin-bottom:12px}
 .ds{padding:8px 2px;border-radius:10px;gap:1px}
 .ds i{font-style:normal;font-size:clamp(12.2px,3.333vw,13px);line-height:1;color:var(--gold-d,#C2872A)}
@@ -6626,7 +6645,7 @@ function openMontage(tr,version,autoplay){ tr=tr||souvTrip(); if(!tr) return; _m
     <div id="mvStudio" class="stu" style="display:none">
       <div class="stu-top">
         <button class="stu-back" id="stuBack" aria-label="Retour">\u2039</button>
-        <div class="stu-ttl"><b>Studio Magot<i>\u2727</i></b><span>Montage vid\u00e9o \u00b7 v423</span></div>
+        <div class="stu-ttl"><b>Studio Magot<i>\u2727</i></b><span>Montage vid\u00e9o \u00b7 v424</span></div>
         <button class="stu-ico" id="stuUndo" title="Annuler">\u21b6</button>
         <button class="stu-ico" id="stuRedo" title="R\u00e9tablir">\u21b7</button>
         <button class="stu-exp" id="mvSave"><i>\u2b06</i>Exporter</button>
@@ -9513,20 +9532,30 @@ function renderMemories(){ const body=document.getElementById("memBody"); if(!bo
         meta=`<span><b>0</b>photos</span><span><b>${pts.length}</b>${pts.length>1?"scènes":"scène"}</span>`;
         btn=`<button class="sv-hero-btn ghost" id="heroAdd">Ajouter des photos ›</button>`;
       }
+      /* Le compte des medias, en une ligne, sans jamais afficher un zero :
+         un zero n'informe pas, il fait un trou. */
+      const _nV=(tr.memories||[]).filter(m=>m&&m.kind==="video").length;
+      const _cnt=[[nPh,"photo","photos"],[_nV,"vid\u00e9o","vid\u00e9os"],[pts.length,"lieu","lieux"]]
+        .filter(x=>x[0]>0).map(x=>x[0]+" "+(x[0]>1?x[2]:x[1])).join("  \u00b7  ");
       h+=`<div class="sv-hero"><div class="sv-hero-bg" ${bgAttr}></div><div class="sv-hero-in">
         <div class="sv-hero-kick">\u2728 ${ready?"Revivez":"Ton film"}</div>
         <h2 class="sv-hero-t">${escapeHtml(tripTitle(tr))}</h2>
         <div class="sv-hero-sub">${sub}</div>
         <div class="sv-hero-meta">${meta}</div>
+        ${_cnt?`<div class="sv-hero-cnt">${_cnt}</div>`:""}
         ${btn}
       </div></div>`; }
     if(located){
-      const steps=pts.slice(0,4).map((pp,i)=>`<button class="sv-step" data-svstep="${i}"><span class="sv-n">${i+1}</span><span class="sv-sb"><span class="sv-st">${escapeHtml(pp.title||"\u2014")}</span><span class="sv-sd">${t("plan.day")} ${pp.day+1}${pp.time?" \u2022 "+escapeHtml(pp.time):""}</span></span></button>`).join("");
+      /* Les lieux deviennent des pastilles horizontales sous la carte :
+         meme information, une hauteur au lieu de quatre. */
+      const steps=pts.map((pp,i)=>`<button class="sv-chip" data-svstep="${i}"><span class="sv-n">${i+1}</span><span class="sv-cb"><span class="sv-ct">${escapeHtml(pp.title||"\u2014")}</span><span class="sv-cd">${t("plan.day")} ${pp.day+1}${pp.time?" \u2022 "+escapeHtml(pp.time):""}</span></span></button>`).join("");
+      const _nD=(typeof tripDays==="function"?tripDays(tr).length:0);
       h+=`<div class="sv-card">
-        <div class="sv-head"><span class="sv-ic">${ICO_MAP_SV}</span><div class="sv-ht"><h3>${svT("mapTitle")} <span class="sv-new">${svT("new")}</span></h3><p>${svT("mapSub")}</p></div><button class="sv-big" id="svBig">\u26F6 ${svT("big")}</button></div>
+        <div class="sv-head"><span class="sv-ic">${ICO_MAP_SV}</span><div class="sv-ht"><h3>${svT("mapTitle")}</h3><p>${svT("mapSub")}</p></div><button class="sv-big" id="svBig">\u26F6 ${svT("big")}</button></div>
         <div class="sv-body">
-          <div class="sv-steps">${steps}<button class="sv-all" id="svAll">${svT("allPlaces",{n:pts.length})} \u203A</button></div>
           <div class="sv-mapmini" id="svMapMini"></div>
+          <div class="sv-chips">${steps}</div>
+          <div class="sv-mstats">${pts.length} lieu${pts.length>1?"x":""} visit\u00e9${pts.length>1?"s":""}${_nD?("  \u00b7  "+_nD+" journ\u00e9e"+(_nD>1?"s":"")):""}<span id="svKm"></span></div>
         </div></div>`;
     }
     { const txt=(tr.souvenirText||"").trim();
@@ -9539,24 +9568,10 @@ function renderMemories(){ const body=document.getElementById("memBody"); if(!bo
         <div id="souvAgentCard" style="display:none"></div>
       </div>
     </div>`; }
-    /* --- Réalisateur IA (données réelles) --- */
-    { const fpts=souvFilmPoints(tr); const nPh=(tr.memories||[]).filter(m=>!(m&&m.kind==="video")).length, nPl=fpts.length, nDays=tripDays(tr).length;
-      const est=Math.max(30,Math.min(120, 8+nPh*2.5+nPl*4));
-      h+=`<div class="sv-card sv-dir">
-        <div class="sv-head"><span class="sv-ic">${ICO_SPARK_SV}</span><div class="sv-ht"><h3>R\u00e9alisateur IA <span class="sv-new">${svT("nw")}</span></h3><p>Ton film de voyage est pr\u00eat \u00e0 \u00eatre r\u00e9alis\u00e9.</p></div></div>
-        ${(()=>{ window.__A2=mvAutoSetup(tr); return ""; })()}
-        <div class="dir-mood">${(()=>{ const d=mvDirect(tr); return `\u2728 Ton voyage ressemble \u00e0 un film <b>${d.n}</b> \u2014 ${escapeHtml(d.why)}.`; })()}</div>
-        <div class="dir-stats">
-          <div class="ds">${IC_PH}<b>${nPh}</b><span>Photos</span></div>
-          <div class="ds">${IC_VD}<b>${(tr.memories||[]).filter(m=>m&&m.kind==="video").length}</b><span>Vidéos</span></div>
-          <div class="ds">${IC_PIN}<b>${nPl}</b><span>Lieux</span></div>
-          <div class="ds">${IC_RD}<b id="dirKm">·</b><span>Parcourus</span></div>
-          <div class="ds">${IC_CL}<b id="dirDur">·</b><span>Durée</span></div>
-          <div class="ds">${IC_BK}<b>${tr.souvStory?"\u2713":"\u2013"}</b><span>Récit</span></div>
-        </div>
-        
-        <div class="dir-est-line">✨ Ton film durerait environ <b>${(()=>{const d=window.__A2.dur; return d<60?(d+" s"):(Math.floor(d/60)+" min");})()}</b> — réglages prêts. Ouvre le studio depuis le bouton en haut de page.</div>
-      </div>`; }
+    /* La carte « Realisateur IA » a ete absorbee par le heros : elle
+       repetait le style, la duree et les scenes, puis renvoyait au bouton
+       du haut. Une carte dont la conclusion est « sers-toi de l'autre
+       bouton » n'a pas lieu d'etre. */
     { const withPh=places.filter(p=>(tr.memories||[]).some(m=>m.placeId===p.id));
       if(withPh.length){
       h+=`<div class="sv-card">
@@ -9574,7 +9589,6 @@ function renderMemories(){ const body=document.getElementById("memBody"); if(!bo
   body.querySelectorAll("[data-place]").forEach(el=>el.onclick=e=>{ if(e.target.closest("[data-fav]")||e.target.closest("[data-note]")) return; const p=(tr.places||[]).find(x=>x.id===el.dataset.place); if(p) openPlace(p); });
   hydratePhotos(body);
   { const _b1=body.querySelector("#svBig"); if(_b1) _b1.onclick=()=>openSouvenirMap(tr);
-    const _b2=body.querySelector("#svAll"); if(_b2) _b2.onclick=()=>openSouvenirMap(tr);
     body.querySelectorAll("[data-svstep]").forEach(b=>b.onclick=()=>openSouvPlace(tr,parseInt(b.dataset.svstep,10)||0));
     const _b3=body.querySelector("#svAllMoments"); if(_b3) _b3.onclick=()=>{ souvState.filter="photos"; renderMemories(); };
     body.querySelectorAll("[data-album]").forEach(b=>b.onclick=()=>openAlbum(tr,b.dataset.album));
@@ -9598,8 +9612,11 @@ function renderMemories(){ const body=document.getElementById("memBody"); if(!bo
     body.querySelectorAll("[data-tlm]").forEach(b=>b.onclick=(e)=>{ e.stopPropagation(); filmMove(tr,+b.dataset.tlm,+b.dataset.dir); });
     body.querySelectorAll("[data-tlx]").forEach(b=>b.onclick=(e)=>{ e.stopPropagation(); filmRemove(tr,+b.dataset.tlx); });
     { const tr2=body.querySelector("#tlReset"); if(tr2) tr2.onclick=()=>filmReset(tr); }
-    { const kEl=body.querySelector("#dirKm"), dEl=body.querySelector("#dirDur");
-      if(kEl) mvStats(tr).then(st=>{ if(kEl) kEl.textContent=(st.km||0)+" km"; if(dEl) dEl.textContent=st.durTxt||"\u2013"; }).catch(()=>{ if(kEl) kEl.textContent="\u2013"; if(dEl) dEl.textContent="\u2013"; }); }
+    /* Distance et duree : affichees sous la carte, et seulement si elles
+       existent vraiment (voir #svKm). */
+    { const kEl=body.querySelector("#svKm");
+      if(kEl) mvStats(tr).then(st=>{ const km=+(st.km||0);
+        if(km>0) kEl.textContent="  \u00b7  "+km+" km parcourus"; }).catch(()=>{}); }
     const _mini=body.querySelector("#svMapMini"); if(_mini) souvMiniMap(tr,_mini); }
   _bindExtra();
   if(document.getElementById("souvAgentCard")) paintSouvCard(tr);
