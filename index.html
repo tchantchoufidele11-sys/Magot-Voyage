@@ -6462,7 +6462,7 @@ function openMontage(tr,version,autoplay){ tr=tr||souvTrip(); if(!tr) return; _m
     <div id="mvStudio" class="stu" style="display:none">
       <div class="stu-top">
         <button class="stu-back" id="stuBack" aria-label="Retour">\u2039</button>
-        <div class="stu-ttl"><b>Studio Magot<i>\u2727</i></b><span>Montage vid\u00e9o \u00b7 v401</span></div>
+        <div class="stu-ttl"><b>Studio Magot<i>\u2727</i></b><span>Montage vid\u00e9o \u00b7 v402</span></div>
         <button class="stu-ico" id="stuUndo" title="Annuler">\u21b6</button>
         <button class="stu-ico" id="stuRedo" title="R\u00e9tablir">\u21b7</button>
         <button class="stu-exp" id="mvSave"><i>\u2b06</i>Exporter</button>
@@ -8998,6 +8998,10 @@ function mvRun(tr,total){
   const step=()=>{ if(myLoop!==_mvState._loop) return;   /* boucle périmée : on l'arrête net (pas de re-planification) */
     GR=curGrade(); paintCss(); if(_mvState._paint && (_mvState._pt=(_mvState._pt||0)+1)%6===0) { try{ _mvState._paint(); }catch(e){} }
     const t=au?au.currentTime:0;
+    /* La tête de lecture suit la MUSIQUE, du tout premier instant au tout dernier :
+       elle avance donc aussi pendant l'intro et pendant l'outro, où aucun plan
+       n'est dessiné. C'est là qu'elle se figeait auparavant. */
+    if(!_mvState._seekTick || Math.abs(t-_mvState._seekTick)>0.1){ _mvState._seekTick=t; try{ mvSeekUpdate(); }catch(e){} }
     const fe=Math.min(total, (au&&au.duration>1)?au.duration:total);   /* fin réelle : jamais au-delà de la musique */
     /* Fondu de sortie façon studio : la musique baisse progressivement (via GainNode, marche sur iPhone). */
     if(au){ const FADE=Math.min(9,Math.max(4,total*0.16)); if(t>fe-FADE){ const f=Math.max(0,(fe-t)/FADE); mvVol(Math.pow(f,0.7)); } else { mvVol(_mvState._duck!=null?_mvState._duck:1); } }
@@ -9036,7 +9040,6 @@ function mvRun(tr,total){
         /* Effet du plan communiqué au moteur GPU avant le dessin.
            Pendant une transition on n'applique pas d'effet (deux images à la fois). */
         _mvState._fxDone=false; _mvState._ovDone=false; _mvState._ovTrDone=false; _mvState._gradeDone=false; _mvState._planIx=si;
-        if(!_mvState._seekTick || (t-_mvState._seekTick)>0.12){ _mvState._seekTick=t; mvSeekUpdate(); }   /* barre de lecture */
         _mvState._ovNow=(seg.overlay?(_mvOverlayEls[seg.overlay]||null):null);
         /* Flash d'overlay sur les temps forts, désormais composé sur le GPU lui aussi. */
         _mvState._ovTrNow=(seg.overlayTr && into<TR)?(_mvOverlayEls[seg.overlayTr]||null):null;
