@@ -1484,7 +1484,7 @@ body.dragging-on{-webkit-user-select:none;user-select:none}
 #mvOv.stufull .stu-mid{padding:0;gap:0}
 #mvOv.stufull.cine .mv-stage{border-radius:0}
 #mvOv.stufull .stu-exit{display:inline-flex}
-#mvOv.cine .mv-fiche{flex:0 0 auto;background:#101B2E;margin:10px;border-radius:12px}
+#mvOv.cine .mv-fiche{flex:0 0 auto;background:none;margin:0;border-radius:0}
 /* ---- Barre de lecture : grande prévisualisation façon studio ---- */
 /* ---- Règle temporelle du studio (tête de lecture traversante) ---- */
 .stu-ruler{position:relative;flex:0 0 auto;margin:2px 0 0;height:26px;overflow:hidden;padding-left:10px}
@@ -1830,7 +1830,7 @@ body.dragging-on{-webkit-user-select:none;user-select:none}
 /* ---------- 2. Rangee centrale : rail / apercu / formats ---------- */
 /* Une image 9:16 tire sa largeur de sa hauteur : pour l'agrandir il faut lui
    donner de la hauteur, et lui rendre les marges laterales. */
-#mvOv .stu-mid{flex:1 1 0;min-height:clamp(120px,20dvh,200px);max-height:52dvh;display:flex;align-items:stretch;
+#mvOv .stu-mid{flex:1 1 0;min-height:clamp(120px,20dvh,200px);display:flex;align-items:stretch;
   gap:clamp(4px,1.4vw,9px);padding:2px calc(var(--stuPad) - 2px) 0 calc(var(--stuPad) + 1px);overflow:hidden}
 #mvOv .stu-tools{width:var(--stuRail);flex:0 0 var(--stuRail);background:#101B2E;border-radius:14px;padding:6px 0;
   display:flex;flex-direction:column;justify-content:space-between;gap:2px;overflow:hidden}
@@ -1903,14 +1903,20 @@ body.dragging-on{-webkit-user-select:none;user-select:none}
   font-size:clamp(11.5px,3.1vw,13.5px);padding:0}
 
 /* ---------- 4. Bandeau d'informations (6 cartes) ---------- */
-#mvOv .mv-fiche{display:flex;gap:7px;overflow-x:auto;overflow-y:hidden;-webkit-overflow-scrolling:touch;
-  background:none;padding:7px var(--stuPad) 0;scrollbar-width:none}
+#mvOv .mv-fiche{display:flex;align-items:baseline;gap:7px;overflow-x:auto;overflow-y:hidden;
+  -webkit-overflow-scrolling:touch;background:none;padding:6px var(--stuPad) 2px;
+  scrollbar-width:none;flex:0 0 auto}
 #mvOv .mv-fiche::-webkit-scrollbar{display:none}
-#mvOv .mv-fiche .mvf{flex:1 0 auto;min-width:58px;display:flex;flex-direction:column;align-items:center;
-  gap:1px;background:#111C30;border:1px solid rgba(224,163,62,.14);border-radius:12px;padding:5px 6px 5px}
-#mvOv .mv-fiche .mvf i{font-style:normal;font-size:clamp(14.1px,3.846vw,16.8px);line-height:1;color:var(--sGold,#E0A33E)}
-#mvOv .mv-fiche .mvf b{font:700 12.5px system-ui;font-size:clamp(11.8px,3.205vw,14px);color:#F5F7FA;white-space:nowrap}
-#mvOv .mv-fiche .mvf em{font-style:normal;font-size:clamp(9.5px,2.436vw,10.5px);color:#8A9AB5;white-space:nowrap}
+/* Ces valeurs ne se touchent pas : ce sont des metadonnees, pas des boutons.
+   Pas de cadre, pas de fond, une seule ligne. */
+#mvOv .mv-fiche .mvf{flex:0 0 auto;min-width:0;display:flex;flex-direction:row;align-items:baseline;
+  gap:4px;background:none;border:0;border-radius:0;padding:0}
+#mvOv .mv-fiche .mvf + .mvf::before{content:"\00b7";color:rgba(180,188,200,.34);margin-right:4px}
+#mvOv .mv-fiche .mvf i{font-style:normal;font-size:clamp(10.5px,2.821vw,12.3px);line-height:1;
+  color:var(--sGold,#E0A33E);opacity:.8}
+#mvOv .mv-fiche .mvf b{font-size:clamp(11px,3.077vw,13.4px);font-weight:600;
+  color:rgba(245,247,250,.86);white-space:nowrap}
+#mvOv .mv-fiche .mvf em{display:none}   /* l'icone dit deja de quoi il s'agit */
 
 /* ---------- 5. Carte Realisateur IA ---------- */
 #mvOv .stu-dir{display:block;width:auto;margin:4px var(--stuPad) 0;padding:0 11px;
@@ -1959,7 +1965,7 @@ body.dragging-on{-webkit-user-select:none;user-select:none}
 /* La timeline n'est plus un bloc parmi d'autres : c'est une table de montage.
    Fond plus sombre, filet lumineux au-dessus, l\u00e9g\u00e8re ombre interne : l'oeil
    comprend d'un coup qu'il change de zone de travail. */
-#mvOv .stu-tl{position:relative;flex:1 1 auto;margin-top:6px;padding:5px 0 6px;touch-action:pan-y;
+#mvOv .stu-tl{position:relative;flex:0 0 auto;margin-top:6px;padding:5px 0 6px;touch-action:pan-y;
   background:#050B15;border-top:1px solid rgba(224,163,62,.18);
   box-shadow:inset 0 1px 0 rgba(255,255,255,.045), inset 0 14px 22px -18px rgba(0,0,0,.9)}
 /* Le d\u00e9filement natif est abandonn\u00e9 : quatre zones scrollables ne peuvent pas
@@ -2125,7 +2131,7 @@ body.dragging-on{-webkit-user-select:none;user-select:none}
   #mvOv .stu-flab{font-size:clamp(8.5px,2.179vw,9.4px);letter-spacing:.06em}
 }
 @media (max-height:800px){
-  #mvOv .mv-fiche .mvf{padding:6px 6px 5px}
+  #mvOv .mv-fiche .mvf{padding:0}
   #mvOv .mv-fiche .mvf b{font-size:clamp(11.3px,3.077vw,13.4px)}
   #mvOv .stu-strip{--ch:58px}
   #mvOv .stu-bot .stu-b,#mvOv .stu-bot .stu-main{height:46px}
@@ -2161,7 +2167,7 @@ body.dragging-on{-webkit-user-select:none;user-select:none}
 }
 @media (max-height:680px){
   #mvOv .stu-ttl b{font-size:clamp(15.3px,4.359vw,20.1px)}
-  #mvOv .mv-fiche .mvf{padding:5px 5px 4px;min-width:54px}
+  #mvOv .mv-fiche .mvf{padding:0;min-width:0}
   #mvOv .mv-fiche .mvf b{font-size:clamp(10.8px,2.949vw,12.9px)}
   #mvOv .stu-dir{padding:7px 11px}
   #mvOv .stu-dir-g{gap:3px 8px;margin-top:5px}
@@ -6614,7 +6620,7 @@ function openMontage(tr,version,autoplay){ tr=tr||souvTrip(); if(!tr) return; _m
     <div id="mvStudio" class="stu" style="display:none">
       <div class="stu-top">
         <button class="stu-back" id="stuBack" aria-label="Retour">\u2039</button>
-        <div class="stu-ttl"><b>Studio Magot<i>\u2727</i></b><span>Montage vid\u00e9o \u00b7 v419</span></div>
+        <div class="stu-ttl"><b>Studio Magot<i>\u2727</i></b><span>Montage vid\u00e9o \u00b7 v420</span></div>
         <button class="stu-ico" id="stuUndo" title="Annuler">\u21b6</button>
         <button class="stu-ico" id="stuRedo" title="R\u00e9tablir">\u21b7</button>
         <button class="stu-exp" id="mvSave"><i>\u2b06</i>Exporter</button>
