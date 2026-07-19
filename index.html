@@ -1865,19 +1865,21 @@ body.dragging-on{-webkit-user-select:none;user-select:none}
 #mvOv .mv-fiche .mvf em{font-style:normal;font-size:9.5px;color:#8A9AB5;white-space:nowrap}
 
 /* ---------- 5. Carte Realisateur IA ---------- */
-#mvOv .stu-dir{display:block;width:auto;margin:8px 14px 0;padding:10px 12px 9px;background:#111C30;
+#mvOv .stu-dir{display:block;width:auto;margin:7px 14px 0;padding:0 12px;height:34px;background:#111C30;
   border:1px solid rgba(224,163,62,.16);border-radius:18px;text-align:left;cursor:default;min-height:0}
-#mvOv .stu-dir-h{display:flex;align-items:center;gap:8px;cursor:pointer}
+#mvOv .stu-dir-h{display:flex;align-items:center;gap:8px;height:34px;cursor:pointer}
 #mvOv .stu-dir-h .ttx{flex:1 1 auto;min-width:0}
-#mvOv .stu-dir-k{display:block;font:700 10.5px system-ui;letter-spacing:.07em;color:var(--sGold,#E0A33E)}
-#mvOv .stu-dir-h b{display:block;font:700 15.5px system-ui;color:#F5F7FA;margin-top:3px}
+#mvOv .stu-dir-k{flex:0 0 auto;display:block;font:700 9.5px system-ui;letter-spacing:.07em;color:var(--sGold,#E0A33E)}
+#mvOv .stu-dir-h b{flex:1 1 auto;min-width:0;display:block;font:600 12.5px system-ui;color:#F5F7FA;margin:0;
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#mvOv .stu-dir-sep{flex:0 0 auto;color:#3A4C6B;font-size:11px}
 #mvOv .stu-dir-h .cv{flex:0 0 auto;color:#8A9AB5;font-size:19px}
 #mvOv .stu-dir-g{display:grid;grid-template-columns:1fr 1fr;gap:5px 10px;margin-top:8px}
 #mvOv .stu-ck{display:flex;align-items:center;gap:6px;font-size:11.5px;color:#C3D0E4;line-height:1.25}
 #mvOv .stu-ck i{flex:0 0 15px;width:15px;height:15px;border-radius:50%;border:1px solid var(--sGold,#E0A33E);
   color:var(--sGold,#E0A33E);font-style:normal;font-size:9px;line-height:13px;text-align:center}
 #mvOv .stu-ck.warn i{border-color:#B98A2E;color:#B98A2E}
-#mvOv .stu-dir-h b{font-size:15px}
+#mvOv .stu-dir-h b{font-size:12.5px}
 #dirDetOv .dd-g{display:grid;grid-template-columns:1fr;gap:9px;padding:4px 4px 12px}
 #dirDetOv .stu-ck{display:flex;align-items:center;gap:9px;font-size:13.5px;color:#C3D0E4;line-height:1.3}
 #dirDetOv .stu-ck i{flex:0 0 18px;width:18px;height:18px;border-radius:50%;border:1px solid #E0A33E;
@@ -1889,34 +1891,39 @@ body.dragging-on{-webkit-user-select:none;user-select:none}
 #mvOv .stu-dir-b i{font-style:normal;color:var(--sGold,#E0A33E);font-size:12px}
 
 /* ---------- 6. Timeline : regle, chapitres, plans ---------- */
+/* ---- Quatre pistes, une seule \u00e9chelle de temps ----
+   Chaque piste a la m\u00eame marge (14 px) et le m\u00eame contenu en largeur
+   (dur\u00e9e x pixels-par-seconde). Elles d\u00e9filent ensemble, donc un instant
+   donn\u00e9 tombe toujours sur la m\u00eame verticale, comme dans un vrai studio. */
 #mvOv .stu-tl{position:relative;margin-top:8px;padding-bottom:0}
-#mvOv .stu-ruler{position:relative;height:20px;margin:0;padding:0 14px;overflow:hidden}
+#mvOv .stu-lane{overflow-x:auto;overflow-y:hidden;-webkit-overflow-scrolling:touch;
+  scrollbar-width:none;overscroll-behavior-x:contain}
+#mvOv .stu-lane::-webkit-scrollbar{display:none}
+#mvOv .stu-lane>*{flex:0 0 auto}
+#mvOv .stu-wave{height:46px;padding:2px 14px 0}
+#mvOv .stu-wave canvas{display:block;height:44px}
+#mvOv .stu-ruler{position:relative;height:20px;margin:0;padding:0 14px}
 #mvOv .stu-ruler canvas{height:20px;display:block;transform:none!important}
-#mvOv .stu-rph{position:absolute;top:7px;left:0;width:11px;height:11px;margin-left:-5.5px;border-radius:50%;
+#mvOv .stu-rph{position:absolute;top:7px;left:0;transform:translateX(-50%);width:11px;height:11px;margin-left:-5.5px;border-radius:50%;
   background:var(--sGold,#E0A33E);pointer-events:none;z-index:6;opacity:0;transition:opacity .15s}
-#mvOv .stu-chaps{display:flex;gap:5px;padding:5px 14px 0;overflow-x:auto;overflow-y:hidden;
-  -webkit-overflow-scrolling:touch;scrollbar-width:none}
-#mvOv .stu-chaps::-webkit-scrollbar{display:none}
+#mvOv .stu-chaps{display:flex;gap:0;padding:5px 14px 0}
 /* Un seul chapitre est lisible en entier : celui qui joue. Les autres se
    replient sur leur rep\u00e8re court (I / 1 / 2 / O) pour ne jamais \u00eatre tronqu\u00e9s. */
-#mvOv .stu-chap{flex:0 0 auto;height:26px;min-width:30px;padding:0 8px;border:1px solid transparent;border-radius:9px;
+/* La largeur d'un chapitre = sa dur\u00e9e. Il commence donc exactement l\u00e0 o\u00f9
+   il commence sur la r\u00e8gle et sur la bande. */
+#mvOv .stu-chap{flex:0 0 auto;height:26px;padding:0 6px;border:1px solid transparent;border-radius:9px;
   background:#16213A;color:#8FA1BC;font:700 9.5px system-ui;letter-spacing:.06em;cursor:pointer;
   white-space:nowrap;overflow:hidden;display:flex;align-items:center;justify-content:center;
-  transition:min-width .18s ease,background .18s ease,color .18s ease}
-#mvOv .stu-chap .cfull{display:none}
-#mvOv .stu-chap .cshort{display:inline}
-#mvOv .stu-chap.on{flex:0 1 auto;min-width:0;padding:0 13px;background:rgba(224,163,62,.14);
-  border-color:var(--sGold,#E0A33E);color:var(--sGold,#E0A33E)}
-#mvOv .stu-chap.on .cfull{display:inline;overflow:hidden;text-overflow:ellipsis}
-#mvOv .stu-chap.on .cshort{display:none}
-#mvOv .stu-strip{position:relative;display:flex;align-items:flex-start;gap:0;overflow-x:auto;overflow-y:hidden;
-  padding:6px 14px 2px;-webkit-overflow-scrolling:touch;scrollbar-width:none}
-#mvOv .stu-strip::-webkit-scrollbar{display:none}
+  box-shadow:inset -2px 0 0 0 #08111F;transition:background .18s ease,color .18s ease}
+#mvOv .stu-chap.on{background:rgba(224,163,62,.14);border-color:var(--sGold,#E0A33E);color:var(--sGold,#E0A33E)}
+#mvOv .stu-strip{position:relative;display:flex;align-items:flex-start;gap:0;padding:6px 14px 2px}
 /* Quatre plans visibles \u00e0 la fois : la largeur se calcule sur l'\u00e9cran r\u00e9el.
    134px = marges (28) + tuile Ajouter (44+6) + marges des vignettes (32) + chevrons (24). */
-#mvOv .stu-strip{--cw:calc((100vw - 134px)/4);--ch:calc((100vw - 134px)/4*1.27)}
-#mvOv .stu-clip{flex:0 0 auto;width:var(--cw);margin-right:8px;cursor:pointer}
-#mvOv .stu-cth{position:relative;display:block;width:100%;height:var(--ch);border-radius:12px;
+#mvOv .stu-strip{--ch:calc((100vw - 120px)/4*1.27)}
+/* Largeur d'un plan = sa dur\u00e9e (pos\u00e9e par le JS). Aucune marge : sinon le
+   temps et les pixels ne diraient plus la m\u00eame chose. */
+#mvOv .stu-clip{position:relative;flex:0 0 auto;margin:0;cursor:pointer}
+#mvOv .stu-cth{position:relative;display:block;width:calc(100% - 4px);height:var(--ch);border-radius:12px;
   background:#16213A center/cover no-repeat;border:1.5px solid transparent;overflow:hidden}
 #mvOv .stu-clip.on .stu-cth{border-color:var(--sGold,#E0A33E)}
 #mvOv .stu-clip.on{outline:0}
@@ -1929,26 +1936,32 @@ body.dragging-on{-webkit-user-select:none;user-select:none}
 #mvOv .stu-cmenu{position:absolute;left:3px;bottom:3px;width:15px;height:15px;border-radius:5px;
   background:rgba(8,17,31,.72);border:0;color:#EAF0FA;font-size:10px;line-height:1;padding:0;cursor:pointer}
 #mvOv .stu-cname{display:none}
-#mvOv .stu-tr{flex:0 0 auto;align-self:center;position:relative;z-index:2;margin:0 -6px;width:20px;height:20px;border-radius:6px;
+#mvOv .stu-tr{position:absolute;right:-11px;top:50%;transform:translateY(-50%);z-index:3;margin:0;width:20px;height:20px;border-radius:6px;
   background:rgba(224,163,62,.10);border:1px solid rgba(224,163,62,.55);color:var(--sGold,#E0A33E);
   font-size:10px;line-height:1;cursor:pointer;padding:0}
-#mvOv .stu-add{flex:0 0 auto;width:44px;height:var(--ch);margin-right:6px;border-radius:12px;background:#101B2E;
+/* R\u00e9serve de l'intro et de l'outro : m\u00eame \u00e9chelle, donc m\u00eame alignement. */
+#mvOv .stu-gap{flex:0 0 auto;height:var(--ch);display:flex;align-items:center;justify-content:center;overflow:hidden}
+#mvOv .stu-gap span{font:700 8.5px system-ui;letter-spacing:.08em;text-transform:uppercase;color:#5B6C88;
+  background:#101B2E;border:1px solid #1D2B45;border-radius:8px;padding:3px 5px;white-space:nowrap}
+#mvOv .stu-add{flex:0 0 auto;width:44px;height:var(--ch);margin-left:8px;border-radius:12px;background:#101B2E;
   border:1px dashed #2A3B58;color:#8FA1BC;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px}
 #mvOv .stu-add i{font-style:normal;font-size:17px}
 /* Tuile \u00e9troite : le libell\u00e9 ne tiendrait pas, l'ic\u00f4ne + suffit (titre au survol). */
 #mvOv .stu-add span{display:none}
-#mvOv .stu-ph{position:absolute;top:20px;width:2px;background:var(--sGold,#E0A33E);left:0;opacity:0;
+#mvOv .stu-ph{position:absolute;top:20px;width:2px;transform:translateX(-1px);background:var(--sGold,#E0A33E);left:0;opacity:0;
   height:88px;pointer-events:none;z-index:5;box-shadow:0 0 6px rgba(224,163,62,.55);bottom:auto}
 #mvOv .stu-ph::before{display:none}
 
 /* ---------- 7. Bandeau musique ---------- */
-#mvOv .stu-mus{display:flex;align-items:center;gap:8px;margin:8px 14px 0;padding:0 12px;height:48px;
+#mvOv .stu-mus{display:flex;align-items:center;gap:8px;margin:6px 14px 0;padding:0 10px;height:30px;
   background:#111C30;border:1px solid rgba(224,163,62,.16);border-radius:16px;cursor:pointer}
 #mvOv .stu-mus-ic{flex:0 0 auto;width:auto;height:auto;background:none;color:var(--sGold,#E0A33E);font-size:15px;display:block}
 #mvOv .stu-mus-t{flex:0 0 auto;max-width:132px;color:#F5F7FA;font:600 11.5px system-ui;
   white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-#mvOv .stu-mus-c{flex:0 0 auto;color:#8A9AB5;font-size:13px;margin-right:2px}
-#mvOv .stu-mus canvas{flex:1 1 auto;height:34px;min-width:0}
+#mvOv .stu-mus-c{flex:1 1 auto;color:#8A9AB5;font-size:13px;text-align:left}
+/* La forme d'onde n'est plus dans ce bandeau : elle a sa propre piste, align\u00e9e
+   sur la r\u00e8gle et sur la bande de plans. */
+#mvOv .stu-mus canvas{display:none}
 #mvOv .stu-mus-x{flex:0 0 auto;border:0;background:none;color:#EAF0FA;font-size:13px;padding:0 0 0 6px;cursor:pointer}
 
 /* ---------- 8. Commandes du bas ---------- */
@@ -1984,7 +1997,7 @@ body.dragging-on{-webkit-user-select:none;user-select:none}
   #mvOv .mv-fiche{padding-top:6px}
   #mvOv .mv-fiche .mvf i{font-size:13px}
   #mvOv .stu-dir{margin-top:6px;padding:8px 12px 8px}
-  #mvOv .stu-dir-h b{font-size:14.5px}
+  #mvOv .stu-dir-h b{font-size:12px}
   #mvOv .stu-dir-g{gap:4px 8px;margin-top:6px}
   #mvOv .stu-ck{font-size:11px}
   #mvOv .stu-dir-b{height:30px;font-size:12px}
@@ -6440,7 +6453,7 @@ function openMontage(tr,version,autoplay){ tr=tr||souvTrip(); if(!tr) return; _m
     <div id="mvStudio" class="stu" style="display:none">
       <div class="stu-top">
         <button class="stu-back" id="stuBack" aria-label="Retour">\u2039</button>
-        <div class="stu-ttl"><b>Studio Magot<i>\u2727</i></b><span>Montage vid\u00e9o \u00b7 v396</span></div>
+        <div class="stu-ttl"><b>Studio Magot<i>\u2727</i></b><span>Montage vid\u00e9o \u00b7 v397</span></div>
         <button class="stu-ico" id="stuUndo" title="Annuler">\u21b6</button>
         <button class="stu-ico" id="stuRedo" title="R\u00e9tablir">\u21b7</button>
         <button class="stu-exp" id="mvSave"><i>\u2b06</i>Exporter</button>
@@ -6482,19 +6495,18 @@ function openMontage(tr,version,autoplay){ tr=tr||souvTrip(); if(!tr) return; _m
       <div class="stu-dir" id="stuDir"></div>
 
       <div class="stu-tl">
-        <div class="stu-ruler" id="stuRuler"><canvas id="stuRulerC" height="26"></canvas></div>
-        <div class="stu-chaps" id="stuChaps"></div>
-        <div class="stu-strip" id="stuStrip"></div>
+        <div class="stu-lane stu-ruler" id="stuRuler" data-lane="1"><canvas id="stuRulerC" height="26"></canvas></div>
+        <div class="stu-lane stu-chaps" id="stuChaps" data-lane="1"></div>
+        <div class="stu-lane stu-strip" id="stuStrip" data-lane="1"></div>
+        <div class="stu-mus" id="stuMus">
+          <span class="stu-mus-ic">\u266b</span>
+          <span class="stu-mus-t" id="stuMusT">Musique</span>
+          <span class="stu-mus-c">\u02c5</span>
+          <button class="stu-mus-x" id="stuMusSync" type="button" aria-label="Recaler la musique">\u2AF6|\u2AF6</button>
+        </div>
+        <div class="stu-lane stu-wave" id="stuWaveLane" data-lane="1"><canvas id="stuWave" height="46"></canvas></div>
         <div class="stu-rph" id="stuRph"></div>
         <div class="stu-ph" id="stuPh"></div>
-      </div>
-
-      <div class="stu-mus" id="stuMus">
-        <span class="stu-mus-ic">\u266b</span>
-        <span class="stu-mus-t" id="stuMusT">Musique</span>
-        <span class="stu-mus-c">\u02c5</span>
-        <canvas id="stuWave" height="46"></canvas>
-        <button class="stu-mus-x" id="stuMusSync" type="button" aria-label="Recaler la musique">\u2AF6|\u2AF6</button>
       </div>
 
       <div class="stu-bot">
@@ -6530,19 +6542,34 @@ function openMontage(tr,version,autoplay){ tr=tr||souvTrip(); if(!tr) return; _m
   const stripPaint=()=>{
     const el=ov.querySelector("#stuStrip"); if(!el) return;
     const segs=_mvState.segs||[], keep=_mvState.keep||[];
-    el.innerHTML=`<button class="stu-add" id="stuAdd" title="Ajouter une photo" aria-label="Ajouter une photo"><i>\uff0b</i><span>Ajouter</span></button>`+
+    /* Chaque plan occupe sa dur\u00e9e r\u00e9elle : la bande devient une vraie ligne de
+       temps, align\u00e9e sur la r\u00e8gle, les chapitres et la forme d'onde. */
+    const pps=mvScale().pps;
+    /* L'intro et l'outro n'ont pas de vignette : on r\u00e9serve leur dur\u00e9e, sinon la
+       bande d\u00e9marrerait avant l'heure et ne serait plus align\u00e9e sur la r\u00e8gle. */
+    const tot=Math.max(0.1,_mvState.total||60);
+    const avant=segs.length?Math.max(0,segs[0].start):0;
+    const apres=segs.length?Math.max(0,tot-segs[segs.length-1].end):0;
+    el.innerHTML=
+      (avant>0.15?`<div class="stu-gap" style="width:${(avant*pps).toFixed(1)}px"><span>Intro</span></div>`:"")+
       segs.map((sg,i)=>{ const it=keep[sg.img]; const mid=(it&&it.m)?it.m.id:"";
-        const d=Math.max(0,(sg.end-sg.start)).toFixed(1);
-        return `<div class="stu-clip${_mvState._cur===i?" on":""}" data-clip="${i}">
+        const dur=Math.max(0.05,(sg.end-sg.start));
+        const d=dur.toFixed(1);
+        const w=Math.max(18,dur*pps);
+        return `<div class="stu-clip${_mvState._cur===i?" on":""}" data-clip="${i}" style="width:${w.toFixed(1)}px">
           <span class="stu-cth" ${mid?`data-media="${mid}"`:""}>
             <span class="stu-cnum">${i+1}</span>
             ${(it&&it.vid)?`<span class="stu-cvid">\u25b6</span>`:""}
-            <span class="stu-cdur">${d}s</span>
-            <button class="stu-cmenu" data-cmenu="${i}">\u22ee</button>
+            ${(w>=44)?`<span class="stu-cdur">${d}s</span>`:""}
+            ${(w>=52)?`<button class="stu-cmenu" data-cmenu="${i}">\u22ee</button>`:""}
           </span>
-        </div>${i<segs.length-1?`<button class="stu-tr" data-ctr="${i}" title="${MV_TR_LBL[sg.mode]||"Transition"}">\u00bb</button>`:""}`; }).join("");
+          ${i<segs.length-1?`<button class="stu-tr" data-ctr="${i}" title="${MV_TR_LBL[sg.mode]||"Transition"}">\u00bb</button>`:""}
+        </div>`; }).join("")+
+      (apres>0.15?`<div class="stu-gap" style="width:${(apres*pps).toFixed(1)}px"><span>Outro</span></div>`:"")+
+      `<button class="stu-add" id="stuAdd" title="Ajouter une photo" aria-label="Ajouter une photo"><i>\uff0b</i><span>Ajouter</span></button>`;
     hydratePhotos(el);
-    try{ requestAnimationFrame(()=>{ mvRulerPaint(); mvSeekUpdate(); }); }catch(e){}
+    try{ mvLanesBind(); }catch(e){}
+    try{ requestAnimationFrame(()=>{ mvRulerPaint(); mvChapsPaint(); wavePaint(); mvSeekUpdate(); }); }catch(e){}
     el.querySelectorAll("[data-cmenu]").forEach(b=>b.onclick=(e)=>{ e.stopPropagation(); openShots(tr); });
     el.querySelectorAll("[data-ctr]").forEach(b=>b.onclick=()=>openShots(tr));
     el.querySelectorAll("[data-clip]").forEach(b=>b.onclick=()=>{ const i=+b.dataset.clip; const sg=(_mvState.segs||[])[i];
@@ -6550,23 +6577,30 @@ function openMontage(tr,version,autoplay){ tr=tr||souvTrip(); if(!tr) return; _m
     const ad=el.querySelector("#stuAdd"); if(ad) ad.onclick=()=>openShotPhoto(tr,-1,()=>{ mvRelayout(); stripPaint(); });
   };
   const fmtsPaint=()=>{ ov.querySelectorAll("[data-sfmt]").forEach(b=>b.classList.toggle("on", b.dataset.sfmt===_mvState.fmt)); };
+  /* La forme d'onde est une piste comme les autres : m\u00eame origine, m\u00eame
+     \u00e9chelle. La barre blanche a disparu : c'est la t\u00eate de lecture commune
+     qui traverse d\u00e9sormais les quatre pistes. */
   const wavePaint=()=>{
     const c=ov.querySelector("#stuWave"); if(!c) return;
-    const w=c.clientWidth||320; c.width=w*2; c.height=92;
+    const S=mvScale(), total=S.total;
+    const w=Math.max(60,Math.round(total*S.pps)), H=44;
+    const dpr=Math.min(2,window.devicePixelRatio||1);
+    c.style.width=w+"px"; c.style.height=H+"px";
+    if(c.width!==Math.round(w*dpr)||c.height!==Math.round(H*dpr)){ c.width=Math.round(w*dpr); c.height=Math.round(H*dpr); }
     const g2=c.getContext("2d"); if(!g2) return;
-    const E=_mvState.energy||[], total=_mvState.total||60, au=_mvState.audio;
-    g2.clearRect(0,0,c.width,c.height);
-    const n=Math.max(1,Math.floor(w/3)); const prog=au?Math.min(1,(au.currentTime||0)/total):0;
-    for(let i=0;i<n;i++){
-      const e=E.length?E[Math.floor(i/n*E.length)]:0.4;
-      const h=Math.max(3, e*c.height*0.86);
-      const x=i/n*c.width;
-      g2.fillStyle = (i/n<=prog) ? "#E0A33E" : "rgba(120,140,180,.45)";
-      g2.fillRect(x, (c.height-h)/2, 3, h);
+    g2.setTransform(dpr,0,0,dpr,0,0); g2.clearRect(0,0,w,H);
+    const E=_mvState.energy||[], au=_mvState.audio;
+    const prog=au?Math.min(1,(au.currentTime||0)/total):0;
+    const pas=3, nb=Math.max(1,Math.floor(w/pas));
+    for(let i=0;i<nb;i++){
+      const e=E.length?E[Math.floor(i/nb*E.length)]:0.4;
+      const hh=Math.max(3, e*H*0.86);
+      const x=i*pas;
+      g2.fillStyle=(i/nb<=prog)?"#E0A33E":"rgba(120,140,180,.45)";
+      g2.fillRect(x,(H-hh)/2,2,hh);
     }
-    const px=prog*c.width;
-    g2.fillStyle="#fff"; g2.fillRect(px-1,0,2,c.height);
   };
+  _mvState._wavePaint=wavePaint;
   _mvState._paint=()=>{ wavePaint();
     const segs=_mvState.segs||[], au=_mvState.audio; if(!au) return;
     const i=segs.findIndex(sg=>au.currentTime>=sg.start && au.currentTime<sg.end);
@@ -6645,7 +6679,7 @@ function openMontage(tr,version,autoplay){ tr=tr||souvTrip(); if(!tr) return; _m
   try{ const st=ov.querySelector("#mvStage")||ov.querySelector(".mv-stage");
        const pb=ov.querySelector("#stuPlayBar");
        if(st&&pb&&pb.parentNode!==st) st.appendChild(pb); }catch(e){}
-  _mvState._refreshStudio=()=>{ try{ mvSeekBind(ov); mvRulerPaint(); mvSeekUpdate(); }catch(e){}
+  _mvState._refreshStudio=()=>{ try{ mvSeekBind(ov); mvLanesBind(); mvRulerPaint(); mvSeekUpdate(); }catch(e){}
     try{ const pl=ov.querySelector("#mvPlay"); if(pl && !_mvState.playing) pl.innerHTML=mvT("playFilm"); }catch(e){}
     try{ _mvState.fiche=mvBuildFiche(_mvState.tr||souvTrip());
     mvFichePaint(); }catch(e){}
@@ -7097,11 +7131,14 @@ function mvChapsPaint(){
   const B=mvChapBands(); _mvState._chaps=B;
   if(!B.length){ el.innerHTML=""; return; }
   const total=Math.max(0.1,_mvState.total||60);
-  /* Rep\u00e8re court : I pour l'intro, O pour l'outro, sinon le num\u00e9ro du chapitre. */
-  let kc=0;
-  el.innerHTML=B.map((x,i)=>{ const t=String(x.t); const low=t.toLowerCase();
+  /* Chaque chapitre occupe exactement sa dur\u00e9e. S'il est trop \u00e9troit pour son
+     titre, on affiche son rep\u00e8re court plut\u00f4t qu'un texte coup\u00e9. */
+  const pps=mvScale().pps; let kc=0;
+  el.innerHTML=B.map((x,i)=>{ const t=String(x.t), low=t.toLowerCase();
     let sh; if(low.indexOf("intro")===0) sh="I"; else if(low.indexOf("outro")===0) sh="O"; else { kc++; sh=String(kc); }
-    return `<button class="stu-chap" data-chap="${i}" title="${escapeHtml(t)}"><span class="cfull">${escapeHtml(t.toUpperCase())}</span><span class="cshort">${escapeHtml(sh)}</span></button>`;
+    const w=Math.max(16,(x.b-x.a)*pps);
+    const lab=(w>=t.length*6.4+16)?t.toUpperCase():sh;
+    return `<button class="stu-chap" data-chap="${i}" title="${escapeHtml(t)}" style="width:${w.toFixed(1)}px">${escapeHtml(lab)}</button>`;
   }).join("");
   el.querySelectorAll("[data-chap]").forEach(b=>b.onclick=()=>{
     const x=B[+b.dataset.chap], A=_mvState.audio;
@@ -7114,12 +7151,7 @@ function mvChapsActive(){
   const A=_mvState.audio, t=(A&&A.currentTime)||0;
   let k=-1; for(let i=0;i<B.length;i++){ if(t>=B[i].a && t<B[i].b){ k=i; break; } }
   if(k<0) k=(t<B[0].a?0:B.length-1);
-  let moved=false;
-  el.querySelectorAll(".stu-chap").forEach((b,i)=>{ const was=b.classList.contains("on");
-    b.classList.toggle("on",i===k); if(i===k && !was) moved=true; });
-  /* Le chapitre qui vient de commencer se remet dans le champ de vision. */
-  if(moved){ const b=el.querySelectorAll(".stu-chap")[k];
-    if(b) try{ el.scrollTo({left:Math.max(0,b.offsetLeft-el.clientWidth/2+b.offsetWidth/2),behavior:"smooth"}); }catch(e){} }
+  el.querySelectorAll(".stu-chap").forEach((b,i)=>b.classList.toggle("on",i===k));
 }
 /* ---- Carte R\u00e9alisateur IA : six constats, tous tir\u00e9s de l'\u00e9tat r\u00e9el du montage.
    Pas de visage, pas de note : ce que la maquette montrait \u00e0 ces deux endroits
@@ -7129,7 +7161,7 @@ function mvDirCardPaint(){
   const segs=_mvState.segs||[], keep=_mvState.keep||[];
   const ready=!!(segs.length && _mvState.audio);
   if(!ready){
-    el.innerHTML=`<div class="stu-dir-h"><span class="ttx"><span class="stu-dir-k">\u2726 R\u00c9ALISATEUR IA</span><b>Choisis une musique puis cr\u00e9e le film</b></span></div>`;
+    el.innerHTML=`<div class="stu-dir-h"><span class="stu-dir-k">\u2726 R\u00c9ALISATEUR IA</span><span class="stu-dir-sep">\u00b7</span><b>Choisis une musique puis cr\u00e9e le film</b></div>`;
     return;
   }
   const nPh=keep.filter(x=>x&&!x.vid).length;
@@ -7153,7 +7185,7 @@ function mvDirCardPaint(){
   /* La carte reste sur UNE ligne : le detail s'ouvre au clic (place gagnee pour
      l'apercu et pour les commandes du bas, qui ne doivent jamais etre coupees). */
   _mvState._dirItems=I;
-  el.innerHTML=`<div class="stu-dir-h" id="stuNote"><span class="ttx"><span class="stu-dir-k">\u2726 R\u00c9ALISATEUR IA</span><b>Film pr\u00eat \u00e0 \u00eatre visionn\u00e9</b></span><span class="cv">\u203a</span></div>`;
+  el.innerHTML=`<div class="stu-dir-h" id="stuNote"><span class="stu-dir-k">\u2726 R\u00c9ALISATEUR IA</span><span class="stu-dir-sep">\u00b7</span><b>Film pr\u00eat \u00e0 \u00eatre visionn\u00e9</b><span class="cv">\u203a</span></div>`;
   { const h=el.querySelector("#stuNote"); if(h) h.onclick=()=>openDirDetail(); }
 }
 /* Detail du realisateur : ce que le moteur a REELLEMENT fait, plus les deux
@@ -7354,31 +7386,33 @@ function mvFmtTc(x){ x=Math.max(0,Math.floor(x||0)); const m=Math.floor(x/60), s
 function mvRulerPaint(){
   const c=document.getElementById("stuRulerC"); if(!c||!c.parentNode) return;
   const wrap=c.parentNode;
-  const w=Math.max(60,(wrap.clientWidth||320)-28);   /* 14 px de marge de chaque c\u00f4t\u00e9 */
-  const total=Math.max(1,_mvState.total||_mvState.dur||60);
+  const S=mvScale(), total=S.total, pps=S.pps;
+  const w=Math.max(60, Math.round(total*pps));
   const dpr=Math.min(2,window.devicePixelRatio||1);
-  /* La hauteur suit le CSS : la r\u00e8gle se comprime sur les petits iPhone. */
-  const H=Math.max(14,wrap.clientHeight||24);
+  const H=Math.max(14,wrap.clientHeight||20);
   c.style.width=w+"px"; c.style.height=H+"px";
   if(c.width!==Math.round(w*dpr)||c.height!==Math.round(H*dpr)){ c.width=Math.round(w*dpr); c.height=Math.round(H*dpr); }
   const g=c.getContext("2d"); if(!g) return;
   g.setTransform(dpr,0,0,dpr,0,0); g.clearRect(0,0,w,H);
   g.font="9.5px -apple-system,system-ui,sans-serif"; g.textBaseline="top";
-  const n2=Math.max(10,Math.min(90,Math.round(total)));
-  for(let i=0;i<=n2;i++){
-    const x=Math.round(i/n2*(w-1))+0.5, big=(i%5===0);
+  /* Pas de graduation choisi pour rester lisible quelle que soit la dur\u00e9e. */
+  const pas=[0.5,1,2,5,10,15,30,60].find(p=>p*pps>=7)||60;
+  const gros=(pas<1?5:(pas<5?5:(pas<30?4:2)));
+  for(let i=0,k=0;i<=total+0.001;i+=pas,k++){
+    const x=Math.round(i*pps)+0.5, big=(k%gros===0);
     g.strokeStyle=big?"rgba(143,161,188,.55)":"rgba(143,161,188,.26)";
     g.beginPath(); g.moveTo(x,big?H-9:H-6); g.lineTo(x,H); g.stroke();
   }
   const tc=(x)=>{ const m=Math.floor(x/60), sec=Math.floor(x%60);
     return (m<10?"0":"")+m+":"+(sec<10?"0":"")+sec; };
+  /* Un rep\u00e8re chiffr\u00e9 tous les 70 px environ. */
+  const pasLab=[1,2,5,10,15,30,60,120].find(p=>p*pps>=70)||120;
   g.fillStyle="#8A9AB5";
-  [0,0.25,0.5,0.75,1].forEach((p,k,arr)=>{
-    const lab=tc(p*total), tw=g.measureText(lab).width;
-    let x=p*(w-1)-tw/2;
-    if(k===0) x=0; if(k===arr.length-1) x=w-tw;
+  for(let t=0;t<=total+0.001;t+=pasLab){
+    const lab=tc(t), tw=g.measureText(lab).width;
+    let x=t*pps-tw/2; if(x<0) x=0; if(x+tw>w) x=w-tw;
     g.fillText(lab,x,1);
-  });
+  }
 }
 /* La r\u00e8gle ne d\u00e9file plus avec la bande de plans : elle est lin\u00e9aire. */
 function mvRulerScroll(){}
@@ -7386,6 +7420,57 @@ function mvRulerScroll(){}
 try{ window.addEventListener("resize",()=>{ const st=document.getElementById("mvStudio");
   if(st && st.style.display!=="none"){ try{ mvRulerPaint(); mvSeekUpdate(); }catch(e){} } }); }catch(e){}
 function segsExist(){ return !!((_mvState.segs||[]).length); }
+/* ============ ECHELLE COMMUNE DES PISTES ============
+   Toutes les pistes (r\u00e8gle, chapitres, plans, forme d'onde) partagent le meme
+   nombre de pixels par seconde et la meme marge de d\u00e9part. Un instant donn\u00e9
+   tombe donc sur la meme verticale sur les quatre, et elles d\u00e9filent ensemble. */
+function mvScale(){
+  const lane=document.getElementById("stuStrip");
+  const W=Math.max(140,((lane&&lane.clientWidth)||360)-28);
+  const total=Math.max(0.5,_mvState.total||_mvState.dur||60);
+  const segs=_mvState.segs||[];
+  const moy=Math.max(0.6, total/Math.max(1,segs.length));
+  let pps=W/(4*moy);                 /* quatre plans visibles \u00e0 la fois */
+  if(pps*total<W) pps=W/total;       /* film court : tout tient, rien ne d\u00e9file */
+  _mvState._pps=pps; _mvState._laneW=W;
+  return {pps:pps,W:W,total:total};
+}
+function mvLanes(){ try{ return Array.prototype.slice.call(document.querySelectorAll("#mvStudio [data-lane]")); }catch(e){ return []; } }
+function mvLanesSetScroll(x,smooth){
+  x=Math.max(0,x); _mvState._syncing=true;
+  mvLanes().forEach(l=>{ try{ if(smooth) l.scrollTo({left:x,behavior:"smooth"}); else l.scrollLeft=x; }catch(e){ l.scrollLeft=x; } });
+  try{ requestAnimationFrame(()=>{ _mvState._syncing=false; }); }catch(e){ _mvState._syncing=false; }
+}
+function mvRulerTapBind(){
+  const r=document.getElementById("stuRuler"); if(!r||r.dataset.tb==="1") return; r.dataset.tb="1";
+  let x0=0,sc0=0,bouge=false;
+  const pt=(e)=>((e.touches&&e.touches[0])?e.touches[0].clientX:e.clientX);
+  r.addEventListener("touchstart",(e)=>{ x0=pt(e); sc0=r.scrollLeft; bouge=false; },{passive:true});
+  r.addEventListener("touchmove",(e)=>{ if(Math.abs(pt(e)-x0)>6||Math.abs(r.scrollLeft-sc0)>2) bouge=true; },{passive:true});
+  const aller=(cx)=>{ const A=_mvState.audio; if(!A) return;
+    const rect=r.getBoundingClientRect();
+    const pps=_mvState._pps||mvScale().pps;
+    const t=(cx-rect.left+r.scrollLeft-14)/Math.max(0.01,pps);
+    const total=Math.max(0.1,_mvState.total||60);
+    try{ A.currentTime=Math.max(0,Math.min(total-0.05,t)); }catch(e){}
+    mvSeekUpdate(); };
+  r.addEventListener("touchend",(e)=>{ if(bouge) return;
+    const t=(e.changedTouches&&e.changedTouches[0]); if(t) aller(t.clientX); },{passive:true});
+  r.addEventListener("click",(e)=>{ if(e.detail===0) return; aller(e.clientX); });
+}
+function mvLanesBind(){
+  try{ mvRulerTapBind(); }catch(e){}
+  mvLanes().forEach(l=>{ if(l.dataset.sb==="1") return; l.dataset.sb="1";
+    l.addEventListener("scroll",()=>{
+      if(_mvState._syncing) return;
+      _mvState._syncing=true;
+      const x=l.scrollLeft;
+      mvLanes().forEach(o=>{ if(o!==l && Math.abs(o.scrollLeft-x)>0.5) o.scrollLeft=x; });
+      try{ mvSeekUpdate(); }catch(e){}
+      try{ requestAnimationFrame(()=>{ _mvState._syncing=false; }); }catch(e){ _mvState._syncing=false; }
+    },{passive:true});
+  });
+}
 function mvSeekUpdate(){
   const A=_mvState.audio; const f=document.getElementById("stuSeekF");
   if(!f) return;
@@ -7394,31 +7479,36 @@ function mvSeekUpdate(){
   const pct=Math.max(0,Math.min(1,cur/total));
   f.style.width=(pct*100)+"%";
   const h=document.getElementById("stuSeekH"); if(h) h.style.left=(pct*100)+"%";
-  /* Tête de lecture : on la place SUR la vignette du plan en cours, à la
-     progression exacte à l'intérieur de ce plan. C'est la seule façon d'être
-     d'accord avec une bande dont les vignettes ont toutes la même largeur. */
+  /* Une seule position pour les quatre pistes : le temps courant multipli\u00e9 par
+     l'\u00e9chelle, moins le d\u00e9filement commun. Aucune piste ne peut d\u00e9river. */
+  const strip=document.getElementById("stuStrip"), tl=document.getElementById("stuChaps");
+  const pps=_mvState._pps||(mvScale().pps);
+  const sx=strip?strip.scrollLeft:0;
+  const x=14+cur*pps-sx;
+  const vis=segsExist();
   { const rp=document.getElementById("stuRph"), rw=document.getElementById("stuRuler");
-    if(rp&&rw){ const w=Math.max(60,(rw.clientWidth||320)-28);
-      rp.style.left=(14+pct*(w-1))+"px"; rp.style.opacity=(segsExist()?"1":"0"); } }
-  { const ph=document.getElementById("stuPh"), strip=document.getElementById("stuStrip");
-    const segs=_mvState.segs||[];
-    if(ph&&strip&&segs.length){
-      let k=-1; for(let q=0;q<segs.length;q++){ if(cur>=segs[q].start && cur<segs[q].end){ k=q; break; } }
-      if(k<0) k=(cur<(segs[0].start||0))?0:segs.length-1;
-      const el=strip.querySelector('[data-clip="'+k+'"]');
-      if(el){ const sg=segs[k], d=Math.max(0.01,(sg.end-sg.start));
-        const pr=Math.max(0,Math.min(1,(cur-sg.start)/d));
-        const x=el.offsetLeft + pr*el.offsetWidth - strip.scrollLeft;
-        ph.style.left=(strip.offsetLeft + x)+"px";
-        ph.style.top=(strip.offsetTop+6)+"px";
-        ph.style.height=Math.max(40,strip.clientHeight-8)+"px";
-        ph.style.opacity=(x<-4||x>strip.clientWidth+4)?"0":"1";
-        /* on garde le plan en cours visible, comme dans un vrai studio */
-        if(_mvState.playing && (x<30 || x>strip.clientWidth-30)){
-          try{ strip.scrollTo({left:Math.max(0,el.offsetLeft-strip.clientWidth/2),behavior:"smooth"}); }catch(e){}
+    if(rp&&rw){ rp.style.left=x+"px";
+      rp.style.opacity=(vis && x>=10 && x<=rw.clientWidth-4)?"1":"0"; } }
+  { const ph=document.getElementById("stuPh"), wave=document.getElementById("stuWaveLane");
+    if(ph&&strip&&tl){
+      ph.style.left=x+"px";
+      ph.style.top=tl.offsetTop+"px";
+      const bas=wave?(wave.offsetTop+wave.offsetHeight):(strip.offsetTop+strip.offsetHeight);
+      ph.style.height=Math.max(30,bas-tl.offsetTop)+"px";
+      ph.style.opacity=(vis && x>=10 && x<=strip.clientWidth-2)?"1":"0";
+      /* Pendant la lecture, les quatre pistes suivent ensemble. */
+      if(_mvState.playing && !_mvState._syncing){
+        const W=strip.clientWidth;
+        if(x<44 || x>W-44){
+          const cible=Math.max(0, cur*pps - W/2 + 14);
+          mvLanesSetScroll(cible,false);
         }
       }
     } }
+  /* La forme d'onde ne change que par sa progression : inutile de la redessiner
+     \u00e0 chaque image, cinq fois par seconde suffit et l'iPhone respire. */
+  { const now=Date.now();
+    if(_mvState._wavePaint && now-(_mvState._waveT||0)>200){ _mvState._waveT=now; try{ _mvState._wavePaint(); }catch(e){} } }
   try{ mvChapsActive(); }catch(e){}
   const a=document.getElementById("stuTcA"); if(a) a.textContent=mvFmtTc(cur);
   const b=document.getElementById("stuTcB"); if(b) b.textContent=mvFmtTc(total);
@@ -7455,9 +7545,8 @@ function mvSeekBind(ov){
     if(mb) mb.onclick=(e)=>{ if(e.target.tagName==="CANVAS") return;
       const b=ov.querySelector('[data-tool="music"]')||ov.querySelector('[data-tool="mus"]');
       if(b) b.click(); }; }
-  { const strip=ov.querySelector("#stuStrip");
-    if(strip && strip.dataset.rb!=="1"){ strip.dataset.rb="1";
-      strip.addEventListener("scroll",()=>{ mvRulerScroll(); mvSeekUpdate(); },{passive:true}); } }
+  /* Les quatre pistes d\u00e9filent ensemble : un seul point de v\u00e9rit\u00e9. */
+  try{ mvLanesBind(); }catch(e){}
   const pp=ov.querySelector("#stuPP"); if(pp) pp.onclick=()=>mvTogglePlay();
   /* Reculer / avancer de 10 s, borné au film. */
   const saut=(d)=>{ const A=_mvState.audio; if(!A) return;
