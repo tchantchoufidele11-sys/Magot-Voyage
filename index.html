@@ -1894,20 +1894,33 @@ body.dragging-on{-webkit-user-select:none;user-select:none}
 #mvOv .stu-ruler canvas{height:20px;display:block;transform:none!important}
 #mvOv .stu-rph{position:absolute;top:7px;left:0;width:11px;height:11px;margin-left:-5.5px;border-radius:50%;
   background:var(--sGold,#E0A33E);pointer-events:none;z-index:6;opacity:0;transition:opacity .15s}
-#mvOv .stu-chaps{display:flex;gap:6px;padding:5px 14px 0;overflow:hidden}
-#mvOv .stu-chap{flex:1 1 0;min-width:0;height:26px;padding:0 6px;border:1px solid transparent;border-radius:9px;
+#mvOv .stu-chaps{display:flex;gap:5px;padding:5px 14px 0;overflow-x:auto;overflow-y:hidden;
+  -webkit-overflow-scrolling:touch;scrollbar-width:none}
+#mvOv .stu-chaps::-webkit-scrollbar{display:none}
+/* Un seul chapitre est lisible en entier : celui qui joue. Les autres se
+   replient sur leur rep\u00e8re court (I / 1 / 2 / O) pour ne jamais \u00eatre tronqu\u00e9s. */
+#mvOv .stu-chap{flex:0 0 auto;height:26px;min-width:30px;padding:0 8px;border:1px solid transparent;border-radius:9px;
   background:#16213A;color:#8FA1BC;font:700 9.5px system-ui;letter-spacing:.06em;cursor:pointer;
-  white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-#mvOv .stu-chap.on{background:rgba(224,163,62,.14);border-color:var(--sGold,#E0A33E);color:var(--sGold,#E0A33E)}
+  white-space:nowrap;overflow:hidden;display:flex;align-items:center;justify-content:center;
+  transition:min-width .18s ease,background .18s ease,color .18s ease}
+#mvOv .stu-chap .cfull{display:none}
+#mvOv .stu-chap .cshort{display:inline}
+#mvOv .stu-chap.on{flex:0 1 auto;min-width:0;padding:0 13px;background:rgba(224,163,62,.14);
+  border-color:var(--sGold,#E0A33E);color:var(--sGold,#E0A33E)}
+#mvOv .stu-chap.on .cfull{display:inline;overflow:hidden;text-overflow:ellipsis}
+#mvOv .stu-chap.on .cshort{display:none}
 #mvOv .stu-strip{position:relative;display:flex;align-items:flex-start;gap:0;overflow-x:auto;overflow-y:hidden;
   padding:6px 14px 2px;-webkit-overflow-scrolling:touch;scrollbar-width:none}
 #mvOv .stu-strip::-webkit-scrollbar{display:none}
-#mvOv .stu-clip{flex:0 0 auto;width:52px;margin-right:2px;cursor:pointer}
-#mvOv .stu-cth{position:relative;display:block;width:52px;height:66px;border-radius:10px;
+/* Quatre plans visibles \u00e0 la fois : la largeur se calcule sur l'\u00e9cran r\u00e9el.
+   134px = marges (28) + tuile Ajouter (44+6) + marges des vignettes (32) + chevrons (24). */
+#mvOv .stu-strip{--cw:calc((100vw - 134px)/4);--ch:calc((100vw - 134px)/4*1.27)}
+#mvOv .stu-clip{flex:0 0 auto;width:var(--cw);margin-right:8px;cursor:pointer}
+#mvOv .stu-cth{position:relative;display:block;width:100%;height:var(--ch);border-radius:12px;
   background:#16213A center/cover no-repeat;border:1.5px solid transparent;overflow:hidden}
 #mvOv .stu-clip.on .stu-cth{border-color:var(--sGold,#E0A33E)}
 #mvOv .stu-clip.on{outline:0}
-#mvOv .stu-cnum{position:absolute;top:3px;left:3px;min-width:14px;height:14px;padding:0 3px;border-radius:5px;
+#mvOv .stu-cnum{position:absolute;top:4px;left:4px;min-width:16px;height:16px;padding:0 4px;border-radius:6px;
   background:rgba(8,17,31,.78);color:var(--sGold,#E0A33E);font:800 9px/14px system-ui;text-align:center}
 #mvOv .stu-cdur{position:absolute;right:3px;bottom:3px;background:rgba(8,17,31,.72);color:#EAF0FA;
   font:700 8.5px/1 system-ui;padding:3px 4px;border-radius:5px}
@@ -1916,13 +1929,14 @@ body.dragging-on{-webkit-user-select:none;user-select:none}
 #mvOv .stu-cmenu{position:absolute;left:3px;bottom:3px;width:15px;height:15px;border-radius:5px;
   background:rgba(8,17,31,.72);border:0;color:#EAF0FA;font-size:10px;line-height:1;padding:0;cursor:pointer}
 #mvOv .stu-cname{display:none}
-#mvOv .stu-tr{flex:0 0 auto;align-self:center;margin:0 3px;width:20px;height:20px;border-radius:6px;
+#mvOv .stu-tr{flex:0 0 auto;align-self:center;position:relative;z-index:2;margin:0 -6px;width:20px;height:20px;border-radius:6px;
   background:rgba(224,163,62,.10);border:1px solid rgba(224,163,62,.55);color:var(--sGold,#E0A33E);
   font-size:10px;line-height:1;cursor:pointer;padding:0}
-#mvOv .stu-add{flex:0 0 auto;width:52px;height:66px;margin-right:6px;border-radius:10px;background:#101B2E;
+#mvOv .stu-add{flex:0 0 auto;width:44px;height:var(--ch);margin-right:6px;border-radius:12px;background:#101B2E;
   border:1px dashed #2A3B58;color:#8FA1BC;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px}
-#mvOv .stu-add i{font-style:normal;font-size:15px}
-#mvOv .stu-add span{font-size:9px}
+#mvOv .stu-add i{font-style:normal;font-size:17px}
+/* Tuile \u00e9troite : le libell\u00e9 ne tiendrait pas, l'ic\u00f4ne + suffit (titre au survol). */
+#mvOv .stu-add span{display:none}
 #mvOv .stu-ph{position:absolute;top:20px;width:2px;background:var(--sGold,#E0A33E);left:0;opacity:0;
   height:88px;pointer-events:none;z-index:5;box-shadow:0 0 6px rgba(224,163,62,.55);bottom:auto}
 #mvOv .stu-ph::before{display:none}
@@ -1960,7 +1974,7 @@ body.dragging-on{-webkit-user-select:none;user-select:none}
 @media (max-height:800px){
   #mvOv .mv-fiche .mvf{padding:6px 6px 5px}
   #mvOv .mv-fiche .mvf b{font-size:12px}
-  #mvOv .stu-cth,#mvOv .stu-add{height:60px}
+  #mvOv .stu-strip{--ch:calc((100vw - 134px)/4*1.2)}
   #mvOv .stu-bot .stu-b,#mvOv .stu-bot .stu-main{height:46px}
   #mvOv .stu-mus{height:46px}
 }
@@ -1978,7 +1992,7 @@ body.dragging-on{-webkit-user-select:none;user-select:none}
   #mvOv .stu-ruler,#mvOv .stu-ruler canvas{height:18px}
   #mvOv .stu-rph{top:6px}
   #mvOv .stu-chap{height:23px}
-  #mvOv .stu-cth,#mvOv .stu-add{height:54px}
+  #mvOv .stu-strip{--ch:calc((100vw - 134px)/4*1.12)}
   #mvOv .stu-mus{height:44px;margin-top:6px}
   #mvOv .stu-mus canvas{height:28px}
   #mvOv .stu-bot{padding-top:7px}
@@ -1993,8 +2007,7 @@ body.dragging-on{-webkit-user-select:none;user-select:none}
   #mvOv .stu-ck{font-size:10.5px}
   #mvOv .stu-ck i{flex:0 0 13px;width:13px;height:13px;line-height:11px;font-size:8px}
   #mvOv .stu-dir-f{margin-top:6px}
-  #mvOv .stu-cth,#mvOv .stu-add{height:48px}
-  #mvOv .stu-clip,#mvOv .stu-cth,#mvOv .stu-add{width:46px}
+  #mvOv .stu-strip{--ch:calc((100vw - 134px)/4*1)}
   #mvOv .stu-mus{height:42px}
   #mvOv .stu-bot .stu-b,#mvOv .stu-bot .stu-main{height:42px}
 }
@@ -6427,7 +6440,7 @@ function openMontage(tr,version,autoplay){ tr=tr||souvTrip(); if(!tr) return; _m
     <div id="mvStudio" class="stu" style="display:none">
       <div class="stu-top">
         <button class="stu-back" id="stuBack" aria-label="Retour">\u2039</button>
-        <div class="stu-ttl"><b>Studio Magot<i>\u2727</i></b><span>Montage vid\u00e9o \u00b7 v395</span></div>
+        <div class="stu-ttl"><b>Studio Magot<i>\u2727</i></b><span>Montage vid\u00e9o \u00b7 v396</span></div>
         <button class="stu-ico" id="stuUndo" title="Annuler">\u21b6</button>
         <button class="stu-ico" id="stuRedo" title="R\u00e9tablir">\u21b7</button>
         <button class="stu-exp" id="mvSave"><i>\u2b06</i>Exporter</button>
@@ -6517,7 +6530,7 @@ function openMontage(tr,version,autoplay){ tr=tr||souvTrip(); if(!tr) return; _m
   const stripPaint=()=>{
     const el=ov.querySelector("#stuStrip"); if(!el) return;
     const segs=_mvState.segs||[], keep=_mvState.keep||[];
-    el.innerHTML=`<button class="stu-add" id="stuAdd"><i>\uff0b</i><span>Ajouter</span></button>`+
+    el.innerHTML=`<button class="stu-add" id="stuAdd" title="Ajouter une photo" aria-label="Ajouter une photo"><i>\uff0b</i><span>Ajouter</span></button>`+
       segs.map((sg,i)=>{ const it=keep[sg.img]; const mid=(it&&it.m)?it.m.id:"";
         const d=Math.max(0,(sg.end-sg.start)).toFixed(1);
         return `<div class="stu-clip${_mvState._cur===i?" on":""}" data-clip="${i}">
@@ -7084,7 +7097,12 @@ function mvChapsPaint(){
   const B=mvChapBands(); _mvState._chaps=B;
   if(!B.length){ el.innerHTML=""; return; }
   const total=Math.max(0.1,_mvState.total||60);
-  el.innerHTML=B.map((x,i)=>`<button class="stu-chap" data-chap="${i}" style="flex:${Math.max(7,Math.round((x.b-x.a)/total*100))} 1 0">${escapeHtml(String(x.t).toUpperCase())}</button>`).join("");
+  /* Rep\u00e8re court : I pour l'intro, O pour l'outro, sinon le num\u00e9ro du chapitre. */
+  let kc=0;
+  el.innerHTML=B.map((x,i)=>{ const t=String(x.t); const low=t.toLowerCase();
+    let sh; if(low.indexOf("intro")===0) sh="I"; else if(low.indexOf("outro")===0) sh="O"; else { kc++; sh=String(kc); }
+    return `<button class="stu-chap" data-chap="${i}" title="${escapeHtml(t)}"><span class="cfull">${escapeHtml(t.toUpperCase())}</span><span class="cshort">${escapeHtml(sh)}</span></button>`;
+  }).join("");
   el.querySelectorAll("[data-chap]").forEach(b=>b.onclick=()=>{
     const x=B[+b.dataset.chap], A=_mvState.audio;
     if(A&&x){ try{ A.currentTime=Math.min(total-0.05,x.a+0.02); }catch(e){} mvSeekUpdate(); } });
@@ -7096,7 +7114,12 @@ function mvChapsActive(){
   const A=_mvState.audio, t=(A&&A.currentTime)||0;
   let k=-1; for(let i=0;i<B.length;i++){ if(t>=B[i].a && t<B[i].b){ k=i; break; } }
   if(k<0) k=(t<B[0].a?0:B.length-1);
-  el.querySelectorAll(".stu-chap").forEach((b,i)=>b.classList.toggle("on",i===k));
+  let moved=false;
+  el.querySelectorAll(".stu-chap").forEach((b,i)=>{ const was=b.classList.contains("on");
+    b.classList.toggle("on",i===k); if(i===k && !was) moved=true; });
+  /* Le chapitre qui vient de commencer se remet dans le champ de vision. */
+  if(moved){ const b=el.querySelectorAll(".stu-chap")[k];
+    if(b) try{ el.scrollTo({left:Math.max(0,b.offsetLeft-el.clientWidth/2+b.offsetWidth/2),behavior:"smooth"}); }catch(e){} }
 }
 /* ---- Carte R\u00e9alisateur IA : six constats, tous tir\u00e9s de l'\u00e9tat r\u00e9el du montage.
    Pas de visage, pas de note : ce que la maquette montrait \u00e0 ces deux endroits
