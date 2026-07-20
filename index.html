@@ -1525,7 +1525,10 @@ body.dragging-on{-webkit-user-select:none;user-select:none}
 .mv-priv b{color:var(--ink)}
 
 .prep-head{padding:12px 16px 0;font-size:clamp(12.2px,3.333vw,13px);color:var(--ink);display:flex;flex-wrap:wrap;gap:8px;align-items:center}
-.prep-k{font-size:clamp(10.8px,2.949vw,11.5px);padding:3px 8px;border-radius:8px;background:var(--paper,#F7F8FB);color:var(--muted)}
+.prep-k{display:inline-flex;align-items:center;gap:5px;white-space:nowrap;line-height:1.25;
+  font-size:clamp(10.8px,2.949vw,11.5px);font-weight:600;padding:4px 9px;border-radius:9px;
+  background:var(--paper,#F7F8FB);color:var(--muted)}
+.prep-ks{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px;line-height:1.25}
 .prep-k.ok{background:#E7F5EC;color:#1B7A43}
 .prep-k.ck{background:#FEF6E7;color:#9A6B12}
 .prep-k.out{background:#FBECEC;color:#B3261E}
@@ -1542,7 +1545,7 @@ body.dragging-on{-webkit-user-select:none;user-select:none}
 .prep-sel{border:1px solid var(--line);border-radius:9px;padding:7px 8px;font:600 12px system-ui;font-size:clamp(11.3px,3.077vw,12px);color:var(--ink);background:var(--paper,#F7F8FB);max-width:100%}
 .prep-a{display:flex;flex-direction:column;gap:4px}
 .prep-a button{background:var(--paper,#F7F8FB);border:1px solid var(--line);border-radius:8px;width:34px;height:28px;font-size:clamp(12.2px,3.333vw,13px);cursor:pointer;padding:0}
-.mv-medsum{background:var(--paper,#F7F8FB);border:1px solid var(--line);border-radius:12px;padding:12px 13px;font-size:clamp(12.2px,3.333vw,13px);line-height:1.9;color:var(--ink);margin-bottom:10px}
+.mv-medsum{background:var(--paper,#F7F8FB);border:1px solid var(--line);border-radius:12px;padding:12px 13px;font-size:clamp(12.2px,3.333vw,13px);line-height:1.45;color:var(--ink);margin-bottom:10px}
 
 .sv-hero-alt{width:100%;margin-top:9px;background:rgba(255,255,255,.14);border:1px solid rgba(255,255,255,.28);color:#fff;border-radius:12px;padding:12px;font:700 13px system-ui;font-size:clamp(12.2px,3.333vw,13px);cursor:pointer}
 
@@ -6769,7 +6772,7 @@ function openMontage(tr,version,autoplay){ tr=tr||souvTrip(); if(!tr) return; _m
     <div id="mvStudio" class="stu" style="display:none">
       <div class="stu-top">
         <button class="stu-back" id="stuBack" aria-label="Retour">\u2039</button>
-        <div class="stu-ttl"><b>Studio Magot<i>\u2727</i></b><span>Montage vid\u00e9o \u00b7 v439</span></div>
+        <div class="stu-ttl"><b>Studio Magot<i>\u2727</i></b><span>Montage vid\u00e9o \u00b7 v440</span></div>
         <button class="stu-ico" id="stuUndo" title="Annuler">\u21b6</button>
         <button class="stu-ico" id="stuRedo" title="R\u00e9tablir">\u21b7</button>
         <button class="stu-exp" id="mvSave"><i>\u2b06</i>Exporter</button>
@@ -7026,10 +7029,13 @@ function openMontage(tr,version,autoplay){ tr=tr||souvTrip(); if(!tr) return; _m
   mediaStatus(tr).then(L=>{
     const ok=L.filter(x=>x.cat==="ok").length, ck=L.filter(x=>x.cat==="check").length, out=L.filter(x=>x.cat==="out").length;
     const nv=L.filter(x=>x.vid).length, np=L.length-nv;
-    const e1=ov.querySelector("#mvMedSum"); if(e1) e1.textContent=`${ok} pr\u00eat${ok>1?"s":""}${ck?" \u00b7 "+ck+" \u00e0 v\u00e9rifier":""}${out?" \u00b7 "+out+" \u00e9cart\u00e9":""}`;
+    /* Trois niveaux, trois informations differentes : l'en-tete donne le
+       volume, la carte la nature, les pastilles l'etat. Aucun zero n'est
+       affiche : une pastille vide ne dit rien d'utile. */
+    const e1=ov.querySelector("#mvMedSum"); if(e1) e1.textContent=L.length+" m\u00e9dia"+(L.length>1?"s":"");
     const e2=ov.querySelector("#mvMedBox");
-    if(e2) e2.innerHTML=`<b>${np} photo${np>1?"s":""}${nv?" \u00b7 "+nv+" vid\u00e9o"+(nv>1?"s":""):""}</b><br>
-      <span class="prep-k ok">\u2713 ${ok} pr\u00eat${ok>1?"s":""}</span> <span class="prep-k ck">\u26a0 ${ck} \u00e0 v\u00e9rifier</span> <span class="prep-k out">\u2715 ${out} \u00e9cart\u00e9${out>1?"s":""}</span>`;
+    if(e2) e2.innerHTML=`<b>${np} photo${np>1?"s":""}${nv?" \u00b7 "+nv+" vid\u00e9o"+(nv>1?"s":""):""}</b>`
+      +`<div class="prep-ks">`+mvPrepKeys(ok,ck,out)+`</div>`;
   }).catch(()=>{});
   { const rb=ov.querySelector("#mvReal"); if(rb) rb.onclick=()=>{
       const run=()=>mvAutoFidele(tr,ov,version,rb);
@@ -10415,6 +10421,14 @@ async function mediaStatus(tr){
   }
   return out;
 }
+/* Pastilles d'etat des medias. Un etat a zero ne s'ecrit pas. */
+function mvPrepKeys(ok,ck,out){
+  const P=[];
+  if(ok)  P.push(`<span class="prep-k ok">\u2713 ${ok} pr\u00eat${ok>1?"s":""}</span>`);
+  if(ck)  P.push(`<span class="prep-k ck">\u26a0 ${ck} \u00e0 v\u00e9rifier</span>`);
+  if(out) P.push(`<span class="prep-k out">\u2715 ${out} \u00e9cart\u00e9${out>1?"s":""}</span>`);
+  return P.join("");
+}
 async function openMediaPrep(tr){
   tr=tr||souvTrip(); if(!tr) return;
   let ov=document.getElementById("prepOv"); if(ov) ov.remove();
@@ -10432,8 +10446,8 @@ async function openMediaPrep(tr){
   const paint=()=>{
     const nOk=list.filter(x=>x.cat==="ok").length, nCk=list.filter(x=>x.cat==="check").length, nOut=list.filter(x=>x.cat==="out").length;
     const nPh=list.filter(x=>!x.vid).length, nVd=list.filter(x=>x.vid).length;
-    ov.querySelector("#prepHead").innerHTML=`<b>${nPh} photo${nPh>1?"s":""}${nVd?" \u00b7 "+nVd+" vid\u00e9o"+(nVd>1?"s":""):""}</b>
-      <span class="prep-k ok">\u2713 ${nOk} pr\u00eat${nOk>1?"s":""}</span><span class="prep-k ck">\u26a0 ${nCk} \u00e0 v\u00e9rifier</span><span class="prep-k out">\u2715 ${nOut} \u00e9cart\u00e9${nOut>1?"s":""}</span>`;
+    ov.querySelector("#prepHead").innerHTML=`<b>${nPh} photo${nPh>1?"s":""}${nVd?" \u00b7 "+nVd+" vid\u00e9o"+(nVd>1?"s":""):""}</b>`
+      +`<div class="prep-ks">`+mvPrepKeys(nOk,nCk,nOut)+`</div>`;
     const T=[["all","Tous"],["photo","Photos"],["video","Vid\u00e9os"],["check","\u00c0 v\u00e9rifier"],["out","\u00c9cart\u00e9s"]];
     ov.querySelector("#prepTabs").innerHTML=T.map(([k,l])=>`<button class="mus-tab${_prepFilter===k?" on":""}" data-pf="${k}">${l}</button>`).join("");
     ov.querySelectorAll("[data-pf]").forEach(b=>b.onclick=()=>{ _prepFilter=b.dataset.pf; paint(); });
