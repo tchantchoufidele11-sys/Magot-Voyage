@@ -1270,13 +1270,33 @@ body.dragging-on{-webkit-user-select:none;user-select:none}
 .dir-go .btn{flex:0 0 auto;padding:11px 16px}
 .dir-tl-h,.dir-vers-h{font-family:var(--font-serif,Georgia,serif);font-weight:700;font-size:clamp(13.6px,3.718vw,14.5px);color:var(--ink);margin-bottom:9px;display:flex;justify-content:space-between;align-items:baseline;gap:8px}
 .dir-vers-h span{font-family:system-ui;font-weight:400;font-size:clamp(10.8px,2.949vw,11.5px);color:var(--muted)}
-.dir-tl{display:flex;gap:8px;overflow-x:auto;-webkit-overflow-scrolling:touch;padding-bottom:6px;margin-bottom:16px}
+.dir-tl{display:flex;align-items:stretch;gap:8px;overflow-x:auto;-webkit-overflow-scrolling:touch;
+  padding:0 2px 6px;margin-bottom:16px;scroll-snap-type:x proximity;scrollbar-width:none;
+  -webkit-mask-image:linear-gradient(90deg,#000 0,#000 calc(100% - 22px),transparent 100%);
+  mask-image:linear-gradient(90deg,#000 0,#000 calc(100% - 22px),transparent 100%)}
+.dir-tl::-webkit-scrollbar{display:none}
+.dir-tl>*{scroll-snap-align:start}
 .tl-card{flex:0 0 auto;min-width:92px;background:var(--surface,#fff);border:1px solid var(--line);border-radius:12px;padding:10px;text-align:left;cursor:pointer;position:relative}
 .tl-card b{display:block;font:600 12.5px system-ui;font-size:clamp(11.8px,3.205vw,12.5px);color:var(--ink);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .tl-card span{font-size:clamp(10.3px,2.821vw,11px);color:var(--muted)}
-.tl-edge{background:var(--paper,#F7F8FB);cursor:default}
+.tl-restore{display:block;width:100%;margin:-8px 0 16px;padding:10px;border-radius:12px;
+  border:1px dashed var(--line);background:none;cursor:pointer;
+  font:600 12.5px "Inter",system-ui;font-size:clamp(11.8px,3.2vw,12.5px);color:var(--navy,#0E2148)}
+[data-theme="dark"] .tl-restore{color:var(--gold,#E9B559)}
+.tl-edge{background:var(--paper,#F7F8FB);cursor:default;
+  min-width:56px;width:56px;align-self:center;padding:10px 6px;
+  display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;
+  text-align:center;border-style:dashed}
+.tl-edge b{font:700 10.5px "Inter",system-ui;font-size:clamp(10px,2.7vw,10.8px);
+  letter-spacing:.06em;text-transform:uppercase;color:var(--muted)}
+.tl-edge span{font:600 11px "Inter",system-ui;font-size:clamp(10.5px,2.85vw,11px);color:var(--muted)}
 .tl-n{position:absolute;top:-6px;left:-6px;width:20px;height:20px;border-radius:50%;background:var(--gold,#E0A33E);color:#3A2407;font:800 11px/20px system-ui;font-size:clamp(10.3px,2.821vw,11px);text-align:center}
-.dir-vers{display:flex;gap:9px;overflow-x:auto;-webkit-overflow-scrolling:touch;padding-bottom:4px}
+.dir-vers{display:flex;gap:9px;overflow-x:auto;-webkit-overflow-scrolling:touch;
+  padding:0 2px 4px;scroll-snap-type:x proximity;scrollbar-width:none;
+  -webkit-mask-image:linear-gradient(90deg,#000 0,#000 calc(100% - 22px),transparent 100%);
+  mask-image:linear-gradient(90deg,#000 0,#000 calc(100% - 22px),transparent 100%)}
+.dir-vers::-webkit-scrollbar{display:none}
+.dir-vers>*{scroll-snap-align:start}
 .vers{flex:0 0 auto;background:var(--surface,#fff);border:1px solid var(--line);border-radius:12px;padding:11px 13px;cursor:pointer;text-align:left}
 .vers b{display:block;font:700 12.5px system-ui;font-size:clamp(11.8px,3.205vw,12.5px);color:var(--ink);white-space:nowrap}
 .vers span{font-size:clamp(10.3px,2.821vw,11px);color:var(--muted)}
@@ -1443,7 +1463,10 @@ body.dragging-on{-webkit-user-select:none;user-select:none}
 .tl-empty{display:flex;align-items:center;justify-content:center;background:var(--paper,#F7F8FB);border-bottom:1px dashed var(--line)}
 .tl-emoji{font-size:clamp(23.4px,6.667vw,26px);opacity:.85}
 .tl-nophoto b{color:var(--muted)}
-.vers{min-width:170px;padding:0 0 12px}
+.vers{min-width:170px;padding:0 0 12px;position:relative}
+.vers.on{border-color:var(--navy,#0E2148);box-shadow:0 0 0 1px var(--navy,#0E2148),0 6px 16px -6px rgba(14,33,72,.35)}
+.vers-on{position:absolute;right:8px;top:8px;width:20px;height:20px;border-radius:50%;
+  background:var(--navy,#0E2148);color:#fff;font-size:11px;line-height:20px;text-align:center;z-index:2}
 .vers-band{display:flex;align-items:center;justify-content:center;height:56px;color:#fff;font:800 15px system-ui;font-size:clamp(14.1px,3.846vw,15px);letter-spacing:.02em;margin-bottom:9px}
 .vers b{padding:0 12px;font-size:clamp(12.7px,3.462vw,13.5px)}
 .vers-d{padding:0 12px;display:block;font-size:clamp(10.3px,2.821vw,11px);color:var(--muted);line-height:1.4;white-space:normal;margin-top:2px}
@@ -1562,10 +1585,16 @@ body.dragging-on{-webkit-user-select:none;user-select:none}
 .alb-th{display:block;height:clamp(86px,27.69vw,108px);border-radius:11px;background:#e9edf4 center/cover no-repeat}
 .alb-vid{position:absolute;right:6px;bottom:6px;width:24px;height:24px;border-radius:50%;background:rgba(0,0,0,.6);color:#fff;font-size:clamp(10px,2.564vw,10px);line-height:24px;text-align:center}
 
-.mv-real{background:var(--gold-soft,#FBEED4);border:1px solid var(--gold,#E0A33E);border-radius:13px;padding:13px 14px;margin-bottom:14px}
+.mv-real{background:var(--surface,#fff);border:1px solid var(--line-soft,#EEF1F7);
+  border-left:3px solid var(--gold,#E0A33E);border-radius:var(--r,20px);
+  box-shadow:var(--shadow-sm);padding:14px 15px;margin-bottom:14px}
 .mv-realt{font:700 13.5px system-ui;font-size:clamp(12.7px,3.462vw,13.5px);color:var(--ink);margin-bottom:5px}
 .mv-real p{font-size:clamp(11.6px,3.154vw,12.3px);line-height:1.5;color:var(--muted);margin:0 0 10px}
-.mv-realok{background:rgba(255,255,255,.6);border-radius:9px;padding:8px 10px;font-size:clamp(11.3px,3.077vw,12px);color:var(--ink);margin-bottom:10px;line-height:1.45}
+.mv-realok{background:var(--paper,#F7F8FB);border:1px solid var(--line-soft,#EEF1F7);
+  border-radius:10px;padding:9px 11px;margin-bottom:11px;line-height:1.45;
+  font:italic 500 12px "Inter",system-ui;font-size:clamp(11.3px,3.077vw,12px);color:var(--ink)}
+.mv-realok::before{content:"\201c";color:var(--gold-d,#C2872A);font-weight:700;margin-right:3px}
+.mv-realok::after{content:"\201d";color:var(--gold-d,#C2872A);font-weight:700;margin-left:2px}
 
 .cut-prev{background:#000;border-radius:12px;overflow:hidden;margin-bottom:6px}
 .cut-prev video{width:100%;max-height:34vh;display:block}
@@ -5745,6 +5774,9 @@ const _SMK={
 };
 function smT(k){ return (_SMK[lang()]||_SMK.fr)[k]||_SMK.fr[k]||k; }
 function souvPoints(tr){ const out=[]; tripDays(tr).forEach(dd=>{ (tr.plan||[]).filter(s=>s.day===dd.i && s.lat!=null).sort((a,b)=>String(a.time||"").localeCompare(String(b.time||""))||((a.ord!=null?a.ord:0)-(b.ord!=null?b.ord:0))).forEach(s=>{ const pl=s.placeId?(tr.places||[]).find(x=>x.id===s.placeId):null; out.push(Object.assign({},pl||{},{lat:s.lat,lng:s.lng,day:dd.i,time:(s.time||""),title:(s.title||(pl&&pl.name)||""),note:((pl&&pl.note)||s.note||""),kind:(s.kind||"place"),meal:s.meal,oi:out.length})); }); }); return out; }
+/* L'IA renvoie souvent sa phrase en minuscule : on lui rend sa majuscule
+   sans toucher au reste du texte. */
+function _cap1(x){ const v=String(x||"").trim(); return v?v.charAt(0).toUpperCase()+v.slice(1):v; }
 function souvFilmPoints(tr){ const pts=souvPoints(tr); const ord=tr&&tr.filmOrder;
   if(!Array.isArray(ord)||!ord.length) return pts;
   const out=ord.map(i=>pts[i]).filter(Boolean);
@@ -6866,7 +6898,7 @@ function openMontage(tr,version,autoplay){ tr=tr||souvTrip(); if(!tr) return; _m
           <div class="mv-real">
             <div class="mv-realt">\u2728 Faire composer l'histoire par Fidèle</div>
             <p>Il choisit l'ordre des scènes, les chapitres et la scène finale à partir de tes lieux. Le rythme et les coupes restent calculés sur ton téléphone.</p>
-            ${tr.filmPlan?`<div class="mv-realok">\u2713 ${escapeHtml(tr.filmPlan.pourquoi||("Plan "+(tr.filmPlan.genre||"")))}</div>`:""}
+            ${tr.filmPlan?`<div class="mv-realok">${escapeHtml(_cap1(tr.filmPlan.pourquoi||("Plan "+(tr.filmPlan.genre||""))))}</div>`:""}
             <button class="btn ghostline2 block" id="mvReal">${tr.filmPlan?"\u2728 Recomposer avec Fid\u00e8le":"\u2728 Montage automatique (Fid\u00e8le)"}</button>
           </div>
           ${(()=>{ const unl=(tr.memories||[]).filter(m=>!m.placeId).length;
@@ -6880,6 +6912,10 @@ function openMontage(tr,version,autoplay){ tr=tr||souvTrip(); if(!tr) return; _m
               return `<div class="tl-card${ms.length?"":" tl-nophoto"}">${thumb}<span class="tl-n">${i+1}</span><button class="tl-x" data-tlx="${i}">\u2715</button></span><b>${escapeHtml((pp.title||"").slice(0,22))}</b><span class="tl-meta">${ms.length?(ms.length+" photo"+(ms.length>1?"s":"")):"aucune photo"}</span><div class="tl-mv"><button data-tlm="${i}" data-dir="-1" ${i===0?"disabled":""}>\u2039</button><button data-tlm="${i}" data-dir="1" ${i===souvFilmPoints(tr).length-1?"disabled":""}>\u203a</button></div></div>`; }).join("")}
             <div class="tl-card tl-edge"><b>Outro</b><span>0:03</span></div>
           </div>
+          ${(()=>{ const tot=souvPoints(tr).length, cur=souvFilmPoints(tr).length;
+             return (Array.isArray(tr.filmOrder)&&cur<tot)
+               ? `<button class="tl-restore" id="tlReset2" type="button">\u21ba Remettre les ${tot-cur} sc\u00e8ne${(tot-cur)>1?"s":""} retir\u00e9e${(tot-cur)>1?"s":""}</button>`
+               : ""; })()}
           <div class="mv-lab">Versions</div>
           <div class="dir-vers">${MV_VERSIONS.map(v=>{
             const D={cinema:["Plans longs, transitions premium, étalonnage cinéma.","#1B2A4A"],
@@ -6892,7 +6928,8 @@ function openMontage(tr,version,autoplay){ tr=tr||souvTrip(); if(!tr) return; _m
                      tiktok:["Vertical 9:16, 35 s, coupes rapides sur les temps forts.","#1F4E5F"],
                      youtube:["Horizontal 16:9, 1 min 30, plans posés et étalonnage cinéma.","#6B2320"],
                      famille:["Horizontal 16:9, 2 min, rythme lent et couleurs chaudes.","#5A4A1F"]}[v.k]||["Réglages du film adaptés à cette version.","#26324A"];
-            return `<button class="vers" data-vers2="${v.k}"><span class="vers-band" style="background:${D[1]}">${Math.floor(v.d/60)}:${String(v.d%60).padStart(2,"0")}</span><b>${v.n}</b><span class="vers-d">${D[0]}</span></button>`; }).join("")}</div>
+            const _on=(_mvState.dur===v.d && _mvState.fmt===v.fmt && (_mvState.style||"")===(v.style||"") && (_mvState.grade||"natural")===(v.grade||"natural"));
+            return `<button class="vers${_on?" on":""}" data-vers2="${v.k}">${_on?`<span class="vers-on">\u2713</span>`:``}<span class="vers-band" style="background:${D[1]}">${Math.floor(v.d/60)}:${String(v.d%60).padStart(2,"0")}</span><b>${v.n}</b><span class="vers-d">${D[0]}</span></button>`; }).join("")}</div>
         </div></div>
 
       <div class="mv-blk" data-blk="vis"><button class="mv-blkh" data-open="vis"><span class="mv-blkic"><svg viewBox="0 0 24 24"><path d="M4.5 19.4V11M9.5 19.4V6.2M14.5 19.4v-6.6M19.5 19.4V8.6"/></svg></span><span>Analyse (option)</span><em>${visionOn()?"activée":"désactivée"}</em><i>\u2304</i></button>
@@ -6905,7 +6942,7 @@ function openMontage(tr,version,autoplay){ tr=tr||souvTrip(); if(!tr) return; _m
     <div id="mvStudio" class="stu" style="display:none">
       <div class="stu-top">
         <button class="stu-back" id="stuBack" aria-label="Retour">\u2039</button>
-        <div class="stu-ttl"><b>Studio Magot<i>\u2727</i></b><span>Montage vid\u00e9o \u00b7 v449</span></div>
+        <div class="stu-ttl"><b>Studio Magot<i>\u2727</i></b><span>Montage vid\u00e9o \u00b7 v450</span></div>
         <button class="stu-ico" id="stuUndo" title="Annuler">\u21b6</button>
         <button class="stu-ico" id="stuRedo" title="R\u00e9tablir">\u21b7</button>
         <button class="stu-exp" id="mvSave"><i>\u2b06</i>Exporter</button>
@@ -7206,6 +7243,8 @@ function openMontage(tr,version,autoplay){ tr=tr||souvTrip(); if(!tr) return; _m
       const run=()=>mvAutoFidele(tr,ov,version,rb);
       if(!visionOn()) visionAsk(()=>run()); else run(); }; }
   ov.querySelectorAll("[data-vers2]").forEach(b=>b.onclick=()=>{ mvApplyVersion(b.dataset.vers2); close(); openMontage(tr,b.dataset.vers2); });
+  { const rb=ov.querySelector("#tlReset2");
+    if(rb) rb.onclick=()=>{ delete tr.filmOrder; saveState(); close(); openMontage(tr); }; }
   ov.querySelectorAll("[data-tlm]").forEach(b=>b.onclick=()=>{ filmMove(tr,+b.dataset.tlm,+b.dataset.dir); close(); openMontage(tr,version); });
   ov.querySelectorAll("[data-tlx]").forEach(b=>b.onclick=()=>{ filmRemove(tr,+b.dataset.tlx); close(); openMontage(tr,version); });
   ov.querySelectorAll("[data-open]").forEach(b=>b.onclick=()=>{ const blk=b.parentElement; const was=blk.classList.contains("open");
