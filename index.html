@@ -6856,13 +6856,36 @@ function mvSegments(beats,total,nImg,period,opts){
   /* ===== DURÉE : la durée du film est DÉPARTAGÉE également entre toutes les vues ===== */
   const nV=Math.max(1, views.length);
   const perView=body/nV;
-  const canSnap = !!(beats && beats.length>3 && period>0 && perView>=period*0.85);   /* on cale sur le rythme seulement si les plans sont assez longs */
-  const nearBeat=(t)=>{ if(!canSnap) return t; let bd=1e9,bv=t; for(let i=0;i<beats.length;i++){ const d=Math.abs(beats[i]-t); if(d<bd){bd=d;bv=beats[i];} else if(beats[i]>t+period) break; } return bv; };
+
+  /* ===== CALAGE MUSICAL =====
+     Ancienne methode : on posait les coupes a intervalles egaux, puis on
+     poussait chacune vers le battement le plus proche. Comme l'intervalle
+     n'est presque jamais un multiple exact du tempo, chaque coupe se calait
+     sur un battement different — parfois le temps fort, parfois le contretemps.
+     D'ou l'impression de decalage.
+
+     Nouvelle methode : un plan dure un NOMBRE ENTIER de battements. Les coupes
+     tombent donc toutes sur la grille du morceau, sans exception et sans derive.
+     C'est le principe de tout logiciel de montage synchrone. */
+  const bIdx0=(()=>{ if(!beats||!beats.length) return -1;
+    for(let i=0;i<beats.length;i++){ if(beats[i]>=INTRO-0.02) return i; } return -1; })();
+  const availB=(bIdx0>=0)?(()=>{ let n=0; for(let i=bIdx0;i<beats.length && beats[i]<=INTRO+body+0.02;i++) n++; return n; })():0;
+  /* On ne cale que si le morceau offre au moins un battement par plan. */
+  const canSnap = !!(beats && beats.length>3 && period>0 && bIdx0>=0 && availB>=nV+1);
+  const bps = canSnap ? Math.max(1, Math.floor((availB-1)/nV)) : 0;   /* battements par plan */
+  /* Le reste des battements est reparti un a un sur les premiers plans plutot
+     que jete dans le dernier : sinon un plan final s'etirait tout seul. */
+  const bCut=(()=>{ if(!canSnap) return null;
+    let rem=(availB-1)-nV*bps, acc=0; const out=[];
+    for(let i=0;i<nV;i++){ acc+=bps+(rem>0?1:0); if(rem>0) rem--; out.push(acc); }
+    return out; })();
   let cur=INTRO, prevE=eAt(INTRO);
   for(let i=0;i<nV;i++){
     const v=views[i], st=cur;
-    let en = INTRO + (i+1)*perView; if(canSnap) en=nearBeat(en);
-    en = Math.min(INTRO+body, Math.max(st + (canSnap?0.35:0.08), en));
+    let en;
+    if(canSnap){ const k=bIdx0+bCut[i]; en=(k<beats.length)?beats[k]:(INTRO+body); }
+    else { en = INTRO + (i+1)*perView; }
+    en = Math.min(INTRO+body, Math.max(st + (canSnap?0.25:0.08), en));
     if(i===nV-1) en=INTRO+body;
     const e=eAt(st), rise=e-prevE; const drop=(canSnap && rise>0.2 && e>0.6);
     const isVid = !!(keep[v.img] && keep[v.img].vid);
@@ -7012,7 +7035,7 @@ function openMontage(tr,version,autoplay){ tr=tr||souvTrip(); if(!tr) return; _m
     <div id="mvStudio" class="stu" style="display:none">
       <div class="stu-top">
         <button class="stu-back" id="stuBack" aria-label="Retour">\u2039</button>
-        <div class="stu-ttl"><b>Studio Magot<i>\u2727</i></b><span>Montage vid\u00e9o \u00b7 v452</span></div>
+        <div class="stu-ttl"><b>Studio Magot<i>\u2727</i></b><span>Montage vid\u00e9o \u00b7 v453</span></div>
         <button class="stu-ico" id="stuUndo" title="Annuler">\u21b6</button>
         <button class="stu-ico" id="stuRedo" title="R\u00e9tablir">\u21b7</button>
         <button class="stu-exp" id="mvSave"><i>\u2b06</i>Exporter</button>
