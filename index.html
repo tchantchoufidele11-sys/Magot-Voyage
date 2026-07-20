@@ -1181,14 +1181,22 @@ body.dragging-on{-webkit-user-select:none;user-select:none}
 .smlg-s{margin-top:5px;font-size:clamp(12.2px,3.333vw,13px);line-height:1.5;color:var(--ink-2,#3D4A66);font-style:italic;border-left:2px solid var(--gold,#E0A33E);padding-left:9px}
 .smlg-n2{margin-top:4px;font-size:clamp(11.8px,3.205vw,12.5px);color:var(--muted)}
 
-.mv-sec{font-family:var(--font-serif,Georgia,serif);font-weight:700;font-size:clamp(14.1px,3.846vw,15px);color:var(--ink);margin:16px 0 8px}
+.mv-sec{margin:16px 0 8px}
 .mv-hint{color:var(--muted);font-size:clamp(12px,3.282vw,12.8px);margin-top:7px;line-height:1.45}
-.mv-durs{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}
-.mv-sec{padding:12px 0;border-bottom:1px solid var(--line-soft,#EAEEF3)}
+.mv-durs{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px}
+.mv-sec{padding:14px 0;border-bottom:1px solid var(--line-soft,#EAEEF3)}
+.mv-sec:last-child{border-bottom:0;padding-bottom:4px}
 .mv-sec:first-child{padding-top:2px}
 .mv-sec:last-child{border-bottom:0;padding-bottom:2px}
 .mv-sec .mv-lab{margin-top:0}
-.mv-dur{background:var(--surface,#fff);border:1px solid var(--line);border-radius:12px;padding:11px 4px;font:700 13px system-ui;font-size:clamp(12.2px,3.333vw,13px);color:var(--ink);cursor:pointer}
+.mv-dur{display:flex;align-items:center;justify-content:center;min-height:var(--tap,44px);
+  background:var(--surface,#fff);border:1px solid var(--line);border-radius:12px;
+  padding:9px 6px;font:600 13px "Inter",system-ui;font-size:clamp(12px,3.25vw,13px);
+  line-height:1.15;text-align:center;color:var(--ink);cursor:pointer;
+  transition:background .16s ease,border-color .16s ease,transform .16s cubic-bezier(.2,.7,.3,1)}
+.mv-dur:active{transform:scale(.97)}
+.mv-dur.on{font-weight:700;box-shadow:0 4px 12px -4px rgba(14,33,72,.35)}
+@media (prefers-reduced-motion:reduce){ .mv-dur{transition:none} }
 .mv-dur.on{background:var(--navy,#0E2148);color:#fff;border-color:var(--navy,#0E2148)}
 .mv-note{margin-top:14px;background:var(--paper,#F7F8FB);border:1px solid var(--line);border-radius:12px;padding:11px 13px;color:var(--muted);font-size:clamp(11.6px,3.154vw,12.3px);line-height:1.5}
 .mv-stage{flex:1 1 auto;min-height:0;overflow:hidden;display:flex;align-items:center;justify-content:center;background:#000;padding:0}
@@ -1283,7 +1291,7 @@ body.dragging-on{-webkit-user-select:none;user-select:none}
 .tl-mv button:first-child{border-right:1px solid var(--line-soft,#eef1f7)}
 .tl-mv button:disabled{opacity:.28;cursor:default}
 .tl-card b[data-svstep]{cursor:pointer}
-.mv-grades{grid-template-columns:repeat(3,1fr)}
+.mv-grades{grid-template-columns:repeat(3,minmax(0,1fr))}
 .mv-dirnote{background:var(--gold-soft,#FBEED4);border:1px solid var(--gold,#E0A33E);border-radius:12px;padding:11px 13px;font-size:clamp(11.8px,3.205vw,12.5px);color:var(--ink);line-height:1.5;margin-bottom:4px}
 .mv-dirnote:empty{display:none}
 .dir-mood{background:var(--paper,#F7F8FB);border:1px solid var(--line);border-radius:12px;padding:10px 12px;font-size:clamp(11.8px,3.205vw,12.5px);color:var(--ink);margin-bottom:10px;line-height:1.5}
@@ -1520,7 +1528,11 @@ body.dragging-on{-webkit-user-select:none;user-select:none}
 .mv-blk.open .mv-blkh i{transform:rotate(180deg)}
 .mv-blkb{display:none;padding:0 14px 15px}
 .mv-blk.open .mv-blkb{display:block}
-.mv-lab{font:700 12.5px system-ui;font-size:clamp(11.8px,3.205vw,12.5px);color:var(--ink);margin:12px 0 7px}
+.mv-lab{font:700 11px "Inter",system-ui;font-size:clamp(10.6px,2.9vw,11.2px);
+  letter-spacing:.09em;text-transform:uppercase;color:var(--muted);margin:12px 0 9px;
+  display:flex;align-items:baseline;gap:7px;flex-wrap:wrap}
+.mv-lab small{font-weight:500;letter-spacing:0;text-transform:none;
+  font-size:clamp(10.8px,2.95vw,11.5px);color:var(--muted);opacity:.85}
 .mv-lab small{font-weight:400;color:var(--muted)}
 
 .shot-list{display:flex;flex-direction:column;gap:10px}
@@ -1687,10 +1699,27 @@ body.dragging-on{-webkit-user-select:none;user-select:none}
 .ep-s{display:block;border:2px solid var(--navy,#0E2148);border-radius:3px;margin-bottom:3px}
 .ep-v{width:15px;height:26px}.ep-c .ep-c{width:22px;height:22px}.ep-h{width:28px;height:16px}
 .ep-c.on .ep-s{border-color:var(--gold,#E0A33E)}
-.mv-adj{margin-top:12px}
-.mv-adj label{display:flex;justify-content:space-between;font-size:clamp(11.3px,3.077vw,12px);color:#8FA1BC;margin:10px 0 4px}
-.mv-adj label b{color:var(--gold,#E0A33E);font-variant-numeric:tabular-nums}
-.mv-adj input[type=range]{width:100%;accent-color:#E0A33E}
+/* Reglages fins : un sous-groupe clairement separe des presets de couleur,
+   avec sa remise a zero a portee de main plutot qu'en bas de la liste. */
+.mv-adj{margin-top:14px;padding-top:13px;border-top:1px dashed var(--line)}
+.mv-adjh{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:2px}
+.mv-adjh>span{font:700 11px "Inter",system-ui;font-size:clamp(10.6px,2.9vw,11.2px);
+  letter-spacing:.09em;text-transform:uppercase;color:var(--muted)}
+.mv-reset{border:0;background:none;padding:6px 0;cursor:pointer;
+  font:600 12px "Inter",system-ui;font-size:clamp(11.3px,3.08vw,12px);color:var(--navy,#0E2148)}
+[data-theme="dark"] .mv-reset{color:var(--gold,#E9B559)}
+.mv-reset[hidden]{display:none}
+.mv-adj label{display:flex;align-items:center;justify-content:space-between;gap:10px;
+  font:600 12.5px "Inter",system-ui;font-size:clamp(11.8px,3.2vw,12.5px);
+  letter-spacing:0;text-transform:none;color:var(--ink);margin:12px 0 5px}
+.mv-adj label b{min-width:52px;white-space:nowrap;text-align:center;padding:2px 7px;border-radius:7px;
+  background:var(--paper,#F7F8FB);border:1px solid var(--line);color:var(--ink);
+  font:700 11.5px "Inter",system-ui;font-size:clamp(11px,3vw,11.5px);font-variant-numeric:tabular-nums}
+.mv-adj input[type=range]{width:100%;accent-color:var(--gold,#E0A33E);height:28px}
+/* Repere du zero : ces curseurs vont de -100 a +100, le neutre est au milieu. */
+.mv-adj input[type=range]{background:linear-gradient(90deg,transparent calc(50% - 1px),
+  var(--line) calc(50% - 1px),var(--line) calc(50% + 1px),transparent calc(50% + 1px)) no-repeat;
+  background-size:100% 3px;background-position:center}
 .mrp{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin:6px 0 14px}
 .mrp-i{background:var(--paper,#F7F8FB);border:1px solid var(--line,#E6E9F0);border-radius:11px;padding:9px 6px;text-align:center}
 .mrp-i b{display:block;font-size:clamp(17.1px,4.872vw,19px);color:var(--navy,#0E2148);line-height:1.2}
@@ -6815,11 +6844,12 @@ function openMontage(tr,version,autoplay){ tr=tr||souvTrip(); if(!tr) return; _m
             <div class="mv-lab">Couleur</div>
             <div class="mv-durs mv-grades">${[["auto","\u2728 Auto"]].concat(Object.keys(MV_GRADE).map(k=>[k,MV_GRADE_LBL[k]])).map(([k,l])=>`<button class="mv-dur${k===(_mvState.grade||"natural")?' on':''}" data-grade="${k}">${l}</button>`).join("")}</div>
             <div class="mv-adj">
-              <label>Exposition <b id="adjExL">0</b></label>
+              <div class="mv-adjh"><span>R\u00e9glages fins</span>
+                <button class="mv-reset" id="adjReset" type="button">Remettre \u00e0 neutre</button></div>
+              <label for="adjEx">Exposition <b id="adjExL">0</b></label>
               <input type="range" id="adjEx" min="-100" max="100" step="5" value="${Math.round((_mvState.expo||0)*100)}">
-              <label>Balance des blancs <b id="adjWbL">0</b></label>
+              <label for="adjWb">Balance des blancs <b id="adjWbL">0</b></label>
               <input type="range" id="adjWb" min="-100" max="100" step="5" value="${Math.round((_mvState.tempK||0)*500)}">
-              <button class="mv-dur" id="adjReset" style="margin-top:8px">Remettre à neutre</button>
             </div>
           </div>
           <div class="mv-sec">
@@ -6872,7 +6902,7 @@ function openMontage(tr,version,autoplay){ tr=tr||souvTrip(); if(!tr) return; _m
     <div id="mvStudio" class="stu" style="display:none">
       <div class="stu-top">
         <button class="stu-back" id="stuBack" aria-label="Retour">\u2039</button>
-        <div class="stu-ttl"><b>Studio Magot<i>\u2727</i></b><span>Montage vid\u00e9o \u00b7 v447</span></div>
+        <div class="stu-ttl"><b>Studio Magot<i>\u2727</i></b><span>Montage vid\u00e9o \u00b7 v448</span></div>
         <button class="stu-ico" id="stuUndo" title="Annuler">\u21b6</button>
         <button class="stu-ico" id="stuRedo" title="R\u00e9tablir">\u21b7</button>
         <button class="stu-exp" id="mvSave"><i>\u2b06</i>Exporter</button>
@@ -7184,8 +7214,12 @@ function openMontage(tr,version,autoplay){ tr=tr||souvTrip(); if(!tr) return; _m
      Exposition en diaphragmes (-1 à +1), balance de froid à chaud (±0,2). */
   { const ex=ov.querySelector("#adjEx"), wb=ov.querySelector("#adjWb");
     const exL=ov.querySelector("#adjExL"), wbL=ov.querySelector("#adjWbL");
+    const rz0=ov.querySelector("#adjReset");
     const show=()=>{ if(exL) exL.textContent=((_mvState.expo||0)>0?"+":"")+(_mvState.expo||0).toFixed(2).replace(/0$/,"");
-      if(wbL) wbL.textContent=((_mvState.tempK||0)>0?"chaud ":((_mvState.tempK||0)<0?"froid ":""))+(Math.abs((_mvState.tempK||0)*500)||0).toFixed(0); };
+      if(wbL) wbL.textContent=((_mvState.tempK||0)>0?"chaud ":((_mvState.tempK||0)<0?"froid ":""))+(Math.abs((_mvState.tempK||0)*500)||0).toFixed(0);
+      /* Rien a remettre a neutre quand tout est deja neutre : le bouton
+         disparait plutot que d'inviter a un geste sans effet. */
+      if(rz0) rz0.hidden = !((_mvState.expo||0) || (_mvState.tempK||0) || (_mvState.tintG||0)); };
     if(ex) ex.oninput=()=>{ _mvState.expo=(+ex.value)/100; show(); };
     if(wb) wb.oninput=()=>{ _mvState.tempK=(+wb.value)/500; show(); };
     const rz=ov.querySelector("#adjReset");
