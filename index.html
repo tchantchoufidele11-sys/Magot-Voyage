@@ -1454,17 +1454,27 @@ body.dragging-on{-webkit-user-select:none;user-select:none}
 .mus-use{background:var(--navy,#0E2148);color:#fff;border:0;border-radius:9px;padding:8px 11px;font:700 12px system-ui;font-size:clamp(11.3px,3.077vw,12px);cursor:pointer}
 .mus-def,.mus-del{background:none;border:0;color:var(--muted);font-size:clamp(14.4px,4.103vw,16px);cursor:pointer;padding:4px}
 .mus-def{color:var(--gold-d,#C2872A)}
-/* Vignette carree : la note au repos, le bouton d'ecoute par-dessus. */
-.mus-ic{position:relative}
-.mus-note{opacity:.75}
-.mus-prev{position:absolute;right:-5px;bottom:-5px;width:24px;height:24px;border-radius:50%;
-  border:0;background:var(--navy,#0E2148);color:#fff;font-size:10px;line-height:1;cursor:pointer;
-  display:flex;align-items:center;justify-content:center;padding:0;
-  box-shadow:0 2px 6px rgba(0,0,0,.28);transition:transform .16s cubic-bezier(.2,.7,.3,1)}
-.mus-prev.on{background:var(--gold,#E0A33E);color:#3A2407}
-.mus-prev:active{transform:scale(.9)}
-[data-theme="dark"] .mus-prev{background:#1A2F58}
-[data-theme="dark"] .mus-prev.on{background:var(--gold,#E9B559);color:#2A1A05}
+/* La vignette EST la commande d'ecoute : toute la surface repond, comme dans
+   les logiciels de montage. Aucune pastille flottante. */
+.mus-ic{position:relative;overflow:hidden;border:0;cursor:pointer;padding:0;
+  transition:transform .16s cubic-bezier(.2,.7,.3,1),background .18s ease}
+.mus-ic:active{transform:scale(.94)}
+.mus-note{opacity:.26;transition:opacity .16s ease}
+/* Triangle au repos, deux barres pendant l'ecoute — dessines en CSS. */
+.mus-pl{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);
+  width:0;height:0;border-style:solid;border-width:7px 0 7px 11px;
+  border-color:transparent transparent transparent currentColor;
+  opacity:.92;transition:opacity .16s ease}
+.mus-prev.on .mus-note{opacity:0}
+.mus-prev.on .mus-pl{opacity:1;width:11px;height:13px;border:0;
+  background:linear-gradient(90deg,currentColor 0 34%,transparent 34% 66%,currentColor 66% 100%)}
+.mus-prev.on{background:var(--gold-soft,#FBF3E4);color:var(--gold-d,#C2872A)}
+[data-theme="dark"] .mus-prev.on{background:rgba(224,163,62,.20);color:var(--gold,#E9B559)}
+/* Avancement de l'extrait, au pied de la vignette. */
+.mus-prog{position:absolute;left:0;right:0;bottom:0;height:3px;background:rgba(0,0,0,.10)}
+.mus-prog>i{display:block;height:100%;width:0;background:var(--gold,#E0A33E);transition:width .2s linear}
+.mus-prev:not(.on) .mus-prog{opacity:0}
+@media (prefers-reduced-motion:reduce){ .mus-ic,.mus-note,.mus-pl,.mus-prog>i{transition:none} }
 /* Ambiance : affichee seulement quand elle a ete renseignee a la publication. */
 .mus-tags{display:flex;flex-wrap:wrap;gap:5px;margin-top:5px}
 .mus-tag{font:700 9.6px system-ui;font-size:clamp(9.2px,2.5vw,10px);letter-spacing:.05em;
@@ -6854,7 +6864,7 @@ function openMontage(tr,version,autoplay){ tr=tr||souvTrip(); if(!tr) return; _m
     <div id="mvStudio" class="stu" style="display:none">
       <div class="stu-top">
         <button class="stu-back" id="stuBack" aria-label="Retour">\u2039</button>
-        <div class="stu-ttl"><b>Studio Magot<i>\u2727</i></b><span>Montage vid\u00e9o \u00b7 v445</span></div>
+        <div class="stu-ttl"><b>Studio Magot<i>\u2727</i></b><span>Montage vid\u00e9o \u00b7 v446</span></div>
         <button class="stu-ico" id="stuUndo" title="Annuler">\u21b6</button>
         <button class="stu-ico" id="stuRedo" title="R\u00e9tablir">\u21b7</button>
         <button class="stu-exp" id="mvSave"><i>\u2b06</i>Exporter</button>
@@ -10347,21 +10357,39 @@ function musPreviewStop(){
   if(_mp.url){ try{ URL.revokeObjectURL(_mp.url); }catch(e){} _mp.url=null; }
   _mp.id=null; musPreviewPaint();
 }
+const MUS_PREVIEW=20;   /* secondes : de quoi juger le rythme, pas le morceau */
 function musPreviewPaint(){
   document.querySelectorAll("[data-prev]").forEach(b=>{
     const on=(b.dataset.prev===_mp.id);
     b.classList.toggle("on",on);
-    b.textContent = on ? "\u23f8" : "\u25b6";
     b.setAttribute("aria-label", on ? "Arr\u00eater l'\u00e9coute" : "\u00c9couter un extrait");
+    if(!on){ const p=b.querySelector(".mus-prog>i"); if(p) p.style.width="0%"; }
   });
+}
+/* Avancement de l'extrait, dessine sur la vignette elle-meme. */
+function musPreviewTick(){
+  if(!_mp.el||!_mp.id) return;
+  const b=document.querySelector('[data-prev="'+(window.CSS&&CSS.escape?CSS.escape(_mp.id):_mp.id)+'"]');
+  if(!b) return;
+  const p=b.querySelector(".mus-prog>i"); if(!p) return;
+  p.style.width=Math.max(0,Math.min(100,(_mp.el.currentTime/MUS_PREVIEW)*100))+"%";
 }
 async function musPreview(kind,id,src){
   if(_mp.id===id){ musPreviewStop(); return; }
   musPreviewStop();
   if(!_mp.el){
     _mp.el=new Audio(); _mp.el.preload="none";
-    _mp.el.addEventListener("ended",()=>{ _mp.id=null; musPreviewPaint(); });
+    _mp.el.addEventListener("ended",()=>{ musPreviewStop(); });
     _mp.el.addEventListener("error",()=>{ if(_mp.id){ toast("Lecture impossible."); } _mp.id=null; musPreviewPaint(); });
+    /* L'extrait s'arrete de lui-meme : on ecoute le debut pour juger le
+       rythme, pas le morceau entier. Pas de fondu — sur iOS, « volume » sur
+       un element audio est ignore en silence ; il faudrait un noeud de gain
+       Web Audio, disproportionne pour un extrait. */
+    _mp.el.addEventListener("timeupdate",()=>{
+      if(!_mp.id) return;
+      if(_mp.el.currentTime>=MUS_PREVIEW){ musPreviewStop(); return; }
+      musPreviewTick();
+    });
   }
   try{
     let url=src;
@@ -10483,7 +10511,7 @@ function openMusicLib(fromMontage){
   /* L'etoile DIT deja « par defaut » : on ne l'ecrit pas une seconde fois
      dans la ligne du dessous. Une information, un seul endroit. */
   const row=(m)=>`<div class="mus-row${m.def?" def":""}" data-mus="${m.id}">
-    <span class="mus-ic"><span class="mus-note">\u266A</span><button class="mus-prev" data-prev="${escapeHtml(String(m.id))}" type="button" aria-label="\u00c9couter un extrait">\u25b6</button></span>
+    <button class="mus-ic mus-prev" type="button" data-prev="${escapeHtml(String(m.id))}" aria-label="\u00c9couter un extrait"><span class="mus-note">\u266A</span><span class="mus-pl"></span><span class="mus-prog"><i></i></span></button>
     <span class="mus-b"><b>${escapeHtml(m.name)}</b>
       <span>${m.dur?_fmtDur(m.dur):""}${m.bpm?" \u00b7 "+m.bpm+" BPM":""}</span>
       ${m.mood?`<span class="mus-tags"><span class="mus-tag">${escapeHtml(m.mood)}</span></span>`:``}</span>
@@ -10524,7 +10552,7 @@ function openMusicLib(fromMontage){
       if(list && list.error){ el.innerHTML=`<div class="empty" style="padding:20px 8px"><p>Impossible de charger la biblioth\u00e8que.<br><small style="color:var(--muted)">${escapeHtml(list.error)}${list.detail?" \u2014 "+escapeHtml(list.detail):""}</small><br><small>V\u00e9rifie que le SQL a bien \u00e9t\u00e9 ex\u00e9cut\u00e9 dans Supabase.</small></p></div>`; return; }
       if(!Array.isArray(list)||!list.length){ el.innerHTML=`<div class="empty" style="padding:20px 8px"><p>Aucune musique publiée pour l'instant.</p></div>`; return; }
       el.innerHTML=list.map(x=>`<div class="mus-row">
-        <span class="mus-ic"><span class="mus-note">\u266A</span><button class="mus-prev" data-prev="mg_${escapeHtml(String(x.id||x.path||""))}" data-src="${escapeHtml(magotUrl(x.path))}" type="button" aria-label="\u00c9couter un extrait">\u25b6</button></span>
+        <button class="mus-ic mus-prev" type="button" data-prev="mg_${escapeHtml(String(x.id||x.path||""))}" data-src="${escapeHtml(magotUrl(x.path))}" aria-label="\u00c9couter un extrait"><span class="mus-note">\u266A</span><span class="mus-pl"></span><span class="mus-prog"><i></i></span></button>
         <span class="mus-b"><b>${escapeHtml(x.title||"Musique")}</b>
           <span>${x.duration?_fmtDur(x.duration):""}${x.bpm?" \u00b7 "+x.bpm+" BPM":""}</span>
           ${x.mood?`<span class="mus-tags"><span class="mus-tag">${escapeHtml(x.mood)}</span></span>`:``}</span>
