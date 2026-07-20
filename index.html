@@ -1925,6 +1925,7 @@ body.dragging-on{-webkit-user-select:none;user-select:none}
 /* Une image 9:16 tire sa largeur de sa hauteur : pour l'agrandir il faut lui
    donner de la hauteur, et lui rendre les marges laterales. */
 #mvOv .stu-mid{flex:1 1 0;min-height:0;display:flex;align-items:stretch;
+  transition:height .3s cubic-bezier(.2,.7,.3,1);
   gap:clamp(4px,1.4vw,5.5px);padding:2px calc(var(--stuPad) - 2px) 0 calc(var(--stuPad) + 1px);overflow:hidden}
 #mvOv .stu-tools{width:var(--stuRail);flex:0 0 var(--stuRail);background:#101B2E;border-radius:14px;padding:6px 0;
   display:flex;flex-direction:column;justify-content:space-between;gap:2px;overflow:hidden}
@@ -1952,12 +1953,13 @@ body.dragging-on{-webkit-user-select:none;user-select:none}
 #mvOv .stu-tool:active{background:rgba(255,255,255,.07)}
 @media (prefers-reduced-motion:reduce){ #mvOv .stu-tool{transition:none} }
 #mvOv .stu-stagewrap{flex:1 1 0;min-width:0;min-height:0;align-self:stretch;
-  display:flex;align-items:flex-start;justify-content:center}
+  display:flex;align-items:center;justify-content:center}
 /* Le cadre epouse l'image. Sa taille exacte est calculee par mvFitStage() :
    une hauteur de 100% donnait un cadre toujours vertical, et une image 16:9
    se retrouvait en bande au milieu, avec du vide dessus et dessous. */
 #mvOv.cine .mv-stage{flex:0 0 auto;width:auto;max-width:100%;min-width:0;min-height:0;
-  height:auto;max-height:100%;position:relative;border-radius:14px;overflow:hidden;
+  height:auto;max-height:100%;position:relative;
+  transition:width .3s cubic-bezier(.2,.7,.3,1),height .3s cubic-bezier(.2,.7,.3,1);border-radius:14px;overflow:hidden;
   background:transparent;display:flex;align-items:center;justify-content:center;
   padding-bottom:var(--stuBar);box-sizing:border-box;
   border:1px solid rgba(236,244,255,.14);
@@ -6768,7 +6770,7 @@ function openMontage(tr,version,autoplay){ tr=tr||souvTrip(); if(!tr) return; _m
     <div id="mvStudio" class="stu" style="display:none">
       <div class="stu-top">
         <button class="stu-back" id="stuBack" aria-label="Retour">\u2039</button>
-        <div class="stu-ttl"><b>Studio Magot<i>\u2727</i></b><span>Montage vid\u00e9o \u00b7 v436</span></div>
+        <div class="stu-ttl"><b>Studio Magot<i>\u2727</i></b><span>Montage vid\u00e9o \u00b7 v437</span></div>
         <button class="stu-ico" id="stuUndo" title="Annuler">\u21b6</button>
         <button class="stu-ico" id="stuRedo" title="R\u00e9tablir">\u21b7</button>
         <button class="stu-exp" id="mvSave"><i>\u2b06</i>Exporter</button>
@@ -7745,72 +7747,86 @@ function openExportPick(tr, btn){
     } else mvRecord(tr,_mvState.total||60,btn);
   };
 }
-/* Donne au cadre la taille exacte de l'image, barre de lecture comprise.
-   Les mesures sont prises sur la ZONE D'ACCUEIL, jamais sur le cadre lui-meme :
-   le cadre est ce qu'on redimensionne, le mesurer ferait boucler. */
-/* force = appel explicite (creation, changement de format, ouverture du studio).
-   Sans force, l'appel vient de l'observateur : on ne recalcule que si la LARGEUR
-   disponible ou le rapport de l'image ont change. Sinon on entrerait en boucle,
-   puisque poser une hauteur sur la zone declenche l'observateur a son tour. */
-function mvFitStage(force){
-  if(mvFitStage._busy) return;
-  const ov=document.getElementById("mvOv"); if(!ov||!ov.classList.contains("cine")) return;
+/* ----------------------------------------------------------------------
+   Taille du cadre de lecture.
+
+   Deux principes, appris a la dure :
+   1. AUCUNE mesure de mise en page pendant la lecture. On mesure une seule
+      fois, a l'arret, et on en tire les DEUX geometries : mode normal et mode
+      projection. La bascule ne fait plus qu'ecrire des pixels deja calcules.
+      Les mesures faites pendant la lecture hachaient le son.
+   2. La zone du milieu est en flex:1 1 0 : sa hauteur vient du flex, pas de
+      l'attribut « height ». Lui poser une hauteur sans passer en flex:0 0 auto
+      ne servait donc a rien — elle continuait de s'etirer et l'image restait
+      collee en haut d'un grand vide.
+   ---------------------------------------------------------------------- */
+function mvStageEls(){
+  const ov=document.getElementById("mvOv"); if(!ov||!ov.classList.contains("cine")) return null;
   const st=ov.querySelector(".mv-stage"), wrap=ov.querySelector(".stu-stagewrap"), mid=ov.querySelector(".stu-mid");
-  const cv=document.getElementById("mvCanvas");
-  if(!st||!wrap) return;
-  if(ov.classList.contains("stufull")){ st.style.width=""; st.style.height=""; if(mid) mid.style.height=""; return; }
-  const cw=(cv&&cv.width)||0, ch=(cv&&cv.height)||0;
-  if(!cw||!ch){ st.style.width=""; st.style.height=""; if(mid) mid.style.height=""; return; }
-  const wrapW=(ov.querySelector(".stu-stagewrap")||{}).clientWidth||0;
-  const ratio=cw/ch;
-  if(!force && mvFitStage._w===wrapW && mvFitStage._r===ratio) return;
-  mvFitStage._busy=1;
-  try{
-    /* On rend d'abord sa hauteur libre a la zone pour lire la place REELLEMENT
-       disponible : sans ca, on mesurerait la hauteur qu'on a soi-meme imposee
-       au tour precedent, et elle ne remonterait plus jamais. */
-    if(mid) mid.style.height="";
-    const W0=wrap.clientWidth, Hmax=wrap.clientHeight;
-    if(!W0||!Hmax){ mvFitStage._busy=0; return; }
-    const cs=getComputedStyle(st);
-    const bar=parseFloat(cs.paddingBottom)||0;
-    const r=cw/ch;
-    let Hf=Math.min(Hmax, bar + W0/r);
-    let Wf=(Hf-bar)*r;
-    if(Wf>W0){ Wf=W0; Hf=W0/r+bar; }
-    if(!(Wf>0)||!(Hf>0)){ mvFitStage._busy=0; return; }
-    st.style.width=Math.round(Wf)+"px";
-    st.style.height=Math.round(Hf)+"px";
-    /* Le cadre epouse l'image : en 16:9 il devient bas et laissait un trou de
-       plusieurs centaines de pixels sous lui. La zone se referme donc sur
-       l'image, et le banc de montage remonte a sa rencontre. */
-    if(mid){
-      const mcs=getComputedStyle(mid);
-      const pad=(parseFloat(mcs.paddingTop)||0)+(parseFloat(mcs.paddingBottom)||0);
-      /* Plancher : le rail de gauche ne doit jamais etre rogne par la zone. */
-      const tools=ov.querySelector(".stu-tools");
-      const need=tools?(tools.scrollHeight||0):0;
-      const H=Math.max(Hf+pad, need+pad);
-      if(H < Hmax-2) mid.style.height=Math.round(H)+"px";
-      else mid.style.height="";
-    }
-    mvFitStage._w=W0; mvFitStage._r=r;
-  } catch(e){}
-  mvFitStage._busy=0;
+  if(!st||!wrap||!mid) return null;
+  return {ov:ov,st:st,wrap:wrap,mid:mid,cv:document.getElementById("mvCanvas")};
 }
-/* Un seul observateur, pose une fois : il couvre la rotation, le mode
-   projection et tout changement de place disponible, sans code d'appel disperse. */
+/* Mesure : uniquement a l'arret, et uniquement hors mode projection (sinon on
+   mesurerait un ecran deja replie et la geometrie de base serait fausse). */
+function mvStageMeasure(){
+  const E=mvStageEls(); if(!E) return null;
+  if(E.ov.classList.contains("stufull")||E.ov.classList.contains("stuproj")) return _mvState._sGeo||null;
+  E.mid.style.flex=""; E.mid.style.height="";
+  const tools=E.ov.querySelector(".stu-tools"), right=E.ov.querySelector(".stu-right");
+  const fiche=E.ov.querySelector(".mv-fiche"), dir=E.ov.querySelector(".stu-dir");
+  const cm=getComputedStyle(E.mid);
+  const gap=parseFloat(cm.columnGap||cm.gap)||0;
+  const W=E.wrap.clientWidth, H=E.wrap.clientHeight;
+  if(!W||!H) return _mvState._sGeo||null;
+  const outer=(el)=>{ if(!el) return 0; const c=getComputedStyle(el);
+    return el.offsetHeight+(parseFloat(c.marginTop)||0)+(parseFloat(c.marginBottom)||0); };
+  const G={
+    W:W, H:H,
+    /* en projection, le rail et la colonne format se retirent : la largeur
+       revient a l'image, et la hauteur gagne la fiche et le bandeau. */
+    Wp:W+(tools?tools.offsetWidth+gap:0)+(right?right.offsetWidth+gap:0),
+    Hp:H+outer(fiche)+outer(dir),
+    pad:(parseFloat(cm.paddingTop)||0)+(parseFloat(cm.paddingBottom)||0),
+    bar:parseFloat(getComputedStyle(E.st).paddingBottom)||0,
+    rail:tools?(tools.scrollHeight||0):0
+  };
+  _mvState._sGeo=G; return G;
+}
+/* Application : que des ecritures. Aucun getComputedStyle, aucun clientWidth. */
+function mvStageApply(proj){
+  const E=mvStageEls(); if(!E) return;
+  if(E.ov.classList.contains("stufull")){ E.st.style.width=""; E.st.style.height=""; E.mid.style.flex=""; E.mid.style.height=""; return; }
+  const G=_mvState._sGeo; const cv=E.cv;
+  if(!G||!cv||!cv.width||!cv.height){ E.st.style.width=""; E.st.style.height=""; E.mid.style.flex=""; E.mid.style.height=""; return; }
+  const r=cv.width/cv.height;
+  const W0=proj?G.Wp:G.W, Hmax=proj?G.Hp:G.H;
+  let Hf=Math.min(Hmax, G.bar+W0/r);
+  let Wf=(Hf-G.bar)*r;
+  if(Wf>W0){ Wf=W0; Hf=W0/r+G.bar; }
+  if(!(Wf>0)||!(Hf>0)) return;
+  E.st.style.width=Math.round(Wf)+"px";
+  E.st.style.height=Math.round(Hf)+"px";
+  /* La zone se referme sur l'image — sans jamais rogner le rail de gauche,
+     qui reste visible hors projection. */
+  const floor=proj?0:G.rail;
+  const need=Math.max(Hf,floor)+G.pad;
+  if(need<Hmax-2){ E.mid.style.flex="0 0 auto"; E.mid.style.height=Math.round(need)+"px"; }
+  else { E.mid.style.flex=""; E.mid.style.height=""; }
+}
+function mvFitStage(force){
+  const E=mvStageEls(); if(!E) return;
+  /* Jamais pendant la lecture, sauf demande explicite de l'utilisateur
+     (changement de format) : une mesure ponctuelle est alors legitime. */
+  if(_mvState.playing && !force) return;
+  mvStageMeasure();
+  mvStageApply(E.ov.classList.contains("stuproj"));
+}
+/* Un seul observateur : rotation, changement de format, retour d'un rideau.
+   Il ne fait rien tant que le film tourne. */
 function mvWatchStage(){
   const ov=document.getElementById("mvOv"); if(!ov) return;
   const wrap=ov.querySelector(".stu-stagewrap"); if(!wrap||wrap._mvRo) return;
-  const fire=()=>{
-    /* Pendant la lecture, on ne mesure pas a chaque image : l'entree en mode
-       projection fait varier la zone pendant 300 ms et un calcul par image
-       ferait tomber le nombre d'images par seconde. On attend la fin. */
-    if(_mvState.playing){
-      if(mvFitStage._to) clearTimeout(mvFitStage._to);
-      mvFitStage._to=setTimeout(()=>{ mvFitStage._to=0; mvFitStage(); },90);
-      return; }
+  const fire=()=>{ if(_mvState.playing) return;
     if(mvFitStage._raf) cancelAnimationFrame(mvFitStage._raf);
     mvFitStage._raf=requestAnimationFrame(()=>{ mvFitStage._raf=0; mvFitStage(); }); };
   try{ wrap._mvRo=new ResizeObserver(fire); wrap._mvRo.observe(wrap); }
@@ -7825,7 +7841,9 @@ function mvSetPlaying(on){ _mvState.playing=!!on;
 function mvProjection(on){
   const ov=document.getElementById("mvOv"); if(!ov||!ov.classList.contains("cine")) return;
   if(ov.classList.contains("stufull")) return;   /* deja en plein ecran manuel */
-  ov.classList.toggle("stuproj",!!on); }
+  if(!on && !_mvState._sGeo) mvStageMeasure();
+  ov.classList.toggle("stuproj",!!on);
+  mvStageApply(!!on); }
 
 /* ---- Barre de lecture : avancement, temps et déplacement au doigt ---- */
 function mvFmtTc(x){ x=Math.max(0,Math.floor(x||0)); const m=Math.floor(x/60), sec=x%60;
