@@ -1582,7 +1582,32 @@ body.dragging-on{-webkit-user-select:none;user-select:none}
 .prep-t.ck{background:#FEF6E7;color:#9A6B12}
 .prep-t.out{background:#FBECEC;color:#B3261E}
 .prep-sel{border:1px solid var(--line);border-radius:9px;padding:7px 8px;font:600 12px system-ui;font-size:clamp(11.3px,3.077vw,12px);color:var(--ink);background:var(--paper,#F7F8FB);max-width:100%}
+/* Sous-titre de feuille : la page dit a quoi elle sert. */
+.smh-tt{flex:1;min-width:0}
+.smh-s{margin-top:2px;font:400 12px "Inter",sans-serif;font-size:clamp(11.3px,3.08vw,12px);color:var(--muted)}
+/* Bilan en carte, avec le total — le detail par etat reste dans les pastilles. */
+.prep-head{background:var(--surface,#fff);border:1px solid var(--line-soft,#EEF1F7);
+  border-radius:var(--r,20px);box-shadow:var(--shadow-sm);margin:12px 16px 0;padding:12px 14px;
+  display:block}
+.prep-hl{display:flex;flex-wrap:wrap;align-items:baseline;gap:4px 10px}
+.prep-hl b{font-family:var(--font-serif,Georgia,serif);font-weight:700;
+  font-size:clamp(15px,4.1vw,17px);color:var(--ink)}
+.prep-hl span{font-size:clamp(11.3px,3.08vw,12px);color:var(--muted)}
+/* Onglets : l'icone se lit avant le mot. */
+.mus-tab i{font-style:normal;display:block;font-size:clamp(13px,3.6vw,15px);margin-bottom:2px;line-height:1}
+/* Filtre par lieu, seulement quand il y a de quoi filtrer. */
+.prep-filt{display:flex;align-items:center;gap:8px;margin:10px 16px 0;
+  background:var(--surface,#fff);border:1px solid var(--line);border-radius:12px;padding:6px 11px}
+.prep-flab{flex:0 0 auto;font-size:clamp(13px,3.6vw,15px)}
+.prep-filt select{flex:1;min-width:0;border:0;background:none;color:var(--ink);
+  font:600 13px "Inter",sans-serif;font-size:max(16px,1rem);padding:4px 0}
 .prep-a{display:flex;flex-direction:column;gap:4px}
+/* Les deux boutons portent une decision : ils portent donc son etat. */
+.prep-a .pa-inc.on{background:#E7F5EC;border-color:#B7E3C8;color:#1B7A43}
+.prep-a .pa-inc{background:#FBECEC;border-color:#F0C9C6;color:#B3261E}
+.prep-a .pa-lock.on{background:var(--gold-soft,#FBF3E4);border-color:var(--gold,#E0A33E)}
+[data-theme="dark"] .prep-a .pa-inc.on{background:rgba(34,197,94,.16);border-color:rgba(34,197,94,.34);color:#5FD98C}
+[data-theme="dark"] .prep-a .pa-inc{background:rgba(179,38,30,.18);border-color:rgba(179,38,30,.38);color:#F09A94}
 .prep-a button{background:var(--paper,#F7F8FB);border:1px solid var(--line);border-radius:8px;width:34px;height:28px;font-size:clamp(12.2px,3.333vw,13px);cursor:pointer;padding:0}
 .mv-medsum{background:var(--paper,#F7F8FB);border:1px solid var(--line);border-radius:12px;padding:12px 13px;font-size:clamp(12.2px,3.333vw,13px);line-height:1.45;color:var(--ink);margin-bottom:10px}
 
@@ -6811,7 +6836,7 @@ function openMontage(tr,version,autoplay){ tr=tr||souvTrip(); if(!tr) return; _m
     <div id="mvStudio" class="stu" style="display:none">
       <div class="stu-top">
         <button class="stu-back" id="stuBack" aria-label="Retour">\u2039</button>
-        <div class="stu-ttl"><b>Studio Magot<i>\u2727</i></b><span>Montage vid\u00e9o \u00b7 v443</span></div>
+        <div class="stu-ttl"><b>Studio Magot<i>\u2727</i></b><span>Montage vid\u00e9o \u00b7 v444</span></div>
         <button class="stu-ico" id="stuUndo" title="Annuler">\u21b6</button>
         <button class="stu-ico" id="stuRedo" title="R\u00e9tablir">\u21b7</button>
         <button class="stu-exp" id="mvSave"><i>\u2b06</i>Exporter</button>
@@ -10474,7 +10499,7 @@ function openAlbum(tr,placeId){
   });
 }
 /* ===================== Préparer les médias (avant le film) ===================== */
-let _prepFilter="all";
+let _prepFilter="all"; let _prepPlace="";
 async function mediaStatus(tr){
   /* prêt / à vérifier (flou, sombre, sans lieu) / écarté */
   const out=[];
@@ -10504,9 +10529,13 @@ async function openMediaPrep(tr){
   tr=tr||souvTrip(); if(!tr) return;
   let ov=document.getElementById("prepOv"); if(ov) ov.remove();
   ov=document.createElement("div"); ov.id="prepOv"; ov.className="souvmap-ov show";
-  ov.innerHTML=`<div class="souvmap-sheet"><div class="smh"><div class="smh-t">\u{1F5C2} Préparer les médias</div><button class="cal-x" id="prX" type="button">\u2715</button></div>
+  ov.innerHTML=`<div class="souvmap-sheet"><div class="smh"><div class="smh-tt">
+      <div class="smh-t">\u{1F5C2} Préparer les médias</div>
+      <div class="smh-s">Organisation et vérification de tes médias</div>
+    </div><button class="cal-x" id="prX" type="button">\u2715</button></div>
     <div class="prep-head" id="prepHead">Analyse\u2026</div>
     <div class="mus-tabs" id="prepTabs"></div>
+    <div class="prep-filt" id="prepFilt"></div>
     <div class="souvmap-scroll" id="prepBody"><div class="empty" style="padding:26px 8px"><p>Analyse des médias\u2026</p></div></div>
     <div class="souvmap-foot"><button class="btn navy block" id="prOk" type="button">Terminé</button></div></div>`;
   document.body.appendChild(ov);
@@ -10517,14 +10546,30 @@ async function openMediaPrep(tr){
   const paint=()=>{
     const nOk=list.filter(x=>x.cat==="ok").length, nCk=list.filter(x=>x.cat==="check").length, nOut=list.filter(x=>x.cat==="out").length;
     const nPh=list.filter(x=>!x.vid).length, nVd=list.filter(x=>x.vid).length;
-    ov.querySelector("#prepHead").innerHTML=`<b>${nPh} photo${nPh>1?"s":""}${nVd?" \u00b7 "+nVd+" vid\u00e9o"+(nVd>1?"s":""):""}</b>`
+    ov.querySelector("#prepHead").innerHTML=`<div class="prep-hl">`
+      +`<b>${nPh} photo${nPh>1?"s":""}${nVd?" \u00b7 "+nVd+" vid\u00e9o"+(nVd>1?"s":""):""}</b>`
+      +`<span>${list.length} m\u00e9dia${list.length>1?"s":""} au total</span></div>`
       +`<div class="prep-ks">`+mvPrepKeys(nOk,nCk,nOut)+`</div>`;
-    const T=[["all","Tous"],["photo","Photos"],["video","Vid\u00e9os"],["check","\u00c0 v\u00e9rifier"],["out","\u00c9cart\u00e9s"]];
-    ov.querySelector("#prepTabs").innerHTML=T.map(([k,l])=>`<button class="mus-tab${_prepFilter===k?" on":""}" data-pf="${k}">${l}</button>`).join("");
+    const T=[["all","\u25a6","Tous"],["photo","\u{1F5BC}","Photos"],["video","\u{1F3AC}","Vid\u00e9os"],
+             ["check","\u26a0","\u00c0 v\u00e9rifier"],["out","\u2715","\u00c9cart\u00e9s"]];
+    ov.querySelector("#prepTabs").innerHTML=T.map(([k,ic,l])=>
+      `<button class="mus-tab${_prepFilter===k?" on":""}" data-pf="${k}"><i>${ic}</i>${l}</button>`).join("");
     ov.querySelectorAll("[data-pf]").forEach(b=>b.onclick=()=>{ _prepFilter=b.dataset.pf; paint(); });
-    const shown=list.filter(x=> _prepFilter==="all" ? true
+    /* Filtre par lieu : n'apparait qu'a partir de deux lieux et d'une dizaine
+       de medias — en dessous, il ne sert a rien et encombre. */
+    const plc=souvPoints(tr), fe=ov.querySelector("#prepFilt");
+    if(fe){ if(plc.length>1 && list.length>=10){
+        fe.style.display="";
+        fe.innerHTML=`<span class="prep-flab">\u{1F4CD}</span><select id="prepPlace">`
+          +`<option value="">Tous les lieux</option>`
+          +plc.map(pp=>`<option value="${escapeHtml(pp.id||"")}"${_prepPlace===(pp.id||"")?" selected":""}>${escapeHtml(pp.title||"")}</option>`).join("")
+          +`</select>`;
+        fe.querySelector("#prepPlace").onchange=(e)=>{ _prepPlace=e.target.value||""; paint(); };
+      } else { fe.style.display="none"; fe.innerHTML=""; _prepPlace=""; } }
+    const shown=list.filter(x=> (_prepFilter==="all" ? true
       : _prepFilter==="photo" ? !x.vid : _prepFilter==="video" ? x.vid
-      : _prepFilter==="check" ? x.cat==="check" : x.cat==="out");
+      : _prepFilter==="check" ? x.cat==="check" : x.cat==="out")
+      && (!_prepPlace || (x.m.placeId||"")===_prepPlace));
     const pts=souvPoints(tr);
     ov.querySelector("#prepBody").innerHTML = shown.length? `<div class="prep-list">${shown.map(x=>{
       const m=x.m;
@@ -10538,8 +10583,12 @@ async function openMediaPrep(tr){
           <select class="prep-sel" data-pm="${m.id}"><option value="">\u2014 Aucun lieu \u2014</option>${pts.map(pp=>`<option value="${escapeHtml(pp.id||"")}" data-day="${pp.day}" ${m.placeId===pp.id?"selected":""}>${escapeHtml((pp.title||"").slice(0,28))} \u00b7 J${pp.day+1}</option>`).join("")}</select>
         </div>
         <div class="prep-a">
-          <button data-inc="${m.id}" title="${m.excluded?"Inclure":"\u00c9carter"}">${m.excluded?"\u2713":"\u2715"}</button>
-          <button data-lock="${m.id}" title="Verrouiller">${m.lock?"\ud83d\udd12":"\ud83d\udd13"}</button>
+          <button class="pa-inc${m.excluded?"":" on"}" data-inc="${m.id}"
+            aria-label="${m.excluded?"R\u00e9int\u00e9grer ce m\u00e9dia":"\u00c9carter ce m\u00e9dia"}"
+            title="${m.excluded?"R\u00e9int\u00e9grer":"\u00c9carter"}">${m.excluded?"\u2715":"\u2713"}</button>
+          <button class="pa-lock${m.lock?" on":""}" data-lock="${m.id}"
+            aria-label="${m.lock?"Retirer le verrou":"Toujours garder ce m\u00e9dia"}"
+            title="${m.lock?"Verrouill\u00e9":"Verrouiller"}">${m.lock?"\ud83d\udd12":"\ud83d\udd13"}</button>
           ${x.vid?`<button data-vcut="${m.id}" title="D\u00e9couper">\u2702</button>`:""}
         </div></div>`; }).join("")}</div>` : `<div class="empty" style="padding:26px 8px"><p>Aucun média dans cette cat\u00e9gorie.</p></div>`;
     hydratePhotos(ov);
