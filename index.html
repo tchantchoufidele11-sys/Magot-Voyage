@@ -1274,6 +1274,10 @@ body.dragging-on{-webkit-user-select:none;user-select:none}
   padding:0 2px 10px;margin:0 0 8px;scroll-snap-type:x proximity;scrollbar-width:none}
 .dir-tl::-webkit-scrollbar{display:none}
 .dir-tl>*{scroll-snap-align:start}
+/* Un chevron discret entre les cartes : on lit un deroulement, pas une liste. */
+.tl-link{flex:0 0 auto;align-self:center;color:var(--line);font-size:20px;line-height:1;
+  padding:0 1px;scroll-snap-align:none;user-select:none}
+.tl-cat{font-style:normal;margin-right:5px}
 .tl-card{flex:0 0 auto;min-width:92px;background:var(--surface,#fff);border:1px solid var(--line);border-radius:12px;padding:10px;text-align:left;cursor:pointer;position:relative}
 .tl-card b{display:block;font:600 12.5px system-ui;font-size:clamp(11.8px,3.205vw,12.5px);color:var(--ink);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .tl-card span{font-size:clamp(10.3px,2.821vw,11px);color:var(--muted)}
@@ -1303,8 +1307,11 @@ body.dragging-on{-webkit-user-select:none;user-select:none}
 .tl-reset{background:none;border:0;color:var(--gold-d,#C2872A);font:700 12px system-ui;font-size:clamp(11.3px,3.077vw,12px);cursor:pointer;padding:2px 4px}
 .tl-x{position:absolute;top:-7px;right:-7px;width:20px;height:20px;border-radius:50%;border:1px solid var(--line);background:var(--surface,#fff);color:var(--muted);font:700 10px/18px system-ui;font-size:clamp(10px,2.564vw,10px);cursor:pointer;padding:0}
 .tl-x:hover{color:#DC2626;border-color:#DC2626}
-.tl-mv{position:absolute;left:0;right:0;bottom:0;display:flex;border-top:1px solid var(--line-soft,#eef1f7)}
-.tl-mv button{flex:1;background:none;border:0;color:var(--ink);font:700 14px system-ui;font-size:clamp(13.2px,3.59vw,14px);cursor:pointer;padding:3px 0;line-height:1}
+.tl-mv{position:absolute;right:6px;bottom:5px;display:flex;gap:4px;border-top:0}
+.tl-mv button{flex:0 0 auto;width:30px;height:26px;border-radius:8px;
+  background:var(--paper,#F7F8FB);border:1px solid var(--line);color:var(--ink);
+  font:700 14px system-ui;font-size:clamp(13.2px,3.59vw,14px);cursor:pointer;padding:0;line-height:1}
+.tl-mv button[disabled]{opacity:.35}
 .tl-mv button:first-child{border-right:1px solid var(--line-soft,#eef1f7)}
 .tl-mv button:disabled{opacity:.28;cursor:default}
 .tl-card b[data-svstep]{cursor:pointer}
@@ -1477,8 +1484,18 @@ body.dragging-on{-webkit-user-select:none;user-select:none}
 .tl-empty{display:flex;align-items:center;justify-content:center;background:var(--paper,#F7F8FB);border-bottom:1px dashed var(--line)}
 .tl-emoji{font-size:clamp(23.4px,6.667vw,26px);opacity:.85}
 .tl-nophoto b{color:var(--muted)}
-.vers{min-width:170px;padding:0 0 12px;position:relative}
+.vers{width:min(62vw,236px);min-width:min(62vw,236px);max-width:min(62vw,236px);
+  padding:0 0 12px;position:relative}
+.vers b{display:block;padding:0 12px;font:700 13.5px "Inter",system-ui;
+  font-size:clamp(12.7px,3.46vw,13.7px);color:var(--ink);line-height:1.25}
 .vers.on{border-color:var(--navy,#0E2148);box-shadow:0 0 0 1px var(--navy,#0E2148),0 6px 16px -6px rgba(14,33,72,.35)}
+.vers.adv{border-color:var(--gold,#E0A33E)}
+.vers-adv{position:absolute;left:8px;top:48px;z-index:3;
+  padding:2px 7px;border-radius:7px;background:var(--gold,#E0A33E);color:#3A2407;
+  font:800 9.6px "Inter",system-ui;font-size:clamp(9.2px,2.5vw,10px);letter-spacing:.04em}
+.dir-adv{margin-top:11px;font:400 11.8px "Inter",system-ui;
+  font-size:clamp(11.2px,3.05vw,12px);color:var(--muted);line-height:1.45}
+.dir-adv b{color:var(--ink);font-weight:700}
 .vers-on{position:absolute;right:8px;top:8px;width:20px;height:20px;border-radius:50%;
   background:var(--navy,#0E2148);color:#fff;font-size:11px;line-height:20px;text-align:center;z-index:2}
 .vers-band{position:relative;display:flex;align-items:center;justify-content:center;height:74px;
@@ -1492,7 +1509,9 @@ body.dragging-on{-webkit-user-select:none;user-select:none}
 .vers-ar{position:absolute;right:8px;bottom:7px;z-index:2;padding:2px 6px;border-radius:6px;
   background:rgba(255,255,255,.88);color:#0E2148;font:800 10px system-ui;font-size:clamp(9.6px,2.6vw,10.4px);letter-spacing:.02em}
 .vers b{padding:0 12px;font-size:clamp(12.7px,3.462vw,13.5px)}
-.vers-d{padding:0 12px;display:block;font-size:clamp(10.3px,2.821vw,11px);color:var(--muted);line-height:1.4;white-space:normal;margin-top:2px}
+.vers-d{padding:0 12px;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;
+  overflow:hidden;font-size:clamp(10.3px,2.821vw,11px);color:var(--muted);
+  line-height:1.4;white-space:normal;margin-top:3px}
 .sort-list{display:flex;flex-direction:column;gap:10px}
 .sort-row{display:flex;gap:11px;align-items:center}
 .sort-th{flex:0 0 auto;width:62px;height:clamp(50px,15.9vw,62px);border-radius:11px;background:#e9edf4 center/cover no-repeat}
@@ -7001,11 +7020,13 @@ function openMontage(tr,version,autoplay){ tr=tr||souvTrip(); if(!tr) return; _m
             <div class="tl-card tl-edge tl-open"><span class="tl-kick">Magot Voyage</span>
               <b>${escapeHtml((tr.title||"Ton voyage").slice(0,34))}</b>
               <span class="tl-sub">Titre, dur\u00e9e et lieux</span><span class="tl-dur">0:03</span></div>
+            <span class="tl-link" aria-hidden="true">\u203a</span>
             ${souvFilmPoints(tr).map((pp,i)=>{ const ms=(tr.memories||[]).filter(m=>m.placeId===pp.id); const mm=ms[0];
               const thumb = mm ? `<span class="tl-thumb" data-media="${mm.id}">`
                           : (pp.photo ? `<span class="tl-thumb" style="background-image:url('${gPhoto(pp.photo,600)}')">`
                           : `<span class="tl-thumb tl-empty"><span class="tl-emoji">${(typeof catEmoji==="function"?catEmoji(pp):"\u{1F4CD}")}</span>`);
-              return `<div class="tl-card${ms.length?"":" tl-nophoto"}">${thumb}<span class="tl-n">${i+1}</span><button class="tl-x" data-tlx="${i}">\u2715</button></span><b>${escapeHtml((pp.title||"").slice(0,22))}</b><span class="tl-meta">${ms.length?(ms.length+" photo"+(ms.length>1?"s":"")):"aucune photo"}</span><div class="tl-mv"><button data-tlm="${i}" data-dir="-1" ${i===0?"disabled":""}>\u2039</button><button data-tlm="${i}" data-dir="1" ${i===souvFilmPoints(tr).length-1?"disabled":""}>\u203a</button></div></div>`; }).join("")}
+              return `<div class="tl-card${ms.length?"":" tl-nophoto"}">${thumb}<span class="tl-n">${i+1}</span><button class="tl-x" data-tlx="${i}">\u2715</button></span><b>${escapeHtml((pp.title||"").slice(0,22))}</b><span class="tl-meta"><i class="tl-cat">${(typeof catEmoji==="function"?catEmoji(pp):"")}</i>${ms.length?(ms.length+" photo"+(ms.length>1?"s":"")):"aucune photo"}</span><div class="tl-mv"><button data-tlm="${i}" data-dir="-1" ${i===0?"disabled":""}>\u2039</button><button data-tlm="${i}" data-dir="1" ${i===souvFilmPoints(tr).length-1?"disabled":""}>\u203a</button></div></div>`; }).join('<span class="tl-link" aria-hidden="true">\u203a</span>')}
+            <span class="tl-link" aria-hidden="true">\u203a</span>
             <div class="tl-card tl-edge tl-close"><span class="tl-kick">Fin</span>
               <b>Merci d'avoir voyag\u00e9<br>avec Magot Voyage</b>
               <span class="tl-sub">Signature et bilan</span><span class="tl-dur">0:03</span></div>
@@ -7020,6 +7041,7 @@ function openMontage(tr,version,autoplay){ tr=tr||souvTrip(); if(!tr) return; _m
              for(let i=0;i<_k.length;i++){ if(_k[i] && !_k[i].vid && _k[i].id){ _ref=_k[i].id; break; } }
              if(!_ref){ const _m=(tr.memories||[]).find(m=>m && !m.vid); if(_m) _ref=_m.id; }
              window._versRef=_ref||""; return ""; })()}
+          ${(()=>{ window._versAdv=mvVersionAdvised(tr); return ""; })()}
           <div class="dir-vers">${MV_VERSIONS.map(v=>{
             const D={cinema:["Plans longs, transitions premium, \u00e9talonnage cin\u00e9ma.","#1B2A4A"],
                      romance:["Rythme calme, fondus doux, couleurs chaudes.","#7A3B52"],
@@ -7038,10 +7060,14 @@ function openMontage(tr,version,autoplay){ tr=tr||souvTrip(); if(!tr) return; _m
               ? `<span class="vers-band ph" data-media="${window._versRef}" style="filter:${_g.f||"none"}">`
                 +(_g.tint?`<span class="vers-tint" style="background:${_g.tint}"></span>`:``)
               : `<span class="vers-band" style="background:${D[1]}">`;
-            return `<button class="vers${_on?" on":""}" data-vers2="${v.k}">${_on?`<span class="vers-on">\u2713</span>`:``}`
+            const _adv=!!(window._versAdv && window._versAdv.k===v.k);
+            return `<button class="vers${_on?" on":""}${_adv?" adv":""}" data-vers2="${v.k}">${_on?`<span class="vers-on">\u2713</span>`:``}`
+              +(_adv?`<span class="vers-adv">\u2726 Fid\u00e8le</span>`:``)
               +_band+`<span class="vers-time">${Math.floor(v.d/60)}:${String(v.d%60).padStart(2,"0")}</span>`
               +(_ar!=="auto"?`<span class="vers-ar">${_ar}</span>`:``)+`</span>`
               +`<b>${v.n}</b><span class="vers-d">${D[0]}</span></button>`; }).join("")}</div>
+          ${(()=>{ const a=window._versAdv;
+             return a?`<div class="dir-adv">\u2726 Fid\u00e8le penche pour <b>${escapeHtml((MV_VERSIONS.find(v=>v.k===a.k)||{}).n||"")}</b>${a.why?" \u2014 "+escapeHtml(a.why):""}.</div>`:""; })()}
         </div></div>
 
       <div class="mv-blk" data-blk="vis"><button class="mv-blkh" data-open="vis"><span class="mv-blkic"><svg viewBox="0 0 24 24"><path d="M4.5 19.4V11M9.5 19.4V6.2M14.5 19.4v-6.6M19.5 19.4V8.6"/></svg></span><span>Analyse (option)</span><em>${visionOn()?"activée":"désactivée"}</em><i>\u2304</i></button>
@@ -7054,7 +7080,7 @@ function openMontage(tr,version,autoplay){ tr=tr||souvTrip(); if(!tr) return; _m
     <div id="mvStudio" class="stu" style="display:none">
       <div class="stu-top">
         <button class="stu-back" id="stuBack" aria-label="Retour">\u2039</button>
-        <div class="stu-ttl"><b>Studio Magot<i>\u2727</i></b><span>Montage vid\u00e9o \u00b7 v456</span></div>
+        <div class="stu-ttl"><b>Studio Magot<i>\u2727</i></b><span>Montage vid\u00e9o \u00b7 v458</span></div>
         <button class="stu-ico" id="stuUndo" title="Annuler">\u21b6</button>
         <button class="stu-ico" id="stuRedo" title="R\u00e9tablir">\u21b7</button>
         <button class="stu-exp" id="mvSave"><i>\u2b06</i>Exporter</button>
@@ -7133,6 +7159,8 @@ function openMontage(tr,version,autoplay){ tr=tr||souvTrip(); if(!tr) return; _m
   ov.querySelectorAll("[data-dur]").forEach(b=>b.onclick=()=>{ ov.querySelectorAll("[data-dur]").forEach(x=>x.classList.remove("on")); b.classList.add("on"); _mvState.dur=+b.dataset.dur; sumUp(); });
   ov.querySelectorAll("[data-fmt]").forEach(b=>b.onclick=()=>{ ov.querySelectorAll("[data-fmt]").forEach(x=>x.classList.remove("on")); b.classList.add("on"); _mvState.fmt=b.dataset.fmt; sumUp(); });
   hydratePhotos(ov);
+  /* Les rangees s'ouvrent toujours sur leur premiere carte. */
+  requestAnimationFrame(()=>{ ov.querySelectorAll(".dir-tl,.dir-vers").forEach(r=>{ try{ r.scrollLeft=0; }catch(e){} }); });
   const close=()=>{ try{ stop(); }catch(e){} ov.remove(); };
   /* ---------- Studio : branché à l'ouverture, jamais dépendant de la création ---------- */
   /* ---------- Studio : outils, formats, bande de plans, forme d'onde ---------- */
@@ -9185,6 +9213,22 @@ function mvApplyDirector(tr){ const d=mvDirect(tr);
      et transitions signature. Tout reste modifiable ensuite. */
   _mvState.style="magot"; _mvState.pace=d.pace; _mvState.grade="magot";
   _mvState.dur=d.dur; _mvState.fmt="auto"; _mvState.fx=""; return d; }
+function mvVersionAdvised(tr){
+  let d=null; try{ d=mvDirect(tr); }catch(e){ return null; }
+  if(!d) return null;
+  let best=null, bs=-1;
+  MV_VERSIONS.forEach(v=>{
+    let sc=0;
+    if((v.style||"")===(d.style||"")) sc+=3;
+    if((v.grade||"natural")===(d.grade||"natural")) sc+=3;
+    if(Math.abs((v.pace||1)-(d.pace||1))<=0.15) sc+=2;
+    if(Math.abs((v.d||60)-(d.dur||60))<=20) sc+=1;
+    if(sc>bs){ bs=sc; best=v; }
+  });
+  /* En dessous de la moitie des points, la correspondance n'est pas
+     assez nette pour etre presentee comme un conseil. */
+  return (best && bs>=5) ? {k:best.k, why:d.why||"", mood:d.n||""} : null;
+}
 function mvApplyVersion(k){ const v=MV_VERSIONS.find(x=>x.k===k); if(!v) return; _mvState.dur=v.d; _mvState.fmt=v.fmt; _mvState.style=v.style; _mvState.pace=v.pace; _mvState.soft=v.soft; _mvState.grade=v.grade||"natural"; }
 /* ===================== MOTEUR DE CADRAGE PROFESSIONNEL (100% local) =====================
    1) On analyse la photo sur l'appareil (visages si l'API existe + carte de saillance).
