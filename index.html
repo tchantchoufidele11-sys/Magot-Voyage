@@ -1444,9 +1444,9 @@ body.dragging-on{-webkit-user-select:none;user-select:none}
 .sort-sel{flex:1;min-width:0;border:1px solid var(--line);border-radius:11px;padding:11px 10px;font:600 13px system-ui;font-size:clamp(12.2px,3.333vw,13px);color:var(--ink);background:var(--surface,#fff)}
 
 .mus-list{display:flex;flex-direction:column;gap:9px}
-.mus-row{display:flex;align-items:center;gap:11px;background:var(--surface,#fff);border:1px solid var(--line);border-radius:13px;padding:12px}
+.mus-row{display:flex;align-items:center;gap:12px;background:var(--surface,#fff);border:1px solid var(--line);border-radius:13px;padding:12px}
 .mus-row.def{border-color:var(--gold,#E0A33E);background:var(--gold-soft,#FBEED4)}
-.mus-ic{flex:0 0 auto;width:36px;height:36px;border-radius:10px;background:var(--paper,#F7F8FB);color:var(--gold-d,#C2872A);display:flex;align-items:center;justify-content:center;font-size:clamp(14.4px,4.103vw,16px)}
+.mus-ic{flex:0 0 auto;width:clamp(44px,12vw,50px);height:clamp(44px,12vw,50px);border-radius:10px;background:var(--paper,#F7F8FB);color:var(--gold-d,#C2872A);display:flex;align-items:center;justify-content:center;font-size:clamp(14.4px,4.103vw,16px)}
 .mus-b{flex:1;min-width:0;display:flex;flex-direction:column}
 .mus-b b{font:700 13.5px system-ui;font-size:clamp(12.7px,3.462vw,13.5px);color:var(--ink);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .mus-b span{font-size:clamp(10.8px,2.949vw,11.5px);color:var(--muted)}
@@ -1454,6 +1454,24 @@ body.dragging-on{-webkit-user-select:none;user-select:none}
 .mus-use{background:var(--navy,#0E2148);color:#fff;border:0;border-radius:9px;padding:8px 11px;font:700 12px system-ui;font-size:clamp(11.3px,3.077vw,12px);cursor:pointer}
 .mus-def,.mus-del{background:none;border:0;color:var(--muted);font-size:clamp(14.4px,4.103vw,16px);cursor:pointer;padding:4px}
 .mus-def{color:var(--gold-d,#C2872A)}
+/* Vignette carree : la note au repos, le bouton d'ecoute par-dessus. */
+.mus-ic{position:relative}
+.mus-note{opacity:.75}
+.mus-prev{position:absolute;right:-5px;bottom:-5px;width:24px;height:24px;border-radius:50%;
+  border:0;background:var(--navy,#0E2148);color:#fff;font-size:10px;line-height:1;cursor:pointer;
+  display:flex;align-items:center;justify-content:center;padding:0;
+  box-shadow:0 2px 6px rgba(0,0,0,.28);transition:transform .16s cubic-bezier(.2,.7,.3,1)}
+.mus-prev.on{background:var(--gold,#E0A33E);color:#3A2407}
+.mus-prev:active{transform:scale(.9)}
+[data-theme="dark"] .mus-prev{background:#1A2F58}
+[data-theme="dark"] .mus-prev.on{background:var(--gold,#E9B559);color:#2A1A05}
+/* Ambiance : affichee seulement quand elle a ete renseignee a la publication. */
+.mus-tags{display:flex;flex-wrap:wrap;gap:5px;margin-top:5px}
+.mus-tag{font:700 9.6px system-ui;font-size:clamp(9.2px,2.5vw,10px);letter-spacing:.05em;
+  text-transform:uppercase;color:var(--muted);background:var(--paper,#F7F8FB);
+  border:1px solid var(--line);border-radius:7px;padding:3px 7px}
+.mus-def.on{color:var(--gold,#E0A33E)}
+.mus-def{color:var(--muted)}
 .mus-soon{margin-top:16px;background:var(--paper,#F7F8FB);border:1px solid var(--line);border-radius:12px;padding:11px 13px;color:var(--muted);font-size:clamp(11.3px,3.077vw,12px);line-height:1.5}
 
 .sv-mvf{cursor:pointer;text-align:center;border:1px solid var(--line)}
@@ -6836,7 +6854,7 @@ function openMontage(tr,version,autoplay){ tr=tr||souvTrip(); if(!tr) return; _m
     <div id="mvStudio" class="stu" style="display:none">
       <div class="stu-top">
         <button class="stu-back" id="stuBack" aria-label="Retour">\u2039</button>
-        <div class="stu-ttl"><b>Studio Magot<i>\u2727</i></b><span>Montage vid\u00e9o \u00b7 v444</span></div>
+        <div class="stu-ttl"><b>Studio Magot<i>\u2727</i></b><span>Montage vid\u00e9o \u00b7 v445</span></div>
         <button class="stu-ico" id="stuUndo" title="Annuler">\u21b6</button>
         <button class="stu-ico" id="stuRedo" title="R\u00e9tablir">\u21b7</button>
         <button class="stu-exp" id="mvSave"><i>\u2b06</i>Exporter</button>
@@ -10319,6 +10337,45 @@ async function sbAccessToken(){
     const t=data && data.session && data.session.access_token; if(t){ if(currentUser) currentUser._token=t; return t; } } }catch(e){}
   return (currentUser && currentUser._token) || SB_ANON;
 }
+/* ---------- Ecoute avant de choisir ----------
+   Un seul extrait joue a la fois. L'element est unique et vit hors du DOM de
+   la feuille : elle peut se fermer, il s'arrete quand meme. Les URL creees
+   pour les fichiers locaux sont revoquees des qu'on change de morceau. */
+const _mp={ el:null, id:null, url:null };
+function musPreviewStop(){
+  if(_mp.el){ try{ _mp.el.pause(); }catch(e){} _mp.el.src=""; }
+  if(_mp.url){ try{ URL.revokeObjectURL(_mp.url); }catch(e){} _mp.url=null; }
+  _mp.id=null; musPreviewPaint();
+}
+function musPreviewPaint(){
+  document.querySelectorAll("[data-prev]").forEach(b=>{
+    const on=(b.dataset.prev===_mp.id);
+    b.classList.toggle("on",on);
+    b.textContent = on ? "\u23f8" : "\u25b6";
+    b.setAttribute("aria-label", on ? "Arr\u00eater l'\u00e9coute" : "\u00c9couter un extrait");
+  });
+}
+async function musPreview(kind,id,src){
+  if(_mp.id===id){ musPreviewStop(); return; }
+  musPreviewStop();
+  if(!_mp.el){
+    _mp.el=new Audio(); _mp.el.preload="none";
+    _mp.el.addEventListener("ended",()=>{ _mp.id=null; musPreviewPaint(); });
+    _mp.el.addEventListener("error",()=>{ if(_mp.id){ toast("Lecture impossible."); } _mp.id=null; musPreviewPaint(); });
+  }
+  try{
+    let url=src;
+    if(kind==="local"){
+      const f=await musicById(id); if(!f){ toast("Musique introuvable"); return; }
+      url=URL.createObjectURL(f); _mp.url=url;
+    }
+    _mp.el.src=url; _mp.id=id; musPreviewPaint();
+    await _mp.el.play();
+  }catch(e){ _mp.id=null; musPreviewPaint(); toast("Lecture impossible."); }
+}
+/* Le film et l'extrait ne doivent jamais jouer ensemble. */
+document.addEventListener("visibilitychange",()=>{ if(document.hidden) musPreviewStop(); });
+
 async function magotCatalog(){
   try{
     const r=await fetch(SB_URL+"/rest/v1/music_catalog?select=*&order=created_at.desc",{headers:{apikey:SB_ANON,Authorization:"Bearer "+SB_ANON}});
@@ -10344,7 +10401,7 @@ async function magotDownload(tr2){
     const blob=await r.blob(); const id=uid();
     await idbSetMedia("mus_"+id, blob);
     const lib=musicLib();
-    lib.push({ id, name:tr2.title||"Musique", dur:+tr2.duration||0, bpm:+tr2.bpm||0, def:(lib.length===0), addedAt:Date.now(), from:"magot" });
+    lib.push({ id, name:tr2.title||"Musique", dur:+tr2.duration||0, bpm:+tr2.bpm||0, mood:tr2.mood||"", def:(lib.length===0), addedAt:Date.now(), from:"magot" });
     saveState(); toast("\u00ab "+(tr2.title||"Musique")+" \u00bb ajout\u00e9e \u00e0 ta biblioth\u00e8que");
     return true;
   }catch(e){ toast("T\u00e9l\u00e9chargement impossible (r\u00e9seau ?)."); return false; }
@@ -10423,16 +10480,23 @@ function openMusicLib(fromMontage){
   const lib=musicLib();
   let ov=document.getElementById("musOv"); if(ov) ov.remove();
   ov=document.createElement("div"); ov.id="musOv"; ov.className="souvmap-ov show";
+  /* L'etoile DIT deja « par defaut » : on ne l'ecrit pas une seconde fois
+     dans la ligne du dessous. Une information, un seul endroit. */
   const row=(m)=>`<div class="mus-row${m.def?" def":""}" data-mus="${m.id}">
-    <span class="mus-ic">\u266A</span>
-    <span class="mus-b"><b>${escapeHtml(m.name)}</b><span>${m.dur?_fmtDur(m.dur):""}${m.bpm?" \u00b7 "+m.bpm+" BPM":""}${m.def?" \u00b7 par d\u00e9faut":""}</span></span>
+    <span class="mus-ic"><span class="mus-note">\u266A</span><button class="mus-prev" data-prev="${escapeHtml(String(m.id))}" type="button" aria-label="\u00c9couter un extrait">\u25b6</button></span>
+    <span class="mus-b"><b>${escapeHtml(m.name)}</b>
+      <span>${m.dur?_fmtDur(m.dur):""}${m.bpm?" \u00b7 "+m.bpm+" BPM":""}</span>
+      ${m.mood?`<span class="mus-tags"><span class="mus-tag">${escapeHtml(m.mood)}</span></span>`:``}</span>
     <span class="mus-act">
       ${fromMontage?`<button class="mus-use" data-use="${m.id}">Utiliser</button>`:``}
-      <button class="mus-def" data-def="${m.id}" title="Par d\u00e9faut">${m.def?"\u2605":"\u2606"}</button>
-      <button class="mus-del" data-del="${m.id}">\u2715</button>
+      <button class="mus-def${m.def?" on":""}" data-def="${m.id}" aria-label="${m.def?"Musique par d\u00e9faut":"D\u00e9finir comme musique par d\u00e9faut"}" title="${m.def?"Par d\u00e9faut":"D\u00e9finir par d\u00e9faut"}">${m.def?"\u2605":"\u2606"}</button>
+      <button class="mus-del" data-del="${m.id}" aria-label="Supprimer de ma biblioth\u00e8que">\u2715</button>
     </span></div>`;
   const tab=(window._musTab||"mine");
-  ov.innerHTML=`<div class="souvmap-sheet"><div class="smh"><div class="smh-t">\u{1F3B5} Musiques</div><button class="cal-x" id="muX" type="button">\u2715</button></div>
+  ov.innerHTML=`<div class="souvmap-sheet"><div class="smh"><div class="smh-tt">
+      <div class="smh-t">\u{1F3B5} Musiques</div>
+      <div class="smh-s">Choisis la musique id\u00e9ale pour ton film</div>
+    </div><button class="cal-x" id="muX" type="button">\u2715</button></div>
     <div class="mus-tabs"><button class="mus-tab${tab==="mine"?" on":""}" data-mtab="mine">Ma bibliothèque</button><button class="mus-tab${tab==="magot"?" on":""}" data-mtab="magot">Bibliothèque Magot</button></div>
     <div class="souvmap-scroll" id="musBody">
       ${tab==="mine"?`<div class="crop-hint">Tes musiques restent <b>sur ton téléphone</b>. Celle marquée \u2605 sert de musique par défaut aux montages automatiques.</div>
@@ -10444,7 +10508,7 @@ function openMusicLib(fromMontage){
       ?`<button class="btn navy block" id="muAdd" type="button">\u2795 Ajouter une musique</button>`
       :(isAdmin()?`<button class="btn navy block" id="muPub" type="button">\u2b06 Publier une musique (admin)</button>`:`<div class="mus-soon" style="margin:0">Seul Magot Voyage publie ici. Les morceaux sont libres d'usage pour tes montages.${currentUid()&&currentUid()!==String(ADMIN_UID).trim()?`<br><br><small style="color:var(--muted)">Connect\u00e9, mais ton identifiant ne correspond pas \u00e0 l'admin.<br>Ton UID : <b onclick="navigator.clipboard&&navigator.clipboard.writeText('${currentUid()}')">${currentUid()}</b></small>`:(currentUid()?"":`<br><br><small style="color:var(--muted)">Tu n'es pas connect\u00e9. Connecte-toi avec ton compte pour publier.</small>`)}</div>`)}</div></div>`;
   document.body.appendChild(ov);
-  const close=()=>ov.remove();
+  const close=()=>{ musPreviewStop(); ov.remove(); };
   ov.querySelector("#muX").onclick=close;
   const fi=ov.querySelector("#musFile");
   { const add=ov.querySelector("#muAdd");
@@ -10453,14 +10517,23 @@ function openMusicLib(fromMontage){
   ov.querySelectorAll("[data-def]").forEach(b=>b.onclick=()=>{ musicLib().forEach(m=>{ m.def=(m.id===b.dataset.def); }); saveState(); close(); openMusicLib(fromMontage); });
   ov.querySelectorAll("[data-del]").forEach(b=>b.onclick=()=>{ askConfirm("Supprimer cette musique ?","Supprimer",()=>{ const i=musicLib().findIndex(m=>m.id===b.dataset.del); if(i>=0){ musicLib().splice(i,1); saveState(); } close(); openMusicLib(fromMontage); }); });
   ov.querySelectorAll("[data-mtab]").forEach(b=>b.onclick=()=>{ window._musTab=b.dataset.mtab; close(); openMusicLib(fromMontage); });
+  ov.querySelectorAll(".mus-list [data-prev]").forEach(b=>b.onclick=()=>musPreview("local",b.dataset.prev));
+  musPreviewPaint();
   if(tab==="magot"){
     magotCatalog().then(list=>{ const el=ov.querySelector("#magotList"); if(!el) return;
       if(list && list.error){ el.innerHTML=`<div class="empty" style="padding:20px 8px"><p>Impossible de charger la biblioth\u00e8que.<br><small style="color:var(--muted)">${escapeHtml(list.error)}${list.detail?" \u2014 "+escapeHtml(list.detail):""}</small><br><small>V\u00e9rifie que le SQL a bien \u00e9t\u00e9 ex\u00e9cut\u00e9 dans Supabase.</small></p></div>`; return; }
       if(!Array.isArray(list)||!list.length){ el.innerHTML=`<div class="empty" style="padding:20px 8px"><p>Aucune musique publiée pour l'instant.</p></div>`; return; }
-      el.innerHTML=list.map(x=>`<div class="mus-row"><span class="mus-ic">\u266A</span><span class="mus-b"><b>${escapeHtml(x.title||"Musique")}</b><span>${x.duration?_fmtDur(x.duration):""}${x.bpm?" \u00b7 "+x.bpm+" BPM":""}${x.mood?" \u00b7 "+escapeHtml(x.mood):""}</span></span><span class="mus-act"><button class="mus-use" data-dl="${escapeHtml(x.path)}" data-title="${escapeHtml(x.title||"")}" data-bpm="${x.bpm||0}" data-dur="${x.duration||0}">\u2b07 Obtenir</button>${isAdmin()?`<button class="mus-del" data-mdel="${escapeHtml(String(x.id||""))}" data-mpath="${escapeHtml(x.path||"")}" title="Supprimer (admin)">\u2715</button>`:""}</span></div>`).join("");
+      el.innerHTML=list.map(x=>`<div class="mus-row">
+        <span class="mus-ic"><span class="mus-note">\u266A</span><button class="mus-prev" data-prev="mg_${escapeHtml(String(x.id||x.path||""))}" data-src="${escapeHtml(magotUrl(x.path))}" type="button" aria-label="\u00c9couter un extrait">\u25b6</button></span>
+        <span class="mus-b"><b>${escapeHtml(x.title||"Musique")}</b>
+          <span>${x.duration?_fmtDur(x.duration):""}${x.bpm?" \u00b7 "+x.bpm+" BPM":""}</span>
+          ${x.mood?`<span class="mus-tags"><span class="mus-tag">${escapeHtml(x.mood)}</span></span>`:``}</span>
+        <span class="mus-act"><button class="mus-use" data-dl="${escapeHtml(x.path)}" data-title="${escapeHtml(x.title||"")}" data-bpm="${x.bpm||0}" data-dur="${x.duration||0}" data-mood="${escapeHtml(x.mood||"")}">\u2b07 Obtenir</button>${isAdmin()?`<button class="mus-del" data-mdel="${escapeHtml(String(x.id||""))}" data-mpath="${escapeHtml(x.path||"")}" title="Supprimer (admin)">\u2715</button>`:""}</span></div>`).join("");
+      el.querySelectorAll("[data-prev]").forEach(b=>b.onclick=()=>musPreview("url",b.dataset.prev,b.dataset.src));
+      musPreviewPaint();
       el.querySelectorAll("[data-mdel]").forEach(b=>b.onclick=()=>{ askConfirm("Supprimer cette musique de la biblioth\u00e8que Magot ?","Supprimer",async()=>{ b.disabled=true; const r=await magotDelete(b.dataset.mdel,b.dataset.mpath); if(r===true){ toast("Musique supprim\u00e9e"); close(); window._musTab="magot"; openMusicLib(fromMontage); } else { b.disabled=false; toast(typeof r==="string"?r:"\u00c9chec de suppression"); } }); });
       el.querySelectorAll("[data-dl]").forEach(b=>b.onclick=async()=>{ b.disabled=true; b.textContent="\u2026";
-        const okd=await magotDownload({path:b.dataset.dl,title:b.dataset.title,bpm:b.dataset.bpm,duration:b.dataset.dur});
+        const okd=await magotDownload({path:b.dataset.dl,title:b.dataset.title,bpm:b.dataset.bpm,duration:b.dataset.dur,mood:b.dataset.mood||""});
         if(okd){ close(); window._musTab="mine"; openMusicLib(fromMontage); } else { b.disabled=false; b.textContent="\u2b07 Obtenir"; } });
     });
   }
@@ -10469,7 +10542,8 @@ function openMusicLib(fromMontage){
       pb.onclick=()=>fp.click();
       fp.onchange=()=>{ const f=fp.files&&fp.files[0]; if(!f) return; openPublishForm(f, ()=>{ close(); window._musTab="magot"; openMusicLib(fromMontage); }); };
     } }
-  ov.querySelectorAll("[data-use]").forEach(b=>b.onclick=async()=>{ const f=await musicById(b.dataset.use);
+  ov.querySelectorAll("[data-use]").forEach(b=>b.onclick=async()=>{ musPreviewStop();
+    const f=await musicById(b.dataset.use);
     if(!f){ toast("Musique introuvable"); return; }
     close(); if(typeof fromMontage==="function") fromMontage(f, (musicLib().find(m=>m.id===b.dataset.use)||{}).name||"", b.dataset.use); });
 }
