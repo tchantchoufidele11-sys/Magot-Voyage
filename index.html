@@ -1953,8 +1953,11 @@ body.dragging-on{-webkit-user-select:none;user-select:none}
 @media (prefers-reduced-motion:reduce){ #mvOv .stu-tool{transition:none} }
 #mvOv .stu-stagewrap{flex:1 1 0;min-width:0;min-height:0;align-self:stretch;
   display:flex;align-items:center;justify-content:center}
-#mvOv.cine .mv-stage{flex:0 1 auto;width:auto;max-width:100%;min-width:0;min-height:0;
-  height:100%;max-height:100%;position:relative;border-radius:14px;overflow:hidden;
+/* Le cadre epouse l'image. Sa taille exacte est calculee par mvFitStage() :
+   une hauteur de 100% donnait un cadre toujours vertical, et une image 16:9
+   se retrouvait en bande au milieu, avec du vide dessus et dessous. */
+#mvOv.cine .mv-stage{flex:0 0 auto;width:auto;max-width:100%;min-width:0;min-height:0;
+  height:auto;max-height:100%;position:relative;border-radius:14px;overflow:hidden;
   background:transparent;display:flex;align-items:center;justify-content:center;
   padding-bottom:var(--stuBar);box-sizing:border-box;
   border:1px solid rgba(236,244,255,.14);
@@ -1965,8 +1968,10 @@ body.dragging-on{-webkit-user-select:none;user-select:none}
              inset 0 0 0 1px rgba(214,162,63,.07);
   transition:box-shadow .22s ease,border-color .22s ease}
 /* L'image donne sa taille au cadre : aucune marge noire a gauche ni a droite. */
+/* La boite interieure a deja le bon rapport : l'image la remplit exactement,
+   « contain » ne sert plus que de garde-fou avant le premier calcul. */
 #mvOv.cine .mv-stage>canvas,#mvOv.cine .mv-stage>video,#mvOv.cine .mv-stage>img{
-  display:block;height:100%;width:auto;max-width:100%;max-height:100%;object-fit:contain;background:transparent}
+  display:block;width:100%;height:100%;max-width:100%;max-height:100%;object-fit:contain;background:transparent}
 /* Cette colonne ne contient plus que le format : elle porte enfin son titre.
    Le selecteur reprend la forme de l'ancienne regle (.stu-mid > .stu-right), sans
    quoi celle-ci gagnait et etalait le titre et les icones aux deux bouts. */
@@ -6763,7 +6768,7 @@ function openMontage(tr,version,autoplay){ tr=tr||souvTrip(); if(!tr) return; _m
     <div id="mvStudio" class="stu" style="display:none">
       <div class="stu-top">
         <button class="stu-back" id="stuBack" aria-label="Retour">\u2039</button>
-        <div class="stu-ttl"><b>Studio Magot<i>\u2727</i></b><span>Montage vid\u00e9o \u00b7 v434</span></div>
+        <div class="stu-ttl"><b>Studio Magot<i>\u2727</i></b><span>Montage vid\u00e9o \u00b7 v435</span></div>
         <button class="stu-ico" id="stuUndo" title="Annuler">\u21b6</button>
         <button class="stu-ico" id="stuRedo" title="R\u00e9tablir">\u21b7</button>
         <button class="stu-exp" id="mvSave"><i>\u2b06</i>Exporter</button>
@@ -6992,7 +6997,7 @@ function openMontage(tr,version,autoplay){ tr=tr||souvTrip(); if(!tr) return; _m
   try{ const st=ov.querySelector("#mvStage")||ov.querySelector(".mv-stage");
        const pb=ov.querySelector("#stuPlayBar");
        if(st&&pb&&pb.parentNode!==st) st.appendChild(pb); }catch(e){}
-  _mvState._refreshStudio=()=>{ try{ mvGeoInvalidate(); mvSeekBind(ov); mvLanesBind(); mvRulerPaint(); }catch(e){}
+  _mvState._refreshStudio=()=>{ try{ mvGeoInvalidate(); mvSeekBind(ov); mvLanesBind(); mvRulerPaint(); mvWatchStage(); mvFitStage(); }catch(e){}
     try{ const pl=ov.querySelector("#mvPlay"); if(pl && !_mvState.playing) pl.innerHTML=mvT("playFilm"); }catch(e){}
     try{ _mvState.fiche=mvBuildFiche(_mvState.tr||souvTrip());
     mvFichePaint(); }catch(e){}
@@ -7740,6 +7745,45 @@ function openExportPick(tr, btn){
     } else mvRecord(tr,_mvState.total||60,btn);
   };
 }
+/* Donne au cadre la taille exacte de l'image, barre de lecture comprise.
+   Les mesures sont prises sur la ZONE D'ACCUEIL, jamais sur le cadre lui-meme :
+   le cadre est ce qu'on redimensionne, le mesurer ferait boucler. */
+function mvFitStage(){
+  const ov=document.getElementById("mvOv"); if(!ov||!ov.classList.contains("cine")) return;
+  const st=ov.querySelector(".mv-stage"), wrap=ov.querySelector(".stu-stagewrap");
+  const cv=document.getElementById("mvCanvas");
+  if(!st||!wrap) return;
+  if(ov.classList.contains("stufull")){ st.style.width=""; st.style.height=""; return; }
+  const cw=(cv&&cv.width)||0, ch=(cv&&cv.height)||0;
+  if(!cw||!ch){ st.style.width=""; st.style.height=""; return; }
+  const W0=wrap.clientWidth, H0=wrap.clientHeight; if(!W0||!H0) return;
+  const bar=parseFloat(getComputedStyle(st).paddingBottom)||0;
+  const r=cw/ch;
+  let Hf=Math.min(H0, bar + W0/r);
+  let Wf=(Hf-bar)*r;
+  if(Wf>W0){ Wf=W0; Hf=W0/r+bar; }
+  if(!(Wf>0)||!(Hf>0)) return;
+  st.style.width=Math.round(Wf)+"px";
+  st.style.height=Math.round(Hf)+"px";
+}
+/* Un seul observateur, pose une fois : il couvre la rotation, le mode
+   projection et tout changement de place disponible, sans code d'appel disperse. */
+function mvWatchStage(){
+  const ov=document.getElementById("mvOv"); if(!ov) return;
+  const wrap=ov.querySelector(".stu-stagewrap"); if(!wrap||wrap._mvRo) return;
+  const fire=()=>{
+    /* Pendant la lecture, on ne mesure pas a chaque image : l'entree en mode
+       projection fait varier la zone pendant 300 ms et un calcul par image
+       ferait tomber le nombre d'images par seconde. On attend la fin. */
+    if(_mvState.playing){
+      if(mvFitStage._to) clearTimeout(mvFitStage._to);
+      mvFitStage._to=setTimeout(()=>{ mvFitStage._to=0; mvFitStage(); },90);
+      return; }
+    if(mvFitStage._raf) cancelAnimationFrame(mvFitStage._raf);
+    mvFitStage._raf=requestAnimationFrame(()=>{ mvFitStage._raf=0; mvFitStage(); }); };
+  try{ wrap._mvRo=new ResizeObserver(fire); wrap._mvRo.observe(wrap); }
+  catch(e){ /* pas d'observateur : les appels directs suffisent */ }
+}
 function mvSetPlaying(on){ _mvState.playing=!!on;
   const a=document.getElementById("mvPlay"); if(a) a.innerHTML=(on?mvT("pause"):mvT("playFilm"));
   const c=document.getElementById("stuPP"); if(c) c.textContent=(on?"\u23f8":"\u25b6");
@@ -8031,7 +8075,7 @@ async function mvReframe(tr){   /* Taille / recadrage : recalcule dimensions + c
     if(it.vid){ plans.push({mode:"fill",cx:0.5,cy:0.5,zoom:1}); continue; }
     const man=(it.m.frame&&it.m.frame[_mvState.fmtKey])||null;
     plans.push(mvFramePlan(it.im, it.an||null, W2, H2, man)); }
-  _mvState.plans=plans; mvRelayout(); filmProjSave(tr);
+  _mvState.plans=plans; mvRelayout(); filmProjSave(tr); mvFitStage();
 }
 function mvResegment(tr){   /* Transitions / durée : recompose les plans sur la grille musicale, sans recharger */
   const imgs=_mvState.imgs||[]; if(!imgs.length) return;
