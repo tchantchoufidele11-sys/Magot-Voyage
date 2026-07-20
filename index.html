@@ -1325,6 +1325,12 @@ body.dragging-on{-webkit-user-select:none;user-select:none}
 .mvf{flex:0 0 auto;display:flex;flex-direction:column;color:rgba(255,255,255,.55);font-size:clamp(10px,2.564vw,10px);text-align:center;min-width:56px}
 .mvf b{color:#E0A33E;font:800 12.5px system-ui;font-size:clamp(11.8px,3.205vw,12.5px);margin-bottom:1px}
 
+.mv-vis p{margin:0 0 10px;line-height:1.5}
+.mv-vis .vis-off,.mv-vis .vis-on{display:block;width:100%;min-height:var(--tap,44px);
+  border:1px solid var(--line);border-radius:12px;background:var(--surface,#fff);
+  font:600 13px "Inter",system-ui;font-size:clamp(12.2px,3.33vw,13px);
+  color:var(--navy,#0E2148);cursor:pointer;padding:10px}
+[data-theme="dark"] .mv-vis .vis-off,[data-theme="dark"] .mv-vis .vis-on{color:var(--gold,#E9B559)}
 .mv-vis{background:var(--paper,#F7F8FB);border:1px solid var(--line);border-radius:12px;padding:11px 13px;font-size:clamp(11.6px,3.154vw,12.3px);color:var(--muted);line-height:1.55;margin:10px 0 2px}
 .mv-vis b{color:var(--ink)}
 .vis-on,.vis-off{background:none;border:0;color:var(--gold-d,#C2872A);font:700 12px system-ui;font-size:clamp(11.3px,3.077vw,12px);cursor:pointer;padding:0 2px;text-decoration:underline}
@@ -1655,7 +1661,9 @@ body.dragging-on{-webkit-user-select:none;user-select:none}
 .shot-a button[data-cut]{color:var(--gold-d,#C2872A)}
 
 .mv-priv{background:var(--paper,#F7F8FB);border:1px solid var(--line);border-radius:12px;padding:11px 13px;font-size:clamp(11.3px,3.077vw,12px);line-height:1.5;color:var(--muted);margin-top:10px}
-.mv-priv.on{background:var(--gold-soft,#FBEED4);border-color:var(--gold,#E0A33E)}
+.mv-priv{border-left:3px solid var(--line)}
+.mv-priv.on{background:var(--surface,#fff);border-color:var(--line-soft,#EEF1F7);
+  border-left:3px solid var(--gold,#E0A33E)}
 .mv-priv b{color:var(--ink)}
 /* Action culminante de la page : seul aplat dore assume de l'application.
    Relief par degrade et ombre — pas de texture, qui ne serait que du bruit. */
@@ -7094,7 +7102,7 @@ function openMontage(tr,version,autoplay){ tr=tr||souvTrip(); if(!tr) return; _m
     <div id="mvStudio" class="stu" style="display:none">
       <div class="stu-top">
         <button class="stu-back" id="stuBack" aria-label="Retour">\u2039</button>
-        <div class="stu-ttl"><b>Studio Magot<i>\u2727</i></b><span>Montage vid\u00e9o \u00b7 v459</span></div>
+        <div class="stu-ttl"><b>Studio Magot<i>\u2727</i></b><span>Montage vid\u00e9o \u00b7 v460</span></div>
         <button class="stu-ico" id="stuUndo" title="Annuler">\u21b6</button>
         <button class="stu-ico" id="stuRedo" title="R\u00e9tablir">\u21b7</button>
         <button class="stu-exp" id="mvSave"><i>\u2b06</i>Exporter</button>
@@ -7434,8 +7442,8 @@ function openMontage(tr,version,autoplay){ tr=tr||souvTrip(); if(!tr) return; _m
   privLine();
   { const vc=ov.querySelector("#mvVisCard");
     const paint=()=>{ vc.innerHTML = visionOn()
-        ? `\u2728 <b>Analyse des photos activ\u00e9e</b> \u2014 le mouvement s'adapte \u00e0 ce que montre chaque photo. <button class="vis-off" id="visOff">D\u00e9sactiver</button>`
-        : `\u2728 <b>Analyse intelligente des photos</b> (optionnelle) \u2014 un film plus fid\u00e8le. Tes photos ne partent pas sans ton accord. <button class="vis-on" id="visOn">En savoir plus</button>`;
+        ? `<p>Le mouvement de chaque plan s'adapte \u00e0 ce que montre la photo : un panoramique sur un paysage, un l\u00e9ger zoom sur un visage.</p><button class="vis-off" id="visOff">D\u00e9sactiver l'analyse</button>`
+        : `<p>Le mouvement de chaque plan peut s'adapter \u00e0 ce que montre la photo. Sans cette option, les mouvements sont choisis d'apr\u00e8s le type de lieu.</p><button class="vis-on" id="visOn">En savoir plus</button>`;
       const on=vc.querySelector("#visOn"); if(on) on.onclick=()=>visionAsk(()=>{ paint(); privLine(); });
       const off=vc.querySelector("#visOff"); if(off) off.onclick=()=>{ S.settings.visionOk=false; saveState(); paint(); privLine(); }; };
     paint(); }
