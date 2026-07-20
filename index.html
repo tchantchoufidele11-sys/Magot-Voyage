@@ -1939,6 +1939,18 @@ body.dragging-on{-webkit-user-select:none;user-select:none}
 #mvOv .stu-tool.on i{filter:none}
 #mvOv .stu-tool.on::before{content:"";position:absolute;left:0;top:12px;bottom:12px;width:3px;
   border-radius:0 3px 3px 0;background:var(--sGold,#E0A33E)}
+/* Le rail etalait ses quatre outils sur toute la hauteur : jusqu'a 300 px de
+   vide entre deux icones. Ils se regroupent en haut, avec des cibles plus
+   larges et un etat actif franchement lisible. */
+#mvOv .stu-mid > .stu-tools{height:auto;align-self:center;justify-content:flex-start;
+  gap:clamp(3px,1vw,6px);padding:clamp(6px,1.7vw,8px) 0;max-height:100%}
+#mvOv .stu-tool{flex:0 0 auto;min-height:clamp(46px,12.4vw,54px);gap:4px;
+  transition:background .18s cubic-bezier(.2,.7,.3,1),color .18s ease}
+#mvOv .stu-tool i{font-size:clamp(18px,5.1vw,21px)}
+#mvOv .stu-tool.on{color:var(--sGold,#E0A33E);background:rgba(224,163,62,.15);
+  box-shadow:inset 0 0 0 1px rgba(224,163,62,.30)}
+#mvOv .stu-tool:active{background:rgba(255,255,255,.07)}
+@media (prefers-reduced-motion:reduce){ #mvOv .stu-tool{transition:none} }
 #mvOv .stu-stagewrap{flex:1 1 0;min-width:0;min-height:0;align-self:stretch;
   display:flex;align-items:center;justify-content:center}
 #mvOv.cine .mv-stage{flex:0 1 auto;width:auto;max-width:100%;min-width:0;min-height:0;
@@ -1962,6 +1974,8 @@ body.dragging-on{-webkit-user-select:none;user-select:none}
   align-items:center;justify-content:center;gap:8px;overflow:hidden}
 #mvOv .stu-mid > .stu-right{justify-content:center;gap:8px;overflow:hidden}
 #mvOv .stu-right::-webkit-scrollbar{display:none}
+#mvOv .stu-fres{font:600 8.6px system-ui;font-size:clamp(8.2px,2.2vw,9px);color:#7C8CA6;
+  letter-spacing:.02em;margin-top:5px;text-align:center;white-space:nowrap}
 #mvOv .stu-flab{font:700 9.5px system-ui;font-size:clamp(9.5px,2.436vw,9.5px);letter-spacing:.10em;color:#8A9AB5;margin:0 0 2px}
 #mvOv .stu-fmts{background:none;padding:0;display:flex;flex-direction:column;gap:8px;align-items:center;
   flex:0 1 auto;min-height:0}
@@ -2011,7 +2025,30 @@ body.dragging-on{-webkit-user-select:none;user-select:none}
    masque de fondu horizontal qui rognerait aussi le trait. */
 #mvOv.cine .stu-mid{position:relative}
 #mvOv.cine .stu-mid::after{content:"";position:absolute;left:var(--stuPad);right:var(--stuPad);bottom:0;height:1px;
-  background:rgba(255,255,255,.13);pointer-events:none}
+  background:rgba(255,255,255,.13);pointer-events:none;transition:opacity .26s ease}
+
+/* ---------- Mode projection ----------
+   A la lecture, l'outillage s'efface et l'image prend la place liberee.
+   On ne touche NI a la timeline NI a la bande de plans : leur geometrie est
+   mise en cache et toute mesure pendant la lecture la casserait. Seuls le
+   rail, la colonne format, la ligne de metadonnees et le bandeau realisateur
+   se retirent — l'image est la seule zone elastique, elle absorbe le reste. */
+#mvOv.cine .stu-tools,#mvOv.cine .stu-right,#mvOv.cine .mv-fiche,#mvOv.cine .stu-dir{
+  transition:opacity .26s cubic-bezier(.2,.7,.3,1),max-width .3s cubic-bezier(.2,.7,.3,1),
+             max-height .3s cubic-bezier(.2,.7,.3,1),margin .3s cubic-bezier(.2,.7,.3,1),
+             padding .3s cubic-bezier(.2,.7,.3,1),border-width .3s ease}
+#mvOv.cine.stuproj .stu-tools,#mvOv.cine.stuproj .stu-right{
+  opacity:0;max-width:0;width:0;flex-basis:0;padding-left:0;padding-right:0;
+  margin:0;border:0;overflow:hidden;pointer-events:none}
+#mvOv.cine.stuproj .mv-fiche,#mvOv.cine.stuproj .stu-dir{
+  opacity:0;max-height:0;padding-top:0;padding-bottom:0;margin-top:0;margin-bottom:0;
+  border-width:0;overflow:hidden;pointer-events:none}
+#mvOv.cine.stuproj .stu-mid{gap:0}
+#mvOv.cine.stuproj .stu-mid::after{opacity:0}
+#mvOv.cine.stuproj .mv-stage{box-shadow:0 34px 78px -20px rgba(0,0,0,.82),
+  0 8px 22px -8px rgba(0,0,0,.6),inset 0 0 0 1px rgba(214,162,63,.10)}
+@media (prefers-reduced-motion:reduce){
+  #mvOv.cine .stu-tools,#mvOv.cine .stu-right,#mvOv.cine .mv-fiche,#mvOv.cine .stu-dir{transition:none} }
 #mvOv.cine .mv-fiche{padding-top:calc(var(--stuGap) * 1.15)}
 /* Ces valeurs ne se touchent pas : ce sont des metadonnees, pas des boutons.
    Pas de cadre, pas de fond, une seule ligne. */
@@ -2032,7 +2069,9 @@ body.dragging-on{-webkit-user-select:none;user-select:none}
 #mvOv .stu-dir-h .ttx{flex:1 1 auto;min-width:0}
 #mvOv .stu-dir-k{flex:0 0 auto;display:block;font:700 9.5px system-ui;font-size:clamp(9.5px,2.436vw,9.5px);letter-spacing:.07em;color:var(--sGold,#E0A33E)}
 #mvOv .stu-dir-h b{flex:1 1 auto;min-width:0;display:block;font:600 12.5px system-ui;font-size:clamp(11.8px,3.205vw,12.5px);color:#F5F7FA;margin:0;
-  white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  white-space:nowrap;overflow:hidden;
+  -webkit-mask-image:linear-gradient(90deg,#000 0,#000 calc(100% - 22px),transparent 100%);
+  mask-image:linear-gradient(90deg,#000 0,#000 calc(100% - 22px),transparent 100%)}
 #mvOv .stu-dir-sep{flex:0 0 auto;color:#3A4C6B;font-size:clamp(10.3px,2.821vw,11px)}
 #mvOv .stu-dir-h .cv{flex:0 0 auto;color:#8A9AB5;font-size:clamp(17.1px,4.872vw,19px)}
 #mvOv .stu-dir-g{display:grid;grid-template-columns:1fr 1fr;gap:5px 10px;margin-top:8px}
@@ -2266,7 +2305,7 @@ body.dragging-on{-webkit-user-select:none;user-select:none}
 @media (max-height:700px){
   /* Le titre de la colonne et les libelles du rail cedent la place :
      les icones restent, et elles suffisent. */
-  #mvOv .stu-flab{display:none}
+  #mvOv .stu-flab,#mvOv .stu-fres{display:none}
   #mvOv .stu-tool span{font-size:8.5px}
   #mvOv .stu-dir{height:30px}
   #mvOv .stu-dir-h{height:30px}
@@ -6726,7 +6765,7 @@ function openMontage(tr,version,autoplay){ tr=tr||souvTrip(); if(!tr) return; _m
     <div id="mvStudio" class="stu" style="display:none">
       <div class="stu-top">
         <button class="stu-back" id="stuBack" aria-label="Retour">\u2039</button>
-        <div class="stu-ttl"><b>Studio Magot<i>\u2727</i></b><span>Montage vid\u00e9o \u00b7 v432</span></div>
+        <div class="stu-ttl"><b>Studio Magot<i>\u2727</i></b><span>Montage vid\u00e9o \u00b7 v433</span></div>
         <button class="stu-ico" id="stuUndo" title="Annuler">\u21b6</button>
         <button class="stu-ico" id="stuRedo" title="R\u00e9tablir">\u21b7</button>
         <button class="stu-exp" id="mvSave"><i>\u2b06</i>Exporter</button>
@@ -6757,6 +6796,7 @@ function openMontage(tr,version,autoplay){ tr=tr||souvTrip(); if(!tr) return; _m
             <button class="stu-fmt" data-sfmt="c"><i>\u25fb</i><span>1:1</span></button>
             <button class="stu-fmt" data-sfmt="h"><i>\u25ad</i><span>16:9</span></button>
           </div>
+          <div class="stu-fres" id="stuFres"></div>
         </div>
       </div>
 
@@ -6856,7 +6896,15 @@ function openMontage(tr,version,autoplay){ tr=tr||souvTrip(); if(!tr) return; _m
       if(sg && _mvState.audio){ _mvState.audio.currentTime=sg.start+0.05; _mvState._cur=i; stripPaint(); } });
     const ad=el.querySelector("#stuAdd"); if(ad) ad.onclick=()=>openShotPhoto(tr,-1,()=>{ mvRelayout(); stripPaint(); });
   };
-  const fmtsPaint=()=>{ ov.querySelectorAll("[data-sfmt]").forEach(b=>b.classList.toggle("on", b.dataset.sfmt===_mvState.fmt)); };
+  const fmtsPaint=()=>{ ov.querySelectorAll("[data-sfmt]").forEach(b=>b.classList.toggle("on", b.dataset.sfmt===_mvState.fmt));
+    /* La definition reellement rendue par le moteur. Pas de 4K ni de 60 i/s
+       affiches : l'export est en 1080p, l'ecrire serait une promesse fausse. */
+    const fr=ov.querySelector("#stuFres");
+    if(fr){ const cv=document.getElementById("mvCanvas");
+      let W=0,H=0;
+      if(cv&&cv.width&&cv.height){ W=cv.width;H=cv.height; }
+      else { const f=_mvState.fmt; if(f==="c"){W=1080;H=1080;} else if(f==="h"){W=1920;H=1080;} else if(f==="v"){W=1080;H=1920;} }
+      fr.textContent = (W&&H) ? (W+"\u00d7"+H) : ""; } };
   /* La forme d'onde est une piste comme les autres : m\u00eame origine, m\u00eame
      \u00e9chelle. La barre blanche a disparu : c'est la t\u00eate de lecture commune
      qui traverse d\u00e9sormais les quatre pistes. */
@@ -7465,7 +7513,16 @@ function mvDirCardPaint(){
   /* La carte reste sur UNE ligne : le detail s'ouvre au clic (place gagnee pour
      l'apercu et pour les commandes du bas, qui ne doivent jamais etre coupees). */
   _mvState._dirItems=I;
-  el.innerHTML=`<div class="stu-dir-h" id="stuNote"><span class="stu-dir-k">\u2726 R\u00c9ALISATEUR IA</span><span class="stu-dir-sep">\u00b7</span><b>Film pr\u00eat \u00e0 \u00eatre visionn\u00e9</b><span class="cv">\u203a</span></div>`;
+  /* Ce que le moteur a REELLEMENT fait, dans l'ordre d'interet. On evite ce que
+     la ligne de metadonnees dit deja (style, BPM, plans, duree) : une
+     information, un seul endroit. Le detail complet s'ouvre au clic. */
+  const R=[];
+  R.push("Couleurs "+grade.toLowerCase());
+  R.push(drops? (drops+" temps fort"+(drops>1?"s":"")+" cal\u00e9"+(drops>1?"s":"")) : "coupes r\u00e9guli\u00e8res");
+  if(nFit) R.push(nFit+" cadrage"+(nFit>1?"s":"")+" entier"+(nFit>1?"s":""));
+  if(nVid) R.push(nVid+" vid\u00e9o"+(nVid>1?"s":"")+" int\u00e9gr\u00e9e"+(nVid>1?"s":""));
+  if(rest) R.push(rest+" \u00e9cart\u00e9"+(rest>1?"s":""));
+  el.innerHTML=`<div class="stu-dir-h" id="stuNote"><span class="stu-dir-k">\u2726 R\u00c9ALISATEUR IA</span><span class="stu-dir-sep">\u00b7</span><b>${R.join(" \u00b7 ")}</b><span class="cv">\u203a</span></div>`;
   { const h=el.querySelector("#stuNote"); if(h) h.onclick=()=>openDirDetail(); }
 }
 /* Detail du realisateur : ce que le moteur a REELLEMENT fait, plus les deux
@@ -7696,7 +7753,14 @@ function openExportPick(tr, btn){
 }
 function mvSetPlaying(on){ _mvState.playing=!!on;
   const a=document.getElementById("mvPlay"); if(a) a.innerHTML=(on?mvT("pause"):mvT("playFilm"));
-  const c=document.getElementById("stuPP"); if(c) c.textContent=(on?"\u23f8":"\u25b6"); }
+  const c=document.getElementById("stuPP"); if(c) c.textContent=(on?"\u23f8":"\u25b6");
+  mvProjection(!!on); }
+/* Entree et sortie du mode projection. Aucune mesure de mise en page n'est
+   faite ici : on pose une classe, le CSS s'occupe du reste. */
+function mvProjection(on){
+  const ov=document.getElementById("mvOv"); if(!ov||!ov.classList.contains("cine")) return;
+  if(ov.classList.contains("stufull")) return;   /* deja en plein ecran manuel */
+  ov.classList.toggle("stuproj",!!on); }
 
 /* ---- Barre de lecture : avancement, temps et déplacement au doigt ---- */
 function mvFmtTc(x){ x=Math.max(0,Math.floor(x||0)); const m=Math.floor(x/60), sec=x%60;
