@@ -38,6 +38,7 @@
   --bg-mesh:radial-gradient(90% 50% at 6% -6%,rgba(14,33,72,.05),transparent 55%),radial-gradient(80% 45% at 104% 2%,rgba(224,163,62,.07),transparent 52%),linear-gradient(180deg,#F8FAFE,var(--bg) 45%);
   --shadow-sm:0 1px 2px rgba(14,33,72,.05);
   --shadow:0 1px 3px rgba(14,33,72,.06), 0 14px 32px rgba(14,33,72,.08);
+  --paper:#F7F8FB;
   --shadow-lg:0 16px 44px rgba(14,33,72,.26);
   --tab-h:clamp(58px,17vw,66px);
 }
@@ -46,7 +47,7 @@
   --ink:#EAEFF8; --ink-2:#C2CCE0; --muted:#8C97B2;
   --navy:#0B1A38; --navy-2:#1A2F58;
   --gold:#E9B559; --gold-d:#D49A38; --gold-soft:rgba(224,163,62,.16);
-  --line:#243450; --line-soft:#19243E; --emerald:#22C55E;
+  --line:#243450; --line-soft:#19243E; --emerald:#22C55E; --paper:#101C36;
   --btn-bg:#27375E; --btn-fg:#EAEFF8; --toast-bg:#EAEFF6; --toast-fg:#16233E; --nav-bg:rgba(10,19,38,.94);
   --bg-mesh:radial-gradient(90% 50% at 6% -6%,rgba(40,70,140,.22),transparent 55%),radial-gradient(80% 45% at 104% 2%,rgba(224,163,62,.10),transparent 52%),linear-gradient(180deg,#0B152C,var(--bg) 46%);
   --shadow-sm:0 1px 2px rgba(0,0,0,.3);
@@ -1482,10 +1483,10 @@ body.dragging-on{-webkit-user-select:none;user-select:none}
   font-size:clamp(15px,4.1vw,17px);transition:transform .2s cubic-bezier(.2,.7,.3,1)}
 /* Icone de section : meme carre arrondi dore pale que partout ailleurs dans
    l'app. Pas de cercle sombre : ce serait un second langage d'icone. */
-.mv-blkic{flex:0 0 auto;width:clamp(34px,9.2vw,38px);height:clamp(34px,9.2vw,38px);
+.mv-blkh .mv-blkic{flex:0 0 auto;width:clamp(34px,9.2vw,38px);height:clamp(34px,9.2vw,38px);
   border-radius:11px;display:flex;align-items:center;justify-content:center;
   background:var(--gold-soft,#FBF3E4);color:var(--gold-d,#C2872A)}
-.mv-blkic svg{width:20px;height:20px;fill:none;stroke:currentColor;stroke-width:1.7;
+.mv-blkh .mv-blkic svg{width:20px;height:20px;fill:none;stroke:currentColor;stroke-width:1.7;
   stroke-linecap:round;stroke-linejoin:round}
 @media (prefers-reduced-motion:reduce){ .mv-blkh i{transition:none} }
 .mv-blk.open .mv-blkh i{transform:rotate(180deg)}
@@ -1553,7 +1554,7 @@ body.dragging-on{-webkit-user-select:none;user-select:none}
 .mv-ths{display:flex;gap:8px;margin-top:10px;overflow-x:auto;padding-bottom:2px;
   scrollbar-width:none;-webkit-overflow-scrolling:touch}
 .mv-ths::-webkit-scrollbar{display:none}
-.mv-th{position:relative;flex:0 0 auto;width:clamp(56px,15.2vw,64px);height:clamp(56px,15.2vw,64px);
+.mv-th{position:relative;flex:0 0 auto;cursor:pointer;width:clamp(56px,15.2vw,64px);height:clamp(56px,15.2vw,64px);
   border-radius:11px;overflow:hidden;background:var(--line-soft,#EEF1F7);
   display:flex;align-items:center;justify-content:center}
 .mv-th[data-media]{background-size:cover;background-position:center}
@@ -1562,8 +1563,9 @@ body.dragging-on{-webkit-user-select:none;user-select:none}
   font-style:normal;font-size:10px;display:flex;align-items:center;justify-content:center}
 .mv-th.more{background:var(--paper,#F7F8FB);color:var(--muted);
   font:700 13px "Inter",sans-serif;font-size:clamp(12.2px,3.33vw,13px)}
-.mv-th.add{border:1px dashed var(--line);background:none;color:var(--muted);cursor:pointer;
-  flex-direction:column;gap:2px;padding:0}
+.mv-th.add{border:1px dashed var(--gold,#E0A33E);background:var(--gold-soft,#FBF3E4);
+  color:var(--gold-d,#C2872A);cursor:pointer;flex-direction:column;gap:2px;padding:0}
+.mv-th.add:active{transform:scale(.96)}
 .mv-th.add i{font-style:normal;font-size:clamp(16px,4.4vw,18px);line-height:1}
 .mv-th.add span{font-size:clamp(9.6px,2.6vw,10.4px);font-weight:600}
 .prep-k.ok{background:#E7F5EC;color:#1B7A43}
@@ -6809,7 +6811,7 @@ function openMontage(tr,version,autoplay){ tr=tr||souvTrip(); if(!tr) return; _m
     <div id="mvStudio" class="stu" style="display:none">
       <div class="stu-top">
         <button class="stu-back" id="stuBack" aria-label="Retour">\u2039</button>
-        <div class="stu-ttl"><b>Studio Magot<i>\u2727</i></b><span>Montage vid\u00e9o \u00b7 v441</span></div>
+        <div class="stu-ttl"><b>Studio Magot<i>\u2727</i></b><span>Montage vid\u00e9o \u00b7 v442</span></div>
         <button class="stu-ico" id="stuUndo" title="Annuler">\u21b6</button>
         <button class="stu-ico" id="stuRedo" title="R\u00e9tablir">\u21b7</button>
         <button class="stu-exp" id="mvSave"><i>\u2b06</i>Exporter</button>
@@ -7080,11 +7082,18 @@ function openMontage(tr,version,autoplay){ tr=tr||souvTrip(); if(!tr) return; _m
           +(x.vid?`<i>\u25b6</i>`:``)+`</span>`).join("")
         +(more>0?`<span class="mv-th more">+${more}</span>`:``);
       e2.innerHTML=`<b>${np} photo${np>1?"s":""}${nv?" \u00b7 "+nv+" vid\u00e9o"+(nv>1?"s":""):""}</b>`
-        +`<div class="mv-ths">${tiles}<button class="mv-th add" id="mvThAdd" type="button"><i>+</i><span>Ajouter</span></button></div>`
+        +`<div class="mv-ths"><button class="mv-th add" id="mvThAdd" type="button"><i>+</i><span>Ajouter</span></button>${tiles}</div>`
         +`<div class="prep-ks">`+mvPrepKeys(ok,ck,out)+`</div>`;
       if(typeof hydratePhotos==="function") hydratePhotos(e2);
       const ab=e2.querySelector("#mvThAdd");
-      if(ab) ab.onclick=()=>{ const b2=document.getElementById("memAddBtn"); if(b2) b2.click(); };
+      if(ab) ab.onclick=(ev)=>{ ev.preventDefault(); ev.stopPropagation();
+        /* La feuille des Souvenirs est masquee par le studio : on appelle
+           directement l'ajout de photos plutot que de cliquer un bouton
+           qui n'est pas a l'ecran. */
+        if(typeof openPhotoAdd==="function") openPhotoAdd();
+        else { const b2=document.getElementById("memAddBtn"); if(b2) b2.click(); } };
+      e2.querySelectorAll(".mv-th[data-media]").forEach(el=>{
+        el.onclick=(ev)=>{ ev.preventDefault(); ev.stopPropagation(); openMediaPrep(tr); }; });
     }
   }).catch(()=>{});
   { const rb=ov.querySelector("#mvReal"); if(rb) rb.onclick=()=>{
