@@ -1478,8 +1478,17 @@ body.dragging-on{-webkit-user-select:none;user-select:none}
 .mv-blkh{width:100%;display:flex;align-items:center;gap:10px;background:none;border:0;padding:15px 14px;cursor:pointer;text-align:left}
 .mv-blkh span{font:700 14px system-ui;font-size:clamp(13.2px,3.59vw,14px);color:var(--ink);white-space:nowrap}
 .mv-blkh em{flex:1;min-width:0;font-style:normal;font-size:clamp(11.3px,3.077vw,12px);color:var(--muted);text-align:right;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.mv-blkh i{font-style:normal;color:var(--muted);transition:transform .18s}
-.mv-blk.open .mv-blkh i{transform:rotate(90deg)}
+.mv-blkh i{flex:0 0 auto;font-style:normal;color:var(--muted);line-height:1;
+  font-size:clamp(15px,4.1vw,17px);transition:transform .2s cubic-bezier(.2,.7,.3,1)}
+/* Icone de section : meme carre arrondi dore pale que partout ailleurs dans
+   l'app. Pas de cercle sombre : ce serait un second langage d'icone. */
+.mv-blkic{flex:0 0 auto;width:clamp(34px,9.2vw,38px);height:clamp(34px,9.2vw,38px);
+  border-radius:11px;display:flex;align-items:center;justify-content:center;
+  background:var(--gold-soft,#FBF3E4);color:var(--gold-d,#C2872A)}
+.mv-blkic svg{width:20px;height:20px;fill:none;stroke:currentColor;stroke-width:1.7;
+  stroke-linecap:round;stroke-linejoin:round}
+@media (prefers-reduced-motion:reduce){ .mv-blkh i{transition:none} }
+.mv-blk.open .mv-blkh i{transform:rotate(180deg)}
 .mv-blkb{display:none;padding:0 14px 15px}
 .mv-blk.open .mv-blkb{display:block}
 .mv-lab{font:700 12.5px system-ui;font-size:clamp(11.8px,3.205vw,12.5px);color:var(--ink);margin:12px 0 7px}
@@ -1523,12 +1532,40 @@ body.dragging-on{-webkit-user-select:none;user-select:none}
 .mv-priv{background:var(--paper,#F7F8FB);border:1px solid var(--line);border-radius:12px;padding:11px 13px;font-size:clamp(11.3px,3.077vw,12px);line-height:1.5;color:var(--muted);margin-top:10px}
 .mv-priv.on{background:var(--gold-soft,#FBEED4);border-color:var(--gold,#E0A33E)}
 .mv-priv b{color:var(--ink)}
+/* Action culminante de la page : seul aplat dore assume de l'application.
+   Relief par degrade et ombre — pas de texture, qui ne serait que du bruit. */
+.mv-cta{background:linear-gradient(180deg,#EEBA5C 0%,#DC9C33 100%);
+  box-shadow:0 10px 24px -8px rgba(224,163,62,.55),0 2px 5px rgba(0,0,0,.16),
+             inset 0 1px 0 rgba(255,255,255,.30);
+  font-weight:700;letter-spacing:.01em;
+  transition:transform .18s cubic-bezier(.2,.7,.3,1),box-shadow .18s ease}
+.mv-cta:active{transform:scale(.985);box-shadow:0 5px 14px -6px rgba(224,163,62,.5),0 1px 3px rgba(0,0,0,.16)}
+.mv-cta[disabled]{background:var(--line);color:var(--muted);box-shadow:none}
+@media (prefers-reduced-motion:reduce){ .mv-cta{transition:none} }
 
 .prep-head{padding:12px 16px 0;font-size:clamp(12.2px,3.333vw,13px);color:var(--ink);display:flex;flex-wrap:wrap;gap:8px;align-items:center}
 .prep-k{display:inline-flex;align-items:center;gap:5px;white-space:nowrap;line-height:1.25;
   font-size:clamp(10.8px,2.949vw,11.5px);font-weight:600;padding:4px 9px;border-radius:9px;
   background:var(--paper,#F7F8FB);color:var(--muted)}
-.prep-ks{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px;line-height:1.25}
+.prep-ks{display:flex;flex-wrap:wrap;gap:6px;margin-top:10px;line-height:1.25}
+/* Vignettes des medias : on voit ce qu'on va monter, et on peut en ajouter
+   d'ici. Rangee defilante — jamais de retour a la ligne qui casse le rythme. */
+.mv-ths{display:flex;gap:8px;margin-top:10px;overflow-x:auto;padding-bottom:2px;
+  scrollbar-width:none;-webkit-overflow-scrolling:touch}
+.mv-ths::-webkit-scrollbar{display:none}
+.mv-th{position:relative;flex:0 0 auto;width:clamp(56px,15.2vw,64px);height:clamp(56px,15.2vw,64px);
+  border-radius:11px;overflow:hidden;background:var(--line-soft,#EEF1F7);
+  display:flex;align-items:center;justify-content:center}
+.mv-th[data-media]{background-size:cover;background-position:center}
+.mv-th.vid i{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);
+  width:22px;height:22px;border-radius:50%;background:rgba(0,0,0,.55);color:#fff;
+  font-style:normal;font-size:10px;display:flex;align-items:center;justify-content:center}
+.mv-th.more{background:var(--paper,#F7F8FB);color:var(--muted);
+  font:700 13px "Inter",sans-serif;font-size:clamp(12.2px,3.33vw,13px)}
+.mv-th.add{border:1px dashed var(--line);background:none;color:var(--muted);cursor:pointer;
+  flex-direction:column;gap:2px;padding:0}
+.mv-th.add i{font-style:normal;font-size:clamp(16px,4.4vw,18px);line-height:1}
+.mv-th.add span{font-size:clamp(9.6px,2.6vw,10.4px);font-weight:600}
 .prep-k.ok{background:#E7F5EC;color:#1B7A43}
 .prep-k.ck{background:#FEF6E7;color:#9A6B12}
 .prep-k.out{background:#FBECEC;color:#B3261E}
@@ -6688,20 +6725,20 @@ function openMontage(tr,version,autoplay){ tr=tr||souvTrip(); if(!tr) return; _m
     <div class="souvmap-scroll" id="mvSetup">
       <div class="mv-auto"><b>\u2728 ${A.mood}</b> \u2014 ${escapeHtml(A.why)}. Ton film est <b>déjà réglé</b> : ${A.dur<60?(A.dur+" s"):(Math.floor(A.dur/60)+" min")}, ${gradeLbl().toLowerCase()}, transitions ${styleLbl().toLowerCase()}.</div>
 
-      <div class="mv-blk open" data-blk="media"><button class="mv-blkh" data-open="media"><span>Médias</span><em id="mvMedSum">\u2026</em><i>\u203a</i></button>
+      <div class="mv-blk open" data-blk="media"><button class="mv-blkh" data-open="media"><span class="mv-blkic"><svg viewBox="0 0 24 24"><rect x="3" y="4.6" width="18" height="14.8" rx="2.6"/><circle cx="8.3" cy="9.8" r="1.5"/><path d="M3.6 17 9 11.8l3.1 2.9 2.6-2.3L20.4 17"/></svg></span><span>Médias</span><em id="mvMedSum">\u2026</em><i>\u2304</i></button>
         <div class="mv-blkb">
           <div class="mv-medsum" id="mvMedBox">Analyse des m\u00e9dias\u2026</div>
           <button class="btn ghostline2 block" id="mvPrep">Pr\u00e9parer les m\u00e9dias \u203a</button>
         </div></div>
 
-      <div class="mv-blk" data-blk="music"><button class="mv-blkh" data-open="music"><span>Musique</span><em id="mvMusicName">${mvT("musicHint")}</em><i>\u203a</i></button>
+      <div class="mv-blk" data-blk="music"><button class="mv-blkh" data-open="music"><span class="mv-blkic"><svg viewBox="0 0 24 24"><path d="M9 18.2V6.4l10-2v11.4"/><circle cx="6.6" cy="18.2" r="2.4"/><circle cx="16.6" cy="15.8" r="2.4"/></svg></span><span>Musique</span><em id="mvMusicName">${mvT("musicHint")}</em><i>\u2304</i></button>
         <div class="mv-blkb">
           <button class="btn navy block" id="mvLib">Choisir dans la bibliothèque</button>
           <button class="btn ghostline2 block" id="mvPick" style="margin-top:8px">${mvT("musicPick")}</button>
           <input type="file" id="mvFile" accept="audio/*,.mp3,.m4a,.wav,.aac" style="display:none">
         </div></div>
 
-      <div class="mv-blk" data-blk="opts"><button class="mv-blkh" data-open="opts"><span>Style</span><em id="mvOptSum">${durLbl()} \u00b7 ${fmtLbl()} \u00b7 ${gradeLbl()} \u00b7 ${styleLbl()}</em><i>\u203a</i></button>
+      <div class="mv-blk" data-blk="opts"><button class="mv-blkh" data-open="opts"><span class="mv-blkic"><svg viewBox="0 0 24 24"><path d="M12 3.6l2.5 5.4 5.9.7-4.4 4 1.2 5.8L12 16.6 6.8 19.5 8 13.7 3.6 9.7l5.9-.7z"/></svg></span><span>Style</span><em id="mvOptSum">${durLbl()} \u00b7 ${fmtLbl()} \u00b7 ${gradeLbl()} \u00b7 ${styleLbl()}</em><i>\u2304</i></button>
         <div class="mv-blkb">
           <div class="mv-sec">
             <div class="mv-lab">Durée <small>(proposée d'après tes ${(tr.memories||[]).length} photos)</small></div>
@@ -6728,7 +6765,7 @@ function openMontage(tr,version,autoplay){ tr=tr||souvTrip(); if(!tr) return; _m
           </div>
         </div></div>
 
-      <div class="mv-blk" data-blk="film"><button class="mv-blkh" data-open="film"><span>Histoire</span><em id="mvFilmSum">${souvFilmPoints(tr).length} scènes \u00b7 storyboard</em><i>\u203a</i></button>
+      <div class="mv-blk" data-blk="film"><button class="mv-blkh" data-open="film"><span class="mv-blkic"><svg viewBox="0 0 24 24"><rect x="3" y="4.6" width="18" height="14.8" rx="2.4"/><path d="M7.4 4.6v14.8M16.6 4.6v14.8M3 12h18M3 8.3h4.4M3 15.7h4.4M16.6 8.3H21M16.6 15.7H21"/></svg></span><span>Histoire</span><em id="mvFilmSum">${souvFilmPoints(tr).length} scènes \u00b7 storyboard</em><i>\u2304</i></button>
         <div class="mv-blkb">
           <div class="mv-real">
             <div class="mv-realt">\u2728 Faire composer l'histoire par Fidèle</div>
@@ -6762,17 +6799,17 @@ function openMontage(tr,version,autoplay){ tr=tr||souvTrip(); if(!tr) return; _m
             return `<button class="vers" data-vers2="${v.k}"><span class="vers-band" style="background:${D[1]}">${Math.floor(v.d/60)}:${String(v.d%60).padStart(2,"0")}</span><b>${v.n}</b><span class="vers-d">${D[0]}</span></button>`; }).join("")}</div>
         </div></div>
 
-      <div class="mv-blk" data-blk="vis"><button class="mv-blkh" data-open="vis"><span>Analyse (option)</span><em>${visionOn()?"activée":"désactivée"}</em><i>\u203a</i></button>
+      <div class="mv-blk" data-blk="vis"><button class="mv-blkh" data-open="vis"><span class="mv-blkic"><svg viewBox="0 0 24 24"><path d="M4.5 19.4V11M9.5 19.4V6.2M14.5 19.4v-6.6M19.5 19.4V8.6"/></svg></span><span>Analyse (option)</span><em>${visionOn()?"activée":"désactivée"}</em><i>\u2304</i></button>
         <div class="mv-blkb"><div class="mv-vis" id="mvVisCard"></div></div></div>
       <div class="mv-priv" id="mvPriv"></div>
 
-      <button class="btn navy block" id="mvGo" style="margin-top:16px"${(tr.memories||[]).length?"":" disabled"}>${mvT("create")}</button>
+      <button class="btn gold block mv-cta" id="mvGo" style="margin-top:16px"${(tr.memories||[]).length?"":" disabled"}>${mvT("create")}</button>
       <div class="mv-note">${mvT("exportSoon")}</div>
     </div>
     <div id="mvStudio" class="stu" style="display:none">
       <div class="stu-top">
         <button class="stu-back" id="stuBack" aria-label="Retour">\u2039</button>
-        <div class="stu-ttl"><b>Studio Magot<i>\u2727</i></b><span>Montage vid\u00e9o \u00b7 v440</span></div>
+        <div class="stu-ttl"><b>Studio Magot<i>\u2727</i></b><span>Montage vid\u00e9o \u00b7 v441</span></div>
         <button class="stu-ico" id="stuUndo" title="Annuler">\u21b6</button>
         <button class="stu-ico" id="stuRedo" title="R\u00e9tablir">\u21b7</button>
         <button class="stu-exp" id="mvSave"><i>\u2b06</i>Exporter</button>
@@ -7034,8 +7071,21 @@ function openMontage(tr,version,autoplay){ tr=tr||souvTrip(); if(!tr) return; _m
        affiche : une pastille vide ne dit rien d'utile. */
     const e1=ov.querySelector("#mvMedSum"); if(e1) e1.textContent=L.length+" m\u00e9dia"+(L.length>1?"s":"");
     const e2=ov.querySelector("#mvMedBox");
-    if(e2) e2.innerHTML=`<b>${np} photo${np>1?"s":""}${nv?" \u00b7 "+nv+" vid\u00e9o"+(nv>1?"s":""):""}</b>`
-      +`<div class="prep-ks">`+mvPrepKeys(ok,ck,out)+`</div>`;
+    if(e2){
+      /* Les vignettes sont les VRAIS medias du voyage, dans l'ordre. On en
+         montre au plus cinq, puis un compteur — et une tuile pour en ajouter,
+         qui declenche la meme action que le + de l'en-tete des Souvenirs. */
+      const MAX=5, shown=L.slice(0,MAX), more=L.length-shown.length;
+      const tiles=shown.map(x=>`<span class="mv-th${x.vid?" vid":""}" data-media="${x.m.id}">`
+          +(x.vid?`<i>\u25b6</i>`:``)+`</span>`).join("")
+        +(more>0?`<span class="mv-th more">+${more}</span>`:``);
+      e2.innerHTML=`<b>${np} photo${np>1?"s":""}${nv?" \u00b7 "+nv+" vid\u00e9o"+(nv>1?"s":""):""}</b>`
+        +`<div class="mv-ths">${tiles}<button class="mv-th add" id="mvThAdd" type="button"><i>+</i><span>Ajouter</span></button></div>`
+        +`<div class="prep-ks">`+mvPrepKeys(ok,ck,out)+`</div>`;
+      if(typeof hydratePhotos==="function") hydratePhotos(e2);
+      const ab=e2.querySelector("#mvThAdd");
+      if(ab) ab.onclick=()=>{ const b2=document.getElementById("memAddBtn"); if(b2) b2.click(); };
+    }
   }).catch(()=>{});
   { const rb=ov.querySelector("#mvReal"); if(rb) rb.onclick=()=>{
       const run=()=>mvAutoFidele(tr,ov,version,rb);
