@@ -1925,7 +1925,6 @@ body.dragging-on{-webkit-user-select:none;user-select:none}
 /* Une image 9:16 tire sa largeur de sa hauteur : pour l'agrandir il faut lui
    donner de la hauteur, et lui rendre les marges laterales. */
 #mvOv .stu-mid{flex:1 1 0;min-height:0;display:flex;align-items:stretch;
-  transition:height .3s cubic-bezier(.2,.7,.3,1);
   gap:clamp(4px,1.4vw,5.5px);padding:2px calc(var(--stuPad) - 2px) 0 calc(var(--stuPad) + 1px);overflow:hidden}
 #mvOv .stu-tools{width:var(--stuRail);flex:0 0 var(--stuRail);background:#101B2E;border-radius:14px;padding:6px 0;
   display:flex;flex-direction:column;justify-content:space-between;gap:2px;overflow:hidden}
@@ -6770,7 +6769,7 @@ function openMontage(tr,version,autoplay){ tr=tr||souvTrip(); if(!tr) return; _m
     <div id="mvStudio" class="stu" style="display:none">
       <div class="stu-top">
         <button class="stu-back" id="stuBack" aria-label="Retour">\u2039</button>
-        <div class="stu-ttl"><b>Studio Magot<i>\u2727</i></b><span>Montage vid\u00e9o \u00b7 v437</span></div>
+        <div class="stu-ttl"><b>Studio Magot<i>\u2727</i></b><span>Montage vid\u00e9o \u00b7 v438</span></div>
         <button class="stu-ico" id="stuUndo" title="Annuler">\u21b6</button>
         <button class="stu-ico" id="stuRedo" title="R\u00e9tablir">\u21b7</button>
         <button class="stu-exp" id="mvSave"><i>\u2b06</i>Exporter</button>
@@ -7771,7 +7770,6 @@ function mvStageEls(){
 function mvStageMeasure(){
   const E=mvStageEls(); if(!E) return null;
   if(E.ov.classList.contains("stufull")||E.ov.classList.contains("stuproj")) return _mvState._sGeo||null;
-  E.mid.style.flex=""; E.mid.style.height="";
   const tools=E.ov.querySelector(".stu-tools"), right=E.ov.querySelector(".stu-right");
   const fiche=E.ov.querySelector(".mv-fiche"), dir=E.ov.querySelector(".stu-dir");
   const cm=getComputedStyle(E.mid);
@@ -7795,9 +7793,9 @@ function mvStageMeasure(){
 /* Application : que des ecritures. Aucun getComputedStyle, aucun clientWidth. */
 function mvStageApply(proj){
   const E=mvStageEls(); if(!E) return;
-  if(E.ov.classList.contains("stufull")){ E.st.style.width=""; E.st.style.height=""; E.mid.style.flex=""; E.mid.style.height=""; return; }
+  if(E.ov.classList.contains("stufull")){ E.st.style.width=""; E.st.style.height=""; return; }
   const G=_mvState._sGeo; const cv=E.cv;
-  if(!G||!cv||!cv.width||!cv.height){ E.st.style.width=""; E.st.style.height=""; E.mid.style.flex=""; E.mid.style.height=""; return; }
+  if(!G||!cv||!cv.width||!cv.height){ E.st.style.width=""; E.st.style.height=""; return; }
   const r=cv.width/cv.height;
   const W0=proj?G.Wp:G.W, Hmax=proj?G.Hp:G.H;
   let Hf=Math.min(Hmax, G.bar+W0/r);
@@ -7806,12 +7804,11 @@ function mvStageApply(proj){
   if(!(Wf>0)||!(Hf>0)) return;
   E.st.style.width=Math.round(Wf)+"px";
   E.st.style.height=Math.round(Hf)+"px";
-  /* La zone se referme sur l'image — sans jamais rogner le rail de gauche,
-     qui reste visible hors projection. */
-  const floor=proj?0:G.rail;
-  const need=Math.max(Hf,floor)+G.pad;
-  if(need<Hmax-2){ E.mid.style.flex="0 0 auto"; E.mid.style.height=Math.round(need)+"px"; }
-  else { E.mid.style.flex=""; E.mid.style.height=""; }
+  /* On ne touche PAS a la hauteur de la zone : elle est la seule zone
+     elastique de l'ecran et c'est elle qui tient le studio a hauteur de
+     fenetre. L'image se centre dedans, le vide se repartit au-dessus et
+     au-dessous, a egalite. */
+  E.mid.style.flex=""; E.mid.style.height="";
 }
 function mvFitStage(force){
   const E=mvStageEls(); if(!E) return;
