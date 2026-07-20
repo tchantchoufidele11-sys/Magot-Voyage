@@ -1184,7 +1184,8 @@ body.dragging-on{-webkit-user-select:none;user-select:none}
 .mv-sec{margin:16px 0 8px}
 .mv-hint{color:var(--muted);font-size:clamp(12px,3.282vw,12.8px);margin-top:7px;line-height:1.45}
 .mv-durs{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px}
-.mv-sec{padding:14px 0;border-bottom:1px solid var(--line-soft,#EAEEF3)}
+.mv-sec{padding:16px 0;border-bottom:1px solid var(--line,#E5E9F1)}
+.mv-sec:first-child{padding-top:6px}
 .mv-sec:last-child{border-bottom:0;padding-bottom:4px}
 .mv-sec:first-child{padding-top:2px}
 .mv-sec:last-child{border-bottom:0;padding-bottom:2px}
@@ -1513,7 +1514,9 @@ body.dragging-on{-webkit-user-select:none;user-select:none}
 .mv-auto{background:var(--gold-soft,#FBEED4);border:1px solid var(--gold,#E0A33E);border-radius:13px;padding:13px 14px;font-size:clamp(12.2px,3.333vw,13px);line-height:1.55;color:var(--ink);margin-bottom:14px}
 .mv-blk{border:1px solid var(--line);border-radius:14px;margin-bottom:10px;overflow:hidden;background:var(--surface,#fff)}
 .mv-blkh{width:100%;display:flex;align-items:center;gap:10px;background:none;border:0;padding:15px 14px;cursor:pointer;text-align:left}
-.mv-blkh span{font:700 14px system-ui;font-size:clamp(13.2px,3.59vw,14px);color:var(--ink);white-space:nowrap}
+.mv-blkh span{flex:0 0 auto;font:700 14px system-ui;font-size:clamp(13.2px,3.59vw,14px);color:var(--ink);white-space:nowrap}
+/* Le resume garde toujours un peu d'air apres le titre. */
+.mv-blkh em{margin-left:4px}
 .mv-blkh em{flex:1;min-width:0;font-style:normal;font-size:clamp(11.3px,3.077vw,12px);color:var(--muted);text-align:right;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .mv-blkh i{flex:0 0 auto;font-style:normal;color:var(--muted);line-height:1;
   font-size:clamp(15px,4.1vw,17px);transition:transform .2s cubic-bezier(.2,.7,.3,1)}
@@ -6902,7 +6905,7 @@ function openMontage(tr,version,autoplay){ tr=tr||souvTrip(); if(!tr) return; _m
     <div id="mvStudio" class="stu" style="display:none">
       <div class="stu-top">
         <button class="stu-back" id="stuBack" aria-label="Retour">\u2039</button>
-        <div class="stu-ttl"><b>Studio Magot<i>\u2727</i></b><span>Montage vid\u00e9o \u00b7 v448</span></div>
+        <div class="stu-ttl"><b>Studio Magot<i>\u2727</i></b><span>Montage vid\u00e9o \u00b7 v449</span></div>
         <button class="stu-ico" id="stuUndo" title="Annuler">\u21b6</button>
         <button class="stu-ico" id="stuRedo" title="R\u00e9tablir">\u21b7</button>
         <button class="stu-exp" id="mvSave"><i>\u2b06</i>Exporter</button>
