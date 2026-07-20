@@ -1974,8 +1974,6 @@ body.dragging-on{-webkit-user-select:none;user-select:none}
   align-items:center;justify-content:center;gap:8px;overflow:hidden}
 #mvOv .stu-mid > .stu-right{justify-content:center;gap:8px;overflow:hidden}
 #mvOv .stu-right::-webkit-scrollbar{display:none}
-#mvOv .stu-fres{font:600 8.6px system-ui;font-size:clamp(8.2px,2.2vw,9px);color:#7C8CA6;
-  letter-spacing:.02em;margin-top:5px;text-align:center;white-space:nowrap}
 #mvOv .stu-flab{font:700 9.5px system-ui;font-size:clamp(9.5px,2.436vw,9.5px);letter-spacing:.10em;color:#8A9AB5;margin:0 0 2px}
 #mvOv .stu-fmts{background:none;padding:0;display:flex;flex-direction:column;gap:8px;align-items:center;
   flex:0 1 auto;min-height:0}
@@ -2305,7 +2303,7 @@ body.dragging-on{-webkit-user-select:none;user-select:none}
 @media (max-height:700px){
   /* Le titre de la colonne et les libelles du rail cedent la place :
      les icones restent, et elles suffisent. */
-  #mvOv .stu-flab,#mvOv .stu-fres{display:none}
+  #mvOv .stu-flab{display:none}
   #mvOv .stu-tool span{font-size:8.5px}
   #mvOv .stu-dir{height:30px}
   #mvOv .stu-dir-h{height:30px}
@@ -6765,7 +6763,7 @@ function openMontage(tr,version,autoplay){ tr=tr||souvTrip(); if(!tr) return; _m
     <div id="mvStudio" class="stu" style="display:none">
       <div class="stu-top">
         <button class="stu-back" id="stuBack" aria-label="Retour">\u2039</button>
-        <div class="stu-ttl"><b>Studio Magot<i>\u2727</i></b><span>Montage vid\u00e9o \u00b7 v433</span></div>
+        <div class="stu-ttl"><b>Studio Magot<i>\u2727</i></b><span>Montage vid\u00e9o \u00b7 v434</span></div>
         <button class="stu-ico" id="stuUndo" title="Annuler">\u21b6</button>
         <button class="stu-ico" id="stuRedo" title="R\u00e9tablir">\u21b7</button>
         <button class="stu-exp" id="mvSave"><i>\u2b06</i>Exporter</button>
@@ -6796,7 +6794,6 @@ function openMontage(tr,version,autoplay){ tr=tr||souvTrip(); if(!tr) return; _m
             <button class="stu-fmt" data-sfmt="c"><i>\u25fb</i><span>1:1</span></button>
             <button class="stu-fmt" data-sfmt="h"><i>\u25ad</i><span>16:9</span></button>
           </div>
-          <div class="stu-fres" id="stuFres"></div>
         </div>
       </div>
 
@@ -6896,15 +6893,7 @@ function openMontage(tr,version,autoplay){ tr=tr||souvTrip(); if(!tr) return; _m
       if(sg && _mvState.audio){ _mvState.audio.currentTime=sg.start+0.05; _mvState._cur=i; stripPaint(); } });
     const ad=el.querySelector("#stuAdd"); if(ad) ad.onclick=()=>openShotPhoto(tr,-1,()=>{ mvRelayout(); stripPaint(); });
   };
-  const fmtsPaint=()=>{ ov.querySelectorAll("[data-sfmt]").forEach(b=>b.classList.toggle("on", b.dataset.sfmt===_mvState.fmt));
-    /* La definition reellement rendue par le moteur. Pas de 4K ni de 60 i/s
-       affiches : l'export est en 1080p, l'ecrire serait une promesse fausse. */
-    const fr=ov.querySelector("#stuFres");
-    if(fr){ const cv=document.getElementById("mvCanvas");
-      let W=0,H=0;
-      if(cv&&cv.width&&cv.height){ W=cv.width;H=cv.height; }
-      else { const f=_mvState.fmt; if(f==="c"){W=1080;H=1080;} else if(f==="h"){W=1920;H=1080;} else if(f==="v"){W=1080;H=1920;} }
-      fr.textContent = (W&&H) ? (W+"\u00d7"+H) : ""; } };
+  const fmtsPaint=()=>{ ov.querySelectorAll("[data-sfmt]").forEach(b=>b.classList.toggle("on", b.dataset.sfmt===_mvState.fmt)); };
   /* La forme d'onde est une piste comme les autres : m\u00eame origine, m\u00eame
      \u00e9chelle. La barre blanche a disparu : c'est la t\u00eate de lecture commune
      qui traverse d\u00e9sormais les quatre pistes. */
