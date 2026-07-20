@@ -5486,15 +5486,23 @@ function openOverview(){ const tr=currentTrip(); if(!tr){ toast(t("plan.noTrip")
   if(!mapKey()) return;
   loadMaps().then(()=>{ const el=document.getElementById("ovMap"); if(!el||!window.google||!google.maps) return;
     const map=new google.maps.Map(el,{disableDefaultUI:true,zoomControl:true,gestureHandling:"greedy"}); const b=new google.maps.LatLngBounds(); let has=false;
-    if(tr.lodging&&tr.lodging.lat!=null){ new google.maps.Marker({map,position:{lat:+tr.lodging.lat,lng:+tr.lodging.lng},label:{text:"🏨",fontSize:"14px"}}); b.extend({lat:+tr.lodging.lat,lng:+tr.lodging.lng}); has=true; }
+    if(tr.lodging&&tr.lodging.lat!=null){ new google.maps.Marker({map,optimized:false,position:{lat:+tr.lodging.lat,lng:+tr.lodging.lng},label:{text:"🏨",fontSize:"14px"}}); b.extend({lat:+tr.lodging.lat,lng:+tr.lodging.lng}); has=true; }
     days.forEach((d,i)=>{ const col=LEG_COLORS[i%LEG_COLORS.length]; const stops=dayGeoStops(tr,i);
-      stops.forEach(s=>{ new google.maps.Marker({map,position:{lat:+s.lat,lng:+s.lng},label:{text:String(i+1),color:"#fff",fontSize:"11px",fontWeight:"800"},icon:{path:google.maps.SymbolPath.CIRCLE,scale:11,fillColor:col,fillOpacity:1,strokeColor:"#fff",strokeWeight:2}}); b.extend({lat:+s.lat,lng:+s.lng}); has=true; });
+      stops.forEach(s=>{ new google.maps.Marker({map,optimized:false,position:{lat:+s.lat,lng:+s.lng},label:{text:String(i+1),color:"#fff",fontSize:"11px",fontWeight:"800"},icon:{path:google.maps.SymbolPath.CIRCLE,scale:11,fillColor:col,fillOpacity:1,strokeColor:"#fff",strokeWeight:2}}); b.extend({lat:+s.lat,lng:+s.lng}); has=true; });
       const rt=tr._routes&&tr._routes[i]; if(rt&&rt.legs&&google.maps.geometry){ rt.legs.forEach(lg=>{ if(!lg.poly) return; try{ const path=google.maps.geometry.encoding.decodePath(lg.poly); new google.maps.Polyline({map,path,strokeColor:col,strokeOpacity:.85,strokeWeight:3.5}); }catch(e){} }); }
     });
     if(has) map.fitBounds(b,40);
   }).catch(()=>{});
 }
 function mapMarker(map,info,pos,title,mode,o){ o=o||{}; const conf={position:pos,map,title:title||""};
+  /* optimized:false — Google compose sinon toutes les icones d'une carte dans
+     UNE planche unique et n'en decoupe qu'une case par epingle. Quand ce
+     decoupage echoue (icones SVG en data-URL avec scaledSize, sur Safari iOS),
+     la planche entiere s'affiche : trois ou quatre pastilles cote a cote dans
+     un rectangle blanc. Sans optimisation, chaque epingle est une image
+     independante — c'est le remede documente, et le cout est nul a cette
+     echelle (quelques dizaines de marqueurs). */
+  conf.optimized=false;
   if(o.icon) conf.icon=o.icon; if(o.label) conf.label={text:o.label,color:"#fff",fontWeight:"700",fontSize:o.fontSize||"13px"}; if(o.z!=null) conf.zIndex=o.z;
   const m=new google.maps.Marker(conf);
   m.addListener("click",()=>{
@@ -5624,7 +5632,7 @@ function renderDayMap(stops,tr,day){ const el=document.getElementById("planMap")
         de:{car:"🚗 Autofahrt",walk:"🚶 Zu Fuß",appr:"🚶 Zu Fuß (hin und zurück vom Parkplatz)",park:"🅿️ Parkplatz — das Auto hält hier",transit:"🚆 Transport (Bahn / Bus / Seilbahn)",cable:"🚠 Seilbahn",hike:"🥾 Wanderweg",toll:"Maut",notoll:"Mautfreie Route"}}[lang()]||null;
       const MD=_MD||{car:"🚗",walk:"🚶",appr:"🚶",park:"🅿️",transit:"🚆",cable:"🚠",hike:"🥾",toll:"Toll",notoll:"No toll"};
       const _emKey={"🚗":"car","🚶":"walk","🚶 ⇄":"appr","🅿️":"park","🚆":"transit","🚠":"cable","🥾":"hike","🚫💰":"notoll"};
-      function mkIcon(pos,emoji,size){ const m=new google.maps.Marker({position:pos,map,zIndex:6,icon:{path:google.maps.SymbolPath.CIRCLE,scale:13,strokeOpacity:0,fillOpacity:0},label:{text:emoji,fontSize:(size||16)+"px"}});
+      function mkIcon(pos,emoji,size){ const m=new google.maps.Marker({position:pos,map,optimized:false,zIndex:6,icon:{path:google.maps.SymbolPath.CIRCLE,scale:13,strokeOpacity:0,fillOpacity:0},label:{text:emoji,fontSize:(size||16)+"px"}});
         const d=MD[_emKey[emoji]]; if(d){ m.addListener("click",()=>{ info.setContent('<div style="font:600 13px/1.35 system-ui;color:#0E2148;max-width:210px">'+d+'</div>'); info.setPosition(pos); info.open(map); }); } return m; }
       info2.forEach((lg,i)=>{
         const col=LEG_COLORS[i%LEG_COLORS.length];
@@ -5641,7 +5649,7 @@ function renderDayMap(stops,tr,day){ const el=document.getElementById("planMap")
               new google.maps.Polyline({path,map,strokeColor:col,strokeOpacity:1,strokeWeight:4,zIndex:3,icons:[{icon:{path:google.maps.SymbolPath.FORWARD_CLOSED_ARROW,scale:2.5,strokeColor:"#ffffff",strokeWeight:1.3,fillColor:col,fillOpacity:1},offset:"45%",repeat:"150px"}]});
               const mid=path[Math.floor(path.length/2)];
               if(mid) mkIcon(mid,"🚗",16);
-              if(lg.toll&&lg.toll.has&&path.length){ const tp=path[Math.floor(path.length*0.3)]; if(tp){ const _tm=new google.maps.Marker({position:tp,map,zIndex:6,icon:tollIcon(lg.toll.cur||"")}); _tm.addListener("click",()=>{ info.setContent('<div style="font:600 13px/1.35 system-ui;color:#0E2148;max-width:210px">'+MD.toll+(lg.toll.price?" · ~"+escapeHtml(lg.toll.price):"")+'</div>'); info.setPosition(tp); info.open(map); }); } }
+              if(lg.toll&&lg.toll.has&&path.length){ const tp=path[Math.floor(path.length*0.3)]; if(tp){ const _tm=new google.maps.Marker({position:tp,map,optimized:false,zIndex:6,icon:tollIcon(lg.toll.cur||"")}); _tm.addListener("click",()=>{ info.setContent('<div style="font:600 13px/1.35 system-ui;color:#0E2148;max-width:210px">'+MD.toll+(lg.toll.price?" · ~"+escapeHtml(lg.toll.price):"")+'</div>'); info.setPosition(tp); info.open(map); }); } }
               if(lg.tollAlt&&lg.tollAlt.poly){ const ap=enc.decodePath(lg.tollAlt.poly); new google.maps.Polyline({path:ap,map,strokeOpacity:0,zIndex:2,icons:[{icon:{path:"M 0,-1 0,1",strokeColor:"#8A93A6",strokeOpacity:.7,strokeWeight:2,scale:2.3},offset:"0",repeat:"12px"}]}); const am=ap[Math.floor(ap.length*0.6)]; if(am) mkIcon(am,"🚫💰",11); ap.forEach(p=>b2.extend(p)); } } }
           path.forEach(p=>b2.extend(p));
         } else if(lg.gap){ // tronçon transport : vrai tracé public (TRANSIT) + téléphérique réel + sentier optionnel, sinon connecteur schématique
@@ -6864,7 +6872,7 @@ function openMontage(tr,version,autoplay){ tr=tr||souvTrip(); if(!tr) return; _m
     <div id="mvStudio" class="stu" style="display:none">
       <div class="stu-top">
         <button class="stu-back" id="stuBack" aria-label="Retour">\u2039</button>
-        <div class="stu-ttl"><b>Studio Magot<i>\u2727</i></b><span>Montage vid\u00e9o \u00b7 v446</span></div>
+        <div class="stu-ttl"><b>Studio Magot<i>\u2727</i></b><span>Montage vid\u00e9o \u00b7 v447</span></div>
         <button class="stu-ico" id="stuUndo" title="Annuler">\u21b6</button>
         <button class="stu-ico" id="stuRedo" title="R\u00e9tablir">\u21b7</button>
         <button class="stu-exp" id="mvSave"><i>\u2b06</i>Exporter</button>
