@@ -1633,7 +1633,8 @@ body.dragging-on{-webkit-user-select:none;user-select:none}
 .mv-real p{margin:0 0 11px;line-height:1.5}
 /* Bilan de ce qui est reellement compose. Chaque chiffre vient du montage. */
 .mv-realsum{margin-top:9px;text-align:center;font:600 11.5px "Inter",system-ui;
-  font-size:clamp(11px,3vw,11.8px);color:var(--muted)}
+  font-size:clamp(11px,3vw,11.8px);color:var(--muted);line-height:1.5}
+.mv-realat{font-weight:400;opacity:.85}
 .mv-real .btn{margin-top:2px}
 /* Le storyboard et les versions sont deux sujets : on les separe franchement. */
 .dir-lab{padding-top:24px;margin-top:20px;border-top:1px solid var(--line,#E5E9F1)}
@@ -5827,6 +5828,17 @@ function smT(k){ return (_SMK[lang()]||_SMK.fr)[k]||_SMK.fr[k]||k; }
 function souvPoints(tr){ const out=[]; tripDays(tr).forEach(dd=>{ (tr.plan||[]).filter(s=>s.day===dd.i && s.lat!=null).sort((a,b)=>String(a.time||"").localeCompare(String(b.time||""))||((a.ord!=null?a.ord:0)-(b.ord!=null?b.ord:0))).forEach(s=>{ const pl=s.placeId?(tr.places||[]).find(x=>x.id===s.placeId):null; out.push(Object.assign({},pl||{},{lat:s.lat,lng:s.lng,day:dd.i,time:(s.time||""),title:(s.title||(pl&&pl.name)||""),note:((pl&&pl.note)||s.note||""),kind:(s.kind||"place"),meal:s.meal,oi:out.length})); }); }); return out; }
 /* L'IA renvoie souvent sa phrase en minuscule : on lui rend sa majuscule
    sans toucher au reste du texte. */
+/* Date de la derniere composition, dite simplement. */
+function _whenShort(ts){
+  try{ const d=new Date(ts); if(isNaN(d)) return "";
+    const n=new Date(), sameDay=d.toDateString()===n.toDateString();
+    const y=new Date(n.getTime()-86400000);
+    const hh=String(d.getHours()).padStart(2,"0")+":"+String(d.getMinutes()).padStart(2,"0");
+    if(sameDay) return "aujourd'hui \u00e0 "+hh;
+    if(d.toDateString()===y.toDateString()) return "hier \u00e0 "+hh;
+    return "le "+new Intl.DateTimeFormat(LOCALE[lang()]||"fr-FR",{day:"numeric",month:"long"}).format(d);
+  }catch(e){ return ""; }
+}
 function _cap1(x){ const v=String(x||"").trim(); return v?v.charAt(0).toUpperCase()+v.slice(1):v; }
 function souvFilmPoints(tr){ const pts=souvPoints(tr); const ord=tr&&tr.filmOrder;
   if(!Array.isArray(ord)||!ord.length) return pts;
@@ -7012,7 +7024,9 @@ function openMontage(tr,version,autoplay){ tr=tr||souvTrip(); if(!tr) return; _m
             <button class="btn ghostline2 block" id="mvReal">${tr.filmPlan?"\u2728 Recomposer avec Fid\u00e8le":"\u2728 Montage automatique (Fid\u00e8le)"}</button>
             ${(()=>{ const nS=souvFilmPoints(tr).length, d=_mvState.dur||60;
                const dl=d<60?(d+" s"):(Math.floor(d/60)+" min"+(d%60?" "+(d%60):""));
-               return nS?`<div class="mv-realsum">${nS} sc\u00e8ne${nS>1?"s":""} \u00b7 couverture et fin \u00b7 ${dl}</div>`:""; })()}
+               const at=tr.filmPlan&&tr.filmPlan.at?_whenShort(tr.filmPlan.at):"";
+               return nS?`<div class="mv-realsum">${nS} sc\u00e8ne${nS>1?"s":""} \u00b7 couverture et fin \u00b7 ${dl}`
+                 +(at?`<br><span class="mv-realat">Compos\u00e9 ${at}</span>`:``)+`</div>`:""; })()}
           </div>
           ${(()=>{ const unl=(tr.memories||[]).filter(m=>!m.placeId).length;
              return unl?`<div class="dir-warn">${unl} photo${unl>1?"s ne sont rattachées":" n'est rattachée"} à aucun lieu. <button id="mvSort">Classer mes photos \u203a</button></div>`:""; })()}
@@ -7080,7 +7094,7 @@ function openMontage(tr,version,autoplay){ tr=tr||souvTrip(); if(!tr) return; _m
     <div id="mvStudio" class="stu" style="display:none">
       <div class="stu-top">
         <button class="stu-back" id="stuBack" aria-label="Retour">\u2039</button>
-        <div class="stu-ttl"><b>Studio Magot<i>\u2727</i></b><span>Montage vid\u00e9o \u00b7 v458</span></div>
+        <div class="stu-ttl"><b>Studio Magot<i>\u2727</i></b><span>Montage vid\u00e9o \u00b7 v459</span></div>
         <button class="stu-ico" id="stuUndo" title="Annuler">\u21b6</button>
         <button class="stu-ico" id="stuRedo" title="R\u00e9tablir">\u21b7</button>
         <button class="stu-exp" id="mvSave"><i>\u2b06</i>Exporter</button>
@@ -7299,7 +7313,7 @@ function openMontage(tr,version,autoplay){ tr=tr||souvTrip(); if(!tr) return; _m
   { const bb=ov.querySelector("#stuBack"); if(bb) bb.onclick=()=>{ stop(); ov.classList.remove("cine");
       ov.querySelector("#mvStudio").style.display="none"; ov.querySelector(".smh").style.display="";
       /* Le film existe : cette page n'est plus une creation, ce sont ses reglages. */
-      { const t2=ov.querySelector(".smh-t"); if(t2) t2.textContent="\u2699 R\u00e9glages du montage"; }
+      { const t2=ov.querySelector(".smh-t"); if(t2) t2.textContent="\u{1F3AC} Composer ton film"; }
       ov.querySelector("#mvSetup").style.display=""; }; }
   /* Annuler / Rétablir sur les modifications de plans */
   { const un=ov.querySelector("#stuUndo"), re2=ov.querySelector("#stuRedo");
