@@ -1270,8 +1270,8 @@ body.dragging-on{-webkit-user-select:none;user-select:none}
 .dir-go .btn{flex:0 0 auto;padding:11px 16px}
 .dir-tl-h,.dir-vers-h{font-family:var(--font-serif,Georgia,serif);font-weight:700;font-size:clamp(13.6px,3.718vw,14.5px);color:var(--ink);margin-bottom:9px;display:flex;justify-content:space-between;align-items:baseline;gap:8px}
 .dir-vers-h span{font-family:system-ui;font-weight:400;font-size:clamp(10.8px,2.949vw,11.5px);color:var(--muted)}
-.dir-tl{display:flex;align-items:stretch;gap:10px;overflow-x:auto;-webkit-overflow-scrolling:touch;
-  padding:0 2px 8px;margin:4px 0 6px;scroll-snap-type:x proximity;scrollbar-width:none;
+.dir-tl{display:flex;align-items:stretch;gap:11px;overflow-x:auto;-webkit-overflow-scrolling:touch;
+  padding:0 2px 10px;margin:0 0 8px;scroll-snap-type:x proximity;scrollbar-width:none;
   -webkit-mask-image:linear-gradient(90deg,#000 0,#000 calc(100% - 22px),transparent 100%);
   mask-image:linear-gradient(90deg,#000 0,#000 calc(100% - 22px),transparent 100%)}
 .dir-tl::-webkit-scrollbar{display:none}
@@ -1391,12 +1391,25 @@ body.dragging-on{-webkit-user-select:none;user-select:none}
 
 /* Storyboard */
 .dir-tl{gap:11px}
-.tl-card{min-width:150px;padding:0 0 32px;border-radius:14px}
+.tl-card{min-width:min(68vw,270px);padding:0 0 34px;border-radius:16px}
 /* Intro et Outro sont des reperes, pas des scenes : ils ne prennent pas la
    place d'une carte. Regle posee APRES les generations de .tl-card et plus
    specifique, pour ne plus se faire ecraser. */
-.dir-tl .tl-card.tl-edge{flex:0 0 auto;min-width:62px;width:62px;align-self:center;
-  padding:12px 6px;border-radius:12px;overflow:visible}
+/* Les deux bornes montrent leur contenu reel, dans le style du generique
+   qui sera effectivement rendu : fond bleu nuit, accent dore, titre serif. */
+.dir-tl .tl-card.tl-edge{flex:0 0 auto;min-width:min(52vw,190px);width:min(52vw,190px);
+  align-self:stretch;padding:14px 13px;border-radius:14px;overflow:hidden;
+  background:#0B1A38;border:1px solid #1D2E52;border-style:solid;
+  display:flex;flex-direction:column;justify-content:center;gap:5px;text-align:center}
+.dir-tl .tl-card.tl-edge .tl-kick{font:800 9.5px "Inter",system-ui;
+  font-size:clamp(9px,2.45vw,9.8px);letter-spacing:.16em;text-transform:uppercase;color:#E0A33E}
+.dir-tl .tl-card.tl-edge b{font-family:var(--font-serif,Georgia,serif);font-weight:700;
+  font-size:clamp(13px,3.55vw,14.6px);line-height:1.2;color:#fff;text-transform:none;letter-spacing:0}
+.dir-tl .tl-card.tl-edge .tl-sub{font:400 10.5px "Inter",system-ui;
+  font-size:clamp(10px,2.7vw,10.8px);color:#9FADC6;letter-spacing:0;text-transform:none}
+.dir-tl .tl-card.tl-edge .tl-dur{position:absolute;right:9px;top:9px;padding:2px 6px;border-radius:6px;
+  background:rgba(255,255,255,.12);color:#C9D2E4;font:700 10px "Inter",system-ui;
+  font-size:clamp(9.6px,2.6vw,10.2px);letter-spacing:0;text-transform:none}
 .tl-thumb{position:relative;height:clamp(77px,24.62vw,96px);border-radius:13px 13px 0 0;margin-bottom:8px}
 .tl-card b{padding:0 10px;font-size:clamp(12.2px,3.333vw,13px);white-space:normal;line-height:1.25;display:block;min-height:32px}
 .tl-meta{padding:0 10px;font-size:clamp(10.3px,2.821vw,11px);color:var(--muted);display:block}
@@ -1601,11 +1614,11 @@ body.dragging-on{-webkit-user-select:none;user-select:none}
 
 .mv-real{background:var(--surface,#fff);border:1px solid var(--line-soft,#EEF1F7);
   border-left:3px solid var(--gold,#E0A33E);border-radius:var(--r,20px);
-  box-shadow:var(--shadow-sm);padding:15px 16px;margin:2px 0 20px}
+  box-shadow:var(--shadow-sm);padding:15px 16px;margin:2px 0 26px}
 .mv-real p{margin:0 0 11px;line-height:1.5}
 .mv-real .btn{margin-top:2px}
 /* Le storyboard et les versions sont deux sujets : on les separe franchement. */
-.dir-lab{padding-top:18px;margin-top:14px;border-top:1px solid var(--line,#E5E9F1)}
+.dir-lab{padding-top:24px;margin-top:20px;border-top:1px solid var(--line,#E5E9F1)}
 .dir-hint{margin:-4px 0 11px;font:400 12px "Inter",system-ui;
   font-size:clamp(11.3px,3.08vw,12px);color:var(--muted);line-height:1.45}
 .mv-realt{font:700 13.5px system-ui;font-size:clamp(12.7px,3.462vw,13.5px);color:var(--ink);margin-bottom:5px}
@@ -6983,20 +6996,24 @@ function openMontage(tr,version,autoplay){ tr=tr||souvTrip(); if(!tr) return; _m
           ${(()=>{ const unl=(tr.memories||[]).filter(m=>!m.placeId).length;
              return unl?`<div class="dir-warn">${unl} photo${unl>1?"s ne sont rattachées":" n'est rattachée"} à aucun lieu. <button id="mvSort">Classer mes photos \u203a</button></div>`:""; })()}
           <div class="dir-tl">
-            <div class="tl-card tl-edge"><b>Intro</b><span>0:03</span></div>
+            <div class="tl-card tl-edge tl-open"><span class="tl-kick">Magot Voyage</span>
+              <b>${escapeHtml((tr.title||"Ton voyage").slice(0,34))}</b>
+              <span class="tl-sub">Titre, dur\u00e9e et lieux</span><span class="tl-dur">0:03</span></div>
             ${souvFilmPoints(tr).map((pp,i)=>{ const ms=(tr.memories||[]).filter(m=>m.placeId===pp.id); const mm=ms[0];
               const thumb = mm ? `<span class="tl-thumb" data-media="${mm.id}">`
                           : (pp.photo ? `<span class="tl-thumb" style="background-image:url('${gPhoto(pp.photo,600)}')">`
                           : `<span class="tl-thumb tl-empty"><span class="tl-emoji">${(typeof catEmoji==="function"?catEmoji(pp):"\u{1F4CD}")}</span>`);
               return `<div class="tl-card${ms.length?"":" tl-nophoto"}">${thumb}<span class="tl-n">${i+1}</span><button class="tl-x" data-tlx="${i}">\u2715</button></span><b>${escapeHtml((pp.title||"").slice(0,22))}</b><span class="tl-meta">${ms.length?(ms.length+" photo"+(ms.length>1?"s":"")):"aucune photo"}</span><div class="tl-mv"><button data-tlm="${i}" data-dir="-1" ${i===0?"disabled":""}>\u2039</button><button data-tlm="${i}" data-dir="1" ${i===souvFilmPoints(tr).length-1?"disabled":""}>\u203a</button></div></div>`; }).join("")}
-            <div class="tl-card tl-edge"><b>Outro</b><span>0:03</span></div>
+            <div class="tl-card tl-edge tl-close"><span class="tl-kick">Fin</span>
+              <b>Merci d'avoir voyag\u00e9<br>avec Magot Voyage</b>
+              <span class="tl-sub">Signature et bilan</span><span class="tl-dur">0:03</span></div>
           </div>
           ${(()=>{ const tot=souvPoints(tr).length, cur=souvFilmPoints(tr).length;
              return (Array.isArray(tr.filmOrder)&&cur<tot)
                ? `<button class="tl-restore" id="tlReset2" type="button">\u21ba Remettre les ${tot-cur} sc\u00e8ne${(tot-cur)>1?"s":""} retir\u00e9e${(tot-cur)>1?"s":""}</button>`
                : ""; })()}
           <div class="mv-lab dir-lab">Versions</div>
-          <div class="dir-hint">Un r\u00e9glage complet en un geste : dur\u00e9e, format, transitions et couleur. Tes sc\u00e8nes et ta musique ne changent pas.</div>
+          <div class="dir-hint">Choisis une version. La dur\u00e9e, le format, les couleurs et les transitions s'ajustent tout seuls.<br>Tes sc\u00e8nes et ta musique ne changent pas.</div>
           ${(()=>{ const _k=(_mvState.keep||[]); let _ref=null;
              for(let i=0;i<_k.length;i++){ if(_k[i] && !_k[i].vid && _k[i].id){ _ref=_k[i].id; break; } }
              if(!_ref){ const _m=(tr.memories||[]).find(m=>m && !m.vid); if(_m) _ref=_m.id; }
@@ -7035,7 +7052,7 @@ function openMontage(tr,version,autoplay){ tr=tr||souvTrip(); if(!tr) return; _m
     <div id="mvStudio" class="stu" style="display:none">
       <div class="stu-top">
         <button class="stu-back" id="stuBack" aria-label="Retour">\u2039</button>
-        <div class="stu-ttl"><b>Studio Magot<i>\u2727</i></b><span>Montage vid\u00e9o \u00b7 v453</span></div>
+        <div class="stu-ttl"><b>Studio Magot<i>\u2727</i></b><span>Montage vid\u00e9o \u00b7 v454</span></div>
         <button class="stu-ico" id="stuUndo" title="Annuler">\u21b6</button>
         <button class="stu-ico" id="stuRedo" title="R\u00e9tablir">\u21b7</button>
         <button class="stu-exp" id="mvSave"><i>\u2b06</i>Exporter</button>
