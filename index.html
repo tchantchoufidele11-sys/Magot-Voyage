@@ -1271,9 +1271,7 @@ body.dragging-on{-webkit-user-select:none;user-select:none}
 .dir-tl-h,.dir-vers-h{font-family:var(--font-serif,Georgia,serif);font-weight:700;font-size:clamp(13.6px,3.718vw,14.5px);color:var(--ink);margin-bottom:9px;display:flex;justify-content:space-between;align-items:baseline;gap:8px}
 .dir-vers-h span{font-family:system-ui;font-weight:400;font-size:clamp(10.8px,2.949vw,11.5px);color:var(--muted)}
 .dir-tl{display:flex;align-items:stretch;gap:11px;overflow-x:auto;-webkit-overflow-scrolling:touch;
-  padding:0 2px 10px;margin:0 0 8px;scroll-snap-type:x proximity;scrollbar-width:none;
-  -webkit-mask-image:linear-gradient(90deg,#000 0,#000 calc(100% - 22px),transparent 100%);
-  mask-image:linear-gradient(90deg,#000 0,#000 calc(100% - 22px),transparent 100%)}
+  padding:0 2px 10px;margin:0 0 8px;scroll-snap-type:x proximity;scrollbar-width:none}
 .dir-tl::-webkit-scrollbar{display:none}
 .dir-tl>*{scroll-snap-align:start}
 .tl-card{flex:0 0 auto;min-width:92px;background:var(--surface,#fff);border:1px solid var(--line);border-radius:12px;padding:10px;text-align:left;cursor:pointer;position:relative}
@@ -1292,9 +1290,7 @@ body.dragging-on{-webkit-user-select:none;user-select:none}
 .tl-edge span{font:600 11px "Inter",system-ui;font-size:clamp(10.5px,2.85vw,11px);color:var(--muted)}
 .tl-n{position:absolute;top:-6px;left:-6px;width:20px;height:20px;border-radius:50%;background:var(--gold,#E0A33E);color:#3A2407;font:800 11px/20px system-ui;font-size:clamp(10.3px,2.821vw,11px);text-align:center}
 .dir-vers{display:flex;gap:9px;overflow-x:auto;-webkit-overflow-scrolling:touch;
-  padding:0 2px 4px;scroll-snap-type:x proximity;scrollbar-width:none;
-  -webkit-mask-image:linear-gradient(90deg,#000 0,#000 calc(100% - 22px),transparent 100%);
-  mask-image:linear-gradient(90deg,#000 0,#000 calc(100% - 22px),transparent 100%)}
+  padding:0 2px 4px;scroll-snap-type:x proximity;scrollbar-width:none}
 .dir-vers::-webkit-scrollbar{display:none}
 .dir-vers>*{scroll-snap-align:start}
 .vers{flex:0 0 auto;background:var(--surface,#fff);border:1px solid var(--line);border-radius:12px;padding:11px 13px;cursor:pointer;text-align:left}
@@ -1397,8 +1393,8 @@ body.dragging-on{-webkit-user-select:none;user-select:none}
    specifique, pour ne plus se faire ecraser. */
 /* Les deux bornes montrent leur contenu reel, dans le style du generique
    qui sera effectivement rendu : fond bleu nuit, accent dore, titre serif. */
-.dir-tl .tl-card.tl-edge{flex:0 0 auto;min-width:min(52vw,190px);width:min(52vw,190px);
-  align-self:stretch;padding:14px 13px;border-radius:14px;overflow:hidden;
+.dir-tl .tl-card.tl-edge{flex:0 0 auto;min-width:min(68vw,270px);width:min(68vw,270px);
+  align-self:stretch;padding:14px 13px;border-radius:16px;overflow:hidden;
   background:#0B1A38;border:1px solid #1D2E52;border-style:solid;
   display:flex;flex-direction:column;justify-content:center;gap:5px;text-align:center}
 .dir-tl .tl-card.tl-edge .tl-kick{font:800 9.5px "Inter",system-ui;
@@ -1616,6 +1612,9 @@ body.dragging-on{-webkit-user-select:none;user-select:none}
   border-left:3px solid var(--gold,#E0A33E);border-radius:var(--r,20px);
   box-shadow:var(--shadow-sm);padding:15px 16px;margin:2px 0 26px}
 .mv-real p{margin:0 0 11px;line-height:1.5}
+/* Bilan de ce qui est reellement compose. Chaque chiffre vient du montage. */
+.mv-realsum{margin-top:9px;text-align:center;font:600 11.5px "Inter",system-ui;
+  font-size:clamp(11px,3vw,11.8px);color:var(--muted)}
 .mv-real .btn{margin-top:2px}
 /* Le storyboard et les versions sont deux sujets : on les separe franchement. */
 .dir-lab{padding-top:24px;margin-top:20px;border-top:1px solid var(--line,#E5E9F1)}
@@ -6992,6 +6991,9 @@ function openMontage(tr,version,autoplay){ tr=tr||souvTrip(); if(!tr) return; _m
             <p>Il choisit l'ordre des scènes, les chapitres et la scène finale à partir de tes lieux. Le rythme et les coupes restent calculés sur ton téléphone.</p>
             ${tr.filmPlan?`<div class="mv-realok">${escapeHtml(_cap1(tr.filmPlan.pourquoi||("Plan "+(tr.filmPlan.genre||""))))}</div>`:""}
             <button class="btn ghostline2 block" id="mvReal">${tr.filmPlan?"\u2728 Recomposer avec Fid\u00e8le":"\u2728 Montage automatique (Fid\u00e8le)"}</button>
+            ${(()=>{ const nS=souvFilmPoints(tr).length, d=_mvState.dur||60;
+               const dl=d<60?(d+" s"):(Math.floor(d/60)+" min"+(d%60?" "+(d%60):""));
+               return nS?`<div class="mv-realsum">${nS} sc\u00e8ne${nS>1?"s":""} \u00b7 couverture et fin \u00b7 ${dl}</div>`:""; })()}
           </div>
           ${(()=>{ const unl=(tr.memories||[]).filter(m=>!m.placeId).length;
              return unl?`<div class="dir-warn">${unl} photo${unl>1?"s ne sont rattachées":" n'est rattachée"} à aucun lieu. <button id="mvSort">Classer mes photos \u203a</button></div>`:""; })()}
@@ -7013,22 +7015,22 @@ function openMontage(tr,version,autoplay){ tr=tr||souvTrip(); if(!tr) return; _m
                ? `<button class="tl-restore" id="tlReset2" type="button">\u21ba Remettre les ${tot-cur} sc\u00e8ne${(tot-cur)>1?"s":""} retir\u00e9e${(tot-cur)>1?"s":""}</button>`
                : ""; })()}
           <div class="mv-lab dir-lab">Versions</div>
-          <div class="dir-hint">Choisis une version. La dur\u00e9e, le format, les couleurs et les transitions s'ajustent tout seuls.<br>Tes sc\u00e8nes et ta musique ne changent pas.</div>
+          <div class="dir-hint">Choisis un style : Magot ajuste la dur\u00e9e, le format, les couleurs et les transitions. Tes sc\u00e8nes et ta musique ne changent pas.</div>
           ${(()=>{ const _k=(_mvState.keep||[]); let _ref=null;
              for(let i=0;i<_k.length;i++){ if(_k[i] && !_k[i].vid && _k[i].id){ _ref=_k[i].id; break; } }
              if(!_ref){ const _m=(tr.memories||[]).find(m=>m && !m.vid); if(_m) _ref=_m.id; }
              window._versRef=_ref||""; return ""; })()}
           <div class="dir-vers">${MV_VERSIONS.map(v=>{
-            const D={cinema:["Plans longs, transitions premium, étalonnage cinéma.","#1B2A4A"],
+            const D={cinema:["Plans longs, transitions premium, \u00e9talonnage cin\u00e9ma.","#1B2A4A"],
                      romance:["Rythme calme, fondus doux, couleurs chaudes.","#7A3B52"],
                      aventure:["Coupes courtes, transitions franches, contraste.","#1E5A55"],
-                     social:["Format vertical 9:16, 30 s, rythme rapide.","#3A2E6B"],
-                     carnet:["Plans posés, teinte vintage, esprit carnet.","#5C4326"],
-                     magot:["La signature Magot : ombres bleu-nuit, lumières dorées, transitions maison.","#0E2148"],
-                     reel:["Vertical 9:16, 30 s, rythme soutenu — calibré pour les Réels.","#7A2E5B"],
-                     tiktok:["Vertical 9:16, 35 s, coupes rapides sur les temps forts.","#1F4E5F"],
-                     youtube:["Horizontal 16:9, 1 min 30, plans posés et étalonnage cinéma.","#6B2320"],
-                     famille:["Horizontal 16:9, 2 min, rythme lent et couleurs chaudes.","#5A4A1F"]}[v.k]||["Réglages du film adaptés à cette version.","#26324A"];
+                     social:["Rythme rapide, coupes nettes, couleurs naturelles.","#3A2E6B"],
+                     carnet:["Plans pos\u00e9s, teinte vintage, esprit carnet.","#5C4326"],
+                     magot:["La signature Magot : ombres bleu-nuit, lumi\u00e8res dor\u00e9es, transitions maison.","#0E2148"],
+                     reel:["Rythme soutenu, coupes sur les temps forts.","#7A2E5B"],
+                     tiktok:["Coupes tr\u00e8s rapides cal\u00e9es sur la musique.","#1F4E5F"],
+                     youtube:["Plans pos\u00e9s, transitions cin\u00e9ma, \u00e9talonnage froid.","#6B2320"],
+                     famille:["Rythme lent, fondus longs, couleurs chaudes.","#5A4A1F"]}[v.k]||["R\u00e9glages adapt\u00e9s \u00e0 cette version.","#26324A"];
             const _on=(_mvState.dur===v.d && _mvState.fmt===v.fmt && (_mvState.style||"")===(v.style||"") && (_mvState.grade||"natural")===(v.grade||"natural"));
             const _g=MV_GRADE[v.grade||"natural"]||MV_GRADE.natural;
             const _ar=(v.fmt==="v")?"9:16":(v.fmt==="h")?"16:9":(v.fmt==="c")?"1:1":"auto";
@@ -7052,7 +7054,7 @@ function openMontage(tr,version,autoplay){ tr=tr||souvTrip(); if(!tr) return; _m
     <div id="mvStudio" class="stu" style="display:none">
       <div class="stu-top">
         <button class="stu-back" id="stuBack" aria-label="Retour">\u2039</button>
-        <div class="stu-ttl"><b>Studio Magot<i>\u2727</i></b><span>Montage vid\u00e9o \u00b7 v454</span></div>
+        <div class="stu-ttl"><b>Studio Magot<i>\u2727</i></b><span>Montage vid\u00e9o \u00b7 v456</span></div>
         <button class="stu-ico" id="stuUndo" title="Annuler">\u21b6</button>
         <button class="stu-ico" id="stuRedo" title="R\u00e9tablir">\u21b7</button>
         <button class="stu-exp" id="mvSave"><i>\u2b06</i>Exporter</button>
