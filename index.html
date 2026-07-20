@@ -6811,7 +6811,7 @@ function openMontage(tr,version,autoplay){ tr=tr||souvTrip(); if(!tr) return; _m
     <div id="mvStudio" class="stu" style="display:none">
       <div class="stu-top">
         <button class="stu-back" id="stuBack" aria-label="Retour">\u2039</button>
-        <div class="stu-ttl"><b>Studio Magot<i>\u2727</i></b><span>Montage vid\u00e9o \u00b7 v442</span></div>
+        <div class="stu-ttl"><b>Studio Magot<i>\u2727</i></b><span>Montage vid\u00e9o \u00b7 v443</span></div>
         <button class="stu-ico" id="stuUndo" title="Annuler">\u21b6</button>
         <button class="stu-ico" id="stuRedo" title="R\u00e9tablir">\u21b7</button>
         <button class="stu-exp" id="mvSave"><i>\u2b06</i>Exporter</button>
@@ -7087,11 +7087,23 @@ function openMontage(tr,version,autoplay){ tr=tr||souvTrip(); if(!tr) return; _m
       if(typeof hydratePhotos==="function") hydratePhotos(e2);
       const ab=e2.querySelector("#mvThAdd");
       if(ab) ab.onclick=(ev)=>{ ev.preventDefault(); ev.stopPropagation();
-        /* La feuille des Souvenirs est masquee par le studio : on appelle
-           directement l'ajout de photos plutot que de cliquer un bouton
-           qui n'est pas a l'ecran. */
-        if(typeof openPhotoAdd==="function") openPhotoAdd();
-        else { const b2=document.getElementById("memAddBtn"); if(b2) b2.click(); } };
+        /* Deux pieges ici, dans cet ordre :
+           1. le bouton + des Souvenirs est masque par le studio — on appelle
+              donc openPhotoAdd() directement ;
+           2. les feuilles « .sheet » sont a z-index 3000 et le studio a 5000 :
+              la feuille s'ouvrait DERRIERE le studio, invisible. On la remonte
+              au-dessus le temps de l'ajout, puis on la remet a sa place. */
+        if(typeof openPhotoAdd!=="function"){ const b2=document.getElementById("memAddBtn"); if(b2) b2.click(); return; }
+        openPhotoAdd();
+        const sh=document.getElementById("photoAddSheet");
+        if(sh){ sh.style.zIndex="9200";
+          const restore=()=>{ sh.style.zIndex=""; };
+          const cb=document.getElementById("photoAddClose");
+          if(cb) cb.addEventListener("click",restore,{once:true});
+          /* filet de securite : si la feuille se ferme autrement (validation,
+             geste de retour), on rend le z-index des qu'elle n'est plus visible. */
+          const iv=setInterval(()=>{ if(!sh.classList.contains("show")){ restore(); clearInterval(iv); } },400);
+          setTimeout(()=>clearInterval(iv),120000); } };
       e2.querySelectorAll(".mv-th[data-media]").forEach(el=>{
         el.onclick=(ev)=>{ ev.preventDefault(); ev.stopPropagation(); openMediaPrep(tr); }; });
     }
