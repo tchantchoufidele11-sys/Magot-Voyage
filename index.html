@@ -292,7 +292,12 @@ nav.tabs button.active .ico{background:var(--navy);color:#fff;box-shadow:0 6px 1
 .exp-search svg{width:18px;height:18px;stroke:var(--muted);fill:none;stroke-width:2;flex:0 0 auto}
 .exp-search input{flex:1;min-width:0;border:0;background:none;font:500 14.5px "Inter",sans-serif;font-size:clamp(13.6px,3.718vw,14.5px);color:var(--ink);outline:none}
 .exp-search input::placeholder{color:var(--muted)}
-.chips-scroll{display:flex;gap:8px;overflow-x:auto;padding-bottom:4px;margin-bottom:18px;-webkit-overflow-scrolling:touch}
+.chips-scroll{display:flex;flex-wrap:wrap;gap:7px;overflow:visible;padding-bottom:0;margin-bottom:16px}
+.chips-scroll>.chip{flex:1 1 auto;display:inline-flex;align-items:center;justify-content:center;
+  gap:6px;padding:8px 13px;border-radius:999px;line-height:1.15;white-space:nowrap}
+.chips-scroll>.chip svg{width:15px;height:15px;flex:0 0 auto;fill:none;stroke:currentColor;
+  stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round;color:var(--gold-d,#C2872A)}
+.chips-scroll>.chip.on svg{color:currentColor}
 .chips-scroll::-webkit-scrollbar{display:none}
 .chips-scroll .chip{flex:0 0 auto}
 .exp-sec{margin-bottom:22px}
@@ -331,6 +336,32 @@ select.csel{width:100%;padding:13px 14px;border:1px solid var(--line);border-rad
 .price{font:700 12px "Inter",sans-serif;font-size:clamp(11.3px,3.077vw,12px);color:var(--emerald)}
 .open{font:600 11px "Inter",sans-serif;font-size:clamp(10.3px,2.821vw,11px);padding:4px 9px;border-radius:999px}
 .open.y{background:rgba(22,163,74,.14);color:#16A34A}.open.n{background:rgba(220,38,38,.12);color:var(--danger)}
+/* Un filtre actif se voit sans ouvrir la feuille. */
+#expFilter{position:relative}
+#expFilter.on::after{content:"";position:absolute;right:9px;top:9px;width:8px;height:8px;
+  border-radius:50%;background:var(--gold,#E0A33E);box-shadow:0 0 0 2px var(--surface,#fff)}
+/* Interrupteur unique : l'etat se lit sans avoir a comparer deux boutons. */
+.filt-sw{display:flex;align-items:center;justify-content:space-between;gap:12px;width:100%;
+  min-height:var(--tap,44px);padding:10px 14px;border:1px solid var(--line);border-radius:14px;
+  background:var(--surface,#fff);color:var(--ink);cursor:pointer;
+  font:600 13.5px "Inter",sans-serif;font-size:clamp(12.7px,3.46vw,13.5px)}
+.filt-sw.on{border-color:var(--navy,#0E2148)}
+.fsw-b{flex:0 0 auto;width:46px;height:27px;border-radius:999px;background:var(--line);
+  position:relative;transition:background .18s ease}
+.fsw-b>i{position:absolute;left:3px;top:3px;width:21px;height:21px;border-radius:50%;
+  background:#fff;box-shadow:0 1px 3px rgba(0,0,0,.28);transition:transform .18s cubic-bezier(.2,.7,.3,1)}
+.filt-sw.on .fsw-b{background:var(--navy,#0E2148)}
+.filt-sw.on .fsw-b>i{transform:translateX(19px)}
+[data-theme="dark"] .filt-sw.on .fsw-b{background:var(--gold,#E9B559)}
+@media (prefers-reduced-motion:reduce){ .fsw-b,.fsw-b>i{transition:none} }
+/* La feuille de filtres est courte : ses actions se posent en bas de l'ecran
+   plutot que de flotter au milieu du vide. */
+#expFilterSheet .sh-body{display:flex;flex-direction:column}
+#expFilterSheet .bud-actions{margin-top:auto!important;position:sticky;bottom:0;
+  padding:14px 0 max(14px,env(safe-area-inset-bottom));background:var(--bg);
+  border-top:1px solid var(--line-soft,#EEF1F7)}
+.hrad-ends{display:flex;justify-content:space-between;margin:2px 2px -2px;
+  font:600 10.5px "Inter",sans-serif;font-size:clamp(10px,2.7vw,10.8px);color:var(--muted)}
 .exp-loading{display:flex;align-items:center;gap:11px;color:var(--muted);padding:32px 6px;font-size:clamp(13.2px,3.59vw,14px)}
 .spin{width:18px;height:18px;border:2.4px solid var(--line);border-top-color:var(--gold);border-radius:50%;animation:spin .8s linear infinite;flex:0 0 auto}
 @keyframes spin{to{transform:rotate(360deg)}}
@@ -1057,6 +1088,7 @@ body.dragging-on{-webkit-user-select:none;user-select:none}
 .conv-move{background:none;border:none;cursor:pointer;font-size:clamp(13.2px,3.59vw,14px);opacity:.5;padding:4px;border-radius:8px;transition:all .15s;color:var(--gold-deep,var(--gold))}
 .conv-move:hover,.conv-move:active{opacity:1;background:var(--gold-soft)}
 .conv-sec-lbl .conv-new-sm{letter-spacing:normal;text-transform:none}
+.dt-open-btn>i{margin-left:auto;font-style:normal;color:var(--muted);font-size:16px;line-height:1}
 .dt-open-btn{display:flex;align-items:center;gap:8px;width:100%;margin:2px 0 10px;padding:11px 14px;border-radius:14px;border:1px solid var(--line);background:var(--surface);color:var(--ink);font:650 13.5px "Inter",sans-serif;font-size:clamp(12.7px,3.462vw,13.5px);cursor:pointer;box-shadow:0 1px 4px rgba(14,33,72,.05)}
 .dt-open-btn:active{transform:scale(.99)}
 .dt-intro{font:600 12.5px "Inter",sans-serif;font-size:clamp(11.8px,3.205vw,12.5px);color:var(--muted);padding:4px 2px 12px}
@@ -2634,7 +2666,7 @@ body.dragging-on{-webkit-user-select:none;user-select:none}
       </div>
       <div class="exp-search"><svg id="expSearchBtn" style="cursor:pointer" viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="m21 21-4-4"/></svg><input id="expSearch" data-i18n-ph="exp.searchPh" placeholder="Rechercher un lieu, une activité…" autocomplete="off"></div>
       <div class="chips chips-scroll" id="expCats"></div>
-      <button class="dt-open-btn" id="dtOpenBtn">🇫🇷 <span data-i18n="dt.official">Lieux officiels français</span></button>
+      <button class="dt-open-btn" id="dtOpenBtn">🇫🇷 <span data-i18n="dt.official">Lieux officiels France</span><i aria-hidden="true">›</i></button>
       <div id="expRadius"></div>
       <div id="exploreResults"></div>
     </section>
@@ -3131,7 +3163,7 @@ function renderPrefs(){ const body=document.getElementById("prefsBody"); if(!bod
     });
     h+=`</div></div>`;
   });
-  h+=`<button class="btn gold block" id="prefsSave" style="margin-top:14px">${pt_("save")}</button>`;
+  h+=`<button class="btn navy block" id="prefsSave" style="margin-top:14px">${pt_("save")}</button>`;
   body.innerHTML=h;
   body.querySelectorAll(".prefs-chip").forEach(b=>b.onclick=()=>{ if(b.dataset.t==="multi") togglePref(b.dataset.k,b.dataset.o); else setPref(b.dataset.k,b.dataset.o); });
   body.querySelector("#prefsSave").onclick=()=>{ saveState(); schedulePrefsPush(); toast(pt_("saved")); closePrefs(); };
@@ -3168,7 +3200,7 @@ function renderSettings(){
   if(currentUser){
     h+=`<div class="auth-user" style="margin-bottom:8px">👤 ${escapeHtml(currentUser.email||"")}</div><button class="btn ghostline2 block" id="setLogout">${logoutLbl}</button>`;
   } else {
-    h+=`<div class="auth-user" style="margin-bottom:8px">👤 ${guestLbl}</div><button class="btn gold block" id="setLogin">${loginLbl}</button>`;
+    h+=`<div class="auth-user" style="margin-bottom:8px">👤 ${guestLbl}</div><button class="btn navy block" id="setLogin">${loginLbl}</button>`;
   }
   h+=`<div style="height:18px"></div>`;
   const prefsLbl={fr:"Mes préférences",en:"My preferences",es:"Mis preferencias",it:"Le mie preferenze",de:"Meine Vorlieben"}[L]||"Mes préférences";
@@ -4131,7 +4163,7 @@ function pcard(p,layout){
   const pr=priceLabel(p.price);
   return `<div class="pcard ${layout==='scroll'?'sc':''}" data-id="${escapeHtml(p.id)}"><div class="ph" style="${ph}">${badge}</div>
     <div class="pc-body">${rt}<div class="pc-name">${escapeHtml(p.name)}</div>
-    <div class="pc-meta"><span class="chip-cat">${escapeHtml(p.primaryType||catLabel(p.types))}</span>${pr?`<span class="price">${pr}</span>`:""}</div>${dist}</div></div>`; }
+    <div class="pc-meta"><span class="chip-cat">${escapeHtml(p.primaryType||catLabel(p.types))}</span>${pr?`<span class="price">${pr}</span>`:""}${p.openNow!=null?`<span class="open ${p.openNow?"y":"n"}">${p.openNow?t("place.openNow"):t("place.closed")}</span>`:""}</div>${dist}</div></div>`; }
 let _exSections=[]; const exFilter={minRating:0,px:new Set(),openNow:false,subcat:new Set()};
 function exFilterActive(){ return !!(exFilter.minRating||exFilter.px.size||exFilter.openNow||exFilter.subcat.size); }
 function exMatch(p){ const f=exFilter;
@@ -4383,19 +4415,33 @@ function secHtml(title,res,layout){
   const _exCity=_cityOf(currentTrip()); ps.sort((a,b)=>((sameCity(b,_exCity)?1:0)-(sameCity(a,_exCity)?1:0))||(weightedRating(b)-weightedRating(a)));
   ps.forEach(p=>_placeReg[p.id]=p);
   return `<div class="exp-sec"><div class="rowhead"><h2>${escapeHtml(title)}</h2></div><div class="${layout==='scroll'?'pcards-scroll':'pcards-grid'}">${ps.map(p=>pcard(p,layout)).join("")}</div></div>`; }
-function needKeyHtml(){ return `<div class="empty" style="padding:30px 18px"><span class="medallion"><svg viewBox="0 0 24 24"><circle cx="8" cy="15" r="4.2"/><path d="M11 12l8-8 2 2-2 2 1.5 1.5M19 6l1.5 1.5"/></svg></span><p>${t("exp.needKey")}</p><button class="btn gold" id="expKey" style="margin-top:14px">${t("exp.addKey")}</button></div>`; }
+function needKeyHtml(){ return `<div class="empty" style="padding:30px 18px"><span class="medallion"><svg viewBox="0 0 24 24"><circle cx="8" cy="15" r="4.2"/><path d="M11 12l8-8 2 2-2 2 1.5 1.5M19 6l1.5 1.5"/></svg></span><p>${t("exp.needKey")}</p><button class="btn navy" id="expKey" style="margin-top:14px">${t("exp.addKey")}</button></div>`; }
 function dedupeRes(res,seen){ if(!res||!res.places) return res; const places=res.places.filter(p=>{ const id=p.id; if(!id) return true; if(seen.has(id)) return false; seen.add(id); return true; }); return Object.assign({},res,{places}); }
 function bindPlaceCards(box){ box.querySelectorAll(".pcard").forEach(c=>c.onclick=()=>openPlace(_placeReg[c.dataset.id])); }
+const CAT_ICON={
+  all:'<path d="M4 6h16M4 12h16M4 18h16"/>',
+  culture:'<path d="M4 10h16M5 10V19M19 10v9M9 10v9M15 10v9M3 19h18M12 3.5 20 9H4z"/>',
+  beach:'<path d="M3 19c2.2 1.3 4 1.3 6 0s3.8-1.3 6 0 3.8 1.3 6 0"/><path d="M12 15V7"/><path d="M6 9a7 7 0 0 1 12 0z"/>',
+  hiking:'<path d="M4 19h16"/><path d="m7 19 5-11 3.2 6.4"/><path d="m13.2 12.6 2.3-3.1L20 19"/>',
+  viewpoint:'<circle cx="12" cy="11.5" r="3"/><path d="M2.5 11.5C5 7.5 8.4 5.5 12 5.5s7 2 9.5 6c-2.5 4-5.9 6-9.5 6s-7-2-9.5-6z"/>',
+  parkgarden:'<path d="M12 21v-5"/><path d="M12 16c-4.2 0-6.5-2.4-6.5-5.5S7.8 4 12 4s6.5 3.4 6.5 6.5S16.2 16 12 16z"/>',
+  port:'<circle cx="12" cy="5" r="2"/><path d="M12 7v13M6.5 12H17.5"/><path d="M4.5 13.5c0 4 3.4 6.5 7.5 6.5s7.5-2.5 7.5-6.5"/>',
+  mountainlac:'<path d="M3 17.5h18"/><path d="m4 14 5-8 4 6 2.5-3.5L20 14z"/>',
+  restaurants:'<path d="M6 3v8a2.5 2.5 0 0 0 5 0V3M8.5 11v10"/><path d="M17 3c-1.6 1.2-2.3 3-2.3 5.2 0 1.6.7 2.6 2.3 2.8V21"/>',
+  shops:'<path d="M5 8h14l-1 12H6z"/><path d="M9 8V6a3 3 0 0 1 6 0v2"/>',
+  divers:'<path d="m12 3.6 2.5 5.4 5.9.7-4.4 4 1.2 5.8L12 16.6 6.8 19.5 8 13.7 3.6 9.7l5.9-.7z"/>'
+};
 function renderExploreChips(){ const el=document.getElementById("expCats"); if(!el) return;
-  el.innerHTML=CATS.map(c=>`<button class="chip ${exploreState.cat===c.k?'on':''}" data-cat="${c.k}">${t("cat."+c.k)}</button>`).join("");
+  el.innerHTML=CATS.map(c=>`<button class="chip ${exploreState.cat===c.k?'on':''}" data-cat="${c.k}"><svg viewBox="0 0 24 24">${CAT_ICON[c.k]||CAT_ICON.divers}</svg>${t("cat."+c.k)}</button>`).join("");
   el.querySelectorAll("[data-cat]").forEach(b=>b.onclick=()=>{ exploreState.cat=b.dataset.cat; exploreState.query=""; exFilter.subcat.clear(); exFilter.px.clear(); _subFetchKey=""; _subFetchSecs=null; const s=document.getElementById("expSearch"); if(s) s.value=""; renderExplore(); }); }
 function renderExploreRadius(){ const el=document.getElementById("expRadius"); if(!el) return;
-  el.innerHTML=`<div class="hotel-rad"><div class="hrad-top"><span class="hpx-lab">${t("hotel.radius")}</span><span class="hrad-val">${_exploreRadiusKm} km</span></div><input type="range" id="exRadSlider" min="5" max="150" step="5" value="${_exploreRadiusKm}"></div>`;
+  el.innerHTML=`<div class="hotel-rad"><div class="hrad-top"><span class="hpx-lab">${t("hotel.radius")}</span><span class="hrad-val">${_exploreRadiusKm} km</span></div><div class="hrad-ends"><span>5 km</span><span>150 km</span></div><input type="range" id="exRadSlider" min="5" max="150" step="5" value="${_exploreRadiusKm}"></div>`;
   const sl=el.querySelector("#exRadSlider"); if(sl){ sl.oninput=()=>{ _exploreRadiusKm=+sl.value; const v=el.querySelector(".hrad-val"); if(v) v.textContent=_exploreRadiusKm+" km"; }; sl.onchange=()=>renderExplore(); } }
 async function renderExplore(){
   _subFetchKey=""; _subFetchSecs=null; _exMore=12;
   { const db=document.getElementById("dtOpenBtn"); if(db) db.onclick=openDataTourisme; }
   renderExploreChips(); renderExploreRadius();
+  { const fb=document.getElementById("expFilter"); if(fb) fb.classList.toggle("on", exFilterActive()); }
   { const _es=document.getElementById("expSearch"); if(_es) _es.placeholder=(exploreState.cat==="shops")?t("exp.shopsPh"):((exploreState.cat==="restaurants")?t("exp.restoPh"):t("exp.searchPh")); }
   const box=document.getElementById("exploreResults"); if(!box) return;
   const trip=currentTrip();
@@ -4479,12 +4525,12 @@ function renderExpFilter(){ const b=document.getElementById("expFilterBody"); if
   const subHtml=_subs?`<div class="fld"><label>${t("cat."+exploreState.cat)}</label><div class="chips">${_subs.map(d=>`<button type="button" class="chip ${exFilter.subcat.has(d.k)?'on':''}" data-sub="${d.k}">${t("sub."+d.k)}</button>`).join("")}</div></div>`:"";
   b.innerHTML=subHtml+`<div class="fld"><label>${t("exp.fRating")}</label><div class="chips">${RAT.map(([v,l])=>`<button type="button" class="chip ${exFilter.minRating===v?'on':''}" data-rat="${v}">${l.indexOf("exp.")===0?t(l):l}</button>`).join("")}</div></div>
    ${exploreState.cat==="restaurants"?`<div class="fld"><label>${t("exp.fPrice")}</label><div class="chips">${PX.map(([k,l])=>`<button type="button" class="chip ${exFilter.px.has(k)?'on':''}" data-px="${k}">${l}</button>`).join("")}</div></div>`:""}
-   <div class="filt-toggle"><span>${t("exp.fOpenNow")}</span><div class="seg"><button data-open="1" class="${exFilter.openNow?'on':''}">${t("set.autotrOn")}</button><button data-open="0" class="${exFilter.openNow?'':'on'}">${t("set.autotrOff")}</button></div></div>
-   <div class="bud-actions" style="margin-top:18px"><button class="btn ghostline2" id="expFReset">${t("exp.fReset")}</button><button class="btn gold" id="expFApply">${t("exp.fApply")}</button></div><div style="height:18px"></div>`;
+   <div class="fld"><label>${t("exp.fOpenNow")}</label><button type="button" class="filt-sw ${exFilter.openNow?'on':''}" data-opensw="1" role="switch" aria-checked="${exFilter.openNow?'true':'false'}"><span class="fsw-t">${t("exp.fOpenNow")}</span><span class="fsw-b"><i></i></span></button></div>
+   <div class="bud-actions" style="margin-top:18px"><button class="btn ghostline2" id="expFReset">${t("exp.fReset")}</button><button class="btn navy" id="expFApply">${t("exp.fApply")}</button></div><div style="height:18px"></div>`;
   b.querySelectorAll("[data-sub]").forEach(x=>x.onclick=()=>{ const k=x.dataset.sub; if(exFilter.subcat.has(k)) exFilter.subcat.delete(k); else exFilter.subcat.add(k); renderExpFilter(); });
   b.querySelectorAll("[data-rat]").forEach(x=>x.onclick=()=>{ exFilter.minRating=parseFloat(x.dataset.rat); renderExpFilter(); });
   b.querySelectorAll("[data-px]").forEach(x=>x.onclick=()=>{ const k=x.dataset.px; if(exFilter.px.has(k)) exFilter.px.delete(k); else exFilter.px.add(k); renderExpFilter(); });
-  b.querySelectorAll("[data-open]").forEach(x=>x.onclick=()=>{ exFilter.openNow=(x.dataset.open==="1"); renderExpFilter(); });
+  b.querySelectorAll("[data-opensw]").forEach(x=>x.onclick=()=>{ exFilter.openNow=!exFilter.openNow; renderExpFilter(); });
   b.querySelector("#expFReset").onclick=()=>{ exFilter.minRating=0; exFilter.px.clear(); exFilter.openNow=false; exFilter.subcat.clear(); renderExpFilter(); };
   b.querySelector("#expFApply").onclick=applySubFilter;
 }
@@ -4509,17 +4555,17 @@ async function loadPriceCommunity(placeId,currency,placeName){ const box=documen
 function openPriceForm(placeId,placeName,currency){ const box=document.getElementById("priceCommunity"); if(!box) return; if(!(currentUser&&currentUser.id)){ toast(pcT("loginNeeded")); return; } const cur=currency||(currentTrip()&&currentTrip().currency)||"EUR"; const curs=(CURRENCIES.includes(cur)?CURRENCIES:[cur].concat(CURRENCIES)); box.innerHTML=`<div class="rowhead" style="margin-top:6px"><h2>${pcT("report")}</h2></div>
     <div class="fld"><label>${pcT("label")}</label><input id="pcLabel" type="text" maxlength="80" placeholder="${pcT("labelPh")}"></div>
     <div class="fld2"><div class="fld" style="flex:1"><label>${pcT("amount")}</label><input id="pcPrice" type="number" inputmode="decimal" placeholder="0"></div><div class="fld" style="width:112px"><label>${pcT("cur")}</label><select id="pcCur">${curs.map(c=>`<option value="${c}" ${c===cur?'selected':''}>${c}</option>`).join("")}</select></div></div>
-    <div class="fld2" style="margin-top:6px"><button class="btn ghostline2" id="pcCancel" style="flex:1">${pcT("cancel")}</button><button class="btn gold" id="pcSend" style="flex:1">${pcT("send")}</button></div>`; document.getElementById("pcCancel").onclick=()=>loadPriceCommunity(placeId,cur,placeName); document.getElementById("pcSend").onclick=async()=>{ const price=parseFloat(String(document.getElementById("pcPrice").value).replace(",","."))||0; if(price<=0){ toast(pcT("badAmount")); return; } const obj={ place_id:String(placeId), place_name:placeName||"", category:(openPlaceObj?catGuessForPlace(openPlaceObj):""), label:(document.getElementById("pcLabel").value||"").trim().slice(0,80), price, currency:document.getElementById("pcCur").value||cur }; const btn=document.getElementById("pcSend"); if(btn){ btn.disabled=true; btn.textContent="…"; } const r=await submitPriceReport(obj); if(r&&r.ok){ toast(pcT("thanks")); loadPriceCommunity(placeId,obj.currency,placeName); } else { if(r&&r.error==="auth"){ toast(pcT("loginNeeded")); } else { const e=(r&&r.error)||{}; const msg=(e.message||e.details||e.hint||e.code||String(e)||"?"); toast(pcT("err")); try{ alert("Prix — erreur Supabase :\n"+msg+(e.code?("\n(code "+e.code+")"):"")+"\n\nConnecté : "+(currentUser&&currentUser.id?"oui":"non")); }catch(_){} } if(btn){ btn.disabled=false; btn.textContent=pcT("send"); } } }; }
+    <div class="fld2" style="margin-top:6px"><button class="btn ghostline2" id="pcCancel" style="flex:1">${pcT("cancel")}</button><button class="btn navy" id="pcSend" style="flex:1">${pcT("send")}</button></div>`; document.getElementById("pcCancel").onclick=()=>loadPriceCommunity(placeId,cur,placeName); document.getElementById("pcSend").onclick=async()=>{ const price=parseFloat(String(document.getElementById("pcPrice").value).replace(",","."))||0; if(price<=0){ toast(pcT("badAmount")); return; } const obj={ place_id:String(placeId), place_name:placeName||"", category:(openPlaceObj?catGuessForPlace(openPlaceObj):""), label:(document.getElementById("pcLabel").value||"").trim().slice(0,80), price, currency:document.getElementById("pcCur").value||cur }; const btn=document.getElementById("pcSend"); if(btn){ btn.disabled=true; btn.textContent="…"; } const r=await submitPriceReport(obj); if(r&&r.ok){ toast(pcT("thanks")); loadPriceCommunity(placeId,obj.currency,placeName); } else { if(r&&r.error==="auth"){ toast(pcT("loginNeeded")); } else { const e=(r&&r.error)||{}; const msg=(e.message||e.details||e.hint||e.code||String(e)||"?"); toast(pcT("err")); try{ alert("Prix — erreur Supabase :\n"+msg+(e.code?("\n(code "+e.code+")"):"")+"\n\nConnecté : "+(currentUser&&currentUser.id?"oui":"non")); }catch(_){} } if(btn){ btn.disabled=false; btn.textContent=pcT("send"); } } }; }
 function openPlace(p,mode){ if(!p) return; mode=mode||"explore"; openPlaceObj=p; openPlaceMode=mode; const trip=currentTrip(), inTrip=!!(trip&&trip.places&&trip.places.some(x=>x.id===p.id));
   document.getElementById("placeHd").textContent=p.name;
   const ph=p.photo?`background-image:url('${gPhoto(p.photo,800)}')`:`background:${COVERS[hashStr(p.id)%COVERS.length]}`;
   const pr=priceLabel(p.price);
   const isResto=isRestaurant(p);
   const primary= mode==="hotel"
-    ? `<button class="btn gold block" id="pChoose" style="margin-top:16px">${t("place.choose")}</button>`
+    ? `<button class="btn navy block" id="pChoose" style="margin-top:16px">${t("place.choose")}</button>`
     : isResto
-      ? `<button class="btn gold block" id="pMeal" style="margin-top:16px">🍽️ ${t("resto.addMeal")}</button>`
-      : `${inTrip?`<button class="btn navy block" id="pRemove" style="margin-top:16px">${t("place.remove")}</button>`:`<button class="btn gold block" id="pAdd" style="margin-top:16px">${t("place.add")}</button>`}`;
+      ? `<button class="btn navy block" id="pMeal" style="margin-top:16px">🍽️ ${t("resto.addMeal")}</button>`
+      : `${inTrip?`<button class="btn navy block" id="pRemove" style="margin-top:16px">${t("place.remove")}</button>`:`<button class="btn navy block" id="pAdd" style="margin-top:16px">${t("place.add")}</button>`}`;
   const nearResto=(mode!=="hotel" && p.lat!=null && !isResto)
     ? `<button class="btn ghostline2 block" id="pNearResto" style="margin-top:10px">🍽️ ${t("resto.near")}</button>` : "";
   const _ptr=currentTrip(); const _carTrip=!_ptr||!_ptr.transport||_ptr.transport==="car";
@@ -4623,7 +4669,7 @@ function openParkChoice(pk,place){
   const d=Math.round(haversineKm({lat:pk.lat,lng:pk.lng},{lat:place.lat,lng:place.lng})*1000);
   const b=document.getElementById("parkBody");
   b.innerHTML=`<div class="about" style="margin-bottom:12px">${escapeHtml(pk.name||t("park.btn"))} · ${t("park.walkDist",{d:d})}</div>
-    <button class="btn gold block" id="pkDrive">🚗 ${t("park.drive")}</button>
+    <button class="btn navy block" id="pkDrive">🚗 ${t("park.drive")}</button>
     <button class="btn ghostline2 block" id="pkWalk" style="margin-top:10px">🚶 ${t("park.walk")}</button>
     <div class="about" style="margin-top:10px">${t("park.hint")}</div><div style="height:18px"></div>`;
   b.querySelector("#pkDrive").onclick=()=>openExt(gmapsDir(pk.lat,pk.lng,"DRIVE"));
@@ -5094,7 +5140,7 @@ function openPlanAdd(){ const tr=currentTrip(); if(!tr){ toast(t("plan.noTrip"))
   h+=`<div class="section-label" style="margin-top:18px">${t("plan.custom")}</div>
     <div class="fld"><label>${t("create.name")}</label><input id="paTitle" placeholder="${escapeHtml(t("plan.titlePh"))}"></div>
     <div class="fld2"><div class="fld"><label>${t("plan.time")}</label><input id="paTime" type="time"></div><div class="fld"><label>${t("plan.kind")}</label><select id="paKind">${PLANKINDS.map(k=>`<option value="${k}">${t("kind."+k)}</option>`).join("")}</select></div></div>
-    <button class="btn gold block" id="paAdd">${t("plan.add")}</button><div style="height:18px"></div>`;
+    <button class="btn navy block" id="paAdd">${t("plan.add")}</button><div style="height:18px"></div>`;
   body.innerHTML=h;
   body.querySelectorAll("[data-pid]").forEach(b=>b.onclick=()=>addPlanPlace(b.dataset.pid));
   body.querySelectorAll("[data-sug]").forEach(b=>b.onclick=()=>addPlanPlace(b.dataset.sug));
@@ -5189,7 +5235,7 @@ function openPlanEdit(id){ const tr=currentTrip(); const it=(tr.plan||[]).find(x
     <div class="about" style="margin:-2px 0 10px">${t("plan.durHint")}</div>
     ${(it.kind==="meal"&&it.placeId)?`<button class="btn block" id="peRestoBtn" style="margin-bottom:8px">🍽️ Choisir un autre restaurant</button><div id="peResto"></div>`:''}
     ${(tr.dateStart&&tripDays(tr).length>1)?`<div class="fld"><label>Déplacer vers un autre jour</label><select id="peDay">${tripDays(tr).map((d,i)=>`<option value="${i}"${i===it.day?' selected':''}>${escapeHtml(fmtDayLong(d.date))}</option>`).join("")}</select></div>`:''}
-    <button class="btn gold block" id="peSave">${t("create.save")}</button>
+    <button class="btn navy block" id="peSave">${t("create.save")}</button>
     <button class="danger-btn" id="peDel">${t("common.delete")}</button><div style="height:18px"></div>`;
   { const dInp=body.querySelector("#peDur"), dVal=body.querySelector("#peDurVal"); const setD=m=>{ m=Math.max(0,m); dInp.value=m; dVal.textContent=fmtDurH(m); };
     body.querySelector("#peDurMinus").onclick=()=>setD((parseInt(dInp.value,10)||0)-15);
@@ -6069,7 +6115,7 @@ async function souvMapPdf(tr){ try{ toast(smT("making")); await loadJsPDF();
 function openPlaceNote(pid){ const tr=souvTrip(); if(!tr) return; const p=(tr.places||[]).find(x=>x.id===pid); if(!p) return;
   document.getElementById("placeNoteHd").textContent=p.name;
   const b=document.getElementById("placeNoteBody");
-  b.innerHTML=`<div class="fld"><label>${t("mem.note")}</label><textarea id="pnText" rows="5" placeholder="${escapeHtml(t("mem.notePh"))}">${escapeHtml(p.note||"")}</textarea></div><button class="btn gold block" id="pnSave">${t("common.save")}</button><div style="height:18px"></div>`;
+  b.innerHTML=`<div class="fld"><label>${t("mem.note")}</label><textarea id="pnText" rows="5" placeholder="${escapeHtml(t("mem.notePh"))}">${escapeHtml(p.note||"")}</textarea></div><button class="btn navy block" id="pnSave">${t("common.save")}</button><div style="height:18px"></div>`;
   b.querySelector("#pnSave").onclick=()=>{ p.note=(b.querySelector("#pnText").value||"").trim(); saveState(); closePlaceNote(); renderMemories(); toast(t("mem.noteSaved")); };
   document.getElementById("placeNoteSheet").classList.add("show"); }
 function closePlaceNote(){ document.getElementById("placeNoteSheet").classList.remove("show"); }
@@ -6082,7 +6128,7 @@ function downloadDataUrl(url,name){ const a=document.createElement("a"); a.href=
 function openExport(){ const tr=currentTrip(); if(!tr){ toast(t("mem.noTrip")); return; }
   document.getElementById("exportHd").textContent=t("mem.export");
   const b=document.getElementById("exportBody");
-  b.innerHTML=`<button class="btn gold block" id="exPdf">📄 ${t("mem.exportPdf")}</button><button class="btn ghostline2 block" id="exImg" style="margin-top:10px">🖼️ ${t("mem.exportImg")}</button><p class="est-disc">${t("mem.exportHint")}</p><div style="height:6px"></div>`;
+  b.innerHTML=`<button class="btn navy block" id="exPdf">📄 ${t("mem.exportPdf")}</button><button class="btn ghostline2 block" id="exImg" style="margin-top:10px">🖼️ ${t("mem.exportImg")}</button><p class="est-disc">${t("mem.exportHint")}</p><div style="height:6px"></div>`;
   b.querySelector("#exPdf").onclick=exportPDF; b.querySelector("#exImg").onclick=exportImage;
   document.getElementById("exportSheet").classList.add("show"); }
 function closeExport(){ document.getElementById("exportSheet").classList.remove("show"); }
@@ -6353,7 +6399,7 @@ async function openBilan(tr){ if(!tr) return;
   if(!tr.bilan){ const est=await estimateBudget(tr); if(est){ tr.bilan={estTotal:Math.round(est.total||0),budget:Math.round(+tr.budget||0),currency:tr.currency||"EUR",savedAt:Date.now()}; saveState(); } }
   document.getElementById("bilanHd").textContent=t("bilan.title");
   const b=document.getElementById("bilanBody");
-  b.innerHTML=bilanContentHtml(tr)+`<button class="btn gold block" id="bilanPrint" style="margin-top:14px">${t("bilan.print")}</button><div style="height:18px"></div>`;
+  b.innerHTML=bilanContentHtml(tr)+`<button class="btn navy block" id="bilanPrint" style="margin-top:14px">${t("bilan.print")}</button><div style="height:18px"></div>`;
   b.querySelector("#bilanPrint").onclick=()=>printBilan(tr);
   document.getElementById("bilanSheet").classList.add("show");
 }
@@ -6452,7 +6498,7 @@ function openExpense(editId){ const tr=currentTrip(); if(!tr) return; const _ex=
    <div id="exSug"></div>
    <div class="fld"><label>${t("exp.city")}</label><input id="exCity" value="${escapeHtml(_ex?(_ex.city||''):tripCity(tr))}" placeholder="${escapeHtml(t("exp.city"))}"></div>
    <div class="fld"><label>${t("exp.date")}</label><input id="exDate" type="date" value="${_ex?(_ex.date||todayISO()):todayISO()}"></div>
-   <button class="btn gold block" id="exSave">${t("exp.save")}</button><div style="height:18px"></div>`;
+   <button class="btn navy block" id="exSave">${t("exp.save")}</button><div style="height:18px"></div>`;
   b.querySelector("#exCat").onchange=e=>{ expenseDraft.category=e.target.value; const rq=b.querySelector("#exEstReq"); if(rq) rq.textContent=expNeedsEst(expenseDraft.category)?"*":""; };
   { const ie=b.querySelector("#exEst"); if(ie) ie.oninput=()=>{ expenseDraft.estPlaceId=""; expenseDraft.estLat=undefined; expenseDraft.estLng=undefined; }; const dd=b.querySelector("#exDate"); if(dd) dd.onchange=()=>renderExpSug(); renderExpSug(); }
   b.querySelector("#exSave").onclick=addExpense;
@@ -6493,7 +6539,7 @@ function openBudgetPlan(){ const tr=currentTrip(); if(!tr) return; const cb=tr.c
    <div class="section-label" style="margin-top:6px">${t("bud.planByCat")}</div>
    <div class="cat-grid">${BUDCATS.map(c=>`<div class="fld"><label>${t("bcat."+c.k)}</label><input id="bp_${c.k}" type="number" inputmode="decimal" value="${cb[c.k]||""}" placeholder="0"></div>`).join("")}</div>
    <div id="bpSum" class="bp-sum"></div>
-   <button class="btn gold block" id="bpSave">${t("common.save")}</button><div style="height:18px"></div>`;
+   <button class="btn navy block" id="bpSave">${t("common.save")}</button><div style="height:18px"></div>`;
   const recalc=()=>{ const tot=parseFloat(b.querySelector("#bpTotal").value)||0; let sum=0; BUDCATS.forEach(c=>{ sum+=parseFloat(b.querySelector("#bp_"+c.k).value)||0; });
     const over=tot>0&&sum>tot; const el=b.querySelector("#bpSum"); if(!el) return; el.className="bp-sum"+(over?" over":"");
     el.innerHTML=`${t("bud.allocated")} · <b>${money(sum,tr.currency)}</b>${tot>0?` / ${money(tot,tr.currency)}`:""}${over?`<div class="bp-over">⚠️ ${t("bud.overAlloc",{x:money(sum-tot,tr.currency)})}</div>`:""}`; };
@@ -6588,7 +6634,7 @@ async function openBudgetEst(){ const tr=currentTrip(); if(!tr) return;
       if(_gap>=0){ cmp=`<div class="cmp ok">${_crows}<div class="cmp-verdict ok">✓ ${t("bud.cmpMargin",{a:money(_gap,cur)})}</div></div>`; }
       else { let _lev=""; if(isHub&&tr.hubMode==="taxi") _lev+=`<button class="lev" data-lev="car">🚗 ${t("bud.levCar")}</button>`; if(isHub&&tr.hubRoundTrip) _lev+=`<button class="lev" data-lev="noRT">✈️ ${t("bud.levNoRT")}</button>`; if(est.canEcoFood&&!tr.budEcoFood){ const _sf=Math.round(est.byCat.food*(1-MEAL_MID/MEAL_GASTRO)); _lev+=`<button class="lev" data-lev="ecoFood">🍽️ ${t("bud.levFood")} ≈ −${money(_sf,cur)}</button>`; } if(est.canEcoLodge&&!tr.budEcoLodge){ const _sl=Math.round(est.byCat.lodging*(1-1/1.7)); _lev+=`<button class="lev" data-lev="ecoLodge">🏨 ${t("bud.levLodge")} ≈ −${money(_sl,cur)}</button>`; } _lev+=`<button class="lev" data-lev="visits">📋 ${t("bud.levVisits")}</button>`;
         cmp=`<div class="cmp over">${_crows}<div class="cmp-verdict over">${t("bud.cmpOver",{a:money(-_gap,cur)})}</div><div class="cmp-hint">${t("bud.cmpHint")}</div><div class="lev-list">${_lev}</div></div>`; } }
-    b.innerHTML=`${roomsInput}${inputs}<div class="est-list">${rows}</div><div class="est-tot"><span>${t("bud.total")}${est.travelers>1?` · ${t("trips.travelers",{n:est.travelers})}`:""}</span><b>${money(est.total,cur)}</b></div>${ecoRow}${cmp}<div class="est-pp">${t("bud.perPerson")} · <b>${money(est.perPerson,cur)}</b> <small>(÷ ${est.travelers})</small></div><div class="est-sub"><span>${t("bud.perDay")} · ${money(est.perDay,cur)}</span></div><div class="est-disc">${t("bud.estDisclaimer")}${est.regional?" — "+t("bud.regionalEst"):""}${(cur!=="EUR" && !(S.settings&&S.settings.fxRates))?" — "+t("bud.fxNote"):""}</div><button class="btn gold block" id="estApply" style="margin-top:16px">${t("bud.estApply")}</button><div style="height:18px"></div>`;
+    b.innerHTML=`${roomsInput}${inputs}<div class="est-list">${rows}</div><div class="est-tot"><span>${t("bud.total")}${est.travelers>1?` · ${t("trips.travelers",{n:est.travelers})}`:""}</span><b>${money(est.total,cur)}</b></div>${ecoRow}${cmp}<div class="est-pp">${t("bud.perPerson")} · <b>${money(est.perPerson,cur)}</b> <small>(÷ ${est.travelers})</small></div><div class="est-sub"><span>${t("bud.perDay")} · ${money(est.perDay,cur)}</span></div><div class="est-disc">${t("bud.estDisclaimer")}${est.regional?" — "+t("bud.regionalEst"):""}${(cur!=="EUR" && !(S.settings&&S.settings.fxRates))?" — "+t("bud.fxNote"):""}</div><button class="btn navy block" id="estApply" style="margin-top:16px">${t("bud.estApply")}</button><div style="height:18px"></div>`;
     if(isHub){
       const rt=b.querySelector("#estRT"); if(rt) rt.onchange=()=>{ tr.hubRoundTrip=rt.checked; saveState(); paint(); };
       const hc=b.querySelector("#hmCar"); if(hc) hc.onclick=()=>{ tr.hubMode="car"; saveState(); paint(); };
@@ -7121,7 +7167,7 @@ function openMontage(tr,version,autoplay){ tr=tr||souvTrip(); if(!tr) return; _m
     <div id="mvStudio" class="stu" style="display:none">
       <div class="stu-top">
         <button class="stu-back" id="stuBack" aria-label="Retour">\u2039</button>
-        <div class="stu-ttl"><b>Studio Magot<i>\u2727</i></b><span>Montage vid\u00e9o \u00b7 v462</span></div>
+        <div class="stu-ttl"><b>Studio Magot<i>\u2727</i></b><span>Montage vid\u00e9o \u00b7 v468</span></div>
         <button class="stu-ico" id="stuUndo" title="Annuler">\u21b6</button>
         <button class="stu-ico" id="stuRedo" title="R\u00e9tablir">\u21b7</button>
         <button class="stu-exp" id="mvSave"><i>\u2b06</i>Exporter</button>
@@ -8119,7 +8165,7 @@ function openExportPick(tr, btn){
       <div class="mv-lab" style="margin-top:16px">Qualité</div>
       <div class="ep-row">${Q.map(([k,n,d])=>`<button class="ep-c${k===q?" on":""}" data-epq="${k}"><b>${n}</b><span>${d}</span></button>`).join("")}</div>
       <p style="margin:14px 0 0;font-size:12.5px;color:#6b7280;line-height:1.5">Durée du film : ${Math.floor(dur/60)} min ${String(dur%60).padStart(2,"0")} s \u2014 inchangée. Seul le cadre change.</p>
-      <button class="btn gold block" id="epGo" style="margin-top:12px">Exporter la vidéo</button>
+      <button class="btn navy block" id="epGo" style="margin-top:12px">Exporter la vidéo</button>
     </div></div>`;
   document.body.appendChild(ov);
   const close=()=>ov.remove();
@@ -11061,7 +11107,7 @@ function openPhotoAdd(){ const tr=souvTrip(); if(!tr){ toast(t("mem.noTrip")); r
   const b=document.getElementById("photoAddBody"); const days=tripDays(tr);
   b.innerHTML=`<div class="fld"><label>${t("mem.atPlace")}</label><select id="paPlace"><option value="">${t("mem.noPlaceOpt")}</option>${(tr.places||[]).map(p=>`<option value="${escapeHtml(p.id)}">${escapeHtml(p.name)}</option>`).join("")}</select></div>
     <div class="fld"><label>${t("mem.assignDay")}</label><select id="paDay"><option value="">${t("mem.noDay")}</option>${days.map(dd=>`<option value="${dd.i}">${t("plan.day")} ${dd.i+1}</option>`).join("")}</select></div>
-    <button class="btn gold block" id="paImport" style="margin-top:6px">🖼️ ${t("mem.import")}</button>
+    <button class="btn navy block" id="paImport" style="margin-top:6px">🖼️ ${t("mem.import")}</button>
     <button class="btn ghostline2 block" id="paCamera" style="margin-top:10px">📷 ${t("mem.camera")}</button><div style="height:18px"></div>`;
   const ps=b.querySelector("#paPlace"), pd=b.querySelector("#paDay");
   ps.onchange=()=>{ const pid=ps.value||null; if(pid){ const st=(tr.plan||[]).find(s=>s.placeId===pid&&s.day!=null); if(st) pd.value=String(st.day); } };
@@ -11094,7 +11140,7 @@ function openPhotoAssign(tr, ids, info){
   b.innerHTML=`${hint}
     <div class="fld"><label>${t("mem.atPlace")}</label><select id="pgPlace"><option value="">${t("mem.noPlaceOpt")}</option>${(tr.places||[]).map(pl=>`<option value="${escapeHtml(pl.id)}"${(sugg&&sugg.id===pl.id)?" selected":""}>${escapeHtml(pl.name)}</option>`).join("")}</select></div>
     <div class="fld"><label>${t("mem.assignDay")}</label><select id="pgDay"><option value="">${t("mem.noDay")}</option>${days.map(dd=>`<option value="${dd.i}">${t("plan.day")} ${dd.i+1}</option>`).join("")}</select></div>
-    <button class="btn gold block" id="pgSave" style="margin-top:6px">Enregistrer</button>
+    <button class="btn navy block" id="pgSave" style="margin-top:6px">Enregistrer</button>
     <button class="btn ghostline2 block" id="pgSkip" style="margin-top:10px">Voir mes photos</button><div style="height:18px"></div>`;
   const ps=b.querySelector("#pgPlace"), pd=b.querySelector("#pgDay");
   const syncDay=()=>{ const pid=ps.value||null; if(pid){ const st=(tr.plan||[]).find(x=>x.placeId===pid&&x.day!=null); if(st) pd.value=String(st.day); } };
@@ -11145,10 +11191,10 @@ function openMemViewer(id){ const tr=souvTrip(); if(!tr) return; const m=(tr.mem
     <div class="fld" style="margin-top:14px"><label>${t("mem.caption")}</label><input id="mvCap" value="${escapeHtml(m.caption||'')}" placeholder="${escapeHtml(t("mem.captionPh"))}"></div>
     <div class="fld"><label>${t("mem.place")}</label><select id="mvPlace"><option value="">${t("mem.noPlaceOpt")}</option>${(tr.places||[]).map(p=>`<option value="${escapeHtml(p.id)}" ${m.placeId===p.id?'selected':''}>${escapeHtml(p.name)}</option>`).join("")}</select></div>
     <div class="fld"><label>${t("mem.assignDay")}</label><select id="mvDay"><option value="">${t("mem.noDay")}</option>${days.map(dd=>`<option value="${dd.i}" ${m.day===dd.i?'selected':''}>${t("plan.day")} ${dd.i+1}</option>`).join("")}</select></div>
-    <button class="btn gold block" id="mvSave">${t("common.save")}</button>
+    <button class="btn navy block" id="memSave">${t("common.save")}</button>
     <button class="danger-btn" id="mvDel">${t("mem.deletePhoto")}</button><div style="height:18px"></div>`;
   loadMedia(id).then(d=>{ if(d){ const im=document.getElementById("mvImg"); if(im) im.style.backgroundImage="url('"+d+"')"; } });
-  b.querySelector("#mvSave").onclick=()=>{ m.caption=(b.querySelector("#mvCap").value||"").trim(); m.placeId=b.querySelector("#mvPlace").value||null; const dv=b.querySelector("#mvDay").value; m.day=(dv===""?null:parseInt(dv,10)); saveState(); closeMemViewer(); renderMemories(); };
+  b.querySelector("#memSave").onclick=()=>{ m.caption=(b.querySelector("#mvCap").value||"").trim(); m.placeId=b.querySelector("#mvPlace").value||null; const dv=b.querySelector("#mvDay").value; m.day=(dv===""?null:parseInt(dv,10)); saveState(); closeMemViewer(); renderMemories(); };
   b.querySelector("#mvDel").onclick=()=>askConfirm(t("mem.deleteConfirm"),t("common.delete"),async()=>{ await idbDelMedia(id); delete _mediaCache[id]; tr.memories=(tr.memories||[]).filter(x=>x.id!==id); saveState(); closeMemViewer(); renderMemories(); });
   document.getElementById("memViewer").classList.add("show"); }
 function closeMemViewer(){ document.getElementById("memViewer").classList.remove("show"); }
