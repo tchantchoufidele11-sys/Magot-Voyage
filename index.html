@@ -563,6 +563,86 @@ a.btn{text-decoration:none}
 .ac-msg.thinking{color:var(--muted);font-style:italic}
 .ac-msg.err{background:rgba(220,38,38,.14);color:var(--danger);border:1px solid var(--danger);border-left:3px solid var(--danger)}
 .chat-head{align-items:center;gap:0}
+/* ---- Journee proposee par Fidele, dans le fil du dialogue ---- */
+.dayp{margin:10px 0 4px;background:var(--surface,#fff);border:1px solid var(--line-soft,#EEF1F7);
+  border-left:3px solid var(--gold,#E0A33E);border-radius:16px;box-shadow:var(--shadow-sm);overflow:hidden}
+.dayp-load{display:flex;align-items:center;gap:10px;padding:16px 15px;color:var(--muted);
+  font-size:clamp(12.6px,3.4vw,13.4px)}
+.dayp-head{display:flex;align-items:center;gap:12px;padding:14px 15px;
+  border-bottom:1px solid var(--line-soft,#EEF1F7)}
+.dayp-w{flex:0 0 auto;font:700 13.4px "Inter",sans-serif;color:var(--ink)}
+.dayp-d{flex:1 1 auto;min-width:0;display:flex;flex-direction:column;gap:1px}
+.dayp-d b{font:700 13.6px "Inter",sans-serif;font-size:clamp(12.8px,3.5vw,13.8px);
+  color:var(--ink);text-transform:capitalize;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.dayp-d i{font-style:normal;font:500 11.6px "Inter",sans-serif;color:var(--muted)}
+.dayp-rows{padding:6px 15px 2px}
+.dayp-row{display:flex;align-items:center;gap:10px;padding:8px 0;position:relative}
+.dayp-h{flex:0 0 auto;width:40px;font:600 11.6px "Inter",sans-serif;
+  font-size:clamp(11px,3vw,11.8px);color:var(--muted);text-align:right}
+.dayp-line{flex:0 0 auto;width:9px;display:flex;align-items:center;justify-content:center;align-self:stretch}
+.dayp-line>i{width:7px;height:7px;border-radius:50%;background:var(--gold,#E0A33E);
+  box-shadow:0 0 0 3px var(--surface,#fff)}
+.dayp-row::before{content:"";position:absolute;left:44.5px;top:0;bottom:0;width:1px;
+  background:var(--line,#E5E9F1);z-index:0}
+.dayp-row:first-child::before{top:50%}
+.dayp-row:last-child::before{bottom:50%}
+.dayp-ph{flex:0 0 auto;width:46px;height:46px;border-radius:11px;background-size:cover;
+  background-position:center;background-color:var(--paper,#F7F8FB);border:1px solid var(--line);
+  display:flex;align-items:center;justify-content:center;font-size:19px;z-index:1}
+.dayp-t{flex:1 1 auto;min-width:0;display:flex;flex-direction:column;gap:2px}
+.dayp-t b{font:600 13.6px "Inter",sans-serif;font-size:clamp(12.8px,3.5vw,13.8px);color:var(--ink);
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.dayp-t span{font:400 11.4px "Inter",sans-serif;font-size:clamp(10.9px,2.95vw,11.6px);
+  color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.dayp-foot{display:flex;gap:14px;padding:11px 15px;border-top:1px solid var(--line-soft,#EEF1F7);
+  font:600 11.6px "Inter",sans-serif;font-size:clamp(11px,3vw,11.8px);color:var(--muted)}
+.dayp-btns{display:flex;gap:9px;padding:0 15px 14px}
+.dayp-ok,.dayp-no{flex:1 1 0;min-height:var(--tap,44px);border-radius:12px;cursor:pointer;
+  font:700 13px "Inter",sans-serif;font-size:clamp(12.3px,3.33vw,13px)}
+.dayp-ok{border:1px solid var(--navy,#0E2148);background:var(--navy,#0E2148);color:#fff}
+.dayp-no{border:1px solid var(--line);background:var(--surface,#fff);color:var(--ink-2)}
+[data-theme="dark"] .dayp-ok{background:var(--gold,#E9B559);border-color:var(--gold,#E9B559);color:#2A1A05}
+/* ---- Inspiration : de vraies adresses autour de la destination ---- */
+.insp-dest{font:400 13.6px "Inter",sans-serif;font-size:clamp(12.8px,3.5vw,13.8px);
+  color:var(--muted);margin:0 2px 12px}
+.insp-dest b{color:var(--ink);font-weight:700}
+.insp-hint{padding:26px 8px;text-align:center;color:var(--muted);line-height:1.5;
+  font-size:clamp(12.6px,3.4vw,13.4px)}
+/* ---- Tiroir du dialogue : marque, navigation, conversations, compte ---- */
+.conv-drawer-inner{display:flex;flex-direction:column;height:100%;padding:0}
+.cd-head{display:flex;align-items:center;gap:11px;padding:16px 15px 12px}
+.cd-logo{flex:0 0 auto;display:flex}
+.cd-brand{min-width:0;display:flex;flex-direction:column;gap:1px}
+.cd-brand b{font:700 18px "Playfair Display",Georgia,serif;font-size:clamp(16.6px,4.6vw,18.4px);
+  color:var(--ink);line-height:1.1}
+.cd-brand i{font-style:normal;font:500 11.4px "Inter",sans-serif;font-size:clamp(10.8px,2.94vw,11.6px);
+  color:var(--gold-deep,var(--gold));overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.cd-new{display:flex;align-items:center;gap:9px;margin:0 12px 12px;padding:11px 13px;
+  min-height:var(--tap,44px);width:calc(100% - 24px);border:1px solid var(--line);border-radius:13px;
+  background:var(--surface);color:var(--ink);font:600 13.4px "Inter",sans-serif;cursor:pointer}
+.cd-new>span{font-size:17px;line-height:1;color:var(--gold-deep,var(--gold));font-weight:700}
+.cd-nav{display:flex;flex-direction:column;gap:2px;padding:0 8px 10px;
+  border-bottom:1px solid var(--line-soft,#EEF1F7)}
+.cd-navi{display:flex;align-items:center;gap:12px;width:100%;min-height:var(--tap,44px);
+  padding:10px 11px;border:0;border-radius:11px;background:none;color:var(--ink);
+  font:600 13.6px "Inter",sans-serif;text-align:left;cursor:pointer}
+.cd-navi.on{background:var(--paper,#F7F8FB)}
+.cd-navi svg{width:19px;height:19px;flex:0 0 auto;fill:none;stroke:currentColor;stroke-width:1.7;
+  stroke-linecap:round;stroke-linejoin:round;opacity:.82}
+.cd-navi.on svg{color:var(--gold-deep,var(--gold));opacity:1}
+.cd-scroll{flex:1 1 auto;overflow-y:auto;overscroll-behavior:contain;padding:12px 8px 8px}
+.cd-reclbl{font:800 10.2px "Inter",sans-serif;letter-spacing:.14em;text-transform:uppercase;
+  color:var(--muted);margin:0 6px 8px}
+.cd-foot{display:flex;align-items:center;gap:11px;width:100%;padding:12px 14px;
+  border:0;border-top:1px solid var(--line-soft,#EEF1F7);background:var(--surface);
+  color:var(--ink);text-align:left;cursor:pointer;min-height:60px}
+.cd-fav{flex:0 0 auto;width:36px;height:36px;border-radius:11px;background:var(--paper,#F7F8FB);
+  border:1px solid var(--line);display:flex;align-items:center;justify-content:center;
+  font:700 15px "Inter",sans-serif;color:var(--gold-deep,var(--gold))}
+.cd-ft{flex:1 1 auto;min-width:0;display:flex;flex-direction:column;gap:1px}
+.cd-ft b{font:700 13.4px "Inter",sans-serif;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.cd-ft i{font-style:normal;font:400 11.4px "Inter",sans-serif;color:var(--muted)}
+.cd-fc{flex:0 0 auto;color:#B7C0D2;font-size:17px;line-height:1}
 .chat-hbtn{flex:0 0 auto;width:36px;height:36px;margin-left:7px;border-radius:50%;border:1px solid var(--line);background:var(--surface);color:var(--gold-deep,var(--gold));display:flex;align-items:center;justify-content:center;cursor:pointer;transition:all .15s;padding:0}
 .chat-hbtn:hover,.chat-hbtn:active{background:var(--gold-soft);border-color:var(--gold)}
 .chat-hclose{color:var(--muted)}
@@ -1113,9 +1193,10 @@ body.dragging-on{-webkit-user-select:none;user-select:none}
 .prefs-chip{padding:9px 14px;border-radius:20px;border:1px solid var(--line);background:var(--surface);color:var(--ink-2);font:600 13px "Inter",sans-serif;font-size:clamp(12.2px,3.333vw,13px);cursor:pointer;transition:all .15s}
 .prefs-chip.on{background:var(--gold);border-color:var(--gold);color:#3a2c00}
 .conv-overlay{position:absolute;inset:0;background:rgba(15,30,61,.32);opacity:0;pointer-events:none;transition:opacity .22s;z-index:19;backdrop-filter:blur(1.5px)}.conv-overlay.show{opacity:1;pointer-events:auto}
-.conv-drawer{position:absolute;top:0;right:0;bottom:0;width:min(82vw,320px);background:var(--surface);border-left:1px solid var(--gold);transform:translateX(100%);transition:transform .24s cubic-bezier(.4,0,.2,1);z-index:20;overflow-y:auto;box-shadow:-12px 0 32px rgba(15,30,61,.22)}
+/* Le tiroir s'ouvre par la GAUCHE, comme le bouton qui l'appelle. */
+.conv-drawer{position:absolute;top:0;left:0;bottom:0;width:min(82vw,320px);background:var(--surface);border-right:1px solid var(--gold);border-left:0;transform:translateX(-100%);transition:transform .24s cubic-bezier(.4,0,.2,1);z-index:20;overflow:hidden;box-shadow:12px 0 34px rgba(8,18,40,.22)}
 .conv-drawer.show{transform:translateX(0)}
-.conv-drawer-inner{padding:18px 16px}
+/* padding gere par .cd-head / .cd-nav / .cd-scroll */
 .conv-drawer-head{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:16px}
 .conv-drawer-head>span{font:800 16px "Playfair Display",serif;font-size:clamp(14.4px,4.103vw,16px);color:var(--ink)}
 .conv-new{background:linear-gradient(135deg,var(--gold),var(--gold-deep,#c9a227));color:#3a2c00;border:none;border-radius:18px;padding:8px 13px;font:700 12px "Inter",sans-serif;font-size:clamp(11.3px,3.077vw,12px);cursor:pointer;box-shadow:0 2px 8px rgba(201,162,39,.25);white-space:nowrap}
@@ -2778,6 +2859,11 @@ body.dragging-on{-webkit-user-select:none;user-select:none}
   <div class="ac-disclaimer" data-i18n="agent.disclaimer">Compagnon IA — peut se tromper, vérifie les infos importantes.</div>
 </div>
 
+<div class="sheet" id="inspSheet">
+  <div class="sh-head"><h2 id="inspTitle">Inspiration</h2><button class="sh-close" id="inspClose">✕</button></div>
+  <div class="sh-body" id="inspBody"></div>
+</div>
+
 <div class="sheet" id="settingsSheet">
   <div class="sh-head"><h2 id="setTitle">Paramètres</h2><button class="sh-close" id="setClose">✕</button></div>
   <div class="sh-body" id="setBody"></div>
@@ -3177,6 +3263,68 @@ function renderHome(){
 }
 
 /* ===================== PARAMÈTRES ===================== */
+/* Categories proposees, dans l'ordre ou on y pense en voyage.
+   Chacune existe deja dans CATS : aucune invention. */
+const INSP_CATS=["culture","parkgarden","viewpoint","restaurants","beach","hiking","port","shops"];
+let _inspBusy=false, _inspCat="";
+function openInspiration(){
+  const sh=document.getElementById("inspSheet"); if(!sh) return;
+  sh.classList.add("show"); renderInspiration();
+}
+function closeInspiration(){ const sh=document.getElementById("inspSheet");
+  if(sh) sh.classList.remove("show"); }
+function renderInspiration(){
+  const b=document.getElementById("inspBody"); if(!b) return;
+  const tr=currentTrip();
+  const dest=(tr&&tr.dest&&tr.dest.name)||"";
+  if(!tr||!dest){
+    b.innerHTML=`<div class="empty" style="padding:34px 10px"><p>${escapeHtml(t("plan.noTrip"))}</p></div>`;
+    return;
+  }
+  const L=lang();
+  const head={fr:"Autour de",en:"Around",es:"Alrededor de",it:"Intorno a",de:"Rund um"}[L]||"Autour de";
+  const chips=INSP_CATS.map(k=>`<button class="chip${_inspCat===k?" on":""}" data-insp="${k}">`
+    +`<svg viewBox="0 0 24 24">${(typeof CAT_ICON!=="undefined"&&CAT_ICON[k])||""}</svg>${escapeHtml(t("cat."+k))}</button>`).join("");
+  b.innerHTML=`<div class="insp-dest">${escapeHtml(head)} <b>${escapeHtml(dest)}</b></div>`
+    +`<div class="chips chips-scroll">${chips}</div>`
+    +`<div id="inspRes"></div>`;
+  b.querySelectorAll("[data-insp]").forEach(x=>x.onclick=()=>{ _inspCat=x.dataset.insp; renderInspiration(); inspLoad(); });
+  if(_inspCat) inspLoad(); else {
+    const r=document.getElementById("inspRes");
+    const pick={fr:"Choisis une envie pour voir des lieux r\u00e9els autour de ta destination.",
+      en:"Pick a category to see real places around your destination.",
+      es:"Elige una categor\u00eda para ver lugares reales cerca de tu destino.",
+      it:"Scegli una categoria per vedere luoghi reali vicino alla tua destinazione.",
+      de:"W\u00e4hle eine Kategorie f\u00fcr echte Orte rund um dein Ziel."}[L];
+    if(r) r.innerHTML=`<div class="insp-hint">${escapeHtml(pick||"")}</div>`;
+  }
+}
+async function inspLoad(){
+  const r=document.getElementById("inspRes"); if(!r||_inspBusy) return;
+  const tr=currentTrip(); const d=tr&&tr.dest; if(!d) return;
+  _inspBusy=true;
+  r.innerHTML=`<div class="exp-loading"><span class="spin"></span>${escapeHtml(t("exp.loading"))}</div>`;
+  try{
+    const cat=(CATS||[]).find(c=>c.k===_inspCat)||{};
+    const q=t("cat."+_inspCat)+" "+((d.name)||"");
+    const res=await gText(q, {lat:d.lat, lng:d.lng, radius:20000, type:cat.type||undefined});
+    let list=((res&&res.places)||[]).map(placeFromG)
+      .filter(p=>p.lat!=null && p.businessStatus!=="CLOSED_PERMANENTLY");
+    /* Ouvert d'abord, puis la note, puis le nombre d'avis. */
+    const orank=x=>(x.openNow===true?0:(x.openNow==null?1:2));
+    list.sort((a,b)=>(orank(a)-orank(b))||((b.rating||0)-(a.rating||0))||((b.count||0)-(a.count||0)));
+    list=list.slice(0,12);
+    const cur=document.getElementById("inspRes"); if(!cur) return;
+    cur.innerHTML=list.length?`<div class="pcards-grid">${list.map(p=>pcard(p,"grid")).join("")}</div><div style="height:14px"></div>`
+      :`<div class="insp-hint">${escapeHtml(t("exp.empty"))}</div>`;
+    hydratePhotos&&hydratePhotos(cur);
+    bindPlaceCards(cur);
+  }catch(e){
+    const cur=document.getElementById("inspRes");
+    if(cur) cur.innerHTML=`<div class="insp-hint">${escapeHtml(t("exp.empty"))}</div>`;
+  }
+  _inspBusy=false;
+}
 function openSettings(){ renderSettings(); document.getElementById("settingsSheet").classList.add("show"); }
 function closeSettings(){ document.getElementById("settingsSheet").classList.remove("show"); }
 /* ===================== PRÉFÉRENCES (mémoire de Fidèle) ===================== */
@@ -7424,7 +7572,7 @@ function openMontage(tr,version,autoplay){ tr=tr||souvTrip(); if(!tr) return; _m
     <div id="mvStudio" class="stu" style="display:none">
       <div class="stu-top">
         <button class="stu-back" id="stuBack" aria-label="Retour">\u2039</button>
-        <div class="stu-ttl"><b>Studio Magot<i>\u2727</i></b><span>Montage vid\u00e9o \u00b7 v480</span></div>
+        <div class="stu-ttl"><b>Studio Magot<i>\u2727</i></b><span>Montage vid\u00e9o \u00b7 v483</span></div>
         <button class="stu-ico" id="stuUndo" title="Annuler">\u21b6</button>
         <button class="stu-ico" id="stuRedo" title="R\u00e9tablir">\u21b7</button>
         <button class="stu-exp" id="mvSave"><i>\u2b06</i>Exporter</button>
@@ -11546,6 +11694,7 @@ function init(){
   document.getElementById("hotelClose").onclick=closeHotels;
   document.getElementById("restoClose").onclick=closeResto;
   document.getElementById("expFilterClose").onclick=closeExpFilter;
+  { const ic=document.getElementById("inspClose"); if(ic) ic.onclick=closeInspiration; }
   document.getElementById("planAdd").onclick=openPlanAdd;
   document.getElementById("planAddClose").onclick=closePlanAdd;
   document.getElementById("planEditClose").onclick=closePlanEdit;
@@ -11703,6 +11852,7 @@ async function sendChatMessage(){
     body.innerHTML+=`<div class="ac-msg assistant err">${escapeHtml(errMsg)}</div>`; body.scrollTop=body.scrollHeight;
   }
   if(out&&out.proposal&&out.proposal.type==="ajout_planning"){ renderPlanProposal(out.proposal); }
+  if(out&&out.proposal&&out.proposal.type==="journee"){ renderDayProposal(out.proposal); }
   if(out&&out.lieuxPhotos&&out.lieuxPhotos.length){ renderChatPhotos(out.lieuxPhotos); }
   inp.disabled=false; if(sendBtn) sendBtn.disabled=false; inp.focus();
 }
@@ -11723,6 +11873,112 @@ function renderChatPhotos(lieux){
   body.appendChild(wrap); body.scrollTop=body.scrollHeight;
 }
 /* ---- Proposition d'ajout au planning : confirmation obligatoire avant écriture ---- */
+/* ---- JOURNEE PROPOSEE PAR FIDELE ----
+   Fidele donne des noms et des horaires. L'app resout chaque nom en LIEU
+   REEL (photo, coordonnees, categorie) puis calcule la distance du parcours.
+   Rien n'est affiche tant que ce n'est pas verifie : pas de budget invente,
+   pas de kilometrage decoratif. */
+async function renderDayProposal(p){
+  const body=document.getElementById("chatBody"); if(!body) return;
+  const tr=currentTrip(); if(!tr) return;
+  const days=tripDays(tr), total=days.length;
+  const jour=(p.jour&&p.jour>=1)?Math.min(p.jour,total):(ongoingDayIndex(tr)+1);
+  const d=days[jour-1]; const iso=d&&d.date?d.date.toISOString().slice(0,10):null;
+  const L=lang();
+  const card=document.createElement("div"); card.className="dayp";
+  const lbl={ save:{fr:"Enregistrer la journ\u00e9e",en:"Save this day",es:"Guardar el d\u00eda",it:"Salva la giornata",de:"Tag speichern"},
+              no:{fr:"Ignorer",en:"Dismiss",es:"Descartar",it:"Ignora",de:"Verwerfen"},
+              steps:{fr:"\u00e9tapes",en:"stops",es:"paradas",it:"tappe",de:"Stopps"},
+              load:{fr:"Je v\u00e9rifie les lieux\u2026",en:"Checking places\u2026",es:"Verificando lugares\u2026",it:"Verifico i luoghi\u2026",de:"Orte werden gepr\u00fcft\u2026"} };
+  card.innerHTML=`<div class="dayp-load"><span class="spin"></span>${escapeHtml(lbl.load[L]||lbl.load.fr)}</div>`;
+  body.appendChild(card); body.scrollTop=body.scrollHeight;
+
+  /* 1. Chaque nom devient un lieu reel, ou disparait. */
+  const dest=(tr.dest||{});
+  const steps=[];
+  for(const e of (p.etapes||[])){
+    let pl=null;
+    try{
+      const r=await gText(e.nom+(dest.name?(" "+dest.name):""),
+        {lat:dest.lat, lng:dest.lng, radius:30000});
+      const cands=((r&&r.places)||[]).map(placeFromG).filter(x=>x.lat!=null);
+      pl=cands[0]||null;
+    }catch(_e){}
+    if(pl) steps.push({...e, place:pl});
+  }
+  if(steps.length<2){ card.remove(); return; }
+
+  /* 2. Distance reelle du parcours, dans le mode du voyage. */
+  let km=0, mode=travelMode(tr);
+  try{
+    const rt=await computeRoute(steps.map(x=>({lat:x.place.lat,lng:x.place.lng})), mode);
+    if(rt&&rt.distanceMeters) km=rt.distanceMeters/1000;
+  }catch(_e){}
+
+  const w=(iso&&tr._wx&&tr._wx[iso])?tr._wx[iso]:null;
+  const visitMin=steps.reduce((a,x)=>a+(x.duree||60),0);
+  const dateLbl=d&&d.date?(()=>{ try{ return d.date.toLocaleDateString(L,{weekday:"long",day:"numeric",month:"long"}); }catch(_e){ return ""; } })():"";
+  const h1=steps[0].heure, h2=(()=>{ const last=steps[steps.length-1];
+    const [hh,mm]=String(last.heure||"0:0").split(":").map(Number);
+    const end=(hh*60+(mm||0))+(last.duree||60);
+    return String(Math.floor(end/60)%24).padStart(2,"0")+":"+String(end%60).padStart(2,"0"); })();
+
+  const rows=steps.map((x,i)=>{
+    const pl=x.place;
+    const ph=pl.photo?`<span class="dayp-ph" style="background-image:url('${gPhoto(pl.photo,220)}')"></span>`
+      :`<span class="dayp-ph dayp-nophoto">${(typeof catEmoji==="function"?catEmoji(pl):"")}</span>`;
+    const cat=escapeHtml(pl.primaryType||catLabel(pl.types)||"");
+    const dur=x.duree?`${Math.round(x.duree/60*10)/10} h`.replace(".0",""):"";
+    return `<div class="dayp-row"><span class="dayp-h">${escapeHtml(x.heure)}</span>`
+      +`<span class="dayp-line"><i></i></span>${ph}`
+      +`<span class="dayp-t"><b>${escapeHtml(pl.name)}</b>`
+      +`<span>${[cat,dur].filter(Boolean).join(" \u00b7 ")}</span></span></div>`;
+  }).join("");
+
+  card.className="dayp";
+  card.innerHTML=`<div class="dayp-head">`
+    +(w?`<span class="dayp-w">${wxEmoji(w.code)} ${Math.round(w.temp)}\u00b0</span>`:``)
+    +`<span class="dayp-d"><b>${escapeHtml(dateLbl)}</b><i>${escapeHtml(h1)} \u2013 ${escapeHtml(h2)}</i></span></div>`
+    +`<div class="dayp-rows">${rows}</div>`
+    +`<div class="dayp-foot"><span>${steps.length} ${escapeHtml(lbl.steps[L]||lbl.steps.fr)}</span>`
+    +`<span>${escapeHtml(fmtDur(visitMin*60))}</span>`
+    +(km>0?`<span>${escapeHtml(modeEmoji(mode))} ${escapeHtml(fmtDist(km*1000))}</span>`:``)
+    +`</div>`
+    +`<div class="dayp-btns"><button class="dayp-ok">${escapeHtml(lbl.save[L]||lbl.save.fr)}</button>`
+    +`<button class="dayp-no">${escapeHtml(lbl.no[L]||lbl.no.fr)}</button></div>`;
+  body.scrollTop=body.scrollHeight;
+  card.querySelector(".dayp-no").onclick=()=>card.remove();
+  card.querySelector(".dayp-ok").onclick=()=>{ addDayToPlan(tr, steps, jour-1); card.remove(); };
+}
+/* Insertion d'une journee entiere : on garde les horaires proposes et le
+   lieu deja resolu. Une seule confirmation, pas une par etape. */
+function addDayToPlan(tr, steps, dayIndex){
+  tr.plan=tr.plan||[];
+  let n=0;
+  steps.forEach(x=>{
+    const pl=x.place||{};
+    const step={ id:uid(), day:dayIndex, time:x.heure||nextTimeFor(tr,dayIndex),
+      title:pl.name||x.nom, sub:pl.primaryType||"", kind:(x.kind==="meal"?"meal":"place"),
+      dur:(x.duree|| (x.kind==="meal"?75:90)), done:false };
+    if(pl.id) step.placeId=pl.id;
+    if(pl.lat!=null) step.lat=pl.lat;
+    if(pl.lng!=null) step.lng=pl.lng;
+    if(x.kind==="meal"){ step.meal="dinner"; step.fixed=true; }
+    tr.plan.push(step); n++;
+    /* Le lieu rejoint aussi le voyage, comme lors d'un ajout manuel. */
+    if(pl.id && !(tr.places||[]).some(y=>y.id===pl.id)){
+      tr.places=tr.places||[];
+      tr.places.push({ id:pl.id, lang0:pl.lang0||lang(), name:pl.name, lat:pl.lat, lng:pl.lng,
+        types:pl.types, primaryType:pl.primaryType||"", rating:pl.rating, count:pl.count,
+        price:pl.price, photo:pl.photo, photos:pl.photos||[], address:pl.address });
+    }
+  });
+  saveState();
+  const L=lang();
+  toast(({fr:n+" \u00e9tapes ajout\u00e9es",en:n+" stops added",es:n+" paradas a\u00f1adidas",
+          it:n+" tappe aggiunte",de:n+" Stopps hinzugef\u00fcgt"})[L]||(n+" \u00e9tapes ajout\u00e9es"));
+  if(typeof renderPlan==="function" && currentTab==="plan") renderPlan();
+}
 function renderPlanProposal(p){
   const body=document.getElementById("chatBody"); if(!body) return;
   const tr=currentTrip(); if(!tr){ return; }
@@ -11853,6 +12109,45 @@ function openSummarySheet(tr, text, loading){
   else { body.innerHTML=`<div class="souv-card"><div class="souv-hint">${t("agent.busy")}</div></div>`; }
   sheet.classList.add("show");
 }
+/* Entrees de navigation du tiroir. Chacune pointe vers un ecran REEL :
+   pas d'entree decorative. */
+const DRAWER_NAV=[
+  { k:"trips",  tab:"home",   i:'<path d="M4 7.5h16v12H4z"/><path d="M9 7.5V5.6h6v1.9"/>',
+    t:{fr:"Voyages",en:"Trips",es:"Viajes",it:"Viaggi",de:"Reisen"} },
+  { k:"chat",   tab:"",       i:'<path d="M20 15.5a2.5 2.5 0 0 1-2.5 2.5H8l-4 3V6.5A2.5 2.5 0 0 1 6.5 4h11A2.5 2.5 0 0 1 20 6.5z"/>',
+    t:{fr:"Discussions",en:"Chats",es:"Charlas",it:"Chat",de:"Chats"} },
+  { k:"maps",   tab:"explore",i:'<path d="M9 4.5 3.5 6.8v12.7L9 17.2l6 2.3 5.5-2.3V4.5L15 6.8z"/><path d="M9 4.5v12.7M15 6.8v12.7"/>',
+    t:{fr:"Cartes",en:"Maps",es:"Mapas",it:"Mappe",de:"Karten"} },
+  { k:"insp",   tab:"",       i:'<path d="m12 3.4 2.1 4.6 5 .6-3.7 3.4 1 4.9L12 14.4 7.6 16.9l1-4.9L4.9 8.6l5-.6z"/>',
+    t:{fr:"Inspiration",en:"Inspiration",es:"Inspiraci\u00f3n",it:"Ispirazione",de:"Inspiration"} },
+  { k:"budget", tab:"budget", i:'<path d="M3.5 8.5h17v10h-17z"/><path d="M3.5 11.5h17"/><circle cx="16.5" cy="15" r="1.1"/>',
+    t:{fr:"Budget",en:"Budget",es:"Presupuesto",it:"Budget",de:"Budget"} },
+  { k:"set",    tab:"",       i:'<circle cx="12" cy="12" r="3"/><path d="M12 3.2v2M12 18.8v2M4.8 12H2.8M21.2 12h-2M6.9 6.9 5.5 5.5M18.5 18.5l-1.4-1.4M6.9 17.1l-1.4 1.4M18.5 5.5l-1.4 1.4"/>',
+    t:{fr:"Param\u00e8tres",en:"Settings",es:"Ajustes",it:"Impostazioni",de:"Einstellungen"} }
+];
+function drawerNavHtml(){
+  const L=lang();
+  return `<div class="cd-nav">`+DRAWER_NAV.map(n=>
+    `<button class="cd-navi${n.k==="chat"?" on":""}" data-nav="${n.k}">`
+    +`<svg viewBox="0 0 24 24">${n.i}</svg><span>${n.t[L]||n.t.fr}</span></button>`).join("")+`</div>`;
+}
+function drawerHeadHtml(){
+  const L=lang();
+  const nw={fr:"Nouvelle discussion",en:"New chat",es:"Nueva charla",it:"Nuova chat",de:"Neuer Chat"}[L]||"Nouvelle discussion";
+  return `<div class="cd-head"><span class="cd-logo">${miniAvatarSvg()}</span>`
+    +`<span class="cd-brand"><b>${escapeHtml((S.settings.agentName||"").trim()||"Fid\u00e8le")}</b>`
+    +`<i>${escapeHtml((document.getElementById("chatSub")||{}).textContent||"")}</i></span></div>`
+    +`<button class="cd-new" data-nav="new"><span>+</span>${nw}</button>`;
+}
+function drawerFootHtml(){
+  const L=lang();
+  const nm=(typeof currentUser!=="undefined"&&currentUser&&currentUser.email)?currentUser.email
+    :(userName()|| ({fr:"Compte invit\u00e9",en:"Guest account",es:"Cuenta invitada",it:"Account ospite",de:"Gastkonto"}[L]||"Compte invit\u00e9"));
+  const sub=(typeof currentUser!=="undefined"&&currentUser)?({fr:"Connect\u00e9",en:"Signed in",es:"Conectado",it:"Connesso",de:"Angemeldet"}[L]||"Connect\u00e9")
+    :({fr:"Compte invit\u00e9",en:"Guest account",es:"Cuenta invitada",it:"Account ospite",de:"Gastkonto"}[L]||"Compte invit\u00e9");
+  return `<button class="cd-foot" data-nav="set"><span class="cd-fav">${(nm||"?").slice(0,1).toUpperCase()}</span>`
+    +`<span class="cd-ft"><b>${escapeHtml(nm)}</b><i>${escapeHtml(sub)}</i></span><span class="cd-fc">\u203a</span></button>`;
+}
 function renderConvDrawer(){ const inner=document.getElementById("convDrawerInner"); if(!inner) return;
   const L=lang();
   const lblProjects={fr:"Voyages",en:"Trips",es:"Viajes",it:"Viaggi",de:"Reisen"}[L]||"Voyages";
@@ -11885,8 +12180,24 @@ function renderConvDrawer(){ const inner=document.getElementById("convDrawerInne
   h+=`<div class="conv-sec-lbl" style="margin-top:14px">${lblFree}<button id="convNewFree" class="conv-new-sm">+ ${lblNew}</button></div>`;
   if(!free.length){ h+=`<div class="conv-empty">${lblEmpty}</div>`; }
   free.forEach(c=>{ const on=c.id===S.activeConvId; h+=convItemHtml(c,on); });
-  inner.innerHTML=h;
+  /* La liste des conversations, deja construite ci-dessus, prend place
+     entre la navigation et le compte. */
+  const L2=lang();
+  const lblRec={fr:"R\u00e9centes",en:"Recent",es:"Recientes",it:"Recenti",de:"Zuletzt"}[L2]||"R\u00e9centes";
+  inner.innerHTML=drawerHeadHtml()+drawerNavHtml()
+    +`<div class="cd-scroll"><div class="cd-reclbl">${lblRec}</div>${h}</div>`
+    +drawerFootHtml();
   bindConvDrawer(inner);
+  /* Navigation : chaque entree ferme le dialogue et ouvre un ecran reel. */
+  inner.querySelectorAll("[data-nav]").forEach(b=>b.onclick=()=>{
+    const k=b.dataset.nav;
+    if(k==="new"){ newConv(true); closeConvDrawer&&closeConvDrawer(); return; }
+    if(k==="chat"){ closeConvDrawer&&closeConvDrawer(); return; }
+    if(k==="set"){ closeConvDrawer&&closeConvDrawer(); closeAgentChat(); openSettings(); return; }
+    if(k==="insp"){ closeConvDrawer&&closeConvDrawer(); closeAgentChat(); openInspiration(); return; }
+    const nav=DRAWER_NAV.find(x=>x.k===k);
+    if(nav&&nav.tab){ closeConvDrawer&&closeConvDrawer(); closeAgentChat(); switchTab(nav.tab); }
+  });
 }
 function convItemHtml(c,on){
   const L=lang(); const lblMove={fr:"Déplacer",en:"Move",es:"Mover",it:"Sposta",de:"Verschieben"}[L]||"Déplacer";
