@@ -441,8 +441,13 @@ a.btn{text-decoration:none}
 .pl-ic.place{color:#0E9F6E;background:rgba(15,159,110,.13)}
 .pl-ic.custom{color:var(--gold-d);background:var(--gold-soft)}
 .pl-ic{font-size:clamp(17.1px,4.872vw,19px);line-height:1}
-.pl-item{position:relative;overflow:hidden}
-.pl-fill{position:absolute;left:0;top:0;bottom:0;width:0;z-index:0;transition:width .9s linear;pointer-events:none}
+.pl-item{position:relative;overflow:hidden;padding-left:12px;
+  border-left:3px solid var(--catc,var(--line));border-radius:0 10px 10px 0}
+/* Une etape terminee n'a plus besoin de crier sa couleur. */
+.pl-item.done{border-left-color:var(--line)}
+.pl-item.current{background:var(--paper,#F7F8FB)}
+.pl-fill{position:absolute;left:0;bottom:0;top:auto;height:3px;width:0;z-index:0;
+  border-radius:0 2px 2px 0;opacity:.85;transition:width .9s linear;pointer-events:none}
 .pl-item>:not(.pl-fill){position:relative;z-index:1}
 .pl-item.current{border-radius:12px;background:rgba(255,255,255,.03)}
 .pl-check.locked{cursor:default;opacity:.92}
@@ -4936,9 +4941,9 @@ function planRow(it,sc,dd){ const startStr=sc?sc.startStr:(it.time||'');
   const current=isToday&&st!=null&&en!=null&&now>=st&&now<en;
   const shownDone=it.done||((isPast||elapsed)&&!it.lateUndone);
   const frac=isToday&&st!=null&&en!=null?(now>=en?1:(now<=st?0:(now-st)/Math.max(1,en-st))):(shownDone?1:0);
-  const pct=Math.round(frac*100); const col=catColor(it); const fill=`<div class="pl-fill" style="width:${pct}%;background:linear-gradient(90deg,${col}14,${col}3a)${(pct>0&&pct<100)?`;border-right:2px solid ${col}aa`:''}"></div>`;
+  const pct=Math.round(frac*100); const col=catColor(it); const fill=(pct>0)?`<div class="pl-fill" style="width:${pct}%;background:${col}"></div>`:'';
   const cls=(shownDone?'done ':'')+(current?'current':'');
-  return `<div class="pl-item ${cls}" data-id="${it.id}">${fill}
+  return `<div class="pl-item ${cls}" data-id="${it.id}" style="--catc:${col}">${fill}
     <div class="pl-time">${escapeHtml(startStr)}</div>
     <div class="pl-ic ${it.kind}">${catEmoji(it)}</div>
     <div class="pl-main"><div class="pl-title">${escapeHtml(it.title||'')}</div>${it.sub?`<div class="pl-sub">${escapeHtml(it.kind==="place"?gStr(it.sub,it.subLang):it.sub)}</div>`:''}<div class="pl-dur">≈ ${fmtMin(stepDur(it))}${sc?` · ${sc.endStr}`:''}</div>${hrsHtml}${it.arrived?`<div class="pl-confirmed">📍 ${t("plan.confirmed")}</div>`:""}${shift}${warn}</div>
@@ -7116,7 +7121,7 @@ function openMontage(tr,version,autoplay){ tr=tr||souvTrip(); if(!tr) return; _m
     <div id="mvStudio" class="stu" style="display:none">
       <div class="stu-top">
         <button class="stu-back" id="stuBack" aria-label="Retour">\u2039</button>
-        <div class="stu-ttl"><b>Studio Magot<i>\u2727</i></b><span>Montage vid\u00e9o \u00b7 v461</span></div>
+        <div class="stu-ttl"><b>Studio Magot<i>\u2727</i></b><span>Montage vid\u00e9o \u00b7 v462</span></div>
         <button class="stu-ico" id="stuUndo" title="Annuler">\u21b6</button>
         <button class="stu-ico" id="stuRedo" title="R\u00e9tablir">\u21b7</button>
         <button class="stu-exp" id="mvSave"><i>\u2b06</i>Exporter</button>
