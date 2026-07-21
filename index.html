@@ -57,7 +57,11 @@
 *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
 /* Champs de saisie : jamais sous 16 px, sinon iOS zoome tout seul a la frappe. */
 input,select,textarea{font-size:max(16px,1rem)}
-html,body{overflow-x:hidden;margin:0;height:100%;overscroll-behavior:none;-webkit-text-size-adjust:100%;text-size-adjust:100%}
+/* « pan-x pan-y » autorise le defilement mais PAS le pincement ni le
+   double-appui. Les exceptions sont declarees juste apres : photos et
+   cartes gardent leurs gestes. */
+*{touch-action:pan-x pan-y}
+html,body{overflow-x:hidden;margin:0;height:100%;overscroll-behavior:none;-webkit-text-size-adjust:100%;text-size-adjust:100%;touch-action:manipulation}
 body{font-family:"Inter",system-ui,-apple-system,sans-serif;color:var(--ink);
   background-image:var(--bg-mesh);background-color:var(--bg);background-attachment:fixed;background-size:cover;background-repeat:no-repeat;
   font-size:clamp(14.1px,3.846vw,15px);line-height:1.5;letter-spacing:-.005em;overscroll-behavior:none;-webkit-font-smoothing:antialiased;
@@ -188,7 +192,8 @@ nav.tabs button.active .ico{background:var(--navy);color:#fff;box-shadow:0 6px 1
   padding:calc(env(safe-area-inset-top) + 14px) 18px 14px;border-bottom:1px solid var(--line);background:var(--surface)}
 .sh-head h2{font-family:var(--font-serif);font-size:clamp(18px,5.128vw,20px)}
 .sh-close{width:38px;height:38px;border-radius:11px;border:1px solid var(--line);background:var(--surface-2);color:var(--ink);font-size:clamp(15.3px,4.359vw,17px);cursor:pointer}
-.sh-body{flex:1 1 auto;overflow-y:auto;padding:18px}
+.sh-body{flex:1 1 auto;overflow-y:auto;padding:18px;overscroll-behavior:contain;-webkit-overflow-scrolling:touch}
+#chatBody{overscroll-behavior:contain;-webkit-overflow-scrolling:touch}
 .section-label{font:700 10.5px/1 "Inter",sans-serif;font-size:clamp(10.5px,2.692vw,10.5px);letter-spacing:.14em;text-transform:uppercase;color:var(--muted);margin:4px 2px 12px}
 .seg{display:flex;gap:9px;margin-bottom:6px}
 .seg button{flex:1;padding:12px;border:1px solid var(--line);background:var(--surface);border-radius:12px;font:600 13.5px "Inter",sans-serif;font-size:clamp(12.7px,3.462vw,13.5px);color:var(--muted);cursor:pointer;transition:all .15s}
@@ -341,6 +346,33 @@ select.csel{width:100%;padding:13px 14px;border:1px solid var(--line);border-rad
 #expFilter.on::after{content:"";position:absolute;right:9px;top:9px;width:8px;height:8px;
   border-radius:50%;background:var(--gold,#E0A33E);box-shadow:0 0 0 2px var(--surface,#fff)}
 /* Interrupteur unique : l'etat se lit sans avoir a comparer deux boutons. */
+/* ---- Parametres en quatre groupes pliables ---- */
+.set-grp{margin:0 0 13px;background:var(--surface,#fff);border:1px solid var(--line-soft,#EEF1F7);
+  border-radius:var(--r,18px);box-shadow:var(--shadow-sm);overflow:hidden}
+.set-grph{display:flex;align-items:center;gap:11px;width:100%;min-height:56px;padding:15px;
+  background:none;border:0;text-align:left;font:inherit;color:inherit;cursor:pointer}
+.set-grp.fixed .set-grph{cursor:default}
+.set-grpt{flex:1 1 auto;min-width:0;font:700 14.6px "Inter",sans-serif;
+  font-size:clamp(13.8px,3.75vw,14.8px);letter-spacing:-.01em;color:var(--ink)}
+.set-grpv{flex:0 0 auto;font:500 12.8px "Inter",sans-serif;font-size:clamp(12px,3.28vw,13px);
+  color:var(--muted);max-width:46vw;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.set-grpc{flex:0 0 auto;width:18px;text-align:center;color:#B7C0D2;font-size:15px;line-height:1;
+  transition:transform .2s ease}
+.set-grp.open .set-grpc{transform:rotate(180deg)}
+.set-grpb{display:none;border-top:1px solid var(--line-soft,#EEF1F7);padding:2px 0 8px}
+.set-grp.open .set-grpb{display:block}
+.set-sub{padding:13px 15px 2px}
+.set-subt{font:800 10.4px "Inter",sans-serif;font-size:clamp(9.9px,2.68vw,10.6px);
+  letter-spacing:.13em;text-transform:uppercase;color:var(--muted);margin:0 0 9px}
+.set-sep{height:1px;background:var(--line-soft,#EEF1F7);margin:12px 15px 0}
+.set-about{text-align:center;padding:14px 12px 4px;color:var(--muted)}
+.set-about .set-subt{margin-bottom:7px}
+/* Les etiquettes internes n'ont plus a s'espacer : le groupe s'en charge. */
+.set-sub .section-label{display:none}
+@media (prefers-reduced-motion:reduce){ .set-grpc{transition:none} }
+/* Le pourcentage vit au centre de l'anneau. */
+.ringsvg .ring-n{font:700 12px "Inter",system-ui;fill:var(--ink);dominant-baseline:central}
+[data-theme="dark"] .ringsvg .ring-n{fill:#fff}
 /* Anneau de progression : trace unique a l'apparition. */
 @keyframes ringDraw{ from{stroke-dashoffset:var(--rc)} to{stroke-dashoffset:var(--roff)} }
 .ringsvg .ring-arc{animation:ringDraw .9s cubic-bezier(.25,.8,.3,1) both}
@@ -456,6 +488,13 @@ a.btn{text-decoration:none}
 [data-theme="dark"] .plan-acts .ov-btn.add{background:var(--gold,#E9B559);color:#2A1A05;border-color:var(--gold,#E9B559)}
 /* Le retard du au trafic, quand il existe vraiment. */
 .dst-traffic{color:var(--danger,#DC2626);font-weight:700;white-space:nowrap}
+.msug-why{margin:-2px 0 10px;font:400 11.5px "Inter",sans-serif;
+  font-size:clamp(11px,3vw,11.8px);color:var(--muted);line-height:1.4;text-align:center}
+.msug-n{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.msug-o{font:700 10px "Inter",sans-serif;font-size:clamp(9.6px,2.6vw,10.4px);
+  padding:2px 7px;border-radius:999px;flex:0 0 auto}
+.msug-o.y{background:rgba(22,163,74,.14);color:#16A34A}
+.msug-o.n{background:rgba(220,38,38,.12);color:var(--danger,#DC2626)}
 .dstat .dst-em{width:19px;font-size:15px;line-height:19px;text-align:center;flex:0 0 auto}
 .dstat .dst-svg{width:19px;height:19px;stroke:var(--gold);fill:none;stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round;flex:0 0 auto}
 .dstat b{display:block;font:700 15px "Inter",sans-serif;font-size:clamp(14.1px,3.846vw,15px);color:var(--ink);white-space:nowrap;letter-spacing:.01em}
@@ -497,6 +536,10 @@ a.btn{text-decoration:none}
 .pl-check{width:26px;height:26px;border-radius:50%;border:2px solid var(--line);background:var(--surface);color:#fff;flex:0 0 auto;cursor:pointer;font-size:clamp(12.2px,3.333vw,13px);font-weight:700;display:flex;align-items:center;justify-content:center}
 .pl-check.done{background:var(--emerald);border-color:var(--emerald)}
 .planmap{height:clamp(176px,27dvh,220px);border-radius:16px;overflow:hidden;border:1px solid var(--line);margin-top:4px;background:var(--surface-2)}
+/* Google Maps et OSM ecoutent eux-memes le pincement : on ne leur impose
+   aucune contrainte, sinon le zoom sur la carte est bloque. */
+.planmap,.planmap *,.souvmap-ov .gm-style,.souvmap-ov .gm-style *,
+.map-wrap,.map-wrap *,#ovMap,#ovMap *,.leaflet-container,.leaflet-container *{touch-action:auto}
 .tripmap{height:clamp(240px,38dvh,300px);border-radius:16px;overflow:hidden;border:1px solid var(--line);margin-top:4px;background:var(--surface-2)}
 .map-legend{display:flex;flex-wrap:wrap;gap:8px 14px;margin-top:10px}
 .map-legend .lg{display:inline-flex;align-items:center;gap:6px;font:600 12px "Inter",sans-serif;font-size:clamp(11.3px,3.077vw,12px);color:var(--muted)}
@@ -666,7 +709,9 @@ body.map-locked{overflow:hidden}
 .osm-ps button.on{background:#0E2148;color:#fff}
 .lightbox{position:fixed;inset:0;z-index:4500;background:rgba(8,12,24,.95);display:none;align-items:center;justify-content:center}
 .lightbox.show{display:flex}
-.lb-stage{max-width:100vw;max-height:100dvh;display:flex;align-items:center;justify-content:center;touch-action:pan-y}
+.lb-stage{max-width:100vw;max-height:100dvh;display:flex;align-items:center;justify-content:center;
+  touch-action:pan-y pinch-zoom}
+.lb-stage img,.lb-stage canvas{touch-action:pan-y pinch-zoom}
 .lb-stage img{max-width:100vw;max-height:86dvh;object-fit:contain;border-radius:4px;-webkit-user-drag:none;user-select:none}
 .lb-close{position:absolute;top:calc(env(safe-area-inset-top,0px) + 14px);right:16px;z-index:3;width:44px;height:44px;border-radius:50%;border:0;background:rgba(0,0,0,.5);color:#fff;font-size:clamp(18.9px,5.385vw,21px);line-height:1;cursor:pointer;display:flex;align-items:center;justify-content:center}
 .lb-nav{position:absolute;top:50%;transform:translateY(-50%);z-index:3;width:46px;height:46px;border-radius:50%;border:0;background:rgba(0,0,0,.4);color:#fff;font-size:clamp(27px,7.692vw,30px);line-height:1;cursor:pointer;display:flex;align-items:center;justify-content:center}
@@ -2887,6 +2932,13 @@ function buildTripContext(){
   if(tr.depart&&tr.depart.name) ctx.pointDepart = tr.depart.name;
   const placeNames=(tr.places||[]).slice(0,8).map(p=>p.name).filter(Boolean);
   if(placeNames.length) ctx.lieuxAjoutes = placeNames;
+  /* Gouts en restauration, deduits des adresses REELLEMENT enregistrees.
+     Absent tant que le nombre d'adresses est trop faible pour conclure. */
+  try{ const _tp=tasteProfile();
+    if(_tp) ctx.goutsRestauration={ nbAdresses:_tp.n,
+      typesFrequents:_tp.types, niveauPrix:_tp.price||undefined,
+      remarque:"Deduit des adresses enregistrees par la personne, pas declare par elle." };
+  }catch(e){}
   if(tr.budget>0 && BUDCATS && BUDCATS.length){
     const parCat={};
     BUDCATS.forEach(c=>{ const v=catSpent(tr,c.k||c); if(v>0) parCat[c.k||c]=money(v,tr.currency); });
@@ -3066,9 +3118,9 @@ function agentWelcomeSubtitle(nm){
 /* Une phrase adossee a une donnee verifiable du voyage en cours. */
 function agentGroundedLine(){
   try{
-    const tr=souvTrip(); if(!tr) return "";
+    const tr=currentTrip(); if(!tr) return "";
     const now=new Date(), iso=now.toISOString().slice(0,10);
-    const d1=tr.start?new Date(tr.start):null, d2=tr.end?new Date(tr.end):null;
+    const d1=tr.dateStart?new Date(tr.dateStart):null, d2=tr.dateEnd?new Date(tr.dateEnd):null;
     const enCours = d1 && d2 && now>=new Date(d1.toDateString()) && now<=new Date(new Date(d2).setHours(23,59,59));
     if(!enCours) return "";
     /* 1. La meteo du jour, si elle a ete recuperee. */
@@ -3220,6 +3272,40 @@ async function deleteMyData(){ if(sb&&currentUser&&currentUser.id){ const uid=cu
   toast(gdT("done"));
   try{ await authLogout(); }catch(e){}
   setTimeout(()=>{ try{ location.reload(); }catch(e){} },500); }
+const SET_GROUPS=[
+  { k:"acct",  fixed:true,  n:[0],               t:{fr:"Compte",en:"Account",es:"Cuenta",it:"Account",de:"Konto"} },
+  { k:"look",  fixed:false, n:[1,2,3],           t:{fr:"Apparence et langue",en:"Appearance & language",es:"Apariencia e idioma",it:"Aspetto e lingua",de:"Darstellung & Sprache"} },
+  { k:"func",  fixed:false, n:[4,5,6,7,8,9],     t:{fr:"Fonctionnement",en:"How it works",es:"Funcionamiento",it:"Funzionamento",de:"Funktionsweise"} },
+  { k:"data",  fixed:false, n:[10],              t:{fr:"Confidentialit\u00e9 et mes donn\u00e9es",en:"Privacy & my data",es:"Privacidad y mis datos",it:"Privacy e i miei dati",de:"Datenschutz & meine Daten"} }
+];
+/* Decoupe le HTML des reglages sur ses etiquettes, puis le repartit dans
+   les groupes. La derniere section (A propos) reste hors groupe. */
+function setGroupize(h, sums){
+  const L=lang();
+  const parts=h.split('<div class="section-label"');
+  if(parts.length<12) return h;               /* structure inattendue : on n'y touche pas */
+  const head=parts[0];
+  const secs=parts.slice(1).map(p=>{
+    const gt=p.indexOf(">"), end=p.indexOf("</div>", gt);
+    return { lab:p.slice(gt+1, end), body:p.slice(end+6) };
+  });
+  let out=head;
+  SET_GROUPS.forEach(g=>{
+    const inner=g.n.map(i=>{ const sc=secs[i]; if(!sc) return "";
+      return `<div class="set-sub"><div class="set-subt">${sc.lab}</div>${sc.body}</div>`; }).join('<div class="set-sep"></div>');
+    if(!inner) return;
+    const sum=sums[g.k]||"";
+    const title=(g.t[L]||g.t.fr);
+    out+=`<div class="set-grp${g.fixed?" fixed open":""}" data-grp="${g.k}">`
+      + (g.fixed
+          ? `<div class="set-grph"><span class="set-grpt">${title}</span>${sum?`<span class="set-grpv">${sum}</span>`:""}</div>`
+          : `<button class="set-grph" type="button" data-grpb="${g.k}"><span class="set-grpt">${title}</span>${sum?`<span class="set-grpv">${sum}</span>`:""}<span class="set-grpc">\u2304</span></button>`)
+      + `<div class="set-grpb">${inner}</div></div>`;
+  });
+  /* A propos : hors groupe, en pied de page. */
+  const ab=secs[11]; if(ab) out+=`<div class="set-about"><div class="set-subt">${ab.lab}</div>${ab.body}</div>`;
+  return out;
+}
 function renderSettings(){
   document.getElementById("setTitle").textContent=t("set.title");
   const L=lang(), th=(S.settings.theme||"system"), body=document.getElementById("setBody"); let h="";
@@ -3283,7 +3369,23 @@ function renderSettings(){
     <div class="about" style="margin-top:7px">${gdT("deleteHint")}</div>`;
   h+=`<div class="section-label" style="margin-top:22px">${t("set.about")}</div>
     <div class="about">${t("set.aboutTxt")}</div><div class="ver">${t("set.version",{v:BUILD})}</div>`;
-  body.innerHTML=h;
+  /* Resume affiche dans l'en-tete de chaque groupe replie : on lit son
+     etat sans avoir a l'ouvrir. Uniquement des valeurs reelles. */
+  const _lg=(LANGS.find(x=>x.code===L)||{}); 
+  const _sums={
+    acct: currentUser ? escapeHtml(currentUser.email||"") : guestLbl.replace(/\s*\(.*\)\s*$/,""),
+    look: [t("theme."+(th==="dark"?"dark":th==="light"?"light":"system")),
+           (_lg.nm||""), (S.settings.units==="imperial"?t("set.mi"):t("set.km"))].filter(Boolean).join(" \u00b7 "),
+    func: t("set.autotr")+" \u00b7 "+(S.settings.autoTranslate!==false?t("set.autotrOn"):t("set.autotrOff")),
+    data: ""
+  };
+  body.innerHTML=setGroupize(h,_sums);
+  /* Un groupe ouvert a la fois ; Compte reste toujours visible. */
+  body.querySelectorAll("[data-grpb]").forEach(b=>b.onclick=()=>{
+    const g=b.closest(".set-grp"), was=g.classList.contains("open");
+    body.querySelectorAll(".set-grp.open:not(.fixed)").forEach(x=>x.classList.remove("open"));
+    if(!was) g.classList.add("open");
+  });
   body.querySelectorAll("[data-theme]").forEach(b=>b.onclick=()=>setTheme(b.dataset.theme));
   const _lo=document.getElementById("setLogout"); if(_lo) _lo.onclick=authLogout;
   const _li=document.getElementById("setLogin"); if(_li) _li.onclick=()=>{ authMode="login"; showAuthScreen(); };
@@ -3353,7 +3455,7 @@ function fmtRange(a,b){ if(!a||!b) return t("detail.noDates"); try{
 function ringSvg(pct){ const r=15,c=2*Math.PI*r,off=c*(1-Math.max(0,Math.min(100,pct))/100);
   /* L'anneau se dessine a l'ouverture : il part de zero et rejoint sa valeur.
      Une seule animation, jouee une fois — rien ne tourne en boucle. */
-  return `<svg class="ringsvg" viewBox="0 0 36 36" width="32" height="32" style="--rc:${c.toFixed(2)};--roff:${off.toFixed(2)}"><circle cx="18" cy="18" r="${r}" fill="none" stroke="var(--line)" stroke-width="3.2"/><circle class="ring-arc" cx="18" cy="18" r="${r}" fill="none" stroke="var(--gold)" stroke-width="3.2" stroke-linecap="round" stroke-dasharray="${c.toFixed(2)}" stroke-dashoffset="${off.toFixed(2)}" transform="rotate(-90 18 18)"/></svg>`; }
+  return `<svg class="ringsvg" viewBox="0 0 36 36" width="32" height="32" style="--rc:${c.toFixed(2)};--roff:${off.toFixed(2)}"><circle cx="18" cy="18" r="${r}" fill="none" stroke="var(--line)" stroke-width="3.2"/><circle class="ring-arc" cx="18" cy="18" r="${r}" fill="none" stroke="var(--gold)" stroke-width="3.2" stroke-linecap="round" stroke-dasharray="${c.toFixed(2)}" stroke-dashoffset="${off.toFixed(2)}" transform="rotate(-90 18 18)"/><text class="ring-n" x="18" y="18" text-anchor="middle" dominant-baseline="central">${Math.round(pct)}</text></svg>`; }
 function coverFor(tr){ return COVERS[hashStr(tr.id)%COVERS.length]; }
 function coverPhotoName(tr){ if(tr.coverPhoto) return tr.coverPhoto; if(tr.places&&tr.places.length){ const p=tr.places.find(x=>x.photo); if(p) return p.photo; } return ""; }
 function coverStyle(tr){ const ph=coverPhotoName(tr); if(ph&&googleReady()) return `background-image:url('${gPhoto(ph,700)}');background-size:cover;background-position:center`; return `background:${COVERS[hashStr(tr.id)%COVERS.length]}`; }
@@ -5439,6 +5541,42 @@ function mealQuery(tr,type){ const st=(tr.styles||[]);
   const M={premium:"gastronomique",streetfood:"street food",wine:"bistrot",local:"cuisine locale",romantic:"romantique",family:"familial",backpacking:"pas cher",vegetarian:"végétarien",eco:"bio"};
   let kw=""; for(const sx of st){ if(M[sx]){ kw=M[sx]; break; } }
   const base = type==="breakfast" ? "café petit-déjeuner" : "restaurant"; return base+(kw?(" "+kw):""); }
+const TASTE_MIN=5;
+function tasteProfile(){
+  try{
+    const trips=(S&&S.trips)||[]; const seen=new Set(); const rows=[];
+    trips.forEach(tp=>{ (tp.places||[]).forEach(p=>{
+      if(!p||!p.id||seen.has(p.id)) return; seen.add(p.id); rows.push(p); }); });
+    /* On ne regarde QUE les lieux ou l'on mange : les gouts en restauration
+       ne se deduisent pas d'un musee. */
+    const isFood=p=>{ const ty=(p.types||[]).join(" ")+" "+(p.ptype||"")+" "+(p.primaryType||"");
+      return /restaurant|food|cafe|bar|bakery|meal_/i.test(ty); };
+    const food=rows.filter(isFood);
+    if(food.length<TASTE_MIN) return null;
+    /* Type dominant : on compte les types Google bruts, plus stables que
+       les libelles traduits. */
+    const cnt={}; food.forEach(p=>{ (p.types||[]).forEach(ty=>{
+      if(/^(restaurant|food|point_of_interest|establishment|meal_takeaway|meal_delivery)$/.test(ty)) return;
+      cnt[ty]=(cnt[ty]||0)+1; }); });
+    const types=Object.keys(cnt).sort((a,b)=>cnt[b]-cnt[a]).filter(k=>cnt[k]>=2).slice(0,3);
+    /* Niveau de prix dominant, seulement s'il ressort nettement. */
+    const pc={}; food.forEach(p=>{ if(p.price) pc[p.price]=(pc[p.price]||0)+1; });
+    const pk=Object.keys(pc).sort((a,b)=>pc[b]-pc[a])[0]||"";
+    const price=(pk && pc[pk]>=Math.ceil(food.length/2))?pk:"";
+    if(!types.length && !price) return null;
+    return { n:food.length, types, price, label:(p=>p)(null) };
+  }catch(e){ return null; }
+}
+/* Phrase qui dit sur quoi la deduction repose. Sans elle, le classement
+   serait une boite noire. */
+function tasteLine(tp){
+  if(!tp) return "";
+  const bits=[];
+  if(tp.types.length) bits.push(tp.types.slice(0,2).map(x=>x.replace(/_restaurant$/,"").replace(/_/g," ")).join(", "));
+  if(tp.price) bits.push(priceLabel(tp.price));
+  if(!bits.length) return "";
+  return `D'apr\u00e8s tes ${tp.n} adresses enregistr\u00e9es : ${bits.join(" \u00b7 ")}.`;
+}
 async function suggestMeal(type){ const tr=currentTrip(); if(!tr) return; const day=planState.dayIndex; const win=mealWin(tr,type);
   const anchor=mealAnchor(tr,day,win);
   if(!googleReady() || !anchor){ addMeal(type); return; }
@@ -5447,13 +5585,29 @@ async function suggestMeal(type){ const tr=currentTrip(); if(!tr) return; const 
   const res=await gText(mealQuery(tr,type),{lat:anchor.lat,lng:anchor.lng,radius:2500,type:gtype});
   let places=((res&&res.places)||[]).map(placeFromG).filter(x=>x.lat!=null && x.businessStatus!=="CLOSED_PERMANENTLY");
   if(!places.length){ toast(t("plan.mealNone")); addMeal(type); return; }
-  places.sort((a,b)=>((b.rating||0)-(a.rating||0))||((b.count||0)-(a.count||0)));
-  showMealSuggest(type,places.slice(0,6),anchor); }
-function showMealSuggest(type,places,anchor){ const ov=document.createElement("div"); ov.className="confirm-ov show";
+  /* Ouvert d'abord, puis la note, puis le nombre d'avis : une note de 5,0
+     sur trois avis ne vaut pas un 4,6 sur douze cents. Un lieu dont
+     l'horaire est inconnu n'est ni privilegie ni ecarte. */
+  const openRank=x=>(x.openNow===true?0:(x.openNow==null?1:2));
+  const tp=tasteProfile();
+  const taste=x=>{ if(!tp) return 0; let sc=0;
+    if(tp.types.length && (x.types||[]).some(ty=>tp.types.indexOf(ty)>=0)) sc+=2;
+    if(tp.price && x.price===tp.price) sc+=1;
+    return sc; };
+  places.sort((a,b)=>(openRank(a)-openRank(b))
+    || (taste(b)-taste(a))
+    || ((b.rating||0)-(a.rating||0))
+    || ((b.count||0)-(a.count||0)));
+  showMealSuggest(type,places.slice(0,6),anchor,tp); }
+function showMealSuggest(type,places,anchor,tp){ const ov=document.createElement("div"); ov.className="confirm-ov show";
   const rows=places.map((pp,i)=>{ const dist=anchor?haversineKm(anchor,{lat:pp.lat,lng:pp.lng}):null;
-    const meta=[pp.rating?("★ "+pp.rating.toFixed(1)):"",pp.primaryType||"",dist!=null?fmtDist(dist*1000):""].filter(Boolean).join("  ·  ");
-    return `<button class="msug" data-i="${i}"><span class="msug-n">${escapeHtml(pp.name)}</span><span class="msug-m">${escapeHtml(meta)}</span></button>`; }).join("");
-  ov.innerHTML=`<div class="confirm-card"><div class="cf-msg">${mealEmoji(type)} ${t("plan.mealNear")}</div><div class="msug-list">${rows}</div><div class="cf-actions"><button class="cf-cancel" id="msNo">${t("plan.mealNoResto")}</button></div></div>`;
+    /* Chaque element n'apparait que s'il est connu : aucune valeur par defaut. */
+    const note=pp.rating?("★ "+pp.rating.toFixed(1)+(pp.count?" ("+pp.count+")":"")):"";
+    const meta=[note,priceLabel(pp.price),pp.primaryType||"",dist!=null?fmtDist(dist*1000):""].filter(Boolean).join("  ·  ");
+    const op=(pp.openNow==null)?"":`<span class="msug-o ${pp.openNow?"y":"n"}">${pp.openNow?t("place.openNow"):t("place.closed")}</span>`;
+    return `<button class="msug" data-i="${i}"><span class="msug-n">${escapeHtml(pp.name)}${op}</span><span class="msug-m">${escapeHtml(meta)}</span></button>`; }).join("");
+  const tl=tasteLine(tp);
+  ov.innerHTML=`<div class="confirm-card"><div class="cf-msg">${mealEmoji(type)} ${t("plan.mealNear")}</div>${tl?`<div class="msug-why">${escapeHtml(tl)}</div>`:""}<div class="msug-list">${rows}</div><div class="cf-actions"><button class="cf-cancel" id="msNo">${t("plan.mealNoResto")}</button></div></div>`;
   document.body.appendChild(ov); const close=()=>ov.remove();
   ov.querySelectorAll("[data-i]").forEach(b=>b.onclick=()=>{ close(); addMealPlace(type,places[+b.dataset.i]); });
   ov.querySelector("#msNo").onclick=()=>{ close(); addMeal(type); };
@@ -7267,7 +7421,7 @@ function openMontage(tr,version,autoplay){ tr=tr||souvTrip(); if(!tr) return; _m
     <div id="mvStudio" class="stu" style="display:none">
       <div class="stu-top">
         <button class="stu-back" id="stuBack" aria-label="Retour">\u2039</button>
-        <div class="stu-ttl"><b>Studio Magot<i>\u2727</i></b><span>Montage vid\u00e9o \u00b7 v472</span></div>
+        <div class="stu-ttl"><b>Studio Magot<i>\u2727</i></b><span>Montage vid\u00e9o \u00b7 v478</span></div>
         <button class="stu-ico" id="stuUndo" title="Annuler">\u21b6</button>
         <button class="stu-ico" id="stuRedo" title="R\u00e9tablir">\u21b7</button>
         <button class="stu-exp" id="mvSave"><i>\u2b06</i>Exporter</button>
