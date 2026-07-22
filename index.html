@@ -5422,13 +5422,17 @@ function renderHotelList(){ const b=document.getElementById("hotelBody"); if(!b)
   /* Un seul réglage de distance, deux façons de l'atteindre : le curseur pour
      affiner, le bouton d'élargissement pour sauter au palier suivant. */
   const _rmax=Math.max(20,_hotelTiers[_hotelTiers.length-1]);
-  const _aLab=near.name?t("hotel.aroundZone",{z:near.name}):t("hotel.radius");
+  /* En français, « de » s'élide devant une voyelle : « Autour d'Axel », pas « de Axel ». */
+  const _aLab=near.name?frElide(t("hotel.aroundZone",{z:near.name})):t("hotel.radius");
   const radSeg=`<div class="hotel-rad"><div class="hrad-top"><span class="hpx-lab">${escapeHtml(_aLab)}</span><span class="hrad-val">${_hotelRadiusKm} km</span></div><input type="range" id="hRadSlider" min="1" max="${_rmax}" step="1" value="${Math.min(_hotelRadiusKm,_rmax)}"></div>`;
   const wideSeg=_hotelWidened?`<div class="hwide-note">${escapeHtml(t("hotel.widened",{km:_hotelRadiusKm}))}</div>`:"";
   const moreSeg=(_hotelTier<_hotelTiers.length-1)?`<button type="button" class="btn ghostline2 hwide-btn" id="hWiden">${t("hotel.widen")}</button>`:"";
   let ps=_hotelPs.slice(); if(_hotelMinRating) ps=ps.filter(p=>(p.rating||0)>=_hotelMinRating);
   const lux=(HTYPES.find(x=>x.k===_hotelType)||{}).lux; let body;
-  _distRef=(near.lat!=null)?{lat:near.lat,lng:near.lng,kind:'center'}:null;
+  /* La distance se mesure depuis l'ancre. Quand l'utilisateur a saisi une zone
+     ou une adresse, ce n'est plus « le centre » : le libellé doit rester neutre,
+     sinon la carte annonce une distance par rapport à un point qui n'est pas celui-là. */
+  _distRef=(near.lat!=null)?{lat:near.lat,lng:near.lng,kind:_hotelAnchor?'away':'center'}:null;
   if(_hotelSort==="top"){
     ps.sort((a,bb)=> lux ? ((premiumScore(bb)-premiumScore(a))||(bayesRating(bb)-bayesRating(a))) : (weightedRating(bb)-weightedRating(a)));
     body= ps.length?`<div class="rowhead" style="margin-top:14px"><h2>${t("hotel.sortTop")}</h2></div><div class="pcards-grid">${ps.map(p=>pcard(p,"grid")).join("")}</div>`:`<div class="empty" style="padding:18px 8px"><p>${_hotelMinRating?t("exp.noMatch"):t("exp.empty")}</p></div>`;
@@ -5480,6 +5484,9 @@ function bindHotelList(b){
 /* Types Google qui désignent une zone administrative plutôt qu'un point. */
 const ZONE_TYPES=["locality","postal_town","sublocality","sublocality_level_1","sublocality_level_2",
   "neighborhood","administrative_area_level_1","administrative_area_level_2","administrative_area_level_3","postal_code"];
+function frElide(s){ return lang()==="fr"
+  ? String(s).replace(/\bde ([AEIOUYÀÂÉÈÊÎÔÙÛHaeiouyàâéèêîôùûh])/g,"d\u2019$1")
+  : s; }
 function isZoneTypes(ts){ return (ts||[]).some(x=>ZONE_TYPES.includes(x)); }
 
 /* Suggestions pour « Où dormir ? ». Google d'abord : il indexe les
