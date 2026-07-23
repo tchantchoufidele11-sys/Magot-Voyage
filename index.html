@@ -3964,11 +3964,14 @@ function openCreateWithDest(dest){ editId=null; draft=newDraft();
 let _homeAcT=null;
 function hideHomeAc(){ const el=document.getElementById("homeAc"); if(el){ el.classList.remove("show"); el.innerHTML=""; } }
 function homeSearch(q){ clearTimeout(_homeAcT); q=(q||"").trim(); const el=document.getElementById("homeAc"); if(!el) return;
-  if(q.length<3){ hideHomeAc(); return; }
+  /* Deux caractères suffisent : Google complète les débuts de mots, ce que
+     Nominatim ne sait pas faire — « Saint-Valery su… » ne donnait rien avant
+     d'être tapé en entier. Nominatim reste le secours. */
+  if(q.length<2){ hideHomeAc(); return; }
   el.innerHTML=`<div class="home-ac-load"><span class="spin"></span></div>`; el.classList.add("show");
-  _homeAcT=setTimeout(async()=>{ const res=await geocode(q);
+  _homeAcT=setTimeout(async()=>{ const res=await zoneSuggest(q,null,null);
     if(!res||!res.length){ el.innerHTML=`<div class="home-ac-empty">${t("home.searchEmpty")}</div>`; return; }
-    el.innerHTML=res.map((r,i)=>`<div class="home-ac-row" data-i="${i}"><svg viewBox="0 0 24 24"><path d="M12 21s-7-6.2-7-11a7 7 0 0 1 14 0c0 4.8-7 11-7 11z"/><circle cx="12" cy="10" r="2.4"/></svg><div class="ha-txt"><div class="ha-n">${escapeHtml(r.name)}</div><div class="ha-l">${escapeHtml(r.country||r.label)}</div></div><svg class="ha-go" viewBox="0 0 24 24"><path d="M9 6l6 6-6 6"/></svg></div>`).join("");
+    el.innerHTML=res.map((r,i)=>`<div class="home-ac-row" data-i="${i}"><svg viewBox="0 0 24 24"><path d="M12 21s-7-6.2-7-11a7 7 0 0 1 14 0c0 4.8-7 11-7 11z"/><circle cx="12" cy="10" r="2.4"/></svg><div class="ha-txt"><div class="ha-n">${escapeHtml(r.name)}</div><div class="ha-l">${escapeHtml(r.sub||r.country||r.label||"")}</div></div><svg class="ha-go" viewBox="0 0 24 24"><path d="M9 6l6 6-6 6"/></svg></div>`).join("");
     el.querySelectorAll("[data-i]").forEach(d=>d.onclick=()=>openCreateWithDest(res[+d.dataset.i]));
   },350); }
 const MED={globe:"data:image/svg+xml,%3Csvg%20xmlns%3D%27http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%27%20width%3D%2742%27%20height%3D%2742%27%20viewBox%3D%270%200%2042%2042%27%3E%3Ccircle%20cx%3D%2721%27%20cy%3D%2721%27%20r%3D%2721%27%20fill%3D%27%23EEF1F7%27%2F%3E%3Cg%20transform%3D%27translate%2810.5%2010.5%29%20scale%280.875%29%27%20fill%3D%27none%27%20stroke%3D%27%23C2872A%27%20stroke-width%3D%272%27%20stroke-linecap%3D%27round%27%20stroke-linejoin%3D%27round%27%3E%3Ccircle%20cx%3D%2712%27%20cy%3D%2712%27%20r%3D%279%27%2F%3E%3Cpath%20d%3D%27M3%2012h18%27%2F%3E%3Cpath%20d%3D%27M12%203c2.6%202.7%202.6%2015.3%200%2018M12%203c-2.6%202.7-2.6%2015.3%200%2018%27%2F%3E%3C%2Fg%3E%3C%2Fsvg%3E",bag:"data:image/svg+xml,%3Csvg%20xmlns%3D%27http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%27%20width%3D%2742%27%20height%3D%2742%27%20viewBox%3D%270%200%2042%2042%27%3E%3Ccircle%20cx%3D%2721%27%20cy%3D%2721%27%20r%3D%2721%27%20fill%3D%27%23EEF1F7%27%2F%3E%3Cg%20transform%3D%27translate%2810.5%2010.5%29%20scale%280.875%29%27%20fill%3D%27none%27%20stroke%3D%27%23C2872A%27%20stroke-width%3D%272%27%20stroke-linecap%3D%27round%27%20stroke-linejoin%3D%27round%27%3E%3Crect%20x%3D%274%27%20y%3D%277%27%20width%3D%2716%27%20height%3D%2713%27%20rx%3D%272%27%2F%3E%3Cpath%20d%3D%27M9%207V5a2%202%200%200%201%202-2h2a2%202%200%200%201%202%202v2%27%2F%3E%3C%2Fg%3E%3C%2Fsvg%3E",bell:"data:image/svg+xml,%3Csvg%20xmlns%3D%27http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%27%20width%3D%2742%27%20height%3D%2742%27%20viewBox%3D%270%200%2042%2042%27%3E%3Ccircle%20cx%3D%2721%27%20cy%3D%2721%27%20r%3D%2721%27%20fill%3D%27%23EEF1F7%27%2F%3E%3Cg%20transform%3D%27translate%2810.5%2010.5%29%20scale%280.875%29%27%20fill%3D%27none%27%20stroke%3D%27%23C2872A%27%20stroke-width%3D%272%27%20stroke-linecap%3D%27round%27%20stroke-linejoin%3D%27round%27%3E%3Cpath%20d%3D%27M4%2018h16%27%2F%3E%3Cpath%20d%3D%27M6%2018a6%206%200%200%201%2012%200%27%2F%3E%3Cpath%20d%3D%27M12%206V4.2%27%2F%3E%3Cpath%20d%3D%27M10.4%204.2h3.2%27%2F%3E%3C%2Fg%3E%3C%2Fsvg%3E",car:"data:image/svg+xml,%3Csvg%20xmlns%3D%27http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%27%20width%3D%2742%27%20height%3D%2742%27%20viewBox%3D%270%200%2042%2042%27%3E%3Ccircle%20cx%3D%2721%27%20cy%3D%2721%27%20r%3D%2721%27%20fill%3D%27%23EEF1F7%27%2F%3E%3Cg%20transform%3D%27translate%2810.5%2010.5%29%20scale%280.875%29%27%20fill%3D%27none%27%20stroke%3D%27%23C2872A%27%20stroke-width%3D%272%27%20stroke-linecap%3D%27round%27%20stroke-linejoin%3D%27round%27%3E%3Cpath%20d%3D%27M5%2016l1.6-5.2A2%202%200%200%201%208.5%209h7a2%202%200%200%201%201.9%201.4L19%2016%27%2F%3E%3Crect%20x%3D%273%27%20y%3D%2716%27%20width%3D%2718%27%20height%3D%274%27%20rx%3D%271%27%2F%3E%3Ccircle%20cx%3D%277.5%27%20cy%3D%2720%27%20r%3D%271%27%2F%3E%3Ccircle%20cx%3D%2716.5%27%20cy%3D%2720%27%20r%3D%271%27%2F%3E%3C%2Fg%3E%3C%2Fsvg%3E",compass:"data:image/svg+xml,%3Csvg%20xmlns%3D%27http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%27%20width%3D%2742%27%20height%3D%2742%27%20viewBox%3D%270%200%2042%2042%27%3E%3Ccircle%20cx%3D%2721%27%20cy%3D%2721%27%20r%3D%2721%27%20fill%3D%27%23EEF1F7%27%2F%3E%3Cg%20transform%3D%27translate%2810.5%2010.5%29%20scale%280.875%29%27%20fill%3D%27none%27%20stroke%3D%27%23C2872A%27%20stroke-width%3D%272%27%20stroke-linecap%3D%27round%27%20stroke-linejoin%3D%27round%27%3E%3Ccircle%20cx%3D%2712%27%20cy%3D%2712%27%20r%3D%279%27%2F%3E%3Cpath%20d%3D%27M15.5%208.5l-2.2%204.8L8.5%2015.5l2.2-4.8z%27%2F%3E%3C%2Fg%3E%3C%2Fsvg%3E"};
@@ -4139,7 +4142,11 @@ function renderCreate(tr){
     cCountry.addEventListener("blur",()=>{ setTimeout(()=>{ if(cCountryAc) cCountryAc.classList.remove("show"); },200); }); }
   const dest=b.querySelector("#cDest"),ac=b.querySelector("#cAc");
   dest.addEventListener("input",()=>{ draft.dest=null; const q=dest.value.trim(); clearTimeout(_acT); if(q.length<3){ ac.classList.remove("show"); ac.innerHTML=""; return; }
-    _acT=setTimeout(async()=>{ const _cc=draft.country&&draft.country.cc; let res=await geocode(q,_cc); if(!res.length) res=await geocode(q,_cc,true);
+    _acT=setTimeout(async()=>{ const _cc=draft.country&&draft.country.cc;
+      /* Même moteur que la barre d'accueil et le champ « Où dormir ? » :
+         Google complète les débuts de mots, Nominatim reste le secours. */
+      let res=await zoneSuggest(q,null,_cc||null);
+      if(_cc) res=res.filter(r=>!r.cc||r.cc===_cc);   /* pays choisi : on s'y tient */
       if(!res.length){
         /* Hors-ligne, on laisse créer avec le texte saisi : c'est le seul moyen
            d'avancer. AVEC du réseau, zéro résultat veut dire que le lieu n'existe
@@ -4485,12 +4492,22 @@ function computeVehEstimate(){ const est=document.getElementById("cEst"); if(!es
 
 /* Création par phrase : Fidèle extrait, le worker valide, l'application PRÉ-REMPLIT.
    Rien n'est créé automatiquement — la personne relit puis valide. */
+/* Habitudes réelles : les types de lieux que la personne enregistre le plus
+   souvent, du plus fréquent au moins fréquent. Rien n'est déduit d'autre chose
+   que de ses propres voyages. */
+function userTastes(){
+  const n=new Map();
+  ((window.S&&S.trips)||[]).forEach(tr=>(tr.places||[]).forEach(p=>{
+    const k=p&&p.ptype; if(!k) return; n.set(k,(n.get(k)||0)+1); }));
+  return Array.from(n.entries()).sort((a,b)=>b[1]-a[1]).map(x=>x[0]).slice(0,12);
+}
+
 async function aiFillCreate(){
   const b=document.getElementById("createBody"); if(!b||editId) return;
   const inp=b.querySelector("#cAI"), go=b.querySelector("#cAIGo"); if(!inp) return;
   const phrase=inp.value.trim(); if(phrase.length<3) return;
   const lbl=go?go.textContent:""; if(go){ go.disabled=true; go.textContent="\u2026"; }
-  const r=await workerFetch("/agent/creer",{phrase,aujourdhui:todayISO(),styles:STYLES});
+  const r=await workerFetch("/agent/creer",{phrase,aujourdhui:todayISO(),styles:STYLES,gouts:userTastes()});
   if(go){ go.disabled=false; go.textContent=lbl; }
   if(!r||r.error||!r.dest){ toast(t("create.aiNone")); return; }
   draft.dest={name:r.dest.name,country:"",cc:"",lat:r.dest.lat,lng:r.dest.lng,bbox:r.dest.bbox||null};
@@ -5849,9 +5866,7 @@ async function askZoneIdeas(b){
   const box=b.querySelector("#hZoneIdeas"), inp=b.querySelector("#hZone"); if(!box) return;
   const d=(draft&&draft.dest)||null; if(!d||!d.name) return;
   box.innerHTML=`<div class="exp-loading"><span class="spin"></span>${t("exp.loading")}</div>`;
-  /* Le profil de goût vient des lieux déjà enregistrés, pas d'une invention. */
-  const gouts=Array.from(new Set(((S&&S.trips)||[]).reduce((a,tr)=>a.concat((tr.places||[]).map(p=>p.ptype||"")),[]).filter(Boolean))).slice(0,8);
-  const r=await workerFetch("/agent/zones",{ville:d.name,besoin:(inp&&inp.value.trim())||"",lat:d.lat,lng:d.lng,gouts});
+  const r=await workerFetch("/agent/zones",{ville:d.name,besoin:(inp&&inp.value.trim())||"",lat:d.lat,lng:d.lng,gouts:userTastes()});
   if(!r||r.error){ box.innerHTML=`<div class="hwide-note">${t("exp.error")}</div>`; return; }
   const zs=(r.zones||[]);
   if(!zs.length){ box.innerHTML=`<div class="hwide-note">${t("hotel.agentNone")}</div>`; return; }
