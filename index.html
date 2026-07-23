@@ -3009,7 +3009,7 @@ const STORAGE_KEY="magotvoyage_S";
 const WORKER_URL="https://magot-voyage-api.fidelevictoire01.workers.dev";
 function deviceId(){ try{ let d=localStorage.getItem("mv_device_id"); if(!d){ d=(crypto.randomUUID?crypto.randomUUID():("dev-"+Date.now()+"-"+Math.random().toString(36).slice(2))); localStorage.setItem("mv_device_id",d); } return d; }catch(e){ return "anon"; } }
 function googleReady(){ return true; } /* Phase A : Google passe par le Worker, plus de clé utilisateur requise */
-async function workerFetch(path,body){ try{ const r=await fetch(WORKER_URL+path,{method:"POST",headers:{"Content-Type":"application/json","Authorization":"Bearer "+deviceId()},body:JSON.stringify(body||{})}); const j=await r.json().catch(()=>null); if(!r.ok) return {error:(j&&j.error)||"http",detail:(j&&j.detail)||"",status:r.status}; return j; }catch(e){ return {error:"net"}; } }
+async function workerFetch(path,body,signal){ try{ const r=await fetch(WORKER_URL+path,{method:"POST",headers:{"Content-Type":"application/json","Authorization":"Bearer "+deviceId()},body:JSON.stringify(body||{}),signal:signal||undefined}); const j=await r.json().catch(()=>null); if(!r.ok) return {error:(j&&j.error)||"http",detail:(j&&j.detail)||"",status:r.status}; return j; }catch(e){ return {error:"net"}; } }
 
 /* ---- Position GPS à la demande, pour l'agent (jamais en arrière-plan) ---- */
 function getUserPosition(){
@@ -3243,7 +3243,9 @@ async function resolvePendingDests(){
         if(!l.dest||!l.dest.name||l.dest.lat!=null) continue;
         budget--;
         let r=[];
-        try{ r=await zoneSuggest(l.dest.name,null,l.dest.cc||null); }catch(e){ break; }
+        /* Rattrapage en arrière-plan : aucun écran n'attend, la lenteur de
+           Nominatim est sans conséquence — et il est gratuit. */
+        try{ r=await geocode(l.dest.name,l.dest.cc||null); if(!r.length) r=await geocode(l.dest.name,l.dest.cc||null,true); }catch(e){ break; }
         await new Promise(res=>setTimeout(res,1100));
         if(!r[0]) continue;
         const upd={country:r[0].country||l.dest.country||"",cc:r[0].cc||l.dest.cc||"",lat:r[0].lat,lng:r[0].lng};
@@ -4962,13 +4964,21 @@ function dtAddToPlan(l){
 function bboxKm(lat,lng,km){ const dLat=km/111, dLng=km/((111*Math.cos(lat*Math.PI/180))||1); return {low:{latitude:lat-dLat,longitude:lng-dLng},high:{latitude:lat+dLat,longitude:lng+dLng}}; }
 function pickLocality(comps){ if(!Array.isArray(comps)) return ""; const order=["locality","postal_town","sublocality_level_1","administrative_area_level_2","administrative_area_level_1"];
   for(const ty of order){ const c=comps.find(x=>(x.types||[]).includes(ty)); if(c) return c.longText||c.shortText||""; } return ""; }
-const _gMem={}; const G_TTL=6*3600*1000;
+const _gMem={};
+/* Deux durées, selon ce que la donnée devient avec le temps.
+   Une ville ne change ni de nom ni de coordonnées : on peut la garder longtemps.
+   Une note, un horaire ou un prix d'hôtel se périment vite.
+   ⚠ Les conditions Google encadrent la conservation de leurs contenus : 7 jours
+   est un choix volontairement prudent. À revoir si les conditions le précisent. */
+const G_TTL=6*3600*1000;              /* données volatiles : hôtels, notes, horaires */
+const G_TTL_STABLE=7*24*3600*1000;    /* données stables : villes, coordonnées, étendues */
+const G_TTL_VIDE=60*60*1000;          /* « rien trouvé » : on ne redemande pas tout de suite */
 function gKey(kind,sig){ return kind+"_"+hashStr(sig); }
 function gCacheGet(k){ if(_gMem[k]&&_gMem[k].exp>Date.now()) return _gMem[k].v;
   try{ const raw=localStorage.getItem("gx_"+k); if(raw){ const o=JSON.parse(raw); if(o.exp>Date.now()){ _gMem[k]=o; return o.v; } localStorage.removeItem("gx_"+k); } }catch(e){}
   return null; }
 function gCacheTrim(){ try{ Object.keys(localStorage).filter(k=>k.indexOf("gx_")===0).slice(0,25).forEach(k=>localStorage.removeItem(k)); }catch(e){} }
-function gCacheSet(k,v){ const o={v:v,exp:Date.now()+G_TTL}; _gMem[k]=o; try{ localStorage.setItem("gx_"+k,JSON.stringify(o)); }catch(e){ gCacheTrim(); try{ localStorage.setItem("gx_"+k,JSON.stringify(o)); }catch(_){} } }
+function gCacheSet(k,v,ttl){ const o={v:v,exp:Date.now()+(ttl||G_TTL)}; _gMem[k]=o; try{ localStorage.setItem("gx_"+k,JSON.stringify(o)); }catch(e){ gCacheTrim(); try{ localStorage.setItem("gx_"+k,JSON.stringify(o)); }catch(_){} } }
 /* Google facture par paliers selon les champs demandés : photos, horaires et
    niveaux de prix relèvent des plus chers. Pour compléter un nom de ville on
    n'a besoin que du nom, des coordonnées et de l'étendue — demander la fiche
@@ -4978,7 +4988,8 @@ const G_FIELDS_FULL=["places.id","places.businessStatus","places.displayName","p
 const G_FIELDS_LIGHT=["places.id","places.displayName","places.formattedAddress","places.addressComponents","places.types","places.location","places.viewport"];
 
 async function gText(query,opts){ opts=opts||{};
-  const _ck=gKey("t",JSON.stringify(["v3",query,opts.lat,opts.lng,opts.radius,opts.restrictKm,opts.type,opts.pages||1,opts.light?"L":"F",lang()])); const _cv=gCacheGet(_ck); if(_cv) return _cv;
+  const _ck=gKey("t",JSON.stringify(["v3",query,opts.lat,opts.lng,opts.radius,opts.restrictKm,opts.type,opts.pages||1,opts.light?"L":"F",lang()]));
+  /* Une requête interrompue ne doit pas être signalée comme une panne. */ const _cv=gCacheGet(_ck); if(_cv) return _cv;
   const baseBody={ textQuery:query, languageCode:lang(), maxResultCount:20 };
   if(opts.lat!=null&&opts.lng!=null){
     if(opts.restrictKm) baseBody.locationRestriction={rectangle:bboxKm(opts.lat,opts.lng,opts.restrictKm)};
@@ -4988,9 +4999,13 @@ async function gText(query,opts){ opts=opts||{};
   const fields=(opts.light?G_FIELDS_LIGHT:G_FIELDS_FULL).join(",");
   const pages=Math.max(1,opts.pages||1); let all=[],token=null;
   try{ for(let p=0;p<pages;p++){ const body=Object.assign({},baseBody); if(token) body.pageToken=token;
-      const j=await workerFetch("/google/places",{mode:"text",fieldMask:fields,request:body});
+      const j=await workerFetch("/google/places",{mode:"text",fieldMask:fields,request:body},opts.signal);
       if(j.error) return all.length?{places:all}:{error:j.error}; const d=(j.data)||{}; all=all.concat(d.places||[]); token=d.nextPageToken; if(!token) break; }
-    const _out={places:all}; gCacheSet(_ck,_out); return _out;
+    const _out={places:all};
+    /* Une recherche sans résultat est une information : la mémoriser évite de
+       redemander la même chose à chaque frappe identique. */
+    const _ttl=all.length ? (opts.light?G_TTL_STABLE:G_TTL) : G_TTL_VIDE;
+    gCacheSet(_ck,_out,_ttl); return _out;
   }catch(e){ return all.length?{places:all}:{error:"net"}; } }
 async function gNearby(lat,lng,type,radius,rank){
   const _ck=gKey("n",JSON.stringify([(+lat).toFixed(3),(+lng).toFixed(3),type,radius,rank||"POPULARITY",lang()])); const _cv=gCacheGet(_ck); if(_cv) return _cv;
@@ -5827,7 +5842,38 @@ function isZoneTypes(ts){ return (ts||[]).some(x=>ZONE_TYPES.includes(x)); }
    arrondissements, les boroughs et les quartiers bien mieux que Nominatim, et
    renvoie leur étendue dans « viewport ». Nominatim reste le secours quand la
    clé Google manque ou que la requête ne donne rien. */
+/* Réutilisation des préfixes.
+   Taper « Bordeaux » déclenchait un appel à « Bor », « Borde », « Bordeau »…
+   Si les résultats d'un préfixe sont déjà en cache, on filtre localement plutôt
+   que de redemander. Garde-fous : le préfixe fait au moins 3 caractères, la
+   requête ne l'allonge que de 4 au plus, et il faut au moins 3 correspondances —
+   au-delà, les résultats du préfixe ne représentent plus la nouvelle recherche. */
+function _nrmQ(x){ return String(x||"").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g,"").trim(); }
+
+function prefixHit(q,opts){
+  const nq=_nrmQ(q); if(nq.length<4) return null;
+  for(let n=q.length-1;n>=3;n--){
+    if(q.length-n>4) break;
+    const ck=gKey("t",JSON.stringify(["v3",q.slice(0,n),opts.lat,opts.lng,opts.radius,opts.restrictKm,opts.type,opts.pages||1,opts.light?"L":"F",lang()]));
+    const cv=gCacheGet(ck);
+    if(!cv||!cv.places||!cv.places.length) continue;
+    const gardes=cv.places.filter(p=>{
+      const nm=_nrmQ((p.displayName&&p.displayName.text)||"");
+      const ad=_nrmQ(p.formattedAddress||"");
+      return nm.includes(nq)||ad.includes(nq);
+    });
+    if(gardes.length>=3) return {places:gardes};
+  }
+  return null;
+}
+
+let _zoneAbort=null;
 async function zoneSuggest(q,near,cc){
+  /* Une frappe plus récente rend la requête en cours inutile : on l'interrompt
+     plutôt que de la payer pour rien. */
+  try{ if(_zoneAbort) _zoneAbort.abort(); }catch(e){}
+  const _ac=(typeof AbortController!=="undefined")?new AbortController():null;
+  _zoneAbort=_ac;
   if(googleReady()){
     const nm0=String((near&&near.name)||"");
     const suffix=(nm0&&q.toLowerCase().indexOf(nm0.toLowerCase())<0)?(" "+nm0):"";
@@ -5835,7 +5881,8 @@ async function zoneSuggest(q,near,cc){
     if(near&&near.lat!=null){ const rk=destRadiusKm(near);
       opt=(rk!=null)?{lat:near.lat,lng:near.lng,restrictKm:Math.max(rk,8)}:{lat:near.lat,lng:near.lng}; }
     opt.light=true;                     /* suggestion de lieu : champs minimaux */
-    const res=await gText(q+suffix,opt);
+    if(_ac) opt.signal=_ac.signal;
+    const res=prefixHit(q+suffix,opt)||await gText(q+suffix,opt);
     const out=[];
     for(const p of ((res&&res.places)||[])){
       const nm=(p.displayName&&p.displayName.text)||""; if(!nm) continue;
@@ -5848,6 +5895,10 @@ async function zoneSuggest(q,near,cc){
     /* Les zones passent devant les commerces : « 15 » doit sortir le 15e, pas une boutique. */
     out.sort((a,b)=>(a.kind==="zone"?0:1)-(b.kind==="zone"?0:1));
     if(out.length) return out.slice(0,6);
+    /* Requête interrompue par une frappe plus récente : on s'arrête là.
+       Basculer sur Nominatim ici reviendrait à payer en lenteur une réponse
+       dont plus personne ne veut. */
+    if(_ac&&_ac.signal&&_ac.signal.aborted) return [];
   }
   const z=await geocode(q,cc); const a=(z.length<4)?await geocode(q,cc,true):[];
   const seen=new Set(z.map(x=>(x.name||"").toLowerCase()));
