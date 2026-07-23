@@ -3009,7 +3009,7 @@ const STORAGE_KEY="magotvoyage_S";
 const WORKER_URL="https://magot-voyage-api.fidelevictoire01.workers.dev";
 function deviceId(){ try{ let d=localStorage.getItem("mv_device_id"); if(!d){ d=(crypto.randomUUID?crypto.randomUUID():("dev-"+Date.now()+"-"+Math.random().toString(36).slice(2))); localStorage.setItem("mv_device_id",d); } return d; }catch(e){ return "anon"; } }
 function googleReady(){ return true; } /* Phase A : Google passe par le Worker, plus de clé utilisateur requise */
-async function workerFetch(path,body){ try{ const r=await fetch(WORKER_URL+path,{method:"POST",headers:{"Content-Type":"application/json","Authorization":"Bearer "+deviceId()},body:JSON.stringify(body||{})}); const j=await r.json().catch(()=>null); if(!r.ok) return {error:(j&&j.error)||"http",status:r.status}; return j; }catch(e){ return {error:"net"}; } }
+async function workerFetch(path,body){ try{ const r=await fetch(WORKER_URL+path,{method:"POST",headers:{"Content-Type":"application/json","Authorization":"Bearer "+deviceId()},body:JSON.stringify(body||{})}); const j=await r.json().catch(()=>null); if(!r.ok) return {error:(j&&j.error)||"http",detail:(j&&j.detail)||"",status:r.status}; return j; }catch(e){ return {error:"net"}; } }
 
 /* ---- Position GPS à la demande, pour l'agent (jamais en arrière-plan) ---- */
 function getUserPosition(){
@@ -5882,7 +5882,7 @@ async function askZoneIdeas(b){
        différentes : dans le second cas, réessayer a du sens. */
     /* Le motif technique reste visible : sans lui, impossible de savoir si c'est
        la clé, le réseau ou le modèle qui a lâché. */
-    const _why=(r&&(r.why||r.error))?` (${escapeHtml(String(r.why||r.error))})`:"";
+    const _why=(r&&(r.why||r.detail||r.error))?` (${escapeHtml(String(r.why||r.detail||r.error).slice(0,140))})`:"";
     box.innerHTML=`<div class="hwide-note">${echec?t("hotel.agentFail")+_why:t("hotel.agentNone")}</div>`+
       (echec?`<button type="button" class="fld-act" id="hZoneRetry">${t("hotel.retry")}</button>`:"");
     const rt=box.querySelector("#hZoneRetry"); if(rt) rt.onclick=()=>askZoneIdeas(b);
