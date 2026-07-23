@@ -3969,13 +3969,13 @@ function homeSearch(q){ clearTimeout(_homeAcT); q=(q||"").trim(); const el=docum
   /* Deux caractères suffisent : Google complète les débuts de mots, ce que
      Nominatim ne sait pas faire — « Saint-Valery su… » ne donnait rien avant
      d'être tapé en entier. Nominatim reste le secours. */
-  if(q.length<2){ hideHomeAc(); return; }
+  if(q.length<3){ hideHomeAc(); return; }
   el.innerHTML=`<div class="home-ac-load"><span class="spin"></span></div>`; el.classList.add("show");
   _homeAcT=setTimeout(async()=>{ const res=await zoneSuggest(q,null,null);
     if(!res||!res.length){ el.innerHTML=`<div class="home-ac-empty">${t("home.searchEmpty")}</div>`; return; }
     el.innerHTML=res.map((r,i)=>`<div class="home-ac-row" data-i="${i}"><svg viewBox="0 0 24 24"><path d="M12 21s-7-6.2-7-11a7 7 0 0 1 14 0c0 4.8-7 11-7 11z"/><circle cx="12" cy="10" r="2.4"/></svg><div class="ha-txt"><div class="ha-n">${escapeHtml(r.name)}</div><div class="ha-l">${escapeHtml(r.sub||r.country||r.label||"")}</div></div><svg class="ha-go" viewBox="0 0 24 24"><path d="M9 6l6 6-6 6"/></svg></div>`).join("");
     el.querySelectorAll("[data-i]").forEach(d=>d.onclick=()=>openCreateWithDest(res[+d.dataset.i]));
-  },350); }
+  },600); }
 const MED={globe:"data:image/svg+xml,%3Csvg%20xmlns%3D%27http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%27%20width%3D%2742%27%20height%3D%2742%27%20viewBox%3D%270%200%2042%2042%27%3E%3Ccircle%20cx%3D%2721%27%20cy%3D%2721%27%20r%3D%2721%27%20fill%3D%27%23EEF1F7%27%2F%3E%3Cg%20transform%3D%27translate%2810.5%2010.5%29%20scale%280.875%29%27%20fill%3D%27none%27%20stroke%3D%27%23C2872A%27%20stroke-width%3D%272%27%20stroke-linecap%3D%27round%27%20stroke-linejoin%3D%27round%27%3E%3Ccircle%20cx%3D%2712%27%20cy%3D%2712%27%20r%3D%279%27%2F%3E%3Cpath%20d%3D%27M3%2012h18%27%2F%3E%3Cpath%20d%3D%27M12%203c2.6%202.7%202.6%2015.3%200%2018M12%203c-2.6%202.7-2.6%2015.3%200%2018%27%2F%3E%3C%2Fg%3E%3C%2Fsvg%3E",bag:"data:image/svg+xml,%3Csvg%20xmlns%3D%27http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%27%20width%3D%2742%27%20height%3D%2742%27%20viewBox%3D%270%200%2042%2042%27%3E%3Ccircle%20cx%3D%2721%27%20cy%3D%2721%27%20r%3D%2721%27%20fill%3D%27%23EEF1F7%27%2F%3E%3Cg%20transform%3D%27translate%2810.5%2010.5%29%20scale%280.875%29%27%20fill%3D%27none%27%20stroke%3D%27%23C2872A%27%20stroke-width%3D%272%27%20stroke-linecap%3D%27round%27%20stroke-linejoin%3D%27round%27%3E%3Crect%20x%3D%274%27%20y%3D%277%27%20width%3D%2716%27%20height%3D%2713%27%20rx%3D%272%27%2F%3E%3Cpath%20d%3D%27M9%207V5a2%202%200%200%201%202-2h2a2%202%200%200%201%202%202v2%27%2F%3E%3C%2Fg%3E%3C%2Fsvg%3E",bell:"data:image/svg+xml,%3Csvg%20xmlns%3D%27http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%27%20width%3D%2742%27%20height%3D%2742%27%20viewBox%3D%270%200%2042%2042%27%3E%3Ccircle%20cx%3D%2721%27%20cy%3D%2721%27%20r%3D%2721%27%20fill%3D%27%23EEF1F7%27%2F%3E%3Cg%20transform%3D%27translate%2810.5%2010.5%29%20scale%280.875%29%27%20fill%3D%27none%27%20stroke%3D%27%23C2872A%27%20stroke-width%3D%272%27%20stroke-linecap%3D%27round%27%20stroke-linejoin%3D%27round%27%3E%3Cpath%20d%3D%27M4%2018h16%27%2F%3E%3Cpath%20d%3D%27M6%2018a6%206%200%200%201%2012%200%27%2F%3E%3Cpath%20d%3D%27M12%206V4.2%27%2F%3E%3Cpath%20d%3D%27M10.4%204.2h3.2%27%2F%3E%3C%2Fg%3E%3C%2Fsvg%3E",car:"data:image/svg+xml,%3Csvg%20xmlns%3D%27http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%27%20width%3D%2742%27%20height%3D%2742%27%20viewBox%3D%270%200%2042%2042%27%3E%3Ccircle%20cx%3D%2721%27%20cy%3D%2721%27%20r%3D%2721%27%20fill%3D%27%23EEF1F7%27%2F%3E%3Cg%20transform%3D%27translate%2810.5%2010.5%29%20scale%280.875%29%27%20fill%3D%27none%27%20stroke%3D%27%23C2872A%27%20stroke-width%3D%272%27%20stroke-linecap%3D%27round%27%20stroke-linejoin%3D%27round%27%3E%3Cpath%20d%3D%27M5%2016l1.6-5.2A2%202%200%200%201%208.5%209h7a2%202%200%200%201%201.9%201.4L19%2016%27%2F%3E%3Crect%20x%3D%273%27%20y%3D%2716%27%20width%3D%2718%27%20height%3D%274%27%20rx%3D%271%27%2F%3E%3Ccircle%20cx%3D%277.5%27%20cy%3D%2720%27%20r%3D%271%27%2F%3E%3Ccircle%20cx%3D%2716.5%27%20cy%3D%2720%27%20r%3D%271%27%2F%3E%3C%2Fg%3E%3C%2Fsvg%3E",compass:"data:image/svg+xml,%3Csvg%20xmlns%3D%27http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%27%20width%3D%2742%27%20height%3D%2742%27%20viewBox%3D%270%200%2042%2042%27%3E%3Ccircle%20cx%3D%2721%27%20cy%3D%2721%27%20r%3D%2721%27%20fill%3D%27%23EEF1F7%27%2F%3E%3Cg%20transform%3D%27translate%2810.5%2010.5%29%20scale%280.875%29%27%20fill%3D%27none%27%20stroke%3D%27%23C2872A%27%20stroke-width%3D%272%27%20stroke-linecap%3D%27round%27%20stroke-linejoin%3D%27round%27%3E%3Ccircle%20cx%3D%2712%27%20cy%3D%2712%27%20r%3D%279%27%2F%3E%3Cpath%20d%3D%27M15.5%208.5l-2.2%204.8L8.5%2015.5l2.2-4.8z%27%2F%3E%3C%2Fg%3E%3C%2Fsvg%3E"};
 const ICO_PIN="<svg viewBox='0 0 24 24' width='24' height='24' fill='none' stroke='currentColor' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'><path d='M12 21s-7-6.2-7-11a7 7 0 0 1 14 0c0 4.8-7 11-7 11z'/><circle cx='12' cy='10' r='2.4'/></svg>";
 const ICO_PIN_SM="<svg viewBox='0 0 24 24' width='13' height='13' fill='none' stroke='currentColor' stroke-width='1.7' stroke-linecap='round' stroke-linejoin='round'><path d='M12 21s-7-6.2-7-11a7 7 0 0 1 14 0c0 4.8-7 11-7 11z'/><circle cx='12' cy='10' r='2.4'/></svg>";
@@ -4170,13 +4170,13 @@ function renderCreate(tr){
       ac.classList.add("show");
       ac.querySelectorAll("div[data-i]").forEach(el=>el.onclick=()=>{ const r=res[+el.dataset.i]; draft.dest=r; draft.coverPhoto=""; dest.value=r.name+(r.country?", "+r.country:""); ac.classList.remove("show"); revealCRest();
         if(r.cc){ draft.country={cc:r.cc,name:countryName(r.cc)}; const _cf=b.querySelector("#cCountry"); if(_cf) _cf.value=countryName(r.cc); }
-        if(r.cc&&CC_CUR[r.cc]){ draft.currency=CC_CUR[r.cc]; const sel=b.querySelector("#cCur"); if(sel) sel.value=draft.currency; } applyCountryFuel(r.cc); renderVehPanel(); updateRecap(); updateDestSub(); fetchDraftCover(); const _dc=b.querySelector('.acard[data-card="dest"]'); if(_dc)_dc.classList.remove("open"); const _sc=b.querySelector('.acard[data-card="stay"]'); if(_sc)_sc.classList.add("open"); }); },350); });
+        if(r.cc&&CC_CUR[r.cc]){ draft.currency=CC_CUR[r.cc]; const sel=b.querySelector("#cCur"); if(sel) sel.value=draft.currency; } applyCountryFuel(r.cc); renderVehPanel(); updateRecap(); updateDestSub(); fetchDraftCover(); const _dc=b.querySelector('.acard[data-card="dest"]'); if(_dc)_dc.classList.remove("open"); const _sc=b.querySelector('.acard[data-card="stay"]'); if(_sc)_sc.classList.add("open"); }); },600); });
   const lodge=b.querySelector("#cLodge"),lac=b.querySelector("#cLodgeAc"); let _lacT=null;
   lodge.addEventListener("input",()=>{ draft.lodging=null; const q=lodge.value.trim(); clearTimeout(_lacT); if(q.length<3){ lac.classList.remove("show"); lac.innerHTML=""; return; }
     _lacT=setTimeout(async()=>{ const res=await placeSuggest(q,draft.dest,draft.country&&draft.country.cc); if(!res||!res.length){ lac.classList.remove("show"); return; }
       lac.innerHTML=res.slice(0,6).map((r,i)=>{ const sub=r.zone?(r.zone+(r.addr?(" \u00b7 "+r.addr):"")):(r.addr||acSub(r.name,r.label||"")); return `<div data-i="${i}"><svg viewBox="0 0 24 24"><path d="M4 20v-9l8-5 8 5v9"/><path d="M9 20v-5h6v5"/></svg><div class="ac-txt"><div class="ac-n">${escapeHtml(r.name||r.label||"")}</div>${sub?`<div class="ac-l">${escapeHtml(sub)}</div>`:""}</div><svg class="ha-go" viewBox="0 0 24 24"><path d="M9 6l6 6-6 6"/></svg></div>`; }).join("");
       lac.classList.add("show");
-      lac.querySelectorAll("div[data-i]").forEach(el=>el.onclick=()=>{ const r=res[+el.dataset.i]; lodge.value=r.name; draft.lodging={name:r.name,addr:r.addr,lat:r.lat,lng:r.lng,locality:r.locality||"",zone:r.zone||""}; lac.classList.remove("show"); if(typeof computeVehEstimate==="function") computeVehEstimate(); }); },350); });
+      lac.querySelectorAll("div[data-i]").forEach(el=>el.onclick=()=>{ const r=res[+el.dataset.i]; lodge.value=r.name; draft.lodging={name:r.name,addr:r.addr,lat:r.lat,lng:r.lng,locality:r.locality||"",zone:r.zone||""}; lac.classList.remove("show"); if(typeof computeVehEstimate==="function") computeVehEstimate(); }); },600); });
   const sug=b.querySelector("#cLodgeSuggest"); if(sug) sug.onclick=openHotels;
   b.querySelector("#cTravM").onclick=()=>{ draft.travelers=Math.max(1,draft.travelers-1); b.querySelector("#cTravN").textContent=draft.travelers; updateRecap(); };
   b.querySelector("#cTravP").onclick=()=>{ draft.travelers=Math.min(20,draft.travelers+1); b.querySelector("#cTravN").textContent=draft.travelers; updateRecap(); };
@@ -4402,11 +4402,11 @@ function renderVehPanel(){ const wrap=document.getElementById("cVehPanel"); if(!
   h+=`<div class="veh-est" id="cEst"></div></div>`;
   wrap.innerHTML=h;
   const dpEl=wrap.querySelector("#cDep"), dpAc=wrap.querySelector("#cDepAc"); let _dpT=null;
-  if(dpEl){ dpEl.addEventListener("input",()=>{ draft.depart=null; computeVehEstimate(); const q=dpEl.value.trim(); clearTimeout(_dpT); if(q.length<2){ dpAc.classList.remove("show"); dpAc.innerHTML=""; return; }
+  if(dpEl){ dpEl.addEventListener("input",()=>{ draft.depart=null; computeVehEstimate(); const q=dpEl.value.trim(); clearTimeout(_dpT); if(q.length<3){ dpAc.classList.remove("show"); dpAc.innerHTML=""; return; }
     _dpT=setTimeout(async()=>{ const res=await zoneSuggest(q,null,null); if(!res.length){ dpAc.classList.remove("show"); return; }
       dpAc.innerHTML=res.map((r,i)=>{ const sub=acSub(r.name,r.label||""); return `<div data-i="${i}"><svg viewBox="0 0 24 24"><path d="M12 21s-7-6.2-7-11a7 7 0 0 1 14 0c0 4.8-7 11-7 11z"/><circle cx="12" cy="10" r="2.4"/></svg><div class="ac-txt"><div class="ac-n">${escapeHtml(r.name||r.label||"")}</div>${sub?`<div class="ac-l">${escapeHtml(sub)}</div>`:""}</div><svg class="ha-go" viewBox="0 0 24 24"><path d="M9 6l6 6-6 6"/></svg></div>`; }).join("");
       dpAc.classList.add("show");
-      dpAc.querySelectorAll("div[data-i]").forEach(el=>el.onclick=()=>{ const r=res[+el.dataset.i]; draft.depart=r; dpEl.value=r.name+(r.country?", "+r.country:""); dpAc.classList.remove("show"); computeVehEstimate(); if(tp==="plane"||tp==="boat") populateHub("cDepHub",draft.depart,tp,"dep"); }); },350); }); }
+      dpAc.querySelectorAll("div[data-i]").forEach(el=>el.onclick=()=>{ const r=res[+el.dataset.i]; draft.depart=r; dpEl.value=r.name+(r.country?", "+r.country:""); dpAc.classList.remove("show"); computeVehEstimate(); if(tp==="plane"||tp==="boat") populateHub("cDepHub",draft.depart,tp,"dep"); }); },600); }); }
   if(tp==="plane"||tp==="boat"){ populateHub("cDepHub",draft.depart,tp,"dep"); populateHub("cArrHub",draft.dest,tp,"arr"); }
   wrap.querySelectorAll("[data-ltr]").forEach(bb=>bb.onclick=()=>{ draft.localTransport=bb.dataset.ltr; if(bb.dataset.ltr==="car"){ draft.veh=draft.veh||{fuel:"essence",conso:"",price:""}; applyCountryFuel(draft.country&&draft.country.cc); } renderVehPanel(); });
   { const mo=wrap.querySelector("#cVehMore"); if(mo) mo.onclick=()=>{ _vehOpen=true; renderVehPanel(); }; }
@@ -4625,7 +4625,7 @@ function bindLegs(host){
   if(!inp||!ac) return;
   let tmr=null;
   inp.addEventListener("input",()=>{ const q=inp.value.trim(); clearTimeout(tmr);
-    if(q.length<2){ ac.classList.remove("show"); ac.innerHTML=""; return; }
+    if(q.length<3){ ac.classList.remove("show"); ac.innerHTML=""; return; }
     tmr=setTimeout(async()=>{ const cc=(draft.country&&draft.country.cc)||null;
       let res=await zoneSuggest(q,null,cc);
       if(cc) res=res.filter(r=>!r.cc||r.cc===cc);
@@ -4635,7 +4635,7 @@ function bindLegs(host){
       ac.querySelectorAll("div[data-i]").forEach(el=>el.onclick=()=>{ const r=res[+el.dataset.i];
         ac.classList.remove("show"); inp.value="";
         addDraftLeg({name:r.name,country:r.country||"",cc:r.cc||"",lat:r.lat,lng:r.lng,bbox:r.bbox||null}); });
-    },350); });
+    },600); });
 }
 
 /* Conversion jours → tranches, juste avant l'enregistrement. */
@@ -4969,15 +4969,23 @@ function gCacheGet(k){ if(_gMem[k]&&_gMem[k].exp>Date.now()) return _gMem[k].v;
   return null; }
 function gCacheTrim(){ try{ Object.keys(localStorage).filter(k=>k.indexOf("gx_")===0).slice(0,25).forEach(k=>localStorage.removeItem(k)); }catch(e){} }
 function gCacheSet(k,v){ const o={v:v,exp:Date.now()+G_TTL}; _gMem[k]=o; try{ localStorage.setItem("gx_"+k,JSON.stringify(o)); }catch(e){ gCacheTrim(); try{ localStorage.setItem("gx_"+k,JSON.stringify(o)); }catch(_){} } }
+/* Google facture par paliers selon les champs demandés : photos, horaires et
+   niveaux de prix relèvent des plus chers. Pour compléter un nom de ville on
+   n'a besoin que du nom, des coordonnées et de l'étendue — demander la fiche
+   complète à chaque frappe revenait à payer le tarif « hôtel » pour « Lille ».
+   opts.light limite la demande au strict nécessaire. */
+const G_FIELDS_FULL=["places.id","places.businessStatus","places.displayName","places.formattedAddress","places.addressComponents","places.rating","places.userRatingCount","places.priceLevel","places.priceRange","places.types","places.primaryType","places.primaryTypeDisplayName","places.photos","places.location","places.viewport","places.googleMapsUri","places.websiteUri","places.nationalPhoneNumber","places.regularOpeningHours.openNow","places.regularOpeningHours.weekdayDescriptions","places.editorialSummary","places.reviews","nextPageToken"];
+const G_FIELDS_LIGHT=["places.id","places.displayName","places.formattedAddress","places.addressComponents","places.types","places.location","places.viewport"];
+
 async function gText(query,opts){ opts=opts||{};
-  const _ck=gKey("t",JSON.stringify(["v2",query,opts.lat,opts.lng,opts.radius,opts.restrictKm,opts.type,opts.pages||1,lang()])); const _cv=gCacheGet(_ck); if(_cv) return _cv;
+  const _ck=gKey("t",JSON.stringify(["v3",query,opts.lat,opts.lng,opts.radius,opts.restrictKm,opts.type,opts.pages||1,opts.light?"L":"F",lang()])); const _cv=gCacheGet(_ck); if(_cv) return _cv;
   const baseBody={ textQuery:query, languageCode:lang(), maxResultCount:20 };
   if(opts.lat!=null&&opts.lng!=null){
     if(opts.restrictKm) baseBody.locationRestriction={rectangle:bboxKm(opts.lat,opts.lng,opts.restrictKm)};
     else baseBody.locationBias={circle:{center:{latitude:opts.lat,longitude:opts.lng},radius:opts.radius||20000}};
   }
   if(opts.type) baseBody.includedType=opts.type;
-  const fields=["places.id","places.businessStatus","places.displayName","places.formattedAddress","places.addressComponents","places.rating","places.userRatingCount","places.priceLevel","places.priceRange","places.types","places.primaryType","places.primaryTypeDisplayName","places.photos","places.location","places.viewport","places.googleMapsUri","places.websiteUri","places.nationalPhoneNumber","places.regularOpeningHours.openNow","places.regularOpeningHours.weekdayDescriptions","places.editorialSummary","places.reviews","nextPageToken"].join(",");
+  const fields=(opts.light?G_FIELDS_LIGHT:G_FIELDS_FULL).join(",");
   const pages=Math.max(1,opts.pages||1); let all=[],token=null;
   try{ for(let p=0;p<pages;p++){ const body=Object.assign({},baseBody); if(token) body.pageToken=token;
       const j=await workerFetch("/google/places",{mode:"text",fieldMask:fields,request:body});
@@ -5826,6 +5834,7 @@ async function zoneSuggest(q,near,cc){
     let opt={};
     if(near&&near.lat!=null){ const rk=destRadiusKm(near);
       opt=(rk!=null)?{lat:near.lat,lng:near.lng,restrictKm:Math.max(rk,8)}:{lat:near.lat,lng:near.lng}; }
+    opt.light=true;                     /* suggestion de lieu : champs minimaux */
     const res=await gText(q+suffix,opt);
     const out=[];
     for(const p of ((res&&res.places)||[])){
@@ -5854,7 +5863,7 @@ function bindHotelZone(b){
   const ask=b.querySelector("#hZoneAsk"); if(ask) ask.onclick=()=>askZoneIdeas(b);
   const cc=(draft&&draft.dest&&draft.dest.cc)||(draft&&draft.country&&draft.country.cc)||null;
   inp.addEventListener("input",()=>{ const q=inp.value.trim(); clearTimeout(_hZoneT);
-    if(q.length<2){ ac.classList.remove("show"); ac.innerHTML=""; return; }
+    if(q.length<3){ ac.classList.remove("show"); ac.innerHTML=""; return; }
     _hZoneT=setTimeout(async()=>{
       const list=await zoneSuggest(q,(draft&&draft.dest)||null,cc);
       if(!list.length){ ac.classList.remove("show"); ac.innerHTML=""; return; }
@@ -5863,7 +5872,7 @@ function bindHotelZone(b){
       ac.querySelectorAll("div[data-i]").forEach(el=>el.onclick=()=>{ const r=list[+el.dataset.i];
         ac.classList.remove("show"); inp.value=r.name||"";
         setHotelAnchor({name:r.name||"",lat:r.lat,lng:r.lng,bbox:r.bbox||null,cc:r.cc||"",kind:r.kind}); });
-    },350); });
+    },600); });
 }
 /* Fidèle propose des quartiers ; le worker les fait vérifier par Places et
    supprime tout ce qui ne se résout pas. On n'affiche donc que du réel. */
