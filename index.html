@@ -5143,7 +5143,7 @@ async function gText(query,opts){ opts=opts||{};
   const pages=Math.max(1,opts.pages||1); let all=[],token=null;
   try{ for(let p=0;p<pages;p++){ const body=Object.assign({},baseBody); if(token) body.pageToken=token;
       const j=await workerFetch("/google/places",{mode:"text",fieldMask:G_FIELDS_TEXT,request:body},opts.signal);
-      if(j.error) return all.length?{places:all}:{error:j.error}; const d=(j.data)||{}; all=all.concat(d.places||[]); token=d.nextPageToken; if(!token) break; }
+      if(j.error) return all.length?{places:all}:{error:j.error,detail:j.detail||""}; const d=(j.data)||{}; all=all.concat(d.places||[]); token=d.nextPageToken; if(!token) break; }
     const _out={places:all};
     /* Une recherche sans résultat est une information : la mémoriser évite de
        redemander la même chose à chaque frappe identique. */
@@ -5155,7 +5155,7 @@ async function gNearby(lat,lng,type,radius,rank){
   const body={ includedTypes:[type], maxResultCount:20, rankPreference:rank||"POPULARITY", languageCode:lang(),
     locationRestriction:{circle:{center:{latitude:lat,longitude:lng},radius:Math.min(radius||2500,50000)}} };
     try{ const j=await workerFetch("/google/places",{mode:"nearby",fieldMask:G_FIELDS_NEARBY,request:body});
-    if(j.error) return {error:j.error}; const d=(j.data)||{}; const _out={places:d.places||[]}; gCacheSet(_ck,_out); return _out;
+    if(j.error) return {error:j.error,detail:j.detail||""}; const d=(j.data)||{}; const _out={places:d.places||[]}; gCacheSet(_ck,_out); return _out;
   }catch(e){ return {error:"net"}; } }
 function placeFromG(p){ return { id:p.id, lang0:lang(), name:(p.displayName&&p.displayName.text)||"—", rating:p.rating||0, count:p.userRatingCount||0, price:p.priceLevel||"", priceRange:(p.priceRange?{lo:+((p.priceRange.startPrice&&p.priceRange.startPrice.units)||0),hi:+((p.priceRange.endPrice&&p.priceRange.endPrice.units)||0),cur:((p.priceRange.startPrice&&p.priceRange.startPrice.currencyCode)||(p.priceRange.endPrice&&p.priceRange.endPrice.currencyCode)||"")}:null),
   types:p.types||[], primaryType:(p.primaryTypeDisplayName&&p.primaryTypeDisplayName.text)||"", ptype:p.primaryType||"", businessStatus:p.businessStatus||"",
@@ -5457,18 +5457,19 @@ async function applySubFilter(){ closeExpFilter(); _exMore=12;
     const title=defs.map(d=>t("sub."+d.k)).join(" · ");
     _subFetchKey=key; _subFetchSecs=[{title,places:out,layout:"grid"}];
     paintExplore(_subFetchSecs);
-  }catch(e){ if(box) box.innerHTML=`<div class="empty" style="padding:28px 8px"><p>${t("exp.error")}</p></div>`; }
+  }catch(e){ if(box) box.innerHTML=`<div class="empty" style="padding:28px 8px"><p>${escapeHtml(t("exp.errDetail",{d:""}))+escapeHtml(String((e&&e.message)||e).slice(0,200))}</p></div>`; }
 }
 function secHtml(title,res,layout){
   if(res.error==="nokey") return needKeyHtml();
-  if(res.error) return `<div class="empty" style="padding:28px 8px"><p>${t("exp.error")}</p></div>`;
+  if(res.error){ const _d=res.detail||res.error;
+    return `<div class="empty" style="padding:28px 8px"><p>${escapeHtml(t("exp.errDetail",{d:""}))+escapeHtml(String(_d).slice(0,200))}</p></div>`; }
   const ps=(res.places||[]).map(placeFromG); if(!ps.length) return `<div class="empty" style="padding:28px 8px"><p>${t("exp.empty")}</p></div>`;
   const _exCity=_cityOf(currentTrip()); ps.sort((a,b)=>((sameCity(b,_exCity)?1:0)-(sameCity(a,_exCity)?1:0))||(weightedRating(b)-weightedRating(a)));
   ps.forEach(p=>_placeReg[p.id]=p);
   return `<div class="exp-sec"><div class="rowhead"><h2>${escapeHtml(title)}</h2></div><div class="${layout==='scroll'?'pcards-scroll':'pcards-grid'}">${ps.map(p=>pcard(p,layout)).join("")}</div></div>`; }
 function needKeyHtml(){ return `<div class="empty" style="padding:30px 18px"><span class="medallion"><svg viewBox="0 0 24 24"><circle cx="8" cy="15" r="4.2"/><path d="M11 12l8-8 2 2-2 2 1.5 1.5M19 6l1.5 1.5"/></svg></span><p>${t("exp.needKey")}</p><button class="btn navy" id="expKey" style="margin-top:14px">${t("exp.addKey")}</button></div>`; }
 function dedupeRes(res,seen){ if(!res||!res.places) return res; const places=res.places.filter(p=>{ const id=p.id; if(!id) return true; if(seen.has(id)) return false; seen.add(id); return true; }); return Object.assign({},res,{places}); }
-function bindPlaceCards(box){ box.querySelectorAll(".pcard").forEach(c=>c.onclick=()=>openPlace(_placeReg[c.dataset.id])); bindPhotos(el); }
+function bindPlaceCards(box){ box.querySelectorAll(".pcard").forEach(c=>c.onclick=()=>openPlace(_placeReg[c.dataset.id])); bindPhotos(box); }
 const CAT_ICON={
   all:'<path d="M4 6h16M4 12h16M4 18h16"/>',
   culture:'<path d="M4 10h16M5 10V19M19 10v9M9 10v9M15 10v9M3 19h18M12 3.5 20 9H4z"/>',
@@ -5565,7 +5566,7 @@ async function renderExplore(){
     if(!contentStyles.length) _tail.push({title:t("exp.todo"),places:todoPlaces,layout:"scroll"});
     _exSections=styleSecs.concat([{title:t("exp.recommended"),places:recPlaces,layout:"scroll"}]).concat(_tail);
     paintExplore();
-  }catch(e){ box.innerHTML=`<div class="empty" style="padding:28px 8px"><p>${t("exp.error")}</p></div>`; }
+  }catch(e){ box.innerHTML=`<div class="empty" style="padding:28px 8px"><p>${escapeHtml(t("exp.errDetail",{d:""}))+escapeHtml(String((e&&e.message)||e).slice(0,200))}</p></div>`; }
 }
 function afterExplore(box){ bindPlaceCards(box); const k=box.querySelector("#expKey"); if(k) k.onclick=openSettings; }
 function renderExpFilter(){ const b=document.getElementById("expFilterBody"); if(!b) return;
@@ -5700,7 +5701,8 @@ async function openNearbyRestaurants(lat,lng,anchorName){ const sheet=document.g
   _distRef={lat,lng,kind:'away'};
   const res=await gNearby(lat,lng,"restaurant",2500);
   if(!document.getElementById("restoBody")) return;
-  if(res.error){ b.innerHTML= res.error==="nokey"?needKeyHtml():`<div class="empty" style="padding:28px 8px"><p>${t("exp.error")}</p></div>`; return; }
+  if(res.error){ const _d=res.detail||res.error;
+    b.innerHTML= res.error==="nokey"?needKeyHtml():`<div class="empty" style="padding:28px 8px"><p>${escapeHtml(t("exp.errDetail",{d:""}))+escapeHtml(String(_d).slice(0,200))}</p></div>`; return; }
   const ps=((res.places)||[]).map(placeFromG); const _exCity=_cityOf(currentTrip()); ps.sort((a,c)=>((sameCity(c,_exCity)?1:0)-(sameCity(a,_exCity)?1:0))||(scoreOf(c)-scoreOf(a))); ps.forEach(p=>_placeReg[p.id]=p);
   if(!ps.length){ b.innerHTML=`<div class="empty" style="padding:28px 8px"><p>${t("exp.empty")}</p></div>`; return; }
   b.innerHTML=`<div class="pcards-grid">${ps.map(p=>pcard(p,"grid")).join("")}</div><div style="height:14px"></div>`;
@@ -5990,6 +5992,12 @@ function isZoneTypes(ts){ return (ts||[]).some(x=>ZONE_TYPES.includes(x)); }
    arrondissements, les boroughs et les quartiers bien mieux que Nominatim, et
    renvoie leur étendue dans « viewport ». Nominatim reste le secours quand la
    clé Google manque ou que la requête ne donne rien. */
+/* Déclaration perdue lors d'une annulation antérieure : la variable était
+   utilisée sans exister. L'accès levait une exception avalée par le catch, et
+   l'affectation créait une globale implicite — l'annulation ne fonctionnait
+   donc jamais au premier appel. */
+let _zoneAbort=null;
+
 async function zoneSuggest(q,near,cc){
   /* Une frappe plus récente rend la requête en cours inutile : on l'interrompt
      plutôt que de la payer pour rien. */
