@@ -13120,9 +13120,17 @@ const DRAWER_NAV=[
 ];
 function drawerNavHtml(){
   const L=lang();
+  /* Entrée de diagnostic, réservée à l'administrateur : elle mesure la
+     consommation Google et permet de tester un appel. Ce n'est pas une
+     fonction de l'application, elle ne doit apparaître pour personne d'autre. */
+  const diag=(typeof isAdmin==="function"&&isAdmin())
+    ? `<button class="cd-navi" data-nav="usage">`
+      +`<svg viewBox="0 0 24 24"><path d="M4 19.5h16"/><path d="M7 16v-5M12 16V7M17 16v-8"/></svg>`
+      +`<span>${t("usage.title")}</span></button>`
+    : "";
   return `<div class="cd-nav">`+DRAWER_NAV.map(n=>
     `<button class="cd-navi${n.k==="chat"?" on":""}" data-nav="${n.k}">`
-    +`<svg viewBox="0 0 24 24">${n.i}</svg><span>${n.t[L]||n.t.fr}</span></button>`).join("")+`</div>`;
+    +`<svg viewBox="0 0 24 24">${n.i}</svg><span>${n.t[L]||n.t.fr}</span></button>`).join("")+diag+`</div>`;
 }
 function drawerHeadHtml(){
   const L=lang();
@@ -13188,6 +13196,7 @@ function renderConvDrawer(){ const inner=document.getElementById("convDrawerInne
     if(k==="chat"){ closeConvDrawer&&closeConvDrawer(); return; }
     if(k==="set"){ closeConvDrawer&&closeConvDrawer(); closeAgentChat(); openSettings(); return; }
     if(k==="insp"){ closeConvDrawer&&closeConvDrawer(); closeAgentChat(); openInspiration(); return; }
+    if(k==="usage"){ closeConvDrawer&&closeConvDrawer(); openUsage(); return; }
     const nav=DRAWER_NAV.find(x=>x.k===k);
     if(nav&&nav.tab){ closeConvDrawer&&closeConvDrawer(); closeAgentChat(); switchTab(nav.tab); }
   });
