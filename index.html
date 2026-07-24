@@ -4116,7 +4116,7 @@ function updateDestSub(){ const el=document.getElementById("cDestSub"); if(el) e
 function recapHtml(){
   const d=draft.dest; const cn=(draft.country&&draft.country.name)||(d&&d.country)||"";
   const name=d?d.name:t("create.dest");
-  const ph=draft.coverPhoto?`style="background-image:url('${gPhoto(draft.coverPhoto,200)}')"`:"";
+  const ph=draft.coverPhoto?`data-bg="${gPhoto(draft.coverPhoto,200)}"`:"";
   const ds=draft.dateStart,de=draft.dateEnd;
   /* Règle : aucune valeur nulle ou absente n'est affichée. */
   let dtxt=""; if(ds&&de) dtxt=calRangeShort(ds,de); else if(ds) dtxt=fmtDateShort(ds);
@@ -4919,6 +4919,51 @@ const STYLE_MAP={
 const STYLE_MOD={premium:1,romantic:1,family:1,eco:1,local:1,mixed:1,roadtrip:1,solo:1,friends:1,business:1,backpacking:1};
 let exploreState={cat:"all",query:""}; let _exMore=12;
 const _placeReg={};
+/* ---- Photos chargées à l'apparition -------------------------------------
+   Une liste de 20 hôtels demandait 20 photos à Google ; l'écran en montre 3.
+   Les vignettes passent par background-image, sur lesquelles le chargement
+   différé natif du navigateur ne s'applique pas : il faut un observateur.
+
+   L'URL est posée dans data-bg et n'est appliquée qu'au moment où l'élément
+   approche de l'écran. Le compteur d'usage suit le chargement réel, pas le
+   rendu — c'est bien ce que Google facture. */
+let _photoObs=null;
+function photoObserver(){
+  if(_photoObs||typeof IntersectionObserver==="undefined") return _photoObs;
+  _photoObs=new IntersectionObserver(entries=>{
+    entries.forEach(e=>{
+      if(!e.isIntersecting) return;
+      const el=e.target, u=el.dataset.bg;
+      if(u){ el.style.backgroundImage="url('"+u+"')"; delete el.dataset.bg; }
+      _photoObs.unobserve(el);
+    });
+  },{rootMargin:"300px"});   /* 300 px d'avance : la photo est prête à l'arrivée */
+  return _photoObs;
+}
+
+/* À appeler après chaque rendu contenant des vignettes. */
+function bindPhotos(racine){
+  const r=racine||document;
+  const obs=photoObserver();
+  r.querySelectorAll("[data-bg]").forEach(el=>{
+    if(!obs){ /* navigateur sans observateur : on charge tout de suite */
+      const u=el.dataset.bg; if(u){ el.style.backgroundImage="url('"+u+"')"; delete el.dataset.bg; }
+      return; }
+    obs.observe(el);
+  });
+}
+/* Filet : tout ce qui est ajouté au document est pris en charge sans avoir à
+   appeler bindPhotos partout. */
+if(typeof MutationObserver!=="undefined"){
+  new MutationObserver(muts=>{
+    let besoin=false;
+    muts.forEach(m=>m.addedNodes&&m.addedNodes.forEach(n=>{
+      if(n.nodeType===1&&(n.dataset&&n.dataset.bg||n.querySelector&&n.querySelector("[data-bg]"))) besoin=true;
+    }));
+    if(besoin) bindPhotos(document);
+  }).observe(document.documentElement,{childList:true,subtree:true});
+}
+
 const _photoVues=new Set();
 function gPhoto(name,w){
   /* Les photos ne passent pas par workerFetch : elles sont chargées par le
@@ -5196,7 +5241,8 @@ let _distRef=null;
 function distRefFor(tr){ if(tr&&tr.lodging&&tr.lodging.lat!=null) return {lat:tr.lodging.lat,lng:tr.lodging.lng,kind:'lodging'};
   if(tr&&tr.dest&&tr.dest.lat!=null) return {lat:tr.dest.lat,lng:tr.dest.lng,kind:'center'}; return null; }
 function pcard(p,layout){
-  const ph=p.photo?`background-image:url('${gPhoto(p.photo,500)}')`:`background:${COVERS[hashStr(p.id)%COVERS.length]}`;
+  /* data-bg : l'URL n'est demandée à Google qu'à l'apparition de la carte. */
+  const ph=p.photo?`data-bg="${gPhoto(p.photo,500)}"`:`style="background:${COVERS[hashStr(p.id)%COVERS.length]}"`;
   const attr=isAttraction(p);
   const _pbg=premiumBadge(p);
   const badge=_pbg?_pbg
@@ -5211,7 +5257,7 @@ function pcard(p,layout){
     if(parts.length) dist=`<div class="pc-dist">📍 ${parts.join(" · ")}</div>`; }
   const rt=p.rating?`<div class="prating">★ ${p.rating.toLocaleString(LOCALE[lang()]||'fr-FR')} <span>(${p.count})</span></div>`:`<div class="prating muted">${t("place.noReviews")}</div>`;
   const pr=priceLabel(p.price);
-  return `<div class="pcard ${layout==='scroll'?'sc':''}" data-id="${escapeHtml(p.id)}"><div class="ph" style="${ph}">${badge}</div>
+  return `<div class="pcard ${layout==='scroll'?'sc':''}" data-id="${escapeHtml(p.id)}"><div class="ph" ${ph}>${badge}</div>
     <div class="pc-body">${rt}<div class="pc-name">${escapeHtml(p.name)}</div>
     <div class="pc-meta"><span class="chip-cat">${escapeHtml(p.primaryType||catLabel(p.types))}</span>${pr?`<span class="price">${pr}</span>`:""}${p.openNow!=null?`<span class="open ${p.openNow?"y":"n"}">${p.openNow?t("place.openNow"):t("place.closed")}</span>`:""}</div>${dist}</div></div>`; }
 let _exSections=[]; const exFilter={minRating:0,px:new Set(),openNow:false,subcat:new Set()};
@@ -5608,7 +5654,8 @@ function openPriceForm(placeId,placeName,currency){ const box=document.getElemen
     <div class="fld2" style="margin-top:6px"><button class="btn ghostline2" id="pcCancel" style="flex:1">${pcT("cancel")}</button><button class="btn navy" id="pcSend" style="flex:1">${pcT("send")}</button></div>`; document.getElementById("pcCancel").onclick=()=>loadPriceCommunity(placeId,cur,placeName); document.getElementById("pcSend").onclick=async()=>{ const price=parseFloat(String(document.getElementById("pcPrice").value).replace(",","."))||0; if(price<=0){ toast(pcT("badAmount")); return; } const obj={ place_id:String(placeId), place_name:placeName||"", category:(openPlaceObj?catGuessForPlace(openPlaceObj):""), label:(document.getElementById("pcLabel").value||"").trim().slice(0,80), price, currency:document.getElementById("pcCur").value||cur }; const btn=document.getElementById("pcSend"); if(btn){ btn.disabled=true; btn.textContent="…"; } const r=await submitPriceReport(obj); if(r&&r.ok){ toast(pcT("thanks")); loadPriceCommunity(placeId,obj.currency,placeName); } else { if(r&&r.error==="auth"){ toast(pcT("loginNeeded")); } else { const e=(r&&r.error)||{}; const msg=(e.message||e.details||e.hint||e.code||String(e)||"?"); toast(pcT("err")); try{ alert("Prix — erreur Supabase :\n"+msg+(e.code?("\n(code "+e.code+")"):"")+"\n\nConnecté : "+(currentUser&&currentUser.id?"oui":"non")); }catch(_){} } if(btn){ btn.disabled=false; btn.textContent=pcT("send"); } } }; }
 function openPlace(p,mode){ if(!p) return; mode=mode||"explore"; openPlaceObj=p; openPlaceMode=mode; const trip=currentTrip(), inTrip=!!(trip&&trip.places&&trip.places.some(x=>x.id===p.id));
   document.getElementById("placeHd").textContent=p.name;
-  const ph=p.photo?`background-image:url('${gPhoto(p.photo,800)}')`:`background:${COVERS[hashStr(p.id)%COVERS.length]}`;
+  /* data-bg : l'URL n'est demandée à Google qu'à l'apparition de la carte. */
+  const ph=p.photo?`data-bg="${gPhoto(p.photo,800)}"`:`style="background:${COVERS[hashStr(p.id)%COVERS.length]}"`;
   const pr=priceLabel(p.price);
   const isResto=isRestaurant(p);
   const primary= mode==="hotel"
@@ -5623,8 +5670,8 @@ function openPlace(p,mode){ if(!p) return; mode=mode||"explore"; openPlaceObj=p;
     ? `<button class="btn ghostline2 block" id="pPark" style="margin-top:10px">🅿️ ${t("park.btn")}</button>` : "";
   const b=document.getElementById("placeBody");
   const galleryHtml=(p.photos&&p.photos.length>1)
-    ? `<div class="gallery">${p.photos.map((n,i)=>`<div class="gimg" data-lb="${i}" style="background-image:url('${gPhoto(n,700)}')"></div>`).join("")}</div>`
-    : `<div class="place-cover" ${p.photo?'data-lb="0"':''} style="${ph}"></div>`;
+    ? `<div class="gallery">${p.photos.map((n,i)=>`<div class="gimg" data-lb="${i}" data-bg="${gPhoto(n,700)}"></div>`).join("")}</div>`
+    : `<div class="place-cover" ${p.photo?'data-lb="0"':''} ${ph}></div>`;
   const hoursHtml=(p.hours&&p.hours.length)
     ? `<details class="hours"><summary>${t("place.hours")}</summary><div class="hours-list">${p.hours.map(h=>`<div>${escapeHtml(h)}</div>`).join("")}</div></details>` : "";
   const reviewsHtml=(p.reviews&&p.reviews.length)
@@ -8111,11 +8158,11 @@ function fmtDayLong(d){ try{ return cap2(new Intl.DateTimeFormat(LOCALE[lang()]|
 function _pastTripsHtml(list){ let o=`<div class="mem-sec-head" style="margin-top:22px"><h2>${t("mem.pastTrips")}</h2></div><div class="past-trips">`,ly=""; list.forEach(pt=>{ const yr=(pt.dateEnd||"").slice(0,4); if(yr&&yr!==ly){ o+=`<div class="past-year">${yr}</div>`; ly=yr; } o+=`<button class="past-card" data-pasttrip="${escapeHtml(pt.id)}"><span class="pc-cv" style="${coverStyle(pt)}"></span><span class="pc-nf"><span class="pc-nn">${escapeHtml(tripTitle(pt))}</span><span class="pc-dd">${fmtRange(pt.dateStart,pt.dateEnd)}</span></span></button>`; }); return o+`</div>`; }
 function phTile(m){ const tr=souvTrip(); const pl=(m.placeId&&tr)?(tr.places||[]).find(p=>p.id===m.placeId):null; const lab=pl?pl.name:(m.caption||""); const geo=(m.lat!=null)?`<span class="ph-geo" title="Photo localisée">\ud83d\udccd</span>`:"";
   return `<div class="ph-tile loading" data-media="${m.id}" data-pid="${m.id}">${geo}${lab?`<span class="ph-cap">${escapeHtml(lab)}</span>`:''}</div>`; }
-function memPlaceCard(tr,p){ const cov=p.photo?`background-image:url('${gPhoto(p.photo,500)}')`:`background:${COVERS[hashStr(p.id)%COVERS.length]}`;
+function memPlaceCard(tr,p){ const cov=p.photo?`data-bg="${gPhoto(p.photo,500)}"`:`style="background:${COVERS[hashStr(p.id)%COVERS.length]}"`;
   const ty=p.primaryType?escapeHtml(gStr(p.primaryType,p.lang0)):escapeHtml(catLabel(p.types));
   return `<div class="mpc" data-place="${p.id}"><button class="mpc-heart ${p.fav?'on':''}" data-fav="${p.id}" aria-label="♥"><svg viewBox="0 0 24 24"><path d="M12 20s-7-4.5-9.5-9C1 8 2.5 4.5 6 4.5c2 0 3.2 1.2 4 2.3.8-1.1 2-2.3 4-2.3 3.5 0 5 3.5 3.5 6.5C19 15.5 12 20 12 20z"/></svg></button>
     <button class="mpc-note ${p.note?'on':''}" data-note="${p.id}" aria-label="✎"><svg viewBox="0 0 24 24"><path d="M4 20h4L18.5 9.5a2.1 2.1 0 0 0-3-3L5 17v3z"/><path d="M13.5 6.5l3 3"/></svg></button>
-    <div class="mpc-cov" style="${cov}"></div><div class="mpc-b"><div class="mpc-n">${escapeHtml(p.name)}</div><div class="mpc-t">${ty}</div>${p.note?`<div class="mpc-note-txt">${escapeHtml(p.note)}</div>`:''}</div></div>`; }
+    <div class="mpc-cov" ${cov}></div><div class="mpc-b"><div class="mpc-n">${escapeHtml(p.name)}</div><div class="mpc-t">${ty}</div>${p.note?`<div class="mpc-note-txt">${escapeHtml(p.note)}</div>`:''}</div></div>`; }
 function byDayHtml(tr,mems){ const days=tripDays(tr); const groups={}; mems.forEach(m=>{ const k=(m.day==null?"none":m.day); (groups[k]=groups[k]||[]).push(m); });
   let out=""; days.forEach(dd=>{ const g=groups[dd.i]; if(!g||!g.length) return;
     out+=`<div class="day-block"><div class="db-h"><span class="db-n">${dd.i+1}</span><div><div class="db-t">${t("plan.day")} ${dd.i+1}</div>${dd.date?`<div class="db-d">${escapeHtml(fmtDayLong(dd.date))}</div>`:''}</div></div><div class="photo-grid">`+g.map(phTile).join("")+`</div></div>`; });
@@ -8463,7 +8510,7 @@ function openMontage(tr,version,autoplay){ tr=tr||souvTrip(); if(!tr) return; _m
             <span class="tl-link" aria-hidden="true">\u203a</span>
             ${souvFilmPoints(tr).map((pp,i)=>{ const ms=(tr.memories||[]).filter(m=>m.placeId===pp.id); const mm=ms[0];
               const thumb = mm ? `<span class="tl-thumb" data-media="${mm.id}">`
-                          : (pp.photo ? `<span class="tl-thumb" style="background-image:url('${gPhoto(pp.photo,600)}')">`
+                          : (pp.photo ? `<span class="tl-thumb" data-bg="${gPhoto(pp.photo,600)}">`
                           : `<span class="tl-thumb tl-empty"><span class="tl-emoji">${(typeof catEmoji==="function"?catEmoji(pp):"\u{1F4CD}")}</span>`);
               return `<div class="tl-card${ms.length?"":" tl-nophoto"}">${thumb}<span class="tl-n">${i+1}</span><button class="tl-x" data-tlx="${i}">\u2715</button></span><b>${escapeHtml((pp.title||"").slice(0,22))}</b><span class="tl-meta"><i class="tl-cat">${(typeof catEmoji==="function"?catEmoji(pp):"")}</i>${ms.length?(ms.length+" photo"+(ms.length>1?"s":"")):"aucune photo"}</span><div class="tl-mv"><button data-tlm="${i}" data-dir="-1" ${i===0?"disabled":""}>\u2039</button><button data-tlm="${i}" data-dir="1" ${i===souvFilmPoints(tr).length-1?"disabled":""}>\u203a</button></div></div>`; }).join('<span class="tl-link" aria-hidden="true">\u203a</span>')}
             <span class="tl-link" aria-hidden="true">\u203a</span>
@@ -11625,7 +11672,7 @@ function renderMemories(){ const body=document.getElementById("memBody"); if(!bo
       const ready=(pts.length>0 && nPh>0);              /* un film exige des lieux ET des photos */
       const est=Math.max(30,Math.min(120, 8+nPh*2.5+pts.length*4));
       const cover=(tr.filmPoster?{id:tr.filmPoster}:null)||(tr.memories||[])[0];
-      const bgAttr=cover?`data-media="${cover.id}"`:(pts[0]&&pts[0].photo?`style="background-image:url('${gPhoto(pts[0].photo,900)}')"`:`style="background:linear-gradient(140deg,#0E2148,#24406E)"`);
+      const bgAttr=cover?`data-media="${cover.id}"`:(pts[0]&&pts[0].photo?`data-bg="${gPhoto(pts[0].photo,900)}"`:`style="background:linear-gradient(140deg,#0E2148,#24406E)"`);
       let meta, btn, sub;
       const newer=(tr.filmAt && (tr.memories||[]).some(m=>(m.at||0)>tr.filmAt));
       if(ready){ sub=newer?"De nouvelles photos sont arriv\u00e9es depuis ton film \u2014 tu peux le mettre \u00e0 jour.":escapeHtml(souvTagline(tr));
@@ -11688,7 +11735,7 @@ function renderMemories(){ const body=document.getElementById("memBody"); if(!bo
         <div class="sv-albums">`+withPh.slice(0,8).map(p=>{ const ms=(tr.memories||[]).filter(m=>m.placeId===p.id); const n=ms.length;
         const cov=ms[0]?"":(p.photo?`background-image:url('${gPhoto(p.photo,700)}')`:`background:${COVERS[hashStr(p.id)%COVERS.length]}`);
         const dd=(tr.plan||[]).find(x=>x.placeId===p.id);
-        return `<button class="sv-alb" data-album="${escapeHtml(p.id)}"><span class="sv-albc" ${ms[0]?`data-media="${ms[0].id}"`:`style="${cov}"`}>${n?`<span class="sv-albn">${n}</span>`:""}</span><span class="sv-albt">${escapeHtml(p.name)}</span><span class="sv-albd">${dd?(t("plan.day")+" "+(dd.day+1)):""}${n?" \u00b7 "+n+" photo"+(n>1?"s":""):""}</span></button>`; }).join("")+`</div></div>`;
+        return `<button class="sv-alb" data-album="${escapeHtml(p.id)}"><span class="sv-albc" ${ms[0]?`data-media="${ms[0].id}"`:`${cov}`}>${n?`<span class="sv-albn">${n}</span>`:""}</span><span class="sv-albt">${escapeHtml(p.name)}</span><span class="sv-albd">${dd?(t("plan.day")+" "+(dd.day+1)):""}${n?" \u00b7 "+n+" photo"+(n>1?"s":""):""}</span></button>`; }).join("")+`</div></div>`;
     } }
   }
   body.innerHTML=h+_pastHtml+_delBtn;
@@ -12811,7 +12858,7 @@ function renderChatPhotos(lieux){
   lieux.forEach(l=>{
     const card=document.createElement("div"); card.className="ac-photo-card";
     const note=l.note?`<span class="acp-note">★ ${l.note}${l.nbAvis?` (${l.nbAvis})`:""}</span>`:"";
-    card.innerHTML=`<div class="acp-img" style="background-image:url('${gPhoto(l.photoName,600)}')"></div><div class="acp-info"><div class="acp-nom">${escapeHtml(l.nom)}</div>${note}</div>`;
+    card.innerHTML=`<div class="acp-img" data-bg="${gPhoto(l.photoName,600)}"></div><div class="acp-info"><div class="acp-nom">${escapeHtml(l.nom)}</div>${note}</div>`;
     card.onclick=()=>{
       const p={ id:l.id, name:l.nom, photo:l.photoName, rating:l.note, userRatingCount:l.nbAvis, formattedAddress:l.adresse, address:l.adresse, lat:l.lat, lng:l.lng, price:null, types:[] };
       openPlace(p,"explore");
@@ -12873,7 +12920,7 @@ async function renderDayProposal(p){
 
   const rows=steps.map((x,i)=>{
     const pl=x.place;
-    const ph=pl.photo?`<span class="dayp-ph" style="background-image:url('${gPhoto(pl.photo,220)}')"></span>`
+    const ph=pl.photo?`<span class="dayp-ph" data-bg="${gPhoto(pl.photo,220)}"></span>`
       :`<span class="dayp-ph dayp-nophoto">${(typeof catEmoji==="function"?catEmoji(pl):"")}</span>`;
     const cat=escapeHtml(pl.primaryType||catLabel(pl.types)||"");
     const dur=x.duree?`${Math.round(x.duree/60*10)/10} h`.replace(".0",""):"";
