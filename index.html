@@ -3976,7 +3976,7 @@ function homeSearch(q){ clearTimeout(_homeAcT); q=(q||"").trim(); const el=docum
   _homeAcT=setTimeout(async()=>{ const res=await zoneSuggest(q,null,null);
     if(!res||!res.length){ el.innerHTML=`<div class="home-ac-empty">${t("home.searchEmpty")}</div>`; return; }
     el.innerHTML=res.map((r,i)=>`<div class="home-ac-row" data-i="${i}"><svg viewBox="0 0 24 24"><path d="M12 21s-7-6.2-7-11a7 7 0 0 1 14 0c0 4.8-7 11-7 11z"/><circle cx="12" cy="10" r="2.4"/></svg><div class="ha-txt"><div class="ha-n">${escapeHtml(r.name)}</div><div class="ha-l">${escapeHtml(r.sub||r.country||r.label||"")}</div></div><svg class="ha-go" viewBox="0 0 24 24"><path d="M9 6l6 6-6 6"/></svg></div>`).join("");
-    el.querySelectorAll("[data-i]").forEach(d=>d.onclick=()=>openCreateWithDest(res[+d.dataset.i]));
+    el.querySelectorAll("[data-i]").forEach(d=>d.onclick=async()=>{ const r=await resolveSuggestion(res[+d.dataset.i]); openCreateWithDest(r||res[+d.dataset.i]); });
   },600); }
 const MED={globe:"data:image/svg+xml,%3Csvg%20xmlns%3D%27http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%27%20width%3D%2742%27%20height%3D%2742%27%20viewBox%3D%270%200%2042%2042%27%3E%3Ccircle%20cx%3D%2721%27%20cy%3D%2721%27%20r%3D%2721%27%20fill%3D%27%23EEF1F7%27%2F%3E%3Cg%20transform%3D%27translate%2810.5%2010.5%29%20scale%280.875%29%27%20fill%3D%27none%27%20stroke%3D%27%23C2872A%27%20stroke-width%3D%272%27%20stroke-linecap%3D%27round%27%20stroke-linejoin%3D%27round%27%3E%3Ccircle%20cx%3D%2712%27%20cy%3D%2712%27%20r%3D%279%27%2F%3E%3Cpath%20d%3D%27M3%2012h18%27%2F%3E%3Cpath%20d%3D%27M12%203c2.6%202.7%202.6%2015.3%200%2018M12%203c-2.6%202.7-2.6%2015.3%200%2018%27%2F%3E%3C%2Fg%3E%3C%2Fsvg%3E",bag:"data:image/svg+xml,%3Csvg%20xmlns%3D%27http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%27%20width%3D%2742%27%20height%3D%2742%27%20viewBox%3D%270%200%2042%2042%27%3E%3Ccircle%20cx%3D%2721%27%20cy%3D%2721%27%20r%3D%2721%27%20fill%3D%27%23EEF1F7%27%2F%3E%3Cg%20transform%3D%27translate%2810.5%2010.5%29%20scale%280.875%29%27%20fill%3D%27none%27%20stroke%3D%27%23C2872A%27%20stroke-width%3D%272%27%20stroke-linecap%3D%27round%27%20stroke-linejoin%3D%27round%27%3E%3Crect%20x%3D%274%27%20y%3D%277%27%20width%3D%2716%27%20height%3D%2713%27%20rx%3D%272%27%2F%3E%3Cpath%20d%3D%27M9%207V5a2%202%200%200%201%202-2h2a2%202%200%200%201%202%202v2%27%2F%3E%3C%2Fg%3E%3C%2Fsvg%3E",bell:"data:image/svg+xml,%3Csvg%20xmlns%3D%27http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%27%20width%3D%2742%27%20height%3D%2742%27%20viewBox%3D%270%200%2042%2042%27%3E%3Ccircle%20cx%3D%2721%27%20cy%3D%2721%27%20r%3D%2721%27%20fill%3D%27%23EEF1F7%27%2F%3E%3Cg%20transform%3D%27translate%2810.5%2010.5%29%20scale%280.875%29%27%20fill%3D%27none%27%20stroke%3D%27%23C2872A%27%20stroke-width%3D%272%27%20stroke-linecap%3D%27round%27%20stroke-linejoin%3D%27round%27%3E%3Cpath%20d%3D%27M4%2018h16%27%2F%3E%3Cpath%20d%3D%27M6%2018a6%206%200%200%201%2012%200%27%2F%3E%3Cpath%20d%3D%27M12%206V4.2%27%2F%3E%3Cpath%20d%3D%27M10.4%204.2h3.2%27%2F%3E%3C%2Fg%3E%3C%2Fsvg%3E",car:"data:image/svg+xml,%3Csvg%20xmlns%3D%27http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%27%20width%3D%2742%27%20height%3D%2742%27%20viewBox%3D%270%200%2042%2042%27%3E%3Ccircle%20cx%3D%2721%27%20cy%3D%2721%27%20r%3D%2721%27%20fill%3D%27%23EEF1F7%27%2F%3E%3Cg%20transform%3D%27translate%2810.5%2010.5%29%20scale%280.875%29%27%20fill%3D%27none%27%20stroke%3D%27%23C2872A%27%20stroke-width%3D%272%27%20stroke-linecap%3D%27round%27%20stroke-linejoin%3D%27round%27%3E%3Cpath%20d%3D%27M5%2016l1.6-5.2A2%202%200%200%201%208.5%209h7a2%202%200%200%201%201.9%201.4L19%2016%27%2F%3E%3Crect%20x%3D%273%27%20y%3D%2716%27%20width%3D%2718%27%20height%3D%274%27%20rx%3D%271%27%2F%3E%3Ccircle%20cx%3D%277.5%27%20cy%3D%2720%27%20r%3D%271%27%2F%3E%3Ccircle%20cx%3D%2716.5%27%20cy%3D%2720%27%20r%3D%271%27%2F%3E%3C%2Fg%3E%3C%2Fsvg%3E",compass:"data:image/svg+xml,%3Csvg%20xmlns%3D%27http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%27%20width%3D%2742%27%20height%3D%2742%27%20viewBox%3D%270%200%2042%2042%27%3E%3Ccircle%20cx%3D%2721%27%20cy%3D%2721%27%20r%3D%2721%27%20fill%3D%27%23EEF1F7%27%2F%3E%3Cg%20transform%3D%27translate%2810.5%2010.5%29%20scale%280.875%29%27%20fill%3D%27none%27%20stroke%3D%27%23C2872A%27%20stroke-width%3D%272%27%20stroke-linecap%3D%27round%27%20stroke-linejoin%3D%27round%27%3E%3Ccircle%20cx%3D%2712%27%20cy%3D%2712%27%20r%3D%279%27%2F%3E%3Cpath%20d%3D%27M15.5%208.5l-2.2%204.8L8.5%2015.5l2.2-4.8z%27%2F%3E%3C%2Fg%3E%3C%2Fsvg%3E"};
 const ICO_PIN="<svg viewBox='0 0 24 24' width='24' height='24' fill='none' stroke='currentColor' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'><path d='M12 21s-7-6.2-7-11a7 7 0 0 1 14 0c0 4.8-7 11-7 11z'/><circle cx='12' cy='10' r='2.4'/></svg>";
@@ -4170,7 +4170,8 @@ function renderCreate(tr){
         return; }
       ac.innerHTML=res.map((r,i)=>{ const sub=acSub(r.name,r.label||""); return `<div data-i="${i}"><svg viewBox="0 0 24 24"><path d="M12 21s-7-6.2-7-11a7 7 0 0 1 14 0c0 4.8-7 11-7 11z"/><circle cx="12" cy="10" r="2.4"/></svg><div class="ac-txt"><div class="ac-n">${escapeHtml(r.name||r.label||"")}</div>${sub?`<div class="ac-l">${escapeHtml(sub)}</div>`:""}</div><svg class="ha-go" viewBox="0 0 24 24"><path d="M9 6l6 6-6 6"/></svg></div>`; }).join("");
       ac.classList.add("show");
-      ac.querySelectorAll("div[data-i]").forEach(el=>el.onclick=()=>{ const r=res[+el.dataset.i]; draft.dest=r; draft.coverPhoto=""; dest.value=r.name+(r.country?", "+r.country:""); ac.classList.remove("show"); revealCRest();
+      ac.querySelectorAll("div[data-i]").forEach(el=>el.onclick=async()=>{ let r=res[+el.dataset.i]; ac.classList.remove("show"); r=await resolveSuggestion(r)||r;
+        draft.dest=r; draft.coverPhoto=""; dest.value=r.name+(r.country?", "+r.country:""); revealCRest();
         if(r.cc){ draft.country={cc:r.cc,name:countryName(r.cc)}; const _cf=b.querySelector("#cCountry"); if(_cf) _cf.value=countryName(r.cc); }
         if(r.cc&&CC_CUR[r.cc]){ draft.currency=CC_CUR[r.cc]; const sel=b.querySelector("#cCur"); if(sel) sel.value=draft.currency; } applyCountryFuel(r.cc); renderVehPanel(); updateRecap(); updateDestSub(); fetchDraftCover(); const _dc=b.querySelector('.acard[data-card="dest"]'); if(_dc)_dc.classList.remove("open"); const _sc=b.querySelector('.acard[data-card="stay"]'); if(_sc)_sc.classList.add("open"); }); },600); });
   const lodge=b.querySelector("#cLodge"),lac=b.querySelector("#cLodgeAc"); let _lacT=null;
@@ -4408,7 +4409,7 @@ function renderVehPanel(){ const wrap=document.getElementById("cVehPanel"); if(!
     _dpT=setTimeout(async()=>{ const res=await zoneSuggest(q,null,null); if(!res.length){ dpAc.classList.remove("show"); return; }
       dpAc.innerHTML=res.map((r,i)=>{ const sub=acSub(r.name,r.label||""); return `<div data-i="${i}"><svg viewBox="0 0 24 24"><path d="M12 21s-7-6.2-7-11a7 7 0 0 1 14 0c0 4.8-7 11-7 11z"/><circle cx="12" cy="10" r="2.4"/></svg><div class="ac-txt"><div class="ac-n">${escapeHtml(r.name||r.label||"")}</div>${sub?`<div class="ac-l">${escapeHtml(sub)}</div>`:""}</div><svg class="ha-go" viewBox="0 0 24 24"><path d="M9 6l6 6-6 6"/></svg></div>`; }).join("");
       dpAc.classList.add("show");
-      dpAc.querySelectorAll("div[data-i]").forEach(el=>el.onclick=()=>{ const r=res[+el.dataset.i]; draft.depart=r; dpEl.value=r.name+(r.country?", "+r.country:""); dpAc.classList.remove("show"); computeVehEstimate(); if(tp==="plane"||tp==="boat") populateHub("cDepHub",draft.depart,tp,"dep"); }); },600); }); }
+      dpAc.querySelectorAll("div[data-i]").forEach(el=>el.onclick=async()=>{ let r=res[+el.dataset.i]; r=await resolveSuggestion(r)||r; draft.depart=r; dpEl.value=r.name+(r.country?", "+r.country:""); dpAc.classList.remove("show"); computeVehEstimate(); if(tp==="plane"||tp==="boat") populateHub("cDepHub",draft.depart,tp,"dep"); }); },600); }); }
   if(tp==="plane"||tp==="boat"){ populateHub("cDepHub",draft.depart,tp,"dep"); populateHub("cArrHub",draft.dest,tp,"arr"); }
   wrap.querySelectorAll("[data-ltr]").forEach(bb=>bb.onclick=()=>{ draft.localTransport=bb.dataset.ltr; if(bb.dataset.ltr==="car"){ draft.veh=draft.veh||{fuel:"essence",conso:"",price:""}; applyCountryFuel(draft.country&&draft.country.cc); } renderVehPanel(); });
   { const mo=wrap.querySelector("#cVehMore"); if(mo) mo.onclick=()=>{ _vehOpen=true; renderVehPanel(); }; }
@@ -4634,8 +4635,9 @@ function bindLegs(host){
       if(!res.length){ ac.classList.remove("show"); ac.innerHTML=""; return; }
       ac.innerHTML=res.slice(0,6).map((r,i)=>`<div data-i="${i}"><svg viewBox="0 0 24 24"><path d="M12 21s-7-6.2-7-11a7 7 0 0 1 14 0c0 4.8-7 11-7 11z"/><circle cx="12" cy="10" r="2.4"/></svg><div class="ac-txt"><div class="ac-n">${escapeHtml(r.name||"")}</div>${r.sub||r.label?`<div class="ac-l">${escapeHtml(r.sub||r.label)}</div>`:""}</div></div>`).join("");
       ac.classList.add("show");
-      ac.querySelectorAll("div[data-i]").forEach(el=>el.onclick=()=>{ const r=res[+el.dataset.i];
+      ac.querySelectorAll("div[data-i]").forEach(el=>el.onclick=async()=>{ let r=res[+el.dataset.i];
         ac.classList.remove("show"); inp.value="";
+        r=await resolveSuggestion(r)||r;
         addDraftLeg({name:r.name,country:r.country||"",cc:r.cc||"",lat:r.lat,lng:r.lng,bbox:r.bbox||null}); });
     },600); });
 }
@@ -4698,7 +4700,8 @@ async function submitCreate(){
     /* On ne remplace jamais le contenu du bouton : cela effacerait son icône. */
     const _lbl=sub.querySelector("span"), _was=_lbl?_lbl.textContent:"";
     sub.disabled=true; if(_lbl) _lbl.textContent="…";
-    const res=await zoneSuggest(destText,null,_cc||null);
+    let res=await zoneSuggest(destText,null,_cc||null);
+    if(res[0]) res=[await resolveSuggestion(res[0])||res[0]];
     sub.disabled=false; if(_lbl) _lbl.textContent=_was;
     /* Hors-ligne ou lieu introuvable : on crée quand même, les coordonnées seront résolues plus tard. */
     dest=res[0]||{name:destText,country:(draft.country&&draft.country.name)||"",cc:_cc||"",lat:null,lng:null};
@@ -4979,16 +4982,59 @@ function gCacheGet(k){ if(_gMem[k]&&_gMem[k].exp>Date.now()) return _gMem[k].v;
   return null; }
 function gCacheTrim(){ try{ Object.keys(localStorage).filter(k=>k.indexOf("gx_")===0).slice(0,25).forEach(k=>localStorage.removeItem(k)); }catch(e){} }
 function gCacheSet(k,v,ttl){ const o={v:v,exp:Date.now()+(ttl||G_TTL)}; _gMem[k]=o; try{ localStorage.setItem("gx_"+k,JSON.stringify(o)); }catch(e){ gCacheTrim(); try{ localStorage.setItem("gx_"+k,JSON.stringify(o)); }catch(_){} } }
-/* Google facture par paliers selon les champs demandés : photos, horaires et
-   niveaux de prix relèvent des plus chers. Pour compléter un nom de ville on
-   n'a besoin que du nom, des coordonnées et de l'étendue — demander la fiche
-   complète à chaque frappe revenait à payer le tarif « hôtel » pour « Lille ».
-   opts.light limite la demande au strict nécessaire. */
-const G_FIELDS_FULL=["places.id","places.businessStatus","places.displayName","places.formattedAddress","places.addressComponents","places.rating","places.userRatingCount","places.priceLevel","places.priceRange","places.types","places.primaryType","places.primaryTypeDisplayName","places.photos","places.location","places.viewport","places.googleMapsUri","places.websiteUri","places.nationalPhoneNumber","places.regularOpeningHours.openNow","places.regularOpeningHours.weekdayDescriptions","places.editorialSummary","places.reviews","nextPageToken"];
-const G_FIELDS_LIGHT=["places.id","places.displayName","places.formattedAddress","places.addressComponents","places.types","places.location","places.viewport"];
+/* gText demande la fiche complète : notes, photos, horaires, prix. C'est le
+   palier le plus cher de Google, et c'est assumé — il n'est utilisé que pour
+   les hôtels et les restaurants, là où ces informations font tout l'intérêt
+   de la carte. Les simples suggestions de lieu passent par gAutocomplete. */
+/* Autocomplétion de lieu — l'API dédiée, bien moins coûteuse que la recherche
+   textuelle complète. Elle ne renvoie ni coordonnées ni étendue : on ne les
+   demande qu'au moment où la personne choisit vraiment un résultat. */
+function acSession(){ if(!window._acSess) window._acSess=(Date.now().toString(36)+Math.random().toString(36).slice(2,10)); return window._acSess; }
+function acSessionEnd(){ window._acSess=null; }
+
+async function gAutocomplete(query,opts){ opts=opts||{};
+  const _ck=gKey("a",JSON.stringify([query,opts.lat,opts.lng,opts.cc||"",lang()]));
+  const _cv=gCacheGet(_ck); if(_cv) return _cv;
+  const req={ input:query, languageCode:lang(), sessionToken:acSession() };
+  if(opts.cc) req.includedRegionCodes=[String(opts.cc).toLowerCase()];
+  if(opts.lat!=null&&opts.lng!=null) req.locationBias={circle:{center:{latitude:opts.lat,longitude:opts.lng},radius:Math.min(50000,(opts.radiusKm||30)*1000)}};
+  const j=await workerFetch("/google/places",{mode:"autocomplete",request:req},opts.signal);
+  if(!j||j.error) return {error:(j&&j.error)||"net"};
+  const sug=((j.data&&j.data.suggestions)||[]).map(s=>s.placePrediction).filter(Boolean);
+  const out={preds:sug.map(p=>({
+    id:p.placeId||"",
+    name:(p.structuredFormat&&p.structuredFormat.mainText&&p.structuredFormat.mainText.text)||(p.text&&p.text.text)||"",
+    sub:(p.structuredFormat&&p.structuredFormat.secondaryText&&p.structuredFormat.secondaryText.text)||"",
+    types:p.types||[]
+  })).filter(p=>p.id&&p.name)};
+  gCacheSet(_ck,out,out.preds.length?G_TTL_STABLE:G_TTL_VIDE);
+  return out;
+}
+
+/* Coordonnées et étendue d'un lieu choisi. Un seul appel, et seulement quand
+   la personne a réellement fait son choix. */
+async function gPlaceLight(id){
+  const _ck=gKey("d",JSON.stringify(["light",id,lang()]));
+  const _cv=gCacheGet(_ck); if(_cv) return _cv;
+  const j=await workerFetch("/google/details",{id:id,fieldMask:"id,displayName,formattedAddress,addressComponents,types,location,viewport"});
+  if(!j||j.error||!j.data) return null;
+  const p=j.data, vp=p.viewport;
+  const comps=p.addressComponents||[];
+  const cty=comps.find(x=>(x.types||[]).includes("country"));
+  const out={
+    name:(p.displayName&&p.displayName.text)||"",
+    sub:p.formattedAddress||"",
+    country:cty?(cty.longText||""):"", cc:(cty&&cty.shortText)||"",
+    lat:p.location&&p.location.latitude, lng:p.location&&p.location.longitude,
+    bbox:(vp&&vp.low&&vp.high)?parseBbox([vp.low.latitude,vp.high.latitude,vp.low.longitude,vp.high.longitude]):null,
+    kind:isZoneTypes(p.types)?"zone":"addr"
+  };
+  gCacheSet(_ck,out,G_TTL_STABLE); acSessionEnd();
+  return out;
+}
 
 async function gText(query,opts){ opts=opts||{};
-  const _ck=gKey("t",JSON.stringify(["v3",query,opts.lat,opts.lng,opts.radius,opts.restrictKm,opts.type,opts.pages||1,opts.light?"L":"F",lang()]));
+  const _ck=gKey("t",JSON.stringify(["v3",query,opts.lat,opts.lng,opts.radius,opts.restrictKm,opts.type,opts.pages||1,lang()]));
   /* Une requête interrompue ne doit pas être signalée comme une panne. */ const _cv=gCacheGet(_ck); if(_cv) return _cv;
   const baseBody={ textQuery:query, languageCode:lang(), maxResultCount:20 };
   if(opts.lat!=null&&opts.lng!=null){
@@ -4996,15 +5042,14 @@ async function gText(query,opts){ opts=opts||{};
     else baseBody.locationBias={circle:{center:{latitude:opts.lat,longitude:opts.lng},radius:opts.radius||20000}};
   }
   if(opts.type) baseBody.includedType=opts.type;
-  const fields=(opts.light?G_FIELDS_LIGHT:G_FIELDS_FULL).join(",");
   const pages=Math.max(1,opts.pages||1); let all=[],token=null;
   try{ for(let p=0;p<pages;p++){ const body=Object.assign({},baseBody); if(token) body.pageToken=token;
-      const j=await workerFetch("/google/places",{mode:"text",fieldMask:fields,request:body},opts.signal);
+      const j=await workerFetch("/google/places",{mode:"text",profile:"full",request:body},opts.signal);
       if(j.error) return all.length?{places:all}:{error:j.error}; const d=(j.data)||{}; all=all.concat(d.places||[]); token=d.nextPageToken; if(!token) break; }
     const _out={places:all};
     /* Une recherche sans résultat est une information : la mémoriser évite de
        redemander la même chose à chaque frappe identique. */
-    const _ttl=all.length ? (opts.light?G_TTL_STABLE:G_TTL) : G_TTL_VIDE;
+    const _ttl=all.length ? G_TTL : G_TTL_VIDE;
     gCacheSet(_ck,_out,_ttl); return _out;
   }catch(e){ return all.length?{places:all}:{error:"net"}; } }
 async function gNearby(lat,lng,type,radius,rank){
@@ -5012,7 +5057,7 @@ async function gNearby(lat,lng,type,radius,rank){
   const body={ includedTypes:[type], maxResultCount:20, rankPreference:rank||"POPULARITY", languageCode:lang(),
     locationRestriction:{circle:{center:{latitude:lat,longitude:lng},radius:Math.min(radius||2500,50000)}} };
   const fields=["places.id","places.businessStatus","places.displayName","places.formattedAddress","places.addressComponents","places.rating","places.userRatingCount","places.priceLevel","places.priceRange","places.types","places.primaryType","places.primaryTypeDisplayName","places.photos","places.location","places.googleMapsUri","places.websiteUri","places.nationalPhoneNumber","places.regularOpeningHours.openNow","places.regularOpeningHours.weekdayDescriptions","places.editorialSummary","places.reviews"].join(",");
-  try{ const j=await workerFetch("/google/places",{mode:"nearby",fieldMask:fields,request:body});
+  try{ const j=await workerFetch("/google/places",{mode:"nearby",profile:"full",request:body});
     if(j.error) return {error:j.error}; const d=(j.data)||{}; const _out={places:d.places||[]}; gCacheSet(_ck,_out); return _out;
   }catch(e){ return {error:"net"}; } }
 function placeFromG(p){ return { id:p.id, lang0:lang(), name:(p.displayName&&p.displayName.text)||"—", rating:p.rating||0, count:p.userRatingCount||0, price:p.priceLevel||"", priceRange:(p.priceRange?{lo:+((p.priceRange.startPrice&&p.priceRange.startPrice.units)||0),hi:+((p.priceRange.endPrice&&p.priceRange.endPrice.units)||0),cur:((p.priceRange.startPrice&&p.priceRange.startPrice.currencyCode)||(p.priceRange.endPrice&&p.priceRange.endPrice.currencyCode)||"")}:null),
@@ -5842,32 +5887,6 @@ function isZoneTypes(ts){ return (ts||[]).some(x=>ZONE_TYPES.includes(x)); }
    arrondissements, les boroughs et les quartiers bien mieux que Nominatim, et
    renvoie leur étendue dans « viewport ». Nominatim reste le secours quand la
    clé Google manque ou que la requête ne donne rien. */
-/* Réutilisation des préfixes.
-   Taper « Bordeaux » déclenchait un appel à « Bor », « Borde », « Bordeau »…
-   Si les résultats d'un préfixe sont déjà en cache, on filtre localement plutôt
-   que de redemander. Garde-fous : le préfixe fait au moins 3 caractères, la
-   requête ne l'allonge que de 4 au plus, et il faut au moins 3 correspondances —
-   au-delà, les résultats du préfixe ne représentent plus la nouvelle recherche. */
-function _nrmQ(x){ return String(x||"").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g,"").trim(); }
-
-function prefixHit(q,opts){
-  const nq=_nrmQ(q); if(nq.length<4) return null;
-  for(let n=q.length-1;n>=3;n--){
-    if(q.length-n>4) break;
-    const ck=gKey("t",JSON.stringify(["v3",q.slice(0,n),opts.lat,opts.lng,opts.radius,opts.restrictKm,opts.type,opts.pages||1,opts.light?"L":"F",lang()]));
-    const cv=gCacheGet(ck);
-    if(!cv||!cv.places||!cv.places.length) continue;
-    const gardes=cv.places.filter(p=>{
-      const nm=_nrmQ((p.displayName&&p.displayName.text)||"");
-      const ad=_nrmQ(p.formattedAddress||"");
-      return nm.includes(nq)||ad.includes(nq);
-    });
-    if(gardes.length>=3) return {places:gardes};
-  }
-  return null;
-}
-
-let _zoneAbort=null;
 async function zoneSuggest(q,near,cc){
   /* Une frappe plus récente rend la requête en cours inutile : on l'interrompt
      plutôt que de la payer pour rien. */
@@ -5875,29 +5894,20 @@ async function zoneSuggest(q,near,cc){
   const _ac=(typeof AbortController!=="undefined")?new AbortController():null;
   _zoneAbort=_ac;
   if(googleReady()){
-    const nm0=String((near&&near.name)||"");
-    const suffix=(nm0&&q.toLowerCase().indexOf(nm0.toLowerCase())<0)?(" "+nm0):"";
-    let opt={};
-    if(near&&near.lat!=null){ const rk=destRadiusKm(near);
-      opt=(rk!=null)?{lat:near.lat,lng:near.lng,restrictKm:Math.max(rk,8)}:{lat:near.lat,lng:near.lng}; }
-    opt.light=true;                     /* suggestion de lieu : champs minimaux */
+    const opt={cc:cc||null};
+    if(near&&near.lat!=null){ opt.lat=near.lat; opt.lng=near.lng; opt.radiusKm=Math.max(destRadiusKm(near)||30,15); }
     if(_ac) opt.signal=_ac.signal;
-    const res=prefixHit(q+suffix,opt)||await gText(q+suffix,opt);
-    const out=[];
-    for(const p of ((res&&res.places)||[])){
-      const nm=(p.displayName&&p.displayName.text)||""; if(!nm) continue;
-      const vp=p.viewport;
-      const bb=(vp&&vp.low&&vp.high)?parseBbox([vp.low.latitude,vp.high.latitude,vp.low.longitude,vp.high.longitude]):null;
-      out.push({ name:nm, sub:p.formattedAddress||"",
-        lat:p.location&&p.location.latitude, lng:p.location&&p.location.longitude,
-        bbox:bb, cc:cc||"", kind:isZoneTypes(p.types)?"zone":"addr" });
+    const r=await gAutocomplete(q,opt);
+    if(r&&!r.error&&r.preds&&r.preds.length){
+      /* Les zones passent devant les commerces : « 15 » doit sortir le 15e,
+         pas une boutique portant ce numéro. */
+      const out=r.preds.map(p=>({ id:p.id, name:p.name, sub:p.sub,
+        lat:null, lng:null, bbox:null, cc:cc||"",
+        kind:isZoneTypes(p.types)?"zone":"addr" }));
+      out.sort((a,b)=>(a.kind==="zone"?0:1)-(b.kind==="zone"?0:1));
+      return out.slice(0,6);
     }
-    /* Les zones passent devant les commerces : « 15 » doit sortir le 15e, pas une boutique. */
-    out.sort((a,b)=>(a.kind==="zone"?0:1)-(b.kind==="zone"?0:1));
-    if(out.length) return out.slice(0,6);
-    /* Requête interrompue par une frappe plus récente : on s'arrête là.
-       Basculer sur Nominatim ici reviendrait à payer en lenteur une réponse
-       dont plus personne ne veut. */
+    /* Requête interrompue : on s'arrête là, sans repli inutile. */
     if(_ac&&_ac.signal&&_ac.signal.aborted) return [];
   }
   const z=await geocode(q,cc); const a=(z.length<4)?await geocode(q,cc,true):[];
@@ -5905,6 +5915,16 @@ async function zoneSuggest(q,near,cc){
   return z.map(x=>Object.assign({},x,{kind:"zone"}))
     .concat(a.filter(x=>!seen.has((x.name||"").toLowerCase())).map(x=>Object.assign({},x,{kind:"addr"})))
     .slice(0,6);
+}
+
+/* Un résultat d'autocomplétion n'a pas de coordonnées : on les résout au moment
+   du choix, et pour ce seul lieu. C'est là toute l'économie. */
+async function resolveSuggestion(r){
+  if(!r) return null;
+  if(r.lat!=null) return r;                       /* déjà complet (repli Nominatim) */
+  if(!r.id) return r;
+  const d=await gPlaceLight(r.id);
+  return d?Object.assign({},r,d):r;
 }
 
 /* Champ « Où dormir ? » : commune, arrondissement ou adresse. */
@@ -5920,8 +5940,9 @@ function bindHotelZone(b){
       if(!list.length){ ac.classList.remove("show"); ac.innerHTML=""; return; }
       ac.innerHTML=list.map((r,i)=>`<div data-i="${i}"><svg viewBox="0 0 24 24"><path d="M12 21s-7-6.2-7-11a7 7 0 0 1 14 0c0 4.8-7 11-7 11z"/><circle cx="12" cy="10" r="2.4"/></svg><div class="ac-txt"><div class="ac-n">${escapeHtml(r.name||"")}</div>${r.sub||r.label?`<div class="ac-l">${escapeHtml(r.sub||r.label)}</div>`:""}</div></div>`).join("");
       ac.classList.add("show");
-      ac.querySelectorAll("div[data-i]").forEach(el=>el.onclick=()=>{ const r=list[+el.dataset.i];
+      ac.querySelectorAll("div[data-i]").forEach(el=>el.onclick=async()=>{ let r=list[+el.dataset.i];
         ac.classList.remove("show"); inp.value=r.name||"";
+        r=await resolveSuggestion(r)||r;
         setHotelAnchor({name:r.name||"",lat:r.lat,lng:r.lng,bbox:r.bbox||null,cc:r.cc||"",kind:r.kind}); });
     },600); });
 }
