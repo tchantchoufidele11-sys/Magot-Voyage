@@ -4766,6 +4766,8 @@ async function diagPhoto(box){
     lignes.push("code HTTP : "+r.status);
     const raison=r.headers.get("X-Magot-Raison");
     if(raison) lignes.push("raison : "+raison);
+    const det=r.headers.get("X-Magot-Detail");
+    if(det) lignes.push("détail : "+det);
     const ct=r.headers.get("Content-Type")||"(aucun)";
     lignes.push("type reçu : "+ct);
     if(ct.indexOf("json")>=0){
@@ -4816,6 +4818,9 @@ function openUsage(){
   ov.querySelector("#usgReset").onclick=()=>{ usageReset(); fermer(); openUsage(); };
   ov.querySelector("#usgFreeze").onclick=()=>{ setFrozen(!isFrozen()); fermer(); openUsage(); };
   ov.querySelector("#usgDiag").onclick=()=>diagPhoto(ov.querySelector("#usgDiagOut"));
+  /* .cal-ov naît à opacity:0 ; sans cette classe l'écran est bien présent mais
+     totalement invisible — le tap semblait ne rien faire. */
+  requestAnimationFrame(()=>ov.classList.add("show"));
 }
 window.addEventListener("hashchange",()=>{ if(location.hash==="#usage") openUsage(); });
 setTimeout(()=>{ if(location.hash==="#usage") openUsage(); },1200);
@@ -12861,7 +12866,7 @@ function renderChatPhotos(lieux){
   lieux.forEach(l=>{
     const card=document.createElement("div"); card.className="ac-photo-card";
     const note=l.note?`<span class="acp-note">★ ${l.note}${l.nbAvis?` (${l.nbAvis})`:""}</span>`:"";
-    card.innerHTML=`<div class="acp-img" style="background-image:url('${gPhoto(l.photoName,600)}')"></div><div class="acp-info"><div class="acp-nom">${escapeHtml(l.nom)}</div>${note}</div>`;
+    card.innerHTML=`<div class="acp-img" style="background:${COVERS[hashStr(String(l.nom||""))%COVERS.length]};background-image:url('${gPhoto(l.photoName,600)}');background-size:cover;background-position:center"></div><div class="acp-info"><div class="acp-nom">${escapeHtml(l.nom)}</div>${note}</div>`;
     card.onclick=()=>{
       const p={ id:l.id, name:l.nom, photo:l.photoName, rating:l.note, userRatingCount:l.nbAvis, formattedAddress:l.adresse, address:l.adresse, lat:l.lat, lng:l.lng, price:null, types:[] };
       openPlace(p,"explore");
