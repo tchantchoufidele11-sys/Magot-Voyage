@@ -4900,9 +4900,12 @@ async function workerFetch2(chemin){
    À appeler après chaque insertion de cartes. */
 function bindPhotos(racine){
   const r=racine||document;
-  r.querySelectorAll("[data-pid]:not([data-phdone])").forEach(async el=>{
+  /* « data-photo » et non « data-pid » : ce dernier est déjà porté par cinq
+     éléments sans rapport — la section des prix, des suggestions, une tuile de
+     souvenirs — qui recevaient la photo du lieu en arrière-plan. */
+  r.querySelectorAll("[data-photo]:not([data-phdone])").forEach(async el=>{
     el.setAttribute("data-phdone","1");
-    const p=_placeReg&&_placeReg[el.getAttribute("data-pid")];
+    const p=_placeReg&&_placeReg[el.getAttribute("data-photo")];
     if(!p) return;
     const res=await resolvePhoto(p);
     if(!res||!res.url) return;                 /* le dégradé reste : honnête */
@@ -4913,7 +4916,7 @@ function bindPhotos(racine){
 
 /* Filet : un rendu oublié serait sans photo. Un balayage périodique très léger
    rattrape les vignettes non encore traitées — il ne fait rien s'il n'y en a pas. */
-setInterval(()=>{ try{ if(document.querySelector("[data-pid]:not([data-phdone])")) bindPhotos(document); }catch(e){} },1200);
+setInterval(()=>{ try{ if(document.querySelector("[data-photo]:not([data-phdone])")) bindPhotos(document); }catch(e){} },1200);
 
 function gPhoto(name,w){
   /* Les photos ne passent pas par workerFetch : elles sont chargées par le
@@ -5212,7 +5215,7 @@ function pcard(p,layout){
     if(parts.length) dist=`<div class="pc-dist">📍 ${parts.join(" · ")}</div>`; }
   const rt=p.rating?`<div class="prating">★ ${p.rating.toLocaleString(LOCALE[lang()]||'fr-FR')} <span>(${p.count})</span></div>`:`<div class="prating muted">${t("place.noReviews")}</div>`;
   const pr=priceLabel(p.price);
-  return `<div class="pcard ${layout==='scroll'?'sc':''}" data-id="${escapeHtml(p.id)}"><div class="ph" style="${ph}" data-pid="${escapeHtml(p.id)}">${badge}</div>
+  return `<div class="pcard ${layout==='scroll'?'sc':''}" data-id="${escapeHtml(p.id)}"><div class="ph" style="${ph}" data-photo="${escapeHtml(p.id)}">${badge}</div>
     <div class="pc-body">${rt}<div class="pc-name">${escapeHtml(p.name)}</div>
     <div class="pc-meta"><span class="chip-cat">${escapeHtml(p.primaryType||catLabel(p.types))}</span>${pr?`<span class="price">${pr}</span>`:""}${p.openNow!=null?`<span class="open ${p.openNow?"y":"n"}">${p.openNow?t("place.openNow"):t("place.closed")}</span>`:""}</div>${dist}</div></div>`; }
 let _exSections=[]; const exFilter={minRating:0,px:new Set(),openNow:false,subcat:new Set()};
