@@ -4925,7 +4925,9 @@ function gPhoto(name,w){
      navigateur. On les compte à la première demande de chaque photo — les
      réaffichages viennent du cache et ne coûtent rien. */
   if(name&&!_photoVues.has(name)){ _photoVues.add(name); usageBump("places_photos"); }
-  return WORKER_URL+"/google/photo?name="+encodeURIComponent(name)+"&w="+(w||500)+(isFrozen()?"&cacheonly=1":""); }
+  /* Le gel ne bloque pas les photos : sans cache côté serveur, cela ne ferait
+     que vider l'écran de ses vignettes. Le cache du navigateur les couvre. */
+  return WORKER_URL+"/google/photo?name="+encodeURIComponent(name)+"&w="+(w||500); }
 // Récupère les lieux officiels DATAtourisme (France) autour de coordonnées
 async function fetchDataTourisme(lat,lng,km,search,page){
   try{
