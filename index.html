@@ -3704,6 +3704,10 @@ function setGroupize(h, sums){
           : `<button class="set-grph" type="button" data-grpb="${g.k}"><span class="set-grpt">${title}</span>${sum?`<span class="set-grpv">${sum}</span>`:""}<span class="set-grpc">\u2304</span></button>`)
       + `<div class="set-grpb">${inner}</div></div>`;
   });
+  /* Consommation Google : outil de mesure, placé en pied de page.
+     Sans condition d'accès — la porte cachée par adresse faisait perdre plus de
+     temps qu'elle n'en économisait. */
+  out+=`<button class="btn ghostline2 block" id="setUsage" style="margin-top:14px">${t("usage.title")}</button>`;
   /* A propos : hors groupe, en pied de page. */
   const ab=secs[11]; if(ab) out+=`<div class="set-about"><div class="set-subt">${ab.lab}</div>${ab.body}</div>`;
   return out;
@@ -3803,6 +3807,7 @@ function renderSettings(){
   const mb=body.querySelector("#setMbSave"); if(mb) mb.onclick=()=>{ S.settings.mbLink=(body.querySelector("#setMbLink").value||"").trim(); saveState(); toast(t("set.gkeySaved")); };
   const _ex=body.querySelector("#setExport"); if(_ex) _ex.onclick=()=>exportMyData();
   const _dd=body.querySelector("#setDelData"); if(_dd) _dd.onclick=()=>askConfirm(gdT("delConfirm"),gdT("delOk"),deleteMyData);
+  { const bu=document.getElementById("setUsage"); if(bu) bu.onclick=openUsage; }
 }
 
 /* ===== Rappels locaux (app ouverte uniquement) ===== */
