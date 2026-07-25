@@ -3092,7 +3092,7 @@ const DEFAULT_S={ version:"0.2.0", settings:{ lang:"fr", theme:"system", units:"
 /* Clé Maps JS partagée (restreinte au domaine GitHub Pages). Repli : clé perso de l'utilisateur si fournie. */
 const SHARED_MAP_KEY="AIzaSyCt5iVx8nPr1V067A3daE0X1YA568XJNbU";
 function mapKey(){ return (S.settings.mapKey||"").trim() || SHARED_MAP_KEY; }
-const BUILD="0.3.0 · v541 photo-post";
+const BUILD="0.3.1 · v542 photo-sections";
 let S=loadState();
 function normalizeTrip(tr){ if(!tr||typeof tr!=="object") return tr;
   tr.id=tr.id||("t"+Date.now()+Math.random().toString(36).slice(2,7));
@@ -5160,8 +5160,8 @@ const SHOP_TYPES=["supermarket","grocery_store","convenience_store","department_
 function isFood(p){ return ((p&&p.types)||[]).some(x=>FOOD_TYPES.includes(x)); }
 const EATERY_NAME=/restaurant|brasserie|bistro|bistrot|caf[eé]\b|pizz|cr[eê]perie|grill|steak|trattoria|tavern|snack|fast.?food|food.?truck|burger|kebab|sushi|ramen|cantine|guinguette|bouchon/i;
 const EATERY_WORDS=/\b(plat|menu|carte|cuisine|d[ée]jeuner|d[îi]ner|repas|d[ée]licieux|serveur|serveuse|addition|r[ée]server une table|gastronom)\b/g;
-/* "Restaurant" au sens strict, comme pour les hôtels : type principal Google d'abord,
-   sinon le nom, sinon les avis (≥2 signaux). Un café secondaire ne suffit pas. */
+/* "Restaurant" au sens strict, comme pour les hôtels : type principal Google, sinon le nom.
+   Les avis ne comptent plus (retire en v538). Un type food secondaire ne suffit pas. */
 function isEatery(p){ if(isLodging(p)) return false;
   const pt=(p&&p.ptype)||""; if(FOOD_TYPES.includes(pt)) return true;
   const ty=(p&&p.types)||[]; if(ATTRACTION_TYPES.some(x=>ty.includes(x))) return false;
@@ -5353,15 +5353,23 @@ async function fsqAugment(res,dest,R,query){
    Le lieu vient de Foursquare/Google; ici on cherche sa photo GRATUITE via le worker
    (/photo/free), qui applique les garde-fous d'appariement. Google seulement si rien. */
 const TOURISTIC_CATS=new Set(["culture","beach","hiking","viewpoint","parkgarden","port","mountainlac","divers"]);
-async function freePhotoOf(p){
+/* Code pays du jour explore (pour la cascade photo) : evite d'interroger DATAtourisme
+   hors de France. Vide = defaut FR-eligible cote worker (comportement d'avant). */
+function _exploreCC(){ const tr=currentTrip(); if(!tr) return ""; const day=(typeof exploreDayIndex==="function")?exploreDayIndex():0;
+  const d=(typeof destOfDay==="function")?destOfDay(tr,day):((tr&&tr.dest)||null);
+  return (d&&d.cc)?String(d.cc).toUpperCase():""; }
+async function freePhotoOf(p,pays){
   try{ if(!p||p.lat==null||p.lng==null) return null; const nm=p.name||""; if(!nm) return null;
-    const j=await workerFetch("/photo/free",{lat:p.lat,lng:p.lng,q:nm,pays:"FR",lang:lang()});
+    const j=await workerFetch("/photo/free",{lat:p.lat,lng:p.lng,q:nm,pays:(pays||""),lang:lang()});
     return (j&&j.photo)?j:null;
   }catch(e){ return null; } }
-/* Garde-fou cout : on resout la photo gratuite des ~28 premiers seulement. */
-async function exFreePhotos(places){
-  const top=(places||[]).slice(0,28).filter(p=>p&&p.lat!=null&&!p._freeTried);
-  await Promise.all(top.map(async p=>{ p._freeTried=true; const f=await freePhotoOf(p);
+/* Garde-fou cout : on resout la photo gratuite des ~28 premiers par defaut. La vue d'UNE
+   categorie garde 28 ; l'accueil passe un cap plus petit PAR SECTION (voir renderExplore).
+   Google reste le secours : ce que le gratuit ne fournit pas, pcard le prend chez Google. */
+async function exFreePhotos(places,cap){
+  const N=(cap==null?28:cap); const _cc=_exploreCC();
+  const top=(places||[]).slice(0,N).filter(p=>p&&p.lat!=null&&!p._freeTried);
+  await Promise.all(top.map(async p=>{ p._freeTried=true; const f=await freePhotoOf(p,_cc);
     if(f&&f.photo){ p._freePhoto={url:f.photo,source:f.source||"",author:f.author||"",license:f.license||""}; } }));
   return places; }
 function catOf(p){ if(!p) return null; const ty=((p.types||[]).concat([p.ptype||""])).map(x=>String(x).toLowerCase()); const has=(...a)=>a.some(x=>ty.includes(x)); const nm=(p.name||"").toLowerCase();
@@ -5563,7 +5571,10 @@ async function renderExplore(){
         {title:t("cat.shops"),places:shopsPlaces,layout:"scroll"}
       ];
     if(!contentStyles.length) _tail.push({title:t("exp.todo"),places:todoPlaces,layout:"scroll"});
-    await exFreePhotos([].concat(recPlaces,naturePlaces,culturePlaces,aroundPlaces,todoPlaces));
+    /* Cascade photo par SECTION touristique (fini le concat tronque a 28) : les 16 premieres
+       cartes de chaque section touristique AFFICHEE sont resolues en gratuit ; au-dela = Google.
+       Restaurants/boutiques exclus (Google). todo seulement s'il est affiche. */
+    { const _freeTargets=[]; [recPlaces,naturePlaces,culturePlaces,aroundPlaces].forEach(s=>{ (s||[]).slice(0,16).forEach(x=>_freeTargets.push(x)); }); if(!contentStyles.length){ (todoPlaces||[]).slice(0,16).forEach(x=>_freeTargets.push(x)); } await exFreePhotos(_freeTargets,_freeTargets.length); }
     _exSections=styleSecs.concat([{title:t("exp.recommended"),places:recPlaces,layout:"scroll"}]).concat(_tail);
     paintExplore();
   }catch(e){ box.innerHTML=`<div class="empty" style="padding:28px 8px"><p>${t("exp.error")}</p></div>`; }
