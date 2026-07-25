@@ -5374,7 +5374,7 @@ async function applySubFilter(){ closeExpFilter(); _exMore=12;
   const key=cat+"|"+[...exFilter.subcat].sort().join(",");
   if(key===_subFetchKey && _subFetchSecs){ paintExplore(_subFetchSecs); return; }   // same selection: just re-filter cache (note/ouvert en direct, sans API)
   const trip=currentTrip(); if(!trip||!googleReady()){ paintExplore(); return; }
-  const dest=trip.dest||{}, dn=dest.name||"", hasLoc=(dest.lat!=null);
+  const _d0=trip.dest||{}, _anc=(typeof _exAnchor==="function")?_exAnchor():null; const dest=_anc?Object.assign({},_d0,{lat:_anc.lat,lng:_anc.lng}):_d0; const dn=dest.name||"", hasLoc=(dest.lat!=null);
   const opt=ex=>Object.assign(hasLoc?{lat:dest.lat,lng:dest.lng}:{},ex||{});
   const box=document.getElementById("exploreResults"); if(box) box.innerHTML=`<div class="exp-loading"><span class="spin"></span>${t("exp.loading")}</div>`;
   const defs=(subDefsFor(cat)||[]).filter(d=>exFilter.subcat.has(d.k));
@@ -5440,10 +5440,10 @@ async function renderExplore(){
     const c=box.querySelector("#expCreate"); if(c) c.onclick=openCreate; return; }
   if(!googleReady()){ box.innerHTML=needKeyHtml(); const k=box.querySelector("#expKey"); if(k) k.onclick=openSettings; return; }
   box.innerHTML=`<div class="exp-loading"><span class="spin"></span>${t("exp.loading")}</div>`;
-  const dest=trip.dest||{}, hasLoc=(dest.lat!=null), dn=dest.name||"";
+  const _d0=trip.dest||{}, _anc=(typeof _exAnchor==="function")?_exAnchor():null; const dest=_anc?Object.assign({},_d0,{lat:_anc.lat,lng:_anc.lng}):_d0; const hasLoc=(dest.lat!=null), dn=dest.name||"";
   /* Rayon = memes paliers que la recherche d'hotel (anchorTiers), fini le 25 fige.
-     On part du palier large pour trouver PLUS ; borne 40-60 km pour rester sain. Le slider ajuste. */
-  if(!_exRadiusUserSet && hasLoc){ const _ti=(typeof anchorTiers==="function")?anchorTiers(dest):[10,30,80]; const _t2=(_ti&&_ti[2])||80; _exploreRadiusKm=Math.min(60,Math.max(40,_t2)); renderExploreRadius(); }
+     On part du palier large pour trouver PLUS ; borne au max Google (50 km/appel). Le slider ajuste ; >50 km via tuilage. */
+  if(!_exRadiusUserSet && hasLoc){ const _ti=(typeof anchorTiers==="function")?anchorTiers(dest):[10,30,80]; const _t2=(_ti&&_ti[2])||80; _exploreRadiusKm=Math.max(25,Math.min(50,_t2)); /* paliers hotel, borne au max Google (50 km/appel). Au-dela: tuilage sur clic categorie. */ renderExploreRadius(); }
   const _styles0=(trip.styles&&trip.styles.length)?trip.styles:(trip.style?[trip.style]:[]); const _hasStyles=_styles0.some(x=>STYLE_MAP[x]);
   const opt=ex=>Object.assign(hasLoc?{lat:dest.lat,lng:dest.lng}:{},ex||{});
   try{
@@ -5458,7 +5458,7 @@ async function renderExplore(){
         res=_merge(await Promise.all(qs.map(q=>gText(q+(dn?" "+dn:""),opt(_opx)))));
         guard={shopsOnly:true};
       } else if(c.k==="restaurants"){
-        const parts=[]; if(dest.lat!=null) parts.push(await exTypedFull(dest,"restaurant"));
+        const parts=[]; if(dest.lat!=null) parts.push(await exArea(dest,"restaurant",_exploreRadiusKm));
         parts.push(await gText(t("resto.q")+(dn?" "+dn:""),opt(Object.assign(dest.lat!=null?{restrictKm:_exploreRadiusKm}:{},{pages:2}))));
         res=_merge(parts); guard={foodOnly:true};
       } else {
@@ -11359,7 +11359,7 @@ function openSouvPlace(tr,idx){ const pts=souvPoints(tr); const pp=pts[idx]; if(
       <div class="svp-meta">${kindLab?`<span class="svp-chip">${escapeHtml(kindLab)}</span>`:""}<span class="svp-chip">${day}</span></div>
       ${addr?`<div class="svp-addr">${escapeHtml(addr)}</div>`:""}
       ${noteHtml}
-      ${pp.rating?`<div class="svp-rate">\u2605 ${pp.rating}${pp.count?` <span style="color:var(--muted)">(${pp.count})</span>`:""}</div>`:""}
+      ${pp.rating?`<div class="svp-rate">\u2605 ${pp.rating}${pp.count?` <span style="color:var(--muted)">(${fmtCount(pp.count)})</span>`:""}</div>`:""}
     </div>
     <div class="souvmap-foot"><button class="btn ghostline2" id="svpPano" type="button">\ud83d\udcf7 ${t("map.pano")}</button><button class="btn navy" id="svpGps" type="button">\ud83e\udded ${t("map.gps")}</button></div></div>`;
   document.body.appendChild(ov);
@@ -12750,7 +12750,7 @@ function renderChatPhotos(lieux){
   const wrap=document.createElement("div"); wrap.className="ac-photos";
   lieux.forEach(l=>{
     const card=document.createElement("div"); card.className="ac-photo-card";
-    const note=l.note?`<span class="acp-note">★ ${l.note}${l.nbAvis?` (${l.nbAvis})`:""}</span>`:"";
+    const note=l.note?`<span class="acp-note">★ ${l.note}${l.nbAvis?` (${fmtCount(l.nbAvis)})`:""}</span>`:"";
     card.innerHTML=`<div class="acp-img" style="background:${COVERS[hashStr(String(l.nom||""))%COVERS.length]};background-image:url('${gPhoto(l.photoName,600)}');background-size:cover;background-position:center"></div><div class="acp-info"><div class="acp-nom">${escapeHtml(l.nom)}</div>${note}</div>`;
     card.onclick=()=>{
       const p={ id:l.id, name:l.nom, photo:l.photoName, rating:l.note, userRatingCount:l.nbAvis, formattedAddress:l.adresse, address:l.adresse, lat:l.lat, lng:l.lng, price:null, types:[] };
