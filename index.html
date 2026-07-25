@@ -5153,17 +5153,15 @@ const EATERY_WORDS=/\b(plat|menu|carte|cuisine|d[ée]jeuner|d[îi]ner|repas|d[é
 function isEatery(p){ const pt=(p&&p.ptype)||""; if(FOOD_TYPES.includes(pt)) return true;
   const nm=((p&&p.name)||"").toLowerCase(); if(EATERY_NAME.test(nm)) return true;
   const ty=(p&&p.types)||[]; if(ATTRACTION_TYPES.some(x=>ty.includes(x))) return false;
-  const txt=(((p&&p.summary)||"")+" "+(((p&&p.reviews)||[]).map(r=>(r&&r.text)||"").join(" "))).toLowerCase();
-  return ((txt.match(EATERY_WORDS)||[]).length>=2); }
+  if(ty.some(x=>FOOD_TYPES.includes(x))) return true;
+  return false; }
 const RETAIL_HARD=["gift_shop","souvenir_store","clothing_store","shoe_store","jewelry_store","book_store","convenience_store","store"];
 const FASTFOOD_NAME=/mcdonald|burger ?king|\bkfc\b|\bquick\b|subway|domino|pizza ?hut|five ?guys|o'?tacos|\btacos?\b|kebab|d[öo]ner|fast.?food|friterie|food.?truck/i;
 const FASTFOOD_WORDS=/\b(fast.?food|restauration rapide|[àa] emporter|take.?away|kebab|tacos|friterie|self.?service)\b/g;
 /* Fast-food au sens strict : type principal, sinon le nom, sinon les avis (comme isEatery). */
 function isFastFood(p){ const pt=(p&&p.ptype)||""; if(pt==="fast_food_restaurant"||pt==="meal_takeaway") return true;
   const nm=((p&&p.name)||"").toLowerCase(); if(FASTFOOD_NAME.test(nm)) return true;
-  const txt=(((p&&p.summary)||"")+" "+(((p&&p.reviews)||[]).map(r=>(r&&r.text)||"").join(" "))).toLowerCase();
-  if((txt.match(FASTFOOD_WORDS)||[]).length>=2) return true;
-  return ((p&&p.types)||[]).includes("fast_food_restaurant"); }
+  return ((p&&p.types)||[]).includes("fast_food_restaurant")||((p&&p.types)||[]).includes("meal_takeaway"); }
 const ALL_SHOP=SHOP_TYPES.concat(RETAIL_HARD);
 /* Onglet Boutiques : tout commerce, même s'il est aussi une attraction (grands magasins inclus). */
 function isShopLoose(p){ const ty=(p&&p.types)||[]; return ty.some(x=>ALL_SHOP.includes(x)); }
@@ -5336,14 +5334,32 @@ async function styleSearch(dest,dn,key){ const m=STYLE_MAP[key]||{}; const out=[
   if(dest&&dest.lat!=null&&m.types){ for(const ty of m.types.slice(0,2)){ push(await gNearby(dest.lat,dest.lng,ty,R,"POPULARITY")); } }
   if(m.q){ push(await gText(m.q+(dn?" "+dn:""),Object.assign(dest&&dest.lat!=null?{lat:dest.lat,lng:dest.lng,restrictKm:_exploreRadiusKm}:{},{pages:1}))); }
   return {places:out}; }
+function _exAnchor(){ const tr=currentTrip(); if(!tr) return null; const day=(typeof exploreDayIndex==="function")?exploreDayIndex():0;
+  const h=lodgingOfDay(tr,day), d=destOfDay(tr,day);
+  if(h&&h.lat!=null) return {lat:h.lat,lng:h.lng}; if(d&&d.lat!=null) return {lat:d.lat,lng:d.lng}; return null; }
 function paintExplore(secList){ const box=document.getElementById("exploreResults"); if(!box) return; const secs=secList||_exSections; _distRef=distRefFor(currentTrip());
   for(const sec of secs){ if(sec.res&&sec.res.error){ box.innerHTML=secHtml(sec.title,sec.res,sec.layout); afterExplore(box); return; } }
   let html="",any=false;
   const _subs=subDefsFor(exploreState.cat); const _subSel=(_subs&&exFilter.subcat&&exFilter.subcat.size)?_subs.filter(d=>exFilter.subcat.has(d.k)):null;
   const _sv=p=>(p._exScore!=null?p._exScore:weightedRating(p)); const _exCity=_cityOf(currentTrip());
-  for(const sec of secs){ let ps=(sec.places||[]).slice().filter(exMatch); if(_subSel) ps=ps.filter(p=>_subSel.some(d=>d.test(p))); ps.sort((a,b)=>((sameCity(b,_exCity)?1:0)-(sameCity(a,_exCity)?1:0))||(_sv(b)-_sv(a))); if(sec.limit) ps=ps.slice(0,sec.limit); if(!ps.length) continue; ps.forEach(p=>_placeReg[p.id]=p); any=true;
-    if(sec.layout==="grid"){ const _tot=ps.length, _shown=Math.min(_exMore,_tot); html+=secBlock(sec.title,ps.slice(0,_shown),sec.layout); if(_shown<_tot){ const _ml={fr:"Voir plus",en:"See more",es:"Ver más",it:"Vedi altro",de:"Mehr anzeigen"}[lang()]||"Voir plus"; html+=`<button class="dt-more" id="exMoreBtn">${_ml} (${_shown}/${_tot})</button>`; } }
+  /* Portail de distance unique : ancre = hebergement du jour (repli destination).
+     <=rayon = affiche . rayon->2x = bande "Plus loin" . au-dela = ecarte .
+     sans coordonnees = ecarte sauf meme commune. Sans ancre : aucun filtre (voyage hors-ligne). */
+  const _an=_exAnchor(); const _R=_exploreRadiusKm||25; const _farSeen=new Set(); const _far=[];
+  const _dOf=p=>(_an&&p&&p.lat!=null)?haversineKm(_an,{lat:p.lat,lng:p.lng}):null;
+  for(const sec of secs){ let ps=(sec.places||[]).slice().filter(exMatch); if(_subSel) ps=ps.filter(p=>_subSel.some(d=>d.test(p)));
+    if(_an){ const near=[]; ps.forEach(p=>{ const d=_dOf(p);
+        if(d==null){ if(sameCity(p,_exCity)) near.push(p); }
+        else if(d<=_R+0.5) near.push(p);
+        else if(d<=_R*2+0.5){ if(p.id&&!_farSeen.has(p.id)){ _farSeen.add(p.id); _far.push(p); } } });
+      ps=near; }
+    ps.sort((a,b)=>((sameCity(b,_exCity)?1:0)-(sameCity(a,_exCity)?1:0))||(_sv(b)-_sv(a))); if(sec.limit) ps=ps.slice(0,sec.limit); if(!ps.length) continue; ps.forEach(p=>_placeReg[p.id]=p); any=true;
+    if(sec.layout==="grid"){ const _tot=ps.length, _shown=Math.min(_exMore,_tot); html+=secBlock(sec.title,ps.slice(0,_shown),sec.layout); if(_shown<_tot){ const _ml={fr:"Voir plus",en:"See more",es:"Ver mas",it:"Vedi altro",de:"Mehr anzeigen"}[lang()]||"Voir plus"; html+=`<button class="dt-more" id="exMoreBtn">${_ml} (${_shown}/${_tot})</button>`; } }
     else html+=secBlock(sec.title,ps,sec.layout); }
+  /* Bande "Plus loin" : nommee, jamais fondue au proche. Triee par distance. */
+  if(_an && _far.length){ _far.forEach(p=>{ p._exFar=_dOf(p); _placeReg[p.id]=p; }); _far.sort((a,b)=>(a._exFar||0)-(b._exFar||0));
+    const _fkm=Math.round(_R*2); const _flab={fr:"Plus loin \u00b7 jusqu'a "+_fkm+" km",en:"Further afield \u00b7 up to "+_fkm+" km",es:"Mas lejos \u00b7 hasta "+_fkm+" km",it:"Piu lontano \u00b7 fino a "+_fkm+" km",de:"Weiter entfernt \u00b7 bis "+_fkm+" km"}[lang()]||("Plus loin \u00b7 jusqu'a "+_fkm+" km");
+    html+=secBlock(_flab,_far.slice(0,24),"scroll"); any=true; }
   box.innerHTML= any? html : `<div class="empty" style="padding:28px 8px"><p>${exFilterActive()?t("exp.noMatch"):t("exp.empty")}</p></div>`;
   const fb=document.getElementById("expFilter"); if(fb) fb.classList.toggle("active",exFilterActive());
   afterExplore(box); const _emb=document.getElementById("exMoreBtn"); if(_emb) _emb.onclick=()=>{ _exMore+=12; paintExplore(secList); }; }
@@ -5464,11 +5480,7 @@ async function renderExplore(){
     const mods=tstyles.filter(s=>STYLE_MOD[s]);
     _exStyleTypes=[]; contentStyles.forEach(s=>{ (STYLE_MAP[s].types||[]).forEach(ty=>{ if(_exStyleTypes.indexOf(ty)<0) _exStyleTypes.push(ty); }); });
     const foodPlaces=exPrep(food,seen,{foodOnly:true});
-    const styleSecs=[];
-    for(const st of contentStyles){ const sres=await styleSearch(dest,dn,st); let places=exPrep(sres,seen,{styleKeep:true});
-      if(dest&&dest.lat!=null) places=places.filter(p=>p.lat==null||haversineKm({lat:dest.lat,lng:dest.lng},{lat:p.lat,lng:p.lng})<=_exploreRadiusKm+0.5);
-      places.forEach(p=>{ p._styleBadge=true; p._exScore=styleRelevance(p,st)*weightedRating(p)*modifierBias(p,mods); });
-      if(places.length) styleSecs.push({title:t("exp.forStyle",{s:t("st."+st)}),places,layout:"scroll"}); }
+    const styleSecs=[];  /* Sections "Pour votre style" retirees : le style influence l'ordre (via _exStyleTypes), pas une section dediee. */
     const recPlaces=exPrep(rec,seen,{attractionOnly:true});
     const naturePlaces=exPrep(nature,seen,{attractionOnly:true});
     const culturePlaces=exPrep(culture,seen,{attractionOnly:true});
