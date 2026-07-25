@@ -3092,7 +3092,7 @@ const DEFAULT_S={ version:"0.2.0", settings:{ lang:"fr", theme:"system", units:"
 /* Clé Maps JS partagée (restreinte au domaine GitHub Pages). Repli : clé perso de l'utilisateur si fournie. */
 const SHARED_MAP_KEY="AIzaSyCt5iVx8nPr1V067A3daE0X1YA568XJNbU";
 function mapKey(){ return (S.settings.mapKey||"").trim() || SHARED_MAP_KEY; }
-const BUILD="0.3.2 · v543 photo-fallback";
+const BUILD="0.3.3 · v544 fsq-authority-1";
 let S=loadState();
 function normalizeTrip(tr){ if(!tr||typeof tr!=="object") return tr;
   tr.id=tr.id||("t"+Date.now()+Math.random().toString(36).slice(2,7));
@@ -5325,11 +5325,30 @@ async function fsqSearch(ll,R,query,sort){
     locality:(x.location&&x.location.locality)||"" })).filter(x=>x.name&&x.lat!=null);
 }
 function _fsqSameName(a,b){ const n=s=>String(s||"").toLowerCase().replace(/[^a-z0-9]+/g," ").trim(); a=n(a); b=n(b); if(!a||!b) return false; return a===b||a.indexOf(b)===0||b.indexOf(a)===0; }
-/* Foursquare fait autorite sur la categorie. On ramene sa categorie a un genre. */
+/* Foursquare fait autorite sur la categorie. On ramene sa categorie a un genre.
+   Ordre volontaire : lodging -> food -> shop -> culture -> nature -> other
+   (ex. "Arts & Crafts Store" doit tomber en shop, pas en culture). */
 function fsqKind(name){ const s=String(name||"").toLowerCase();
   if(/hotel|motel|hostel|\binn\b|bed (and|&) breakfast|b&b|lodging|resort|guest ?house|guesthouse|vacation rental|campground|camping|cottage|g[iî]te|chambre d|auberge/.test(s)) return "lodging";
   if(/restaurant|caf[eé]|coffee|bakery|\bbar\b|bistro|brasserie|pizz|diner|steak|\bpub\b|kebab|fast food|snack|deli|ice cream|dessert|tea room|brewery|winery|\bfood\b|cr[eê]perie|grill|tavern|noodle|sushi|ramen|taco|burger/.test(s)) return "food";
+  if(/\bstore\b|\bshop\b|shopping|\bmarket\b|\bmall\b|boutique|supermarket|grocery|pharmacy|bookstore|clothing|jewelry|jeweller|electronics|department|newsstand|convenience/.test(s)) return "shop";
+  if(/museum|gallery|monument|historic|landmark|memorial|cultural|\bart\b|theater|theatre|opera|concert hall|library|castle|palace|church|cathedral|basilica|chapel|temple|mosque|synagogue|shrine|abbey|heritage|exhibit|planetarium/.test(s)) return "culture";
+  if(/\bpark\b|garden|beach|mountain|\blake\b|\btrail\b|hiking|forest|nature|scenic|lookout|viewpoint|waterfall|\briver\b|island|\bcave\b|canyon|marina|harbou?r|\bport\b|reserve|wildlife|\bzoo\b|aquarium|botanical/.test(s)) return "nature";
   return "other"; }
+/* Autorite FSQ ASYMETRIQUE : FSQ tranche UNIQUEMENT quand il connait le lieu (_fsqCat pose).
+   S'il ne se prononce pas (vide ou "other"), on laisse passer -> le filtre Google strict
+   decide, donc on ne MANQUE aucun lieu. Un hebergement n'apparait jamais dans une categorie
+   de visite/resto/boutique. Regle par genre (fin: beach vs hiking reste a catOf/Google). */
+const _FSQ_NATURE_CATS=new Set(["beach","hiking","viewpoint","parkgarden","port","mountainlac"]);
+function _fsqAllows(p,cat){
+  const k=p&&p._fsqCat; if(!k||k==="other") return true;   // FSQ ne tranche pas -> Google decide
+  if(k==="lodging") return false;                          // hebergement : jamais dans Explore
+  if(cat==="restaurants") return k==="food";
+  if(cat==="shops")       return k==="shop";
+  if(cat==="culture")     return k==="culture";
+  if(cat==="divers")      return k==="culture"||k==="nature"; // loisirs/attractions : large
+  if(_FSQ_NATURE_CATS.has(cat)) return k==="nature";
+  return true; }
 async function fsqAugment(res,dest,R,query){
   try{
     if(!(dest&&dest.lat!=null)) return res;
@@ -5399,7 +5418,7 @@ function catOf(p){ if(!p) return null; const ty=((p.types||[]).concat([p.ptype||
   if(has("museum","art_gallery","monument","historical_landmark","historical_place","cultural_landmark","sculpture","church","synagogue","mosque","hindu_temple","place_of_worship")||/mus[ée]e|museum|cath[ée]drale|[ée]glise|monument|ch[âa]teau|castle|abbaye|basilique/.test(nm)) return "culture";
   if(isAttraction(p)||has("amusement_park","theme_park","water_park","zoo","aquarium","tourist_attraction","spa","casino","stadium","ferris_wheel","planetarium")) return "divers";
   return null; }
-function exFinalize(res,cat,dest){ let ps=((res&&res.places)||[]).map(placeFromG).filter(p=>p&&isOpen(p)&&!!p.photo&&catOf(p)===cat);
+function exFinalize(res,cat,dest){ let ps=((res&&res.places)||[]).map(placeFromG).filter(p=>p&&isOpen(p)&&!!p.photo&&catOf(p)===cat&&_fsqAllows(p,cat));
   const seen=new Set(),out=[]; ps.forEach(p=>{ if(p.id&&seen.has(p.id))return; if(p.id)seen.add(p.id); out.push(p); });
   if(dest&&dest.lat!=null) out.forEach(p=>{ const d=(p.lat!=null)?haversineKm({lat:dest.lat,lng:dest.lng},{lat:p.lat,lng:p.lng}):999; p._exScore=weightedRating(p)*(1/(1+d/15)); });
   return out; }
