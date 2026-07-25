@@ -5120,8 +5120,16 @@ function fmtCount(n){ n=+n||0; const L=(typeof LOCALE!=='undefined'&&LOCALE[lang
   if(n<1000) return n.toLocaleString(L);
   if(n<1000000){ const k=n/1000; return (k>=100?Math.round(k):Math.round(k*10)/10).toLocaleString(L)+'\u00a0k'; }
   return (Math.round(n/100000)/10).toLocaleString(L)+'\u00a0M'; }
+function _pcardAttrib(p){
+  const st="font-size:9px;line-height:1.2;color:var(--muted);opacity:.7;margin-top:5px";
+  if(p._freePhoto){ const s=p._freePhoto.source;
+    const label = s==="datatourisme" ? "Photo : DATAtourisme"
+      : ("Photo : "+(p._freePhoto.author||"Wikimedia")+" / Wikimedia"+(p._freePhoto.license?(" ("+p._freePhoto.license+")"):""));
+    return `<div style="${st}">${escapeHtml(label)}</div>`; }
+  if(p.photo) return `<div style="${st}">Photos, avis : Google${p._fsq?" \u00b7 Lieu : Foursquare":""}</div>`;
+  return ""; }
 function pcard(p,layout){
-  const ph=p.photo?`background-image:url('${gPhoto(p.photo,500)}')`:`background:${COVERS[hashStr(p.id)%COVERS.length]}`;
+  const ph=p._freePhoto?`background-image:url('${p._freePhoto.url}')`:(p.photo?`background-image:url('${gPhoto(p.photo,500)}')`:`background:${COVERS[hashStr(p.id)%COVERS.length]}`);
   const attr=isAttraction(p);
   const _pbg=premiumBadge(p);
   const badge=_pbg?_pbg
@@ -5138,7 +5146,7 @@ function pcard(p,layout){
   const pr=priceLabel(p.price);
   return `<div class="pcard ${layout==='scroll'?'sc':''}" data-id="${escapeHtml(p.id)}"><div class="ph" style="${ph}">${badge}</div>
     <div class="pc-body">${rt}<div class="pc-name">${escapeHtml(p.name)}</div>
-    <div class="pc-meta"><span class="chip-cat">${escapeHtml(p.primaryType||catLabel(p.types))}</span>${pr?`<span class="price">${pr}</span>`:""}${p.openNow!=null?`<span class="open ${p.openNow?"y":"n"}">${p.openNow?t("place.openNow"):t("place.closed")}</span>`:""}</div>${dist}${p.photo?`<div style="font-size:9px;line-height:1.2;color:var(--muted);opacity:.7;margin-top:5px">Photos, avis : Google${p._fsq?" \u00b7 Lieu : Foursquare":""}</div>`:""}</div></div>`; }
+    <div class="pc-meta"><span class="chip-cat">${escapeHtml(p.primaryType||catLabel(p.types))}</span>${pr?`<span class="price">${pr}</span>`:""}${p.openNow!=null?`<span class="open ${p.openNow?"y":"n"}">${p.openNow?t("place.openNow"):t("place.closed")}</span>`:""}</div>${dist}${_pcardAttrib(p)}</div></div>`; }
 let _exSections=[]; const exFilter={minRating:0,px:new Set(),openNow:false,subcat:new Set()};
 function exFilterActive(){ return !!(exFilter.minRating||exFilter.px.size||exFilter.openNow||exFilter.subcat.size); }
 function exMatch(p){ const f=exFilter;
@@ -5340,6 +5348,23 @@ async function fsqAugment(res,dest,R,query){
     return { places: gp.concat(add) };
   }catch(e){ return res; }
 }
+
+/* ===== Cascade photo (lieux touristiques) : DATAtourisme/Wikipedia avant Google.
+   Le lieu vient de Foursquare/Google; ici on cherche sa photo GRATUITE via le worker
+   (/photo/free), qui applique les garde-fous d'appariement. Google seulement si rien. */
+const TOURISTIC_CATS=new Set(["culture","beach","hiking","viewpoint","parkgarden","port","mountainlac","divers"]);
+async function freePhotoOf(p){
+  try{ if(!p||p.lat==null||p.lng==null) return null; const nm=p.name||""; if(!nm) return null;
+    const u=WORKER_URL+"/photo/free?lat="+p.lat+"&lng="+p.lng+"&q="+encodeURIComponent(nm)+"&pays=FR&lang="+lang();
+    const r=await fetch(u); const j=await r.json().catch(()=>null);
+    return (j&&j.photo)?j:null;
+  }catch(e){ return null; } }
+/* Garde-fou cout : on resout la photo gratuite des ~28 premiers seulement. */
+async function exFreePhotos(places){
+  const top=(places||[]).slice(0,28).filter(p=>p&&p.lat!=null&&!p._freeTried);
+  await Promise.all(top.map(async p=>{ p._freeTried=true; const f=await freePhotoOf(p);
+    if(f&&f.photo){ p._freePhoto={url:f.photo,source:f.source||"",author:f.author||"",license:f.license||""}; } }));
+  return places; }
 function catOf(p){ if(!p) return null; const ty=((p.types||[]).concat([p.ptype||""])).map(x=>String(x).toLowerCase()); const has=(...a)=>a.some(x=>ty.includes(x)); const nm=(p.name||"").toLowerCase();
   if(isLodging(p)) return null;
   if(isEatery(p)&&!isAttraction(p)) return "restaurants";
@@ -5507,6 +5532,7 @@ async function renderExplore(){
         const stMatch=p=>fs.some(x=> x==="food"?gastro(p) : x==="streetfood"?isFastFood(p) : x==="wine"?(/(wine|winery)/.test(p.ptype||"")||/\bvin\b|cave|œnolog/i.test(((p.name||"")+" "+(p.summary||"")).toLowerCase())) : /(bar|night_club)/.test(p.ptype||""));
         places.forEach(p=>{ const d=(dest.lat!=null&&p.lat!=null)?haversineKm({lat:dest.lat,lng:dest.lng},{lat:p.lat,lng:p.lng}):0; p._exScore=bayesRating(p)*(1/(1+d/6))+(stMatch(p)?100:0); });
       } else if(c.k==="shops"&&dest.lat!=null) places.forEach(p=>{ p._exScore=(p.lat!=null?-haversineKm({lat:dest.lat,lng:dest.lng},{lat:p.lat,lng:p.lng}):-999); });
+      if(TOURISTIC_CATS.has(c.k)) await exFreePhotos(places);
       _exSections=[{title:t("cat."+c.k),res,places,layout:"grid"}]; paintExplore(); return; }
     const rec=await gText(dn?(t("exp.recommended")+" "+dn):"top attractions",opt());
     const todo=_hasStyles?{places:[]}:await gText(dn?(t("exp.todoQ")+" "+dn):"things to do",opt({pages:2}));
@@ -5538,6 +5564,7 @@ async function renderExplore(){
         {title:t("cat.shops"),places:shopsPlaces,layout:"scroll"}
       ];
     if(!contentStyles.length) _tail.push({title:t("exp.todo"),places:todoPlaces,layout:"scroll"});
+    await exFreePhotos([].concat(recPlaces,naturePlaces,culturePlaces,aroundPlaces,todoPlaces));
     _exSections=styleSecs.concat([{title:t("exp.recommended"),places:recPlaces,layout:"scroll"}]).concat(_tail);
     paintExplore();
   }catch(e){ box.innerHTML=`<div class="empty" style="padding:28px 8px"><p>${t("exp.error")}</p></div>`; }
