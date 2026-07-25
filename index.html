@@ -5116,6 +5116,10 @@ function isAttraction(p){ return ATTRACTION_TYPES.some(x=>((p&&p.types)||[]).inc
 let _distRef=null;
 function distRefFor(tr){ if(tr&&tr.lodging&&tr.lodging.lat!=null) return {lat:tr.lodging.lat,lng:tr.lodging.lng,kind:'lodging'};
   if(tr&&tr.dest&&tr.dest.lat!=null) return {lat:tr.dest.lat,lng:tr.dest.lng,kind:'center'}; return null; }
+function fmtCount(n){ n=+n||0; const L=(typeof LOCALE!=='undefined'&&LOCALE[lang()])||'fr-FR';
+  if(n<10000) return n.toLocaleString(L);
+  if(n<1000000){ const k=n/1000; return (k>=100?Math.round(k):Math.round(k*10)/10).toLocaleString(L)+'\u00a0k'; }
+  return (Math.round(n/100000)/10).toLocaleString(L)+'\u00a0M'; }
 function pcard(p,layout){
   const ph=p.photo?`background-image:url('${gPhoto(p.photo,500)}')`:`background:${COVERS[hashStr(p.id)%COVERS.length]}`;
   const attr=isAttraction(p);
@@ -5130,7 +5134,7 @@ function pcard(p,layout){
       if(dk>=0.05){ const key=_distRef.kind==='lodging'?'card.distLodging':(_distRef.kind==='center'?'card.distCenter':'card.distAway'); parts.push(t(key,{d:fmtDist(dk*1000)})); } }
     { const _z=p.zone||p.locality; if(_z) parts.push(escapeHtml(_z)); }
     if(parts.length) dist=`<div class="pc-dist">📍 ${parts.join(" · ")}</div>`; }
-  const rt=p.rating?`<div class="prating">★ ${p.rating.toLocaleString(LOCALE[lang()]||'fr-FR')} <span>(${p.count})</span></div>`:`<div class="prating muted">${t("place.noReviews")}</div>`;
+  const rt=p.rating?`<div class="prating">★ ${p.rating.toLocaleString(LOCALE[lang()]||'fr-FR')} <span>(${fmtCount(p.count)})</span></div>`:`<div class="prating muted">${t("place.noReviews")}</div>`;
   const pr=priceLabel(p.price);
   return `<div class="pcard ${layout==='scroll'?'sc':''}" data-id="${escapeHtml(p.id)}"><div class="ph" style="${ph}">${badge}</div>
     <div class="pc-body">${rt}<div class="pc-name">${escapeHtml(p.name)}</div>
@@ -5246,7 +5250,7 @@ function subMatch(p,cat,d){
 }
 function subDefsFor(cat){ const defs=SUBDEF[cat]; if(!defs) return null; return defs.map(d=>({k:d.k,test:p=>subMatch(p,cat,d)})); }
 function isShop(p){ const ty=(p&&p.types)||[]; if(ty.some(x=>RETAIL_HARD.includes(x))) return true; return ty.some(x=>SHOP_TYPES.includes(x)) && !ty.some(x=>ATTRACTION_TYPES.includes(x)); }
-let _exStyleTypes=[], _exploreRadiusKm=25;
+let _exStyleTypes=[], _exploreRadiusKm=25, _exRadiusUserSet=false;
 function exploreWorthy(p){ if(isShop(p)) return false; const ty=(p&&p.types)||[];
   if(ty.some(x=>ATTRACTION_TYPES.includes(x))) return true;
   if(isEatery(p)) return true;
@@ -5345,20 +5349,20 @@ function paintExplore(secList){ const box=document.getElementById("exploreResult
   /* Portail de distance unique : ancre = hebergement du jour (repli destination).
      <=rayon = affiche . rayon->2x = bande "Plus loin" . au-dela = ecarte .
      sans coordonnees = ecarte sauf meme commune. Sans ancre : aucun filtre (voyage hors-ligne). */
-  const _an=_exAnchor(); const _R=_exploreRadiusKm||25; const _farSeen=new Set(); const _far=[];
+  const _an=_exAnchor(); const _R=_exploreRadiusKm||25; const _near=Math.max(1,Math.round(_R/2)); const _farSeen=new Set(); const _far=[];
   const _dOf=p=>(_an&&p&&p.lat!=null)?haversineKm(_an,{lat:p.lat,lng:p.lng}):null;
   for(const sec of secs){ let ps=(sec.places||[]).slice().filter(exMatch); if(_subSel) ps=ps.filter(p=>_subSel.some(d=>d.test(p)));
     if(_an){ const near=[]; ps.forEach(p=>{ const d=_dOf(p);
         if(d==null){ if(sameCity(p,_exCity)) near.push(p); }
-        else if(d<=_R+0.5) near.push(p);
-        else if(d<=_R*2+0.5){ if(p.id&&!_farSeen.has(p.id)){ _farSeen.add(p.id); _far.push(p); } } });
+        else if(d<=_near+0.5) near.push(p);
+        else if(d<=_R+0.5){ if(p.id&&!_farSeen.has(p.id)){ _farSeen.add(p.id); _far.push(p); } } });
       ps=near; }
     ps.sort((a,b)=>((sameCity(b,_exCity)?1:0)-(sameCity(a,_exCity)?1:0))||(_sv(b)-_sv(a))); if(sec.limit) ps=ps.slice(0,sec.limit); if(!ps.length) continue; ps.forEach(p=>_placeReg[p.id]=p); any=true;
     if(sec.layout==="grid"){ const _tot=ps.length, _shown=Math.min(_exMore,_tot); html+=secBlock(sec.title,ps.slice(0,_shown),sec.layout); if(_shown<_tot){ const _ml={fr:"Voir plus",en:"See more",es:"Ver mas",it:"Vedi altro",de:"Mehr anzeigen"}[lang()]||"Voir plus"; html+=`<button class="dt-more" id="exMoreBtn">${_ml} (${_shown}/${_tot})</button>`; } }
     else html+=secBlock(sec.title,ps,sec.layout); }
   /* Bande "Plus loin" : nommee, jamais fondue au proche. Triee par distance. */
   if(_an && _far.length){ _far.forEach(p=>{ p._exFar=_dOf(p); _placeReg[p.id]=p; }); _far.sort((a,b)=>(a._exFar||0)-(b._exFar||0));
-    const _fkm=Math.round(_R*2); const _flab={fr:"Plus loin \u00b7 jusqu'a "+_fkm+" km",en:"Further afield \u00b7 up to "+_fkm+" km",es:"Mas lejos \u00b7 hasta "+_fkm+" km",it:"Piu lontano \u00b7 fino a "+_fkm+" km",de:"Weiter entfernt \u00b7 bis "+_fkm+" km"}[lang()]||("Plus loin \u00b7 jusqu'a "+_fkm+" km");
+    const _fkm=Math.round(_R); const _flab={fr:"Plus loin \u00b7 jusqu'a "+_fkm+" km",en:"Further afield \u00b7 up to "+_fkm+" km",es:"Mas lejos \u00b7 hasta "+_fkm+" km",it:"Piu lontano \u00b7 fino a "+_fkm+" km",de:"Weiter entfernt \u00b7 bis "+_fkm+" km"}[lang()]||("Plus loin \u00b7 jusqu'a "+_fkm+" km");
     html+=secBlock(_flab,_far.slice(0,24),"scroll"); any=true; }
   box.innerHTML= any? html : `<div class="empty" style="padding:28px 8px"><p>${exFilterActive()?t("exp.noMatch"):t("exp.empty")}</p></div>`;
   const fb=document.getElementById("expFilter"); if(fb) fb.classList.toggle("active",exFilterActive());
@@ -5423,7 +5427,7 @@ function renderExploreChips(){ const el=document.getElementById("expCats"); if(!
   el.querySelectorAll("[data-cat]").forEach(b=>b.onclick=()=>{ exploreState.cat=b.dataset.cat; exploreState.query=""; exFilter.subcat.clear(); exFilter.px.clear(); _subFetchKey=""; _subFetchSecs=null; const s=document.getElementById("expSearch"); if(s) s.value=""; renderExplore(); }); }
 function renderExploreRadius(){ const el=document.getElementById("expRadius"); if(!el) return;
   el.innerHTML=`<div class="hotel-rad"><div class="hrad-top"><span class="hpx-lab">${t("hotel.radius")}</span><span class="hrad-val">${_exploreRadiusKm} km</span></div><div class="hrad-ends"><span>5 km</span><span>150 km</span></div><input type="range" id="exRadSlider" min="5" max="150" step="5" value="${_exploreRadiusKm}"></div>`;
-  const sl=el.querySelector("#exRadSlider"); if(sl){ sl.oninput=()=>{ _exploreRadiusKm=+sl.value; const v=el.querySelector(".hrad-val"); if(v) v.textContent=_exploreRadiusKm+" km"; }; sl.onchange=()=>renderExplore(); } }
+  const sl=el.querySelector("#exRadSlider"); if(sl){ sl.oninput=()=>{ _exploreRadiusKm=+sl.value; const v=el.querySelector(".hrad-val"); if(v) v.textContent=_exploreRadiusKm+" km"; }; sl.onchange=()=>{ _exRadiusUserSet=true; renderExplore(); }; } }
 async function renderExplore(){
   _subFetchKey=""; _subFetchSecs=null; _exMore=12;
   { const db=document.getElementById("dtOpenBtn"); if(db) db.onclick=openDataTourisme; }
@@ -5437,6 +5441,9 @@ async function renderExplore(){
   if(!googleReady()){ box.innerHTML=needKeyHtml(); const k=box.querySelector("#expKey"); if(k) k.onclick=openSettings; return; }
   box.innerHTML=`<div class="exp-loading"><span class="spin"></span>${t("exp.loading")}</div>`;
   const dest=trip.dest||{}, hasLoc=(dest.lat!=null), dn=dest.name||"";
+  /* Rayon = memes paliers que la recherche d'hotel (anchorTiers), fini le 25 fige.
+     On part du palier large pour trouver PLUS ; borne 40-60 km pour rester sain. Le slider ajuste. */
+  if(!_exRadiusUserSet && hasLoc){ const _ti=(typeof anchorTiers==="function")?anchorTiers(dest):[10,30,80]; const _t2=(_ti&&_ti[2])||80; _exploreRadiusKm=Math.min(60,Math.max(40,_t2)); renderExploreRadius(); }
   const _styles0=(trip.styles&&trip.styles.length)?trip.styles:(trip.style?[trip.style]:[]); const _hasStyles=_styles0.some(x=>STYLE_MAP[x]);
   const opt=ex=>Object.assign(hasLoc?{lat:dest.lat,lng:dest.lng}:{},ex||{});
   try{
@@ -5564,7 +5571,7 @@ function openPlace(p,mode){ if(!p) return; mode=mode||"explore"; openPlaceObj=p;
     ? `<div class="reviews"><div class="rowhead"><h2>${t("place.reviewsTitle")}</h2></div>${p.reviews.map(r=>`<div class="rev"><div class="rev-top"><span class="rev-stars">${'★'.repeat(Math.max(1,Math.round(r.rating)))}</span><span class="rev-auth">${escapeHtml(r.author)}${r.when?' · '+escapeHtml(r.when):''}</span></div><div class="rev-txt">${escapeHtml(r.text.length>240?r.text.slice(0,240)+'…':r.text)}</div></div>`).join("")}</div>` : "";
   const phoneHtml=p.phone?`<div style="margin-top:10px"><a class="btn" style="width:100%;background:var(--surface);color:var(--ink);border:1px solid var(--line)" href="tel:${escapeHtml(p.phone.replace(/\s/g,''))}">${escapeHtml(p.phone)}</a></div>`:"";
   b.innerHTML=`${galleryHtml}
-    <div class="prating big">${p.rating?('★ '+p.rating.toLocaleString(LOCALE[lang()]||'fr-FR')+' · '+t("place.reviews",{n:p.count})):t("place.noReviews")}</div>
+    <div class="prating big">${p.rating?('★ '+p.rating.toLocaleString(LOCALE[lang()]||'fr-FR')+' · '+t("place.reviews",{n:fmtCount(p.count)})):t("place.noReviews")}</div>
     <div class="pc-meta" style="margin:9px 0 13px"><span class="chip-cat">${escapeHtml(p.primaryType||catLabel(p.types))}</span>${pr?`<span class="price">${pr}</span>`:""}${p.openNow!=null?`<span class="open ${p.openNow?'y':'n'}">${p.openNow?t("place.openNow"):t("place.closed")}</span>`:""}</div>
     ${p.summary?`<p class="place-sum">${escapeHtml(p.summary)}</p>`:""}
     ${p.address?`<div class="drow"><span class="di"><svg viewBox="0 0 24 24"><path d="M12 21s-7-6.2-7-11a7 7 0 0 1 14 0c0 4.8-7 11-7 11z"/><circle cx="12" cy="10" r="2.4"/></svg></span><div><div class="dv">${escapeHtml(p.address)}</div></div></div>`:""}
