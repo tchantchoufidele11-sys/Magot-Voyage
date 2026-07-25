@@ -3092,7 +3092,7 @@ const DEFAULT_S={ version:"0.2.0", settings:{ lang:"fr", theme:"system", units:"
 /* Clé Maps JS partagée (restreinte au domaine GitHub Pages). Repli : clé perso de l'utilisateur si fournie. */
 const SHARED_MAP_KEY="AIzaSyCt5iVx8nPr1V067A3daE0X1YA568XJNbU";
 function mapKey(){ return (S.settings.mapKey||"").trim() || SHARED_MAP_KEY; }
-const BUILD="0.3.1 · v542 photo-sections";
+const BUILD="0.3.2 · v543 photo-fallback";
 let S=loadState();
 function normalizeTrip(tr){ if(!tr||typeof tr!=="object") return tr;
   tr.id=tr.id||("t"+Date.now()+Math.random().toString(36).slice(2,7));
@@ -5359,10 +5359,24 @@ function _exploreCC(){ const tr=currentTrip(); if(!tr) return ""; const day=(typ
   const d=(typeof destOfDay==="function")?destOfDay(tr,day):((tr&&tr.dest)||null);
   return (d&&d.cc)?String(d.cc).toUpperCase():""; }
 async function freePhotoOf(p,pays){
-  try{ if(!p||p.lat==null||p.lng==null) return null; const nm=p.name||""; if(!nm) return null;
-    const j=await workerFetch("/photo/free",{lat:p.lat,lng:p.lng,q:nm,pays:(pays||""),lang:lang()});
-    return (j&&j.photo)?j:null;
-  }catch(e){ return null; } }
+  if(!p||p.lat==null||p.lng==null) return null; const nm=p.name||""; if(!nm) return null;
+  const body={lat:p.lat,lng:p.lng,q:nm,pays:(pays||""),lang:lang()};
+  /* Canal 1 (prefere) : POST via workerFetch. */
+  let postFailed=false;
+  try{ const j=await workerFetch("/photo/free",body);
+    if(j&&j.photo) return j;              // photo trouvee
+    if(!j||j.error) postFailed=true;      // route absente / erreur reseau -> on tentera le GET
+    else return null;                     // reponse valide sans photo -> inutile d'insister
+  }catch(e){ postFailed=true; }
+  if(!postFailed) return null;
+  /* Canal 2 (repli prouve par le test Safari) : GET direct, sans Authorization (pas de preflight).
+     Sert tant que la route POST /photo/free n'est pas deployee cote worker. */
+  try{
+    const qs="?lat="+encodeURIComponent(p.lat)+"&lng="+encodeURIComponent(p.lng)+"&q="+encodeURIComponent(nm)+"&pays="+encodeURIComponent(pays||"")+"&lang="+encodeURIComponent(lang());
+    const r=await fetch(WORKER_URL+"/photo/free"+qs); const j2=await r.json().catch(()=>null);
+    if(j2&&j2.photo) return j2;
+  }catch(e){}
+  return null; }
 /* Garde-fou cout : on resout la photo gratuite des ~28 premiers par defaut. La vue d'UNE
    categorie garde 28 ; l'accueil passe un cap plus petit PAR SECTION (voir renderExplore).
    Google reste le secours : ce que le gratuit ne fournit pas, pcard le prend chez Google. */
