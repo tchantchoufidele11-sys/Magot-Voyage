@@ -3105,7 +3105,7 @@ const DEFAULT_S={ version:"0.2.0", settings:{ lang:"fr", theme:"system", units:"
 /* Clé Maps JS partagée (restreinte au domaine GitHub Pages). Repli : clé perso de l'utilisateur si fournie. */
 const SHARED_MAP_KEY="AIzaSyCt5iVx8nPr1V067A3daE0X1YA568XJNbU";
 function mapKey(){ return (S.settings.mapKey||"").trim() || SHARED_MAP_KEY; }
-const BUILD="0.3.13 · v554 diag-err";
+const BUILD="0.3.15 · v556 lazy-explore";
 let S=loadState();
 function normalizeTrip(tr){ if(!tr||typeof tr!=="object") return tr;
   tr.id=tr.id||("t"+Date.now()+Math.random().toString(36).slice(2,7));
@@ -5528,13 +5528,13 @@ function paintExplore(secList){ const box=document.getElementById("exploreResult
     for(const sec of secs){ if((sec.places||[]).some(p=>p&&p._fsq)){ _fsqShown=true; break; } }
     if(_fsqShown) html+=`<div style="text-align:center;padding:2px 8px 20px;font-size:10.5px;color:var(--muted);opacity:.75">Powered by Foursquare</div>`;
   }
-  if(!any){ const _tr=currentTrip(); const _f=v=>(v==null?"\u2205":(+v).toFixed(4)); const _pt=o=>(o&&o.lat!=null)?(_f(o.lat)+","+_f(o.lng)):"\u2205";
-    const _dbg="dbg \u00b7 ancre "+(_an?_pt(_an):"\u2205")+" \u00b7 h\u00f4tel "+_pt(_tr&&_tr.lodging)+" \u00b7 dest "+_pt(_tr&&_tr.dest)+" \u00b7 brut "+(window._exDbg?JSON.stringify(window._exDbg):"?");
-    box.innerHTML=`<div class="empty" style="padding:28px 8px"><p>${exFilterActive()?t("exp.noMatch"):t("exp.empty")}</p><p style="font-size:10px;opacity:.45;margin-top:10px;word-break:break-all">${_dbg}</p></div>`;
-  } else box.innerHTML=html;
+  if(_exMorePending) html+=`<div id="exSentinel" style="height:46px;display:flex;align-items:center;justify-content:center"><span class="spin"></span></div>`;
+  box.innerHTML= (any||_exMorePending)? html : `<div class="empty" style="padding:28px 8px"><p>${exFilterActive()?t("exp.noMatch"):t("exp.empty")}</p></div>`;
   const fb=document.getElementById("expFilter"); if(fb) fb.classList.toggle("active",exFilterActive());
-  afterExplore(box); const _emb=document.getElementById("exMoreBtn"); if(_emb) _emb.onclick=()=>{ _exMore+=12; paintExplore(secList); }; }
+  afterExplore(box); const _emb=document.getElementById("exMoreBtn"); if(_emb) _emb.onclick=()=>{ _exMore+=12; paintExplore(secList); };
+  { const _sent=document.getElementById("exSentinel"); if(_sent && _exMoreFn && _exMorePending){ try{ const _io=new IntersectionObserver((es)=>{ if(es.some(e=>e.isIntersecting)){ _io.disconnect(); const f=_exMoreFn; if(f) f(); } },{rootMargin:"350px"}); _io.observe(_sent); }catch(e){ const f=_exMoreFn; if(f) f(); } } } }
 let _subFetchKey="", _subFetchSecs=null;
+let _exMorePending=false,_exMoreBusy=false,_exMoreFn=null;   /* aperçu : sections du bas chargées au scroll */
 async function applySubFilter(){ closeExpFilter(); _exMore=12;
   const cat=exploreState.cat;
   if(!exFilter.subcat.size){ _subFetchKey=""; _subFetchSecs=null; paintExplore(); return; }
@@ -5598,7 +5598,7 @@ function renderExploreRadius(){ const el=document.getElementById("expRadius"); i
   el.innerHTML=`<div class="hotel-rad"><div class="hrad-top"><span class="hpx-lab">${t("hotel.radius")}</span><span class="hrad-val">${_exploreRadiusKm} km</span></div><div class="hrad-ends"><span>5 km</span><span>150 km</span></div><input type="range" id="exRadSlider" min="5" max="150" step="5" value="${_exploreRadiusKm}"></div>`;
   const sl=el.querySelector("#exRadSlider"); if(sl){ sl.oninput=()=>{ _exploreRadiusKm=+sl.value; const v=el.querySelector(".hrad-val"); if(v) v.textContent=_exploreRadiusKm+" km"; }; sl.onchange=()=>{ _exRadiusUserSet=true; renderExplore(); }; } }
 async function renderExplore(){
-  _subFetchKey=""; _subFetchSecs=null; _exMore=12;
+  _subFetchKey=""; _subFetchSecs=null; _exMore=12; _exMorePending=false; _exMoreFn=null; _exMoreBusy=false;
   { const db=document.getElementById("dtOpenBtn"); if(db) db.onclick=openDataTourisme; }
   renderExploreChips(); renderExploreRadius();
   { const fb=document.getElementById("expFilter"); if(fb) fb.classList.toggle("on", exFilterActive()); }
@@ -5646,50 +5646,56 @@ async function renderExplore(){
         await exFreePhotos(places);
       }
       _exSections=[{title:t("cat."+c.k),res,places,layout:"grid"}]; paintExplore(); return; }
-    const rec=await gText(dn?(t("exp.recommended")+" "+dn):"top attractions",opt());
-    const todo=_hasStyles?{places:[]}:await gText(dn?(t("exp.todoQ")+" "+dn):"things to do",opt({pages:2}));
-    const nature=await exTyped(dest,dn,"park",t("cat.nature"));
-    const culture=await exTyped(dest,dn,"museum",t("cat.culture"));
-    const foodA=await exTyped(dest,dn,"fine_dining_restaurant",t("cat.restaurants"));
-    const foodB=await exTyped(dest,dn,"restaurant",t("cat.restaurants"));
-    const food={places:[].concat((foodA&&foodA.places)||[],(foodB&&foodB.places)||[])};
-    const around=await exTyped(dest,dn,"tourist_attraction",t("cat.activities"));
-    const shopsT=await gText(t("exp.shopsQa")+(dn?" "+dn:""),opt({pages:1}));
-    try{ const _c=o=>((o&&o.places)||[]).length; const _e=o=>(o&&o.error)||""; window._exDbg={rec:_c(rec),nat:_c(nature),cul:_c(culture),food:_c(food),shop:_c(shopsT),loc:hasLoc?1:0,err:(_e(rec)||_e(nature)||_e(culture)||_e(shopsT)||"")}; }catch(e){}
+    /* ===== APERCU "Tout" : chargement en DEUX temps pour economiser le quota. ===== */
     const seen=new Set();
     const tstyles=(trip.styles&&trip.styles.length)?trip.styles:(trip.style?[trip.style]:[]);
     const contentStyles=tstyles.filter(s=>STYLE_MAP[s]).slice(0,4);
-    const mods=tstyles.filter(s=>STYLE_MOD[s]);
     _exStyleTypes=[]; contentStyles.forEach(s=>{ (STYLE_MAP[s].types||[]).forEach(ty=>{ if(_exStyleTypes.indexOf(ty)<0) _exStyleTypes.push(ty); }); });
+    /* --- EAGER : sections visibles d'emblee (Recommande, Restaurants, Nature) = 3 recherches. --- */
+    const rec=await gText(dn?(t("exp.recommended")+" "+dn):"top attractions",opt());
+    const food=await exTyped(dest,dn,"restaurant",t("cat.restaurants"));   /* "restaurant" couvre le fine dining (sous-type) : 1 appel au lieu de 2 */
+    const nature=await exTyped(dest,dn,"park",t("cat.nature"));
+    /* Si les recherches echouent (quota, reseau...), montrer une VRAIE erreur, pas un faux "aucun lieu". */
+    { const _ovErr=[rec,food,nature].map(o=>(o&&o.error)||"").filter(Boolean); if(_ovErr.length>=3){ _exSections=[{title:t("cat.all"),res:{error:_ovErr[0]},layout:"grid"}]; paintExplore(); return; } }
     const foodPlaces=exPrep(food,seen,{foodOnly:true});
-    const styleSecs=[];  /* Sections "Pour votre style" retirees : le style influence l'ordre (via _exStyleTypes), pas une section dediee. */
     const recPlaces=exPrep(rec,seen,{attractionOnly:true});
     const naturePlaces=exPrep(nature,seen,{attractionOnly:true});
-    const culturePlaces=exPrep(culture,seen,{attractionOnly:true});
-    const aroundPlaces=exPrep(around,seen,{attractionOnly:true});
-    const shopsPlaces=exPrep(shopsT,seen,{shopsOnly:true}); if(dest.lat!=null) shopsPlaces.forEach(p=>{ p._exScore=(p.lat!=null?-haversineKm({lat:dest.lat,lng:dest.lng},{lat:p.lat,lng:p.lng}):-999); });
-    const todoPlaces=exPrep(todo,seen,{attractionOnly:true});
-    /* ETAPE 2 : autorite FSQ a l'apercu. 1 recherche FSQ generale partagee (fsqTag) -> on retire
-       les intrus que FSQ identifie clairement : resto/boutique/hebergement dans une bande de
-       visite, et non-food dans Restaurants. Asymetrique : un lieu que FSQ ignore reste affiche
-       (on ne manque rien). Aucun appel Google ajoute. */
-    await fsqTag([recPlaces,naturePlaces,culturePlaces,aroundPlaces,todoPlaces,foodPlaces,shopsPlaces],dest,_exploreRadiusKm);
-    [recPlaces,naturePlaces,culturePlaces,aroundPlaces,todoPlaces].forEach(a=>_fsqFilterInPlace(a,"divers"));
+    await fsqTag([recPlaces,naturePlaces,foodPlaces],dest,_exploreRadiusKm);
+    [recPlaces,naturePlaces].forEach(a=>_fsqFilterInPlace(a,"divers"));
     _fsqFilterInPlace(foodPlaces,"restaurants");
-    _fsqFilterInPlace(shopsPlaces,"shops");
-    const _tail=[
+    { const _f=[]; [recPlaces,naturePlaces].forEach(s=>(s||[]).slice(0,16).forEach(x=>_f.push(x))); await exFreePhotos(_f,_f.length); }
+    _exSections=[
+        {title:t("exp.recommended"),places:recPlaces,layout:"scroll"},
         {title:t("cat.restaurants"),places:foodPlaces,layout:"scroll",limit:15},
-        {title:t("cat.nature"),places:naturePlaces,layout:"scroll"},
-        {title:t("cat.culture"),places:culturePlaces,layout:"scroll"},
-        {title:t("exp.around"),places:aroundPlaces,layout:"scroll"},
-        {title:t("cat.shops"),places:shopsPlaces,layout:"scroll"}
+        {title:t("cat.nature"),places:naturePlaces,layout:"scroll"}
       ];
-    if(!contentStyles.length) _tail.push({title:t("exp.todo"),places:todoPlaces,layout:"scroll"});
-    /* Cascade photo par SECTION touristique (fini le concat tronque a 28) : les 16 premieres
-       cartes de chaque section touristique AFFICHEE sont resolues en gratuit ; au-dela = Google.
-       Restaurants/boutiques exclus (Google). todo seulement s'il est affiche. */
-    { const _freeTargets=[]; [recPlaces,naturePlaces,culturePlaces,aroundPlaces].forEach(s=>{ (s||[]).slice(0,16).forEach(x=>_freeTargets.push(x)); }); if(!contentStyles.length){ (todoPlaces||[]).slice(0,16).forEach(x=>_freeTargets.push(x)); } await exFreePhotos(_freeTargets,_freeTargets.length); }
-    _exSections=styleSecs.concat([{title:t("exp.recommended"),places:recPlaces,layout:"scroll"}]).concat(_tail);
+    /* --- PARESSEUX : Culture, Activites, Boutiques, (A faire) chargees SEULEMENT au scroll -> 0 appel si on ne descend pas. --- */
+    _exMoreFn=async function(){
+      if(_exMoreBusy||!_exMorePending) return; _exMoreBusy=true;
+      try{
+        const culture=await exTyped(dest,dn,"museum",t("cat.culture"));
+        const around=await exTyped(dest,dn,"tourist_attraction",t("cat.activities"));
+        const shopsT=await gText(t("exp.shopsQa")+(dn?" "+dn:""),opt({pages:1}));
+        const todo=contentStyles.length?{places:[]}:await gText(dn?(t("exp.todoQ")+" "+dn):"things to do",opt({pages:1}));
+        const culturePlaces=exPrep(culture,seen,{attractionOnly:true});
+        const aroundPlaces=exPrep(around,seen,{attractionOnly:true});
+        const shopsPlaces=exPrep(shopsT,seen,{shopsOnly:true}); if(dest.lat!=null) shopsPlaces.forEach(p=>{ p._exScore=(p.lat!=null?-haversineKm({lat:dest.lat,lng:dest.lng},{lat:p.lat,lng:p.lng}):-999); });
+        const todoPlaces=exPrep(todo,seen,{attractionOnly:true});
+        await fsqTag([culturePlaces,aroundPlaces,todoPlaces,shopsPlaces],dest,_exploreRadiusKm);
+        [culturePlaces,aroundPlaces,todoPlaces].forEach(a=>_fsqFilterInPlace(a,"divers"));
+        _fsqFilterInPlace(shopsPlaces,"shops");
+        { const _f=[]; [culturePlaces,aroundPlaces].forEach(s=>(s||[]).slice(0,16).forEach(x=>_f.push(x))); if(!contentStyles.length)(todoPlaces||[]).slice(0,16).forEach(x=>_f.push(x)); await exFreePhotos(_f,_f.length); }
+        const _more=[
+            {title:t("cat.culture"),places:culturePlaces,layout:"scroll"},
+            {title:t("exp.around"),places:aroundPlaces,layout:"scroll"},
+            {title:t("cat.shops"),places:shopsPlaces,layout:"scroll"}
+          ];
+        if(!contentStyles.length) _more.push({title:t("exp.todo"),places:todoPlaces,layout:"scroll"});
+        _exSections=_exSections.concat(_more);
+      }catch(e){}
+      _exMorePending=false; paintExplore();
+    };
+    _exMorePending=true; _exMoreBusy=false;
     paintExplore();
   }catch(e){ box.innerHTML=`<div class="empty" style="padding:28px 8px"><p>${t("exp.error")}</p></div>`; }
 }
