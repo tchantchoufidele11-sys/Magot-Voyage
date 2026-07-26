@@ -3092,7 +3092,7 @@ const DEFAULT_S={ version:"0.2.0", settings:{ lang:"fr", theme:"system", units:"
 /* Clé Maps JS partagée (restreinte au domaine GitHub Pages). Repli : clé perso de l'utilisateur si fournie. */
 const SHARED_MAP_KEY="AIzaSyCt5iVx8nPr1V067A3daE0X1YA568XJNbU";
 function mapKey(){ return (S.settings.mapKey||"").trim() || SHARED_MAP_KEY; }
-const BUILD="0.3.4 · v545 fsq-authority-2";
+const BUILD="0.3.5 · v546 fsq-authority-3";
 let S=loadState();
 function normalizeTrip(tr){ if(!tr||typeof tr!=="object") return tr;
   tr.id=tr.id||("t"+Date.now()+Math.random().toString(36).slice(2,7));
@@ -5325,13 +5325,19 @@ async function fsqSearch(ll,R,query,sort){
     locality:(x.location&&x.location.locality)||"" })).filter(x=>x.name&&x.lat!=null);
 }
 function _fsqSameName(a,b){ const n=s=>String(s||"").toLowerCase().replace(/[^a-z0-9]+/g," ").trim(); a=n(a); b=n(b); if(!a||!b) return false; return a===b||a.indexOf(b)===0||b.indexOf(a)===0; }
-/* Foursquare fait autorite sur la categorie. On ramene sa categorie a un genre.
-   Ordre volontaire : lodging -> food -> shop -> culture -> nature -> other
-   (ex. "Arts & Crafts Store" doit tomber en shop, pas en culture). */
+/* Foursquare fait autorite sur la categorie. On ramene sa categorie FSQ a un genre.
+   Ordre volontaire : lodging -> food -> sport -> transport -> health -> civic -> shop ->
+   culture -> nature -> other. (food avant sport : "Sports Bar" -> food ; shop avant culture :
+   "Arts & Crafts Store" -> shop.) fsqKind recoit le NOM DE CATEGORIE FSQ (taxonomie propre),
+   pas le nom du lieu -> peu d'ambiguite. */
 function fsqKind(name){ const s=String(name||"").toLowerCase();
   if(/hotel|motel|hostel|\binn\b|bed (and|&) breakfast|b&b|lodging|resort|guest ?house|guesthouse|vacation rental|campground|camping|cottage|g[iî]te|chambre d|auberge/.test(s)) return "lodging";
   if(/restaurant|caf[eé]|coffee|bakery|\bbar\b|bistro|brasserie|pizz|diner|steak|\bpub\b|kebab|fast food|snack|deli|ice cream|dessert|tea room|brewery|winery|\bfood\b|cr[eê]perie|grill|tavern|noodle|sushi|ramen|taco|burger/.test(s)) return "food";
-  if(/\bstore\b|\bshop\b|shopping|\bmarket\b|\bmall\b|boutique|supermarket|grocery|pharmacy|bookstore|clothing|jewelry|jeweller|electronics|department|newsstand|convenience/.test(s)) return "shop";
+  if(/\bsports?\b|\bgym\b|fitness|stadium|\barena\b|athletic|soccer|basketball|\btennis\b|swimming pool|skate ?park|bowling|golf course|\bgolf\b|dojo|climbing|\brink\b|\bpitch\b/.test(s)) return "sport";
+  if(/train station|railway|metro station|\bsubway\b|bus (station|stop|terminal)|\bairport\b|airfield|\bparking\b|gas station|petrol|\bfuel\b|charging station|tram (stop|station)|car rental|ferry terminal/.test(s)) return "transport";
+  if(/hospital|\bclinic\b|pharmacy|drugstore|\bdentist\b|\bdoctor\b|medical center|medical centre|urgent care|veterinar|physiotherap/.test(s)) return "health";
+  if(/city hall|town hall|\bmairie\b|\bgovernment\b|municipal|prefecture|courthouse|\bpolice\b|gendarmerie|post office|\bbank\b|\batm\b|embassy|consulate|\bschool\b|\buniversity\b|\bcollege\b|tax office/.test(s)) return "civic";
+  if(/\bstore\b|\bshop\b|shopping|\bmarket\b|\bmall\b|boutique|supermarket|grocery|bookstore|clothing|jewelry|jeweller|electronics|department|newsstand|convenience/.test(s)) return "shop";
   if(/museum|gallery|monument|historic|landmark|memorial|cultural|\bart\b|theater|theatre|opera|concert hall|library|castle|palace|church|cathedral|basilica|chapel|temple|mosque|synagogue|shrine|abbey|heritage|exhibit|planetarium/.test(s)) return "culture";
   if(/\bpark\b|garden|beach|mountain|\blake\b|\btrail\b|hiking|forest|nature|scenic|lookout|viewpoint|waterfall|\briver\b|island|\bcave\b|canyon|marina|harbou?r|\bport\b|reserve|wildlife|\bzoo\b|aquarium|botanical/.test(s)) return "nature";
   return "other"; }
@@ -5340,9 +5346,10 @@ function fsqKind(name){ const s=String(name||"").toLowerCase();
    decide, donc on ne MANQUE aucun lieu. Un hebergement n'apparait jamais dans une categorie
    de visite/resto/boutique. Regle par genre (fin: beach vs hiking reste a catOf/Google). */
 const _FSQ_NATURE_CATS=new Set(["beach","hiking","viewpoint","parkgarden","port","mountainlac"]);
+const _FSQ_EXCLUDE=new Set(["lodging","sport","transport","health","civic"]); // jamais une visite Explore
 function _fsqAllows(p,cat){
   const k=p&&p._fsqCat; if(!k||k==="other") return true;   // FSQ ne tranche pas -> Google decide
-  if(k==="lodging") return false;                          // hebergement : jamais dans Explore
+  if(_FSQ_EXCLUDE.has(k)) return false;                    // hebergement/sport/transport/sante/civique : jamais dans Explore
   if(cat==="restaurants") return k==="food";
   if(cat==="shops")       return k==="shop";
   if(cat==="culture")     return k==="culture";
@@ -5431,11 +5438,12 @@ function catOf(p){ if(!p) return null; const ty=((p.types||[]).concat([p.ptype||
   if(isLodging(p)) return null;
   if(isEatery(p)&&!isAttraction(p)) return "restaurants";
   if(isShop(p)) return "shops";
+  if(/\bmonument\b|m[ée]morial|\bstatue\b|mausol[ée]e|c[ée]notaphe/.test(nm)) return "culture"; // monument dans un square -> culture, pas parc
   if(has("beach")) return "beach";
   if(has("marina")||/marina|\bport\b|vieux[- ]port|harbou?r/.test(nm)) return "port";
   if(has("hiking_area")||/randonn|sentier|\btrail\b/.test(nm)) return "hiking";
   if(has("scenic_lookout","observation_deck")||/point de vue|belv[ée]d|panorama|mirador|viewpoint|overlook|aussicht|\bvista\b/.test(nm)) return "viewpoint";
-  if(has("park","national_park","garden","botanical_garden","dog_park","state_park")) return "parkgarden";
+  if(has("park","national_park","garden","botanical_garden","dog_park","state_park") && !has("sports_complex","stadium","arena","athletic_field","sports_activity_location","gym","fitness_center","swimming_pool","golf_course","bowling_alley","ice_skating_rink","sports_club")) return "parkgarden";
   if(has("natural_feature")||/montagne|\bmont\b|monte|\bpic\b|\bpiz\b|sommet|cime|cima|aiguille|\bdent\b|becca|corno|massif|glacier|gletscher|ghiacciaio|\blac\b|\blake\b|lago|see\b|[ée]tang|rivi[èe]re|\briver\b|fiume|torrent|cascade|waterfall|wasserfall|cascata|gorge|schlucht|gola|canyon|berg\b|gipfel|spitze\b|kogel|\bhorn\b|horn\b|joch\b|\balp\b|alpes|alpen|mountain|\bpeak\b|summit|\bcol\b|\bpass\b|plateau|falaise|\bcliff\b|grotte|\bcave\b/.test(nm)) return "mountainlac";
   if(has("museum","art_gallery","monument","historical_landmark","historical_place","cultural_landmark","sculpture","church","synagogue","mosque","hindu_temple","place_of_worship")||/mus[ée]e|museum|cath[ée]drale|[ée]glise|monument|ch[âa]teau|castle|abbaye|basilique/.test(nm)) return "culture";
   if(isAttraction(p)||has("amusement_park","theme_park","water_park","zoo","aquarium","tourist_attraction","spa","casino","stadium","ferris_wheel","planetarium")) return "divers";
@@ -5594,7 +5602,11 @@ async function renderExplore(){
         const stMatch=p=>fs.some(x=> x==="food"?gastro(p) : x==="streetfood"?isFastFood(p) : x==="wine"?(/(wine|winery)/.test(p.ptype||"")||/\bvin\b|cave|œnolog/i.test(((p.name||"")+" "+(p.summary||"")).toLowerCase())) : /(bar|night_club)/.test(p.ptype||""));
         places.forEach(p=>{ const d=(dest.lat!=null&&p.lat!=null)?haversineKm({lat:dest.lat,lng:dest.lng},{lat:p.lat,lng:p.lng}):0; p._exScore=bayesRating(p)*(1/(1+d/6))+(stMatch(p)?100:0); });
       } else if(c.k==="shops"&&dest.lat!=null) places.forEach(p=>{ p._exScore=(p.lat!=null?-haversineKm({lat:dest.lat,lng:dest.lng},{lat:p.lat,lng:p.lng}):-999); });
-      if(TOURISTIC_CATS.has(c.k)) await exFreePhotos(places);
+      if(TOURISTIC_CATS.has(c.k)){
+        await fsqTag([places],dest,_exploreRadiusKm);   // ETAPE 3 : autorite FSQ en vue categorie
+        _fsqFilterInPlace(places,c.k);                   // retire monuments/sport/etc mal classes ici
+        await exFreePhotos(places);
+      }
       _exSections=[{title:t("cat."+c.k),res,places,layout:"grid"}]; paintExplore(); return; }
     const rec=await gText(dn?(t("exp.recommended")+" "+dn):"top attractions",opt());
     const todo=_hasStyles?{places:[]}:await gText(dn?(t("exp.todoQ")+" "+dn):"things to do",opt({pages:2}));
