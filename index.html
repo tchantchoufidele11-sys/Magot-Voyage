@@ -3092,7 +3092,7 @@ const DEFAULT_S={ version:"0.2.0", settings:{ lang:"fr", theme:"system", units:"
 /* Clé Maps JS partagée (restreinte au domaine GitHub Pages). Repli : clé perso de l'utilisateur si fournie. */
 const SHARED_MAP_KEY="AIzaSyCt5iVx8nPr1V067A3daE0X1YA568XJNbU";
 function mapKey(){ return (S.settings.mapKey||"").trim() || SHARED_MAP_KEY; }
-const BUILD="0.3.3 · v544 fsq-authority-1";
+const BUILD="0.3.4 · v545 fsq-authority-2";
 let S=loadState();
 function normalizeTrip(tr){ if(!tr||typeof tr!=="object") return tr;
   tr.id=tr.id||("t"+Date.now()+Math.random().toString(36).slice(2,7));
@@ -5349,6 +5349,9 @@ function _fsqAllows(p,cat){
   if(cat==="divers")      return k==="culture"||k==="nature"; // loisirs/attractions : large
   if(_FSQ_NATURE_CATS.has(cat)) return k==="nature";
   return true; }
+/* Applique l'autorite FSQ en MUTANT le tableau (pour ne pas casser les references
+   deja passees dans _tail / _exSections). N'enleve que ce que FSQ contredit clairement. */
+function _fsqFilterInPlace(arr,cat){ if(!arr) return; for(let i=arr.length-1;i>=0;i--){ if(!_fsqAllows(arr[i],cat)) arr.splice(i,1); } }
 async function fsqAugment(res,dest,R,query){
   try{
     if(!(dest&&dest.lat!=null)) return res;
@@ -5366,6 +5369,25 @@ async function fsqAugment(res,dest,R,query){
       if(la==null || haversineKm({lat:pick[i].lat,lng:pick[i].lng},{lat:la,lng:lo})<=0.3){ pl._fsqOk=true; pl._fsqCatKind=fsqKind(pick[i].cat); add.push(pl); } });
     return { places: gp.concat(add) };
   }catch(e){ return res; }
+}
+/* ETAPE 2 : autorite FSQ a l'apercu, a COUT MINIMAL.
+   UNE seule recherche FSQ generale (query vide) autour de l'hotel : la cle de cache worker
+   est (ll+rayon+query), donc query vide => 1 entree partagee/reutilisee par les 8 sections
+   (au lieu d'une recherche par categorie). Champs coeur FSQ = gratuits. AUCUN appel Google
+   ajoute (contrairement a fsqAugment, reserve a la vue categorie / etape 3).
+   On se contente de TAGUER _fsqCat sur les lieux Google deja trouves (match nom + coords). */
+async function fsqTag(placesLists,dest,R){
+  try{
+    if(!(dest&&dest.lat!=null)) return;
+    const fsq=await fsqSearch(dest.lat+","+dest.lng,R,"","POPULARITY"); // query vide = generale
+    if(!fsq.length) return;
+    const seen=new Set();
+    (placesLists||[]).forEach(l=>(l||[]).forEach(p=>{
+      if(!p||p.lat==null||p._fsqCat||seen.has(p.id)) return; seen.add(p.id);
+      const f=fsq.find(x=>haversineKm({lat:x.lat,lng:x.lng},{lat:p.lat,lng:p.lng})<=0.12 && _fsqSameName(p.name||"",x.name));
+      if(f) p._fsqCat=fsqKind(f.cat);
+    }));
+  }catch(e){}
 }
 
 /* ===== Cascade photo (lieux touristiques) : DATAtourisme/Wikipedia avant Google.
@@ -5596,6 +5618,14 @@ async function renderExplore(){
     const aroundPlaces=exPrep(around,seen,{attractionOnly:true});
     const shopsPlaces=exPrep(shopsT,seen,{shopsOnly:true}); if(dest.lat!=null) shopsPlaces.forEach(p=>{ p._exScore=(p.lat!=null?-haversineKm({lat:dest.lat,lng:dest.lng},{lat:p.lat,lng:p.lng}):-999); });
     const todoPlaces=exPrep(todo,seen,{attractionOnly:true});
+    /* ETAPE 2 : autorite FSQ a l'apercu. 1 recherche FSQ generale partagee (fsqTag) -> on retire
+       les intrus que FSQ identifie clairement : resto/boutique/hebergement dans une bande de
+       visite, et non-food dans Restaurants. Asymetrique : un lieu que FSQ ignore reste affiche
+       (on ne manque rien). Aucun appel Google ajoute. */
+    await fsqTag([recPlaces,naturePlaces,culturePlaces,aroundPlaces,todoPlaces,foodPlaces,shopsPlaces],dest,_exploreRadiusKm);
+    [recPlaces,naturePlaces,culturePlaces,aroundPlaces,todoPlaces].forEach(a=>_fsqFilterInPlace(a,"divers"));
+    _fsqFilterInPlace(foodPlaces,"restaurants");
+    _fsqFilterInPlace(shopsPlaces,"shops");
     const _tail=[
         {title:t("cat.restaurants"),places:foodPlaces,layout:"scroll",limit:15},
         {title:t("cat.nature"),places:naturePlaces,layout:"scroll"},
