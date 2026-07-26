@@ -368,7 +368,7 @@ nav.tabs button.active .ico{background:var(--navy);color:#fff;box-shadow:0 6px 1
   stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round;color:var(--gold-d,#C2872A)}
 .chips-scroll>.chip.on svg{color:currentColor}
 .chips-scroll::-webkit-scrollbar{display:none}
-.exp-cats-row{display:flex;align-items:center;gap:10px;margin-bottom:16px}
+.exp-cats-row{display:flex;align-items:flex-start;gap:10px;margin-bottom:16px}
 .exp-cats-row #expCats{flex:1 1 auto;margin-bottom:0}
 .exp-cats-row #expFilter{flex:0 0 auto}
 .chips-scroll .chip{flex:0 0 auto}
@@ -3123,7 +3123,7 @@ const DEFAULT_S={ version:"0.2.0", settings:{ lang:"fr", theme:"system", units:"
 /* Clé Maps JS partagée (restreinte au domaine GitHub Pages). Repli : clé perso de l'utilisateur si fournie. */
 const SHARED_MAP_KEY="AIzaSyCt5iVx8nPr1V067A3daE0X1YA568XJNbU";
 function mapKey(){ return (S.settings.mapKey||"").trim() || SHARED_MAP_KEY; }
-const BUILD="0.3.22 · v563 day-selector";
+const BUILD="0.3.23 · v564 dayselector-fixes";
 let S=loadState();
 function normalizeTrip(tr){ if(!tr||typeof tr!=="object") return tr;
   tr.id=tr.id||("t"+Date.now()+Math.random().toString(36).slice(2,7));
@@ -5771,7 +5771,7 @@ function toggleExDayMenu(){ const m=document.getElementById("exDayMenu"); if(!m)
   let h=`<button type="button" data-exday="" class="${_exAddDay==null?'on':''}">${RES}</button>`;
   ds.forEach(dd=>{ h+=`<button type="button" data-exday="${dd.i}" class="${_exAddDay===dd.i?'on':''}">${escapeHtml(_exDayLong(dd.i))}</button>`; });
   m.innerHTML=h;
-  m.querySelectorAll("[data-exday]").forEach(el=>el.onclick=()=>{ const v=el.dataset.exday; _exAddDay=(v==="")?null:(+v); closeExDayMenu(); renderExDay(); renderExplore(); });
+  m.querySelectorAll("[data-exday]").forEach(el=>el.onclick=()=>{ const v=el.dataset.exday; _exAddDay=(v==="")?null:(+v); closeExDayMenu(); renderExDay(); });
   m.classList.add("show"); }
 /* Ajout depuis Explore : répertoire (toujours) + jour choisi (si présent). */
 function exAddPlace(p){ const tr=currentTrip(); if(!tr||!p) return;
@@ -5785,7 +5785,6 @@ function exAddPlace(p){ const tr=currentTrip(); if(!tr||!p) return;
     }
     const M={fr:"Ajouté au ",en:"Added to ",es:"Añadido al ",it:"Aggiunto al ",de:"Hinzugefügt: "}[lang()]||"Ajouté au ";
     toast(M+_exDayShort(_exAddDay));
-    try{ if(typeof renderPlan==="function") renderPlan(); }catch(e){}
   } }
 let _exFilterLoading=false;   /* vrai pendant qu'une categorie choisie dans le filtre se charge */
 function renderExpFilter(){ const b=document.getElementById("expFilterBody"); if(!b) return;
@@ -12922,7 +12921,7 @@ function init(){
   document.getElementById("memCamera").addEventListener("change",e=>{ addMemPhotos(e.target.files,true); e.target.value=""; });
   document.getElementById("expFilter").onclick=openExpFilter;
   { const db=document.getElementById("exDayBtn"); if(db) db.onclick=(e)=>{ e.stopPropagation(); toggleExDayMenu(); }; }
-  document.addEventListener("click",(e)=>{ const m=document.getElementById("exDayMenu"); if(m&&m.classList.contains("show")){ const w=document.querySelector(".daysel-wrap"); if(w&&!w.contains(e.target)) closeExDayMenu(); } });
+  if(!window._exDayOutside){ window._exDayOutside=true; document.addEventListener("click",(e)=>{ const m=document.getElementById("exDayMenu"); if(m&&m.classList.contains("show")){ const w=document.querySelector(".daysel-wrap"); if(w&&!w.contains(e.target)) closeExDayMenu(); } }); }
   const es=document.getElementById("expSearch");
   if(es) es.addEventListener("keydown",e=>{ if(e.key==="Enter"){ e.preventDefault(); exploreState.query=es.value.trim(); renderExplore(); } });
   { const eb=document.getElementById("expSearchBtn"); if(eb&&es) eb.onclick=()=>{ exploreState.query=es.value.trim(); renderExplore(); }; }
