@@ -3105,7 +3105,7 @@ const DEFAULT_S={ version:"0.2.0", settings:{ lang:"fr", theme:"system", units:"
 /* Clé Maps JS partagée (restreinte au domaine GitHub Pages). Repli : clé perso de l'utilisateur si fournie. */
 const SHARED_MAP_KEY="AIzaSyCt5iVx8nPr1V067A3daE0X1YA568XJNbU";
 function mapKey(){ return (S.settings.mapKey||"").trim() || SHARED_MAP_KEY; }
-const BUILD="0.3.12 · v553 diag-counts";
+const BUILD="0.3.13 · v554 diag-err";
 let S=loadState();
 function normalizeTrip(tr){ if(!tr||typeof tr!=="object") return tr;
   tr.id=tr.id||("t"+Date.now()+Math.random().toString(36).slice(2,7));
@@ -5655,7 +5655,7 @@ async function renderExplore(){
     const food={places:[].concat((foodA&&foodA.places)||[],(foodB&&foodB.places)||[])};
     const around=await exTyped(dest,dn,"tourist_attraction",t("cat.activities"));
     const shopsT=await gText(t("exp.shopsQa")+(dn?" "+dn:""),opt({pages:1}));
-    try{ const _c=o=>((o&&o.places)||[]).length; window._exDbg={rec:_c(rec),nat:_c(nature),cul:_c(culture),food:_c(food),shop:_c(shopsT),loc:hasLoc?1:0}; }catch(e){}
+    try{ const _c=o=>((o&&o.places)||[]).length; const _e=o=>(o&&o.error)||""; window._exDbg={rec:_c(rec),nat:_c(nature),cul:_c(culture),food:_c(food),shop:_c(shopsT),loc:hasLoc?1:0,err:(_e(rec)||_e(nature)||_e(culture)||_e(shopsT)||"")}; }catch(e){}
     const seen=new Set();
     const tstyles=(trip.styles&&trip.styles.length)?trip.styles:(trip.style?[trip.style]:[]);
     const contentStyles=tstyles.filter(s=>STYLE_MAP[s]).slice(0,4);
