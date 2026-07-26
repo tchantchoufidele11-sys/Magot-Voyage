@@ -348,6 +348,15 @@ nav.tabs button.active .ico{background:var(--navy);color:#fff;box-shadow:0 6px 1
 .page-sub{color:var(--muted);font-size:clamp(12.7px,3.462vw,13.5px);margin:3px 0 0}
 .round-act{width:44px;height:44px;border-radius:50%;border:1px solid var(--line);background:var(--surface);display:flex;align-items:center;justify-content:center;cursor:pointer;color:var(--ink-2);flex:0 0 auto;box-shadow:var(--shadow-sm)}
 .round-act svg{width:19px;height:19px;stroke:currentColor;fill:none;stroke-width:1.9;stroke-linecap:round;stroke-linejoin:round}
+.daysel-wrap{position:relative;flex:0 0 auto}
+.daysel{display:flex;flex-direction:column;align-items:center;gap:2px;border:1px solid var(--line);background:var(--surface);border-radius:14px;padding:5px 9px;cursor:pointer;color:var(--ink-2);box-shadow:var(--shadow-sm);min-width:54px}
+.daysel svg{width:18px;height:18px;stroke:currentColor;fill:none;stroke-width:1.9;stroke-linecap:round;stroke-linejoin:round}
+.daysel.on{border-color:var(--ink);color:var(--ink)}
+.daysel>span{font:700 10px "Inter",sans-serif;color:var(--ink);max-width:72px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.daysel-menu{position:absolute;top:100%;right:0;margin-top:8px;background:var(--surface);border:1px solid var(--line);border-radius:14px;box-shadow:0 8px 26px rgba(14,33,72,.16);padding:6px;z-index:2000;display:none;min-width:190px;max-height:58vh;overflow-y:auto}
+.daysel-menu.show{display:block}
+.daysel-menu button{display:block;width:100%;text-align:left;padding:9px 12px;border:none;background:none;border-radius:9px;font:500 13.5px "Inter",sans-serif;color:var(--ink);cursor:pointer;white-space:nowrap}
+.daysel-menu button.on{background:var(--surface-2);font-weight:700}
 .exp-search{display:flex;align-items:center;gap:10px;background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:12px 14px;margin-bottom:14px}
 .exp-search svg{width:18px;height:18px;stroke:var(--muted);fill:none;stroke-width:2;flex:0 0 auto}
 .exp-search input{flex:1;min-width:0;border:0;background:none;font:500 14.5px "Inter",sans-serif;font-size:max(16px,clamp(13.6px,3.718vw,14.5px));color:var(--ink);outline:none}
@@ -359,6 +368,9 @@ nav.tabs button.active .ico{background:var(--navy);color:#fff;box-shadow:0 6px 1
   stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round;color:var(--gold-d,#C2872A)}
 .chips-scroll>.chip.on svg{color:currentColor}
 .chips-scroll::-webkit-scrollbar{display:none}
+.exp-cats-row{display:flex;align-items:center;gap:10px;margin-bottom:16px}
+.exp-cats-row #expCats{flex:1 1 auto;margin-bottom:0}
+.exp-cats-row #expFilter{flex:0 0 auto}
 .chips-scroll .chip{flex:0 0 auto}
 .exp-sec{margin-bottom:22px}
 .exp-sec .rowhead{margin-bottom:12px}
@@ -2851,10 +2863,16 @@ body.dragging-on{-webkit-user-select:none;user-select:none}
     <section class="view" id="view-explore">
       <div class="page-head">
         <div><h1 class="page-title" data-i18n="nav.explore">Explorer</h1><p class="page-sub" data-i18n="exp.subtitle">Découvrez les meilleurs lieux autour de vous</p></div>
-        <button class="round-act" id="expFilter" aria-label="Filtres"><svg viewBox="0 0 24 24"><path d="M4 6h16M7 12h10M10 18h4"/></svg></button>
+        <div class="daysel-wrap">
+          <button class="daysel" id="exDayBtn" aria-label="Jour du planning"><svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="17" rx="2"/><path d="M3 9h18M8 2v4M16 2v4"/></svg><span id="exDayLbl">Réserve</span></button>
+          <div id="exDayMenu" class="daysel-menu"></div>
+        </div>
       </div>
       <div class="exp-search"><svg id="expSearchBtn" style="cursor:pointer" viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="m21 21-4-4"/></svg><input id="expSearch" data-i18n-ph="exp.searchPh" placeholder="Rechercher un lieu, une activité…" autocomplete="off"></div>
-      <div class="chips chips-scroll" id="expCats"></div>
+      <div class="exp-cats-row">
+        <div class="chips chips-scroll" id="expCats"></div>
+        <button class="round-act" id="expFilter" aria-label="Filtres"><svg viewBox="0 0 24 24"><path d="M4 6h16M7 12h10M10 18h4"/></svg></button>
+      </div>
       <button class="dt-open-btn" id="dtOpenBtn">🇫🇷 <span data-i18n="dt.official">Lieux officiels France</span><i aria-hidden="true">›</i></button>
       <div id="expRadius"></div>
       <div id="exploreResults"></div>
@@ -3105,7 +3123,7 @@ const DEFAULT_S={ version:"0.2.0", settings:{ lang:"fr", theme:"system", units:"
 /* Clé Maps JS partagée (restreinte au domaine GitHub Pages). Repli : clé perso de l'utilisateur si fournie. */
 const SHARED_MAP_KEY="AIzaSyCt5iVx8nPr1V067A3daE0X1YA568XJNbU";
 function mapKey(){ return (S.settings.mapKey||"").trim() || SHARED_MAP_KEY; }
-const BUILD="0.3.20 · v561 filter-label";
+const BUILD="0.3.22 · v563 day-selector";
 let S=loadState();
 function normalizeTrip(tr){ if(!tr||typeof tr!=="object") return tr;
   tr.id=tr.id||("t"+Date.now()+Math.random().toString(36).slice(2,7));
@@ -5631,7 +5649,7 @@ async function dtVerify(places,dest){
 async function renderExplore(){
   _subFetchKey=""; _subFetchSecs=null; _exMore=12; _exMorePending=false; _exMoreFn=null; _exMoreBusy=false;
   { const db=document.getElementById("dtOpenBtn"); if(db){ db.onclick=openDataTourisme; db.style.display=(_exploreCC()==="FR")?"":"none"; } }
-  renderExploreChips(); renderExploreRadius();
+  renderExDay(); renderExploreChips(); renderExploreRadius();
   { const fb=document.getElementById("expFilter"); if(fb) fb.classList.toggle("on", exFilterActive()); }
   { const _es=document.getElementById("expSearch"); if(_es) _es.placeholder=(exploreState.cat==="shops")?t("exp.shopsPh"):((exploreState.cat==="restaurants")?t("exp.restoPh"):t("exp.searchPh")); }
   const box=document.getElementById("exploreResults"); if(!box) return;
@@ -5733,6 +5751,42 @@ async function renderExplore(){
   }catch(e){ box.innerHTML=`<div class="empty" style="padding:28px 8px"><p>${t("exp.error")}</p></div>`; }
 }
 function afterExplore(box){ bindPlaceCards(box); const k=box.querySelector("#expKey"); if(k) k.onclick=openSettings; }
+/* ===== Sélecteur de jour d'Explore : choisir un jour -> l'ancre suit (hôtel du jour) ET
+   l'ajout d'un lieu va dans ce jour du Planning (trip.plan) EN PLUS du répertoire (trip.places).
+   null = "Répertoire seul" (comportement historique). ===== */
+let _exAddDay=null;
+function exploreDayIndex(){ const tr=currentTrip(); if(!tr||_exAddDay==null) return 0; const nd=tripDays(tr).length; return (_exAddDay>=0&&_exAddDay<nd)?_exAddDay:0; }
+function _exDayShort(i){ const D={fr:"Jour",en:"Day",es:"Día",it:"Giorno",de:"Tag"}[lang()]||"Jour"; return D+" "+(i+1); }
+function _exDayLong(i){ const tr=currentTrip(); if(!tr) return _exDayShort(i); const dd=tripDays(tr)[i]; return _exDayShort(i)+((dd&&dd.date)?(" · "+dayWk(dd)+" "+dayNum(dd)):""); }
+function renderExDay(){ const lbl=document.getElementById("exDayLbl"); if(!lbl) return;
+  const tr=currentTrip(); const nd=tr?tripDays(tr).length:0;
+  if(_exAddDay!=null && (_exAddDay<0||_exAddDay>=nd)) _exAddDay=null;
+  const RES={fr:"Réserve",en:"Saved",es:"Reserva",it:"Lista",de:"Liste"}[lang()]||"Réserve";
+  lbl.textContent=(_exAddDay==null)?RES:_exDayShort(_exAddDay);
+  const btn=document.getElementById("exDayBtn"); if(btn) btn.classList.toggle("on",_exAddDay!=null); }
+function closeExDayMenu(){ const m=document.getElementById("exDayMenu"); if(m) m.classList.remove("show"); }
+function toggleExDayMenu(){ const m=document.getElementById("exDayMenu"); if(!m) return; if(m.classList.contains("show")){ m.classList.remove("show"); return; }
+  const tr=currentTrip(); const ds=tr?tripDays(tr):[];
+  const RES={fr:"Répertoire seul",en:"Saved only",es:"Solo reserva",it:"Solo lista",de:"Nur Liste"}[lang()]||"Répertoire seul";
+  let h=`<button type="button" data-exday="" class="${_exAddDay==null?'on':''}">${RES}</button>`;
+  ds.forEach(dd=>{ h+=`<button type="button" data-exday="${dd.i}" class="${_exAddDay===dd.i?'on':''}">${escapeHtml(_exDayLong(dd.i))}</button>`; });
+  m.innerHTML=h;
+  m.querySelectorAll("[data-exday]").forEach(el=>el.onclick=()=>{ const v=el.dataset.exday; _exAddDay=(v==="")?null:(+v); closeExDayMenu(); renderExDay(); renderExplore(); });
+  m.classList.add("show"); }
+/* Ajout depuis Explore : répertoire (toujours) + jour choisi (si présent). */
+function exAddPlace(p){ const tr=currentTrip(); if(!tr||!p) return;
+  addPlaceToTrip(p);   // trip.places (idempotent ; toast "ajouté" si nouveau)
+  if(_exAddDay!=null){ tr.plan=tr.plan||[];
+    if(!tr.plan.some(s=>s.day===_exAddDay && s.placeId===p.id)){
+      const isResto=/restaurant|caf[eé]|\bbar\b|food|bakery|bistro|brasserie|meal/i.test(((p.primaryType||"")+" "+((p.types||[]).join(" "))).toLowerCase());
+      const kind=isResto?"meal":"place";
+      tr.plan.push({id:uid(),day:_exAddDay,time:nextTimeFor(tr,_exAddDay),title:p.name,sub:p.primaryType||"",subLang:(p.lang0||lang()),kind:kind,placeId:p.id,lat:p.lat,lng:p.lng,price:p.price||"",hours:p.hours||[],dur:(KIND_DUR[kind]||90),done:false});
+      saveState();
+    }
+    const M={fr:"Ajouté au ",en:"Added to ",es:"Añadido al ",it:"Aggiunto al ",de:"Hinzugefügt: "}[lang()]||"Ajouté au ";
+    toast(M+_exDayShort(_exAddDay));
+    try{ if(typeof renderPlan==="function") renderPlan(); }catch(e){}
+  } }
 let _exFilterLoading=false;   /* vrai pendant qu'une categorie choisie dans le filtre se charge */
 function renderExpFilter(){ const b=document.getElementById("expFilterBody"); if(!b) return;
   document.getElementById("expFilterHd").textContent=t("exp.filters");
@@ -5844,7 +5898,7 @@ function openPlace(p,mode){ if(!p) return; mode=mode||"explore"; openPlaceObj=p;
     <div class="fld2" style="margin-top:10px">${p.mapsUri?`<a class="btn navy" style="flex:1" href="${escapeHtml(p.mapsUri)}" target="_blank" rel="noopener" onclick="event.preventDefault();openExt(this.href)">${t("place.maps")}</a>`:""}${p.website?`<a class="btn" style="flex:1;background:var(--surface);color:var(--ink);border:1px solid var(--line)" href="${escapeHtml(p.website)}" target="_blank" rel="noopener" onclick="event.preventDefault();openExt(this.href)">${t("place.website")}</a>`:""}</div>
     ${phoneHtml}${_cred}<div style="height:18px"></div>`;
   if(mode==="hotel"){ const ch=b.querySelector("#pChoose"); if(ch) ch.onclick=()=>selectHotel(p); }
-  else { const add=b.querySelector("#pAdd"); if(add&&!inTrip) add.onclick=()=>{ addPlaceToTrip(p); openPlace(p); }; const rem=b.querySelector("#pRemove"); if(rem) rem.onclick=()=>{ removePlaceFromTrip(p); openPlace(p); };
+  else { const add=b.querySelector("#pAdd"); if(add&&!inTrip) add.onclick=()=>{ exAddPlace(p); openPlace(p); }; const rem=b.querySelector("#pRemove"); if(rem) rem.onclick=()=>{ removePlaceFromTrip(p); openPlace(p); };
     const meal=b.querySelector("#pMeal"); if(meal) meal.onclick=()=>addRestaurantMeal(p);
     const nr=b.querySelector("#pNearResto"); if(nr) nr.onclick=()=>openNearbyRestaurants(p.lat,p.lng,p.name); }
   { const _pcCur=(currentTrip()&&currentTrip().currency)||"EUR"; loadPriceCommunity(p.id,_pcCur,p.name); }
@@ -12867,6 +12921,8 @@ function init(){
   document.getElementById("memFile").addEventListener("change",e=>{ addMemPhotos(e.target.files,false); e.target.value=""; });
   document.getElementById("memCamera").addEventListener("change",e=>{ addMemPhotos(e.target.files,true); e.target.value=""; });
   document.getElementById("expFilter").onclick=openExpFilter;
+  { const db=document.getElementById("exDayBtn"); if(db) db.onclick=(e)=>{ e.stopPropagation(); toggleExDayMenu(); }; }
+  document.addEventListener("click",(e)=>{ const m=document.getElementById("exDayMenu"); if(m&&m.classList.contains("show")){ const w=document.querySelector(".daysel-wrap"); if(w&&!w.contains(e.target)) closeExDayMenu(); } });
   const es=document.getElementById("expSearch");
   if(es) es.addEventListener("keydown",e=>{ if(e.key==="Enter"){ e.preventDefault(); exploreState.query=es.value.trim(); renderExplore(); } });
   { const eb=document.getElementById("expSearchBtn"); if(eb&&es) eb.onclick=()=>{ exploreState.query=es.value.trim(); renderExplore(); }; }
