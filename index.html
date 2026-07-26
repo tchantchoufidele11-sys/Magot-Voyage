@@ -3105,7 +3105,7 @@ const DEFAULT_S={ version:"0.2.0", settings:{ lang:"fr", theme:"system", units:"
 /* Clé Maps JS partagée (restreinte au domaine GitHub Pages). Repli : clé perso de l'utilisateur si fournie. */
 const SHARED_MAP_KEY="AIzaSyCt5iVx8nPr1V067A3daE0X1YA568XJNbU";
 function mapKey(){ return (S.settings.mapKey||"").trim() || SHARED_MAP_KEY; }
-const BUILD="0.3.16 · v557 free-gallery";
+const BUILD="0.3.17 · v558 dt-verify";
 let S=loadState();
 function normalizeTrip(tr){ if(!tr||typeof tr!=="object") return tr;
   tr.id=tr.id||("t"+Date.now()+Math.random().toString(36).slice(2,7));
@@ -5597,6 +5597,36 @@ function renderExploreChips(){ const el=document.getElementById("expCats"); if(!
 function renderExploreRadius(){ const el=document.getElementById("expRadius"); if(!el) return;
   el.innerHTML=`<div class="hotel-rad"><div class="hrad-top"><span class="hpx-lab">${t("hotel.radius")}</span><span class="hrad-val">${_exploreRadiusKm} km</span></div><div class="hrad-ends"><span>5 km</span><span>150 km</span></div><input type="range" id="exRadSlider" min="5" max="150" step="5" value="${_exploreRadiusKm}"></div>`;
   const sl=el.querySelector("#exRadSlider"); if(sl){ sl.oninput=()=>{ _exploreRadiusKm=+sl.value; const v=el.querySelector(".hrad-val"); if(v) v.textContent=_exploreRadiusKm+" km"; }; sl.onchange=()=>{ _exRadiusUserSet=true; renderExplore(); }; } }
+/* Vérificateur de type DATAtourisme (France) — dernier recours pour les lieux AMBIGUS d'une vue
+   parcs : tagués park par Google, inconnus de Foursquare, nom non révélateur (sinon catOf les
+   aurait déjà mis en culture). 1 seul appel DATAtourisme pour la zone. Si un lieu correspond
+   (nom + proximité <=200 m) et que son @type officiel est CULTUREL (monument/édifice/religieux)
+   sans être parc -> on le retire de "Parcs". Asymétrique : aucune correspondance ou type parc ->
+   on garde Google. France uniquement (DATAtourisme est franco-français). */
+const _dtNorm=s=>String(s||"").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g,"").replace(/[^a-z0-9 ]/g," ").replace(/\s+/g," ").trim();
+function _dtIsCulture(types){ const s=(types||[]).join(" ").toLowerCase(); return /culturalsite|remarkablebuilding|religioussite|religiousplace|commemorat|museum|castle|monument|memorial|archaeolog|church|cathedral|chapel|abbey|basilica|heritage|historic|patrimoine|religieux|edifice/.test(s); }
+function _dtIsPark(types){ const s=(types||[]).join(" ").toLowerCase(); return /parkandgarden|\bgarden\b|\bpark\b|naturalheritage|jardin|\bparc\b/.test(s); }
+async function dtVerify(places,dest){
+  try{
+    if(!places||!places.length||!dest||dest.lat==null) return;
+    const cc=(typeof _exploreCC==="function")?_exploreCC():"";
+    if(cc && cc!=="FR") return;
+    const amb=places.filter(p=>p&&!p._fsq&&p.lat!=null&&p._dtChecked!==true);
+    if(!amb.length) return;
+    amb.forEach(p=>{ p._dtChecked=true; });
+    const R=Math.min(Math.max(_exploreRadiusKm||10,5),30);
+    const dt=await fetchDataTourisme(dest.lat,dest.lng,R);
+    const lieux=(dt&&dt.lieux)||[]; if(!lieux.length) return;
+    const rm=new Set();
+    amb.forEach(p=>{ const pn=_dtNorm(p.name||""); if(!pn) return;
+      const hit=lieux.find(l=>{ if(l.lat==null) return false;
+        if(haversineKm({lat:p.lat,lng:p.lng},{lat:+l.lat,lng:+l.lng})>0.2) return false;
+        const ln=_dtNorm(l.nom||""); return !!ln&&(ln===pn||(pn.length>=6&&(ln.includes(pn)||pn.includes(ln)))); });
+      if(hit&&_dtIsCulture(hit.types)&&!_dtIsPark(hit.types)) rm.add(p.id);
+    });
+    if(rm.size){ for(let i=places.length-1;i>=0;i--){ if(rm.has(places[i].id)) places.splice(i,1); } }
+  }catch(e){}
+}
 async function renderExplore(){
   _subFetchKey=""; _subFetchSecs=null; _exMore=12; _exMorePending=false; _exMoreFn=null; _exMoreBusy=false;
   { const db=document.getElementById("dtOpenBtn"); if(db) db.onclick=openDataTourisme; }
@@ -5643,6 +5673,7 @@ async function renderExplore(){
       if(TOURISTIC_CATS.has(c.k)){
         await fsqTag([places],dest,_exploreRadiusKm);   // ETAPE 3 : autorite FSQ en vue categorie
         _fsqFilterInPlace(places,c.k);                   // retire monuments/sport/etc mal classes ici
+        if(c.k==="parkgarden") await dtVerify(places,dest);  // dernier recours : DATAtourisme (France) reclasse les monuments notables tagués parc
         await exFreePhotos(places);
       }
       _exSections=[{title:t("cat."+c.k),res,places,layout:"grid"}]; paintExplore(); return; }
@@ -5663,6 +5694,7 @@ async function renderExplore(){
     await fsqTag([recPlaces,naturePlaces,foodPlaces],dest,_exploreRadiusKm);
     [recPlaces,naturePlaces].forEach(a=>_fsqFilterInPlace(a,"divers"));
     _fsqFilterInPlace(foodPlaces,"restaurants");
+    await dtVerify(naturePlaces,dest);   // dernier recours DATAtourisme (France) sur la section Nature
     { const _f=[]; [recPlaces,naturePlaces].forEach(s=>(s||[]).slice(0,16).forEach(x=>_f.push(x))); await exFreePhotos(_f,_f.length); }
     _exSections=[
         {title:t("exp.recommended"),places:recPlaces,layout:"scroll"},
