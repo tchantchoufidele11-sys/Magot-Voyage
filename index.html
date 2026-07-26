@@ -3105,7 +3105,7 @@ const DEFAULT_S={ version:"0.2.0", settings:{ lang:"fr", theme:"system", units:"
 /* Clé Maps JS partagée (restreinte au domaine GitHub Pages). Repli : clé perso de l'utilisateur si fournie. */
 const SHARED_MAP_KEY="AIzaSyCt5iVx8nPr1V067A3daE0X1YA568XJNbU";
 function mapKey(){ return (S.settings.mapKey||"").trim() || SHARED_MAP_KEY; }
-const BUILD="0.3.15 · v556 lazy-explore";
+const BUILD="0.3.16 · v557 free-gallery";
 let S=loadState();
 function normalizeTrip(tr){ if(!tr||typeof tr!=="object") return tr;
   tr.id=tr.id||("t"+Date.now()+Math.random().toString(36).slice(2,7));
@@ -5758,6 +5758,7 @@ function openPriceForm(placeId,placeName,currency){ const box=document.getElemen
 function openPlace(p,mode){ if(!p) return; mode=mode||"explore"; openPlaceObj=p; openPlaceMode=mode; const trip=currentTrip(), inTrip=!!(trip&&trip.places&&trip.places.some(x=>x.id===p.id));
   document.getElementById("placeHd").textContent=p.name;
   const _free=p._freePhoto;
+  const _fg=(p._freeGallery&&p._freeGallery.length>=2)?p._freeGallery.slice(0,4):null;
   const ph=_free?`background-image:url('${_free.url}')`:(p.photo?`background-image:url('${gPhoto(p.photo,800)}')`:`background:${COVERS[hashStr(p.id)%COVERS.length]}`);
   const pr=priceLabel(p.price);
   const isResto=isRestaurant(p);
@@ -5772,11 +5773,13 @@ function openPlace(p,mode){ if(!p) return; mode=mode||"explore"; openPlaceObj=p;
   const parkBtn=(mode!=="hotel" && p.lat!=null && _carTrip)
     ? `<button class="btn ghostline2 block" id="pPark" style="margin-top:10px">🅿️ ${t("park.btn")}</button>` : "";
   const b=document.getElementById("placeBody");
-  const galleryHtml=_free
-    ? `<div class="place-cover" style="${ph}"></div>`   /* photo gratuite : couverture unique, aucun appel Google, cohérent avec la vignette */
-    : ((p.photos&&p.photos.length>1)
-      ? `<div class="gallery">${p.photos.map((n,i)=>`<div class="gimg" data-lb="${i}" style="background-image:url('${gPhoto(n,700)}')"></div>`).join("")}</div>`
-      : `<div class="place-cover" ${p.photo?'data-lb="0"':''} style="${ph}"></div>`);
+  const galleryHtml=_fg
+    ? `<div class="gallery">${_fg.map((u,i)=>`<div class="gimg" data-lb="${i}" style="background-image:url('${u}')"></div>`).join("")}</div>`
+    : _free
+      ? `<div class="place-cover" data-lb="0" style="${ph}"></div>`   /* photo gratuite : couverture unique, agrandissable, cohérente avec la vignette */
+      : ((p.photos&&p.photos.length>1)
+        ? `<div class="gallery">${p.photos.map((n,i)=>`<div class="gimg" data-lb="${i}" style="background-image:url('${gPhoto(n,700)}')"></div>`).join("")}</div>`
+        : `<div class="place-cover" ${p.photo?'data-lb="0"':''} style="${ph}"></div>`);
   const hoursHtml=(p.hours&&p.hours.length)
     ? `<details class="hours"><summary>${t("place.hours")}</summary><div class="hours-list">${p.hours.map(h=>`<div>${escapeHtml(h)}</div>`).join("")}</div></details>` : "";
   const reviewsHtml=(p.reviews&&p.reviews.length)
@@ -5808,16 +5811,24 @@ function openPlace(p,mode){ if(!p) return; mode=mode||"explore"; openPlaceObj=p;
     const meal=b.querySelector("#pMeal"); if(meal) meal.onclick=()=>addRestaurantMeal(p);
     const nr=b.querySelector("#pNearResto"); if(nr) nr.onclick=()=>openNearbyRestaurants(p.lat,p.lng,p.name); }
   { const _pcCur=(currentTrip()&&currentTrip().currency)||"EUR"; loadPriceCommunity(p.id,_pcCur,p.name); }
-  { const _lbsrc=(p.photos&&p.photos.length)?p.photos:(p.photo?[p.photo]:[]);
+  { const _lbsrc=_fg?_fg:(_free?[_free.url]:((p.photos&&p.photos.length)?p.photos:(p.photo?[p.photo]:[])));
     b.querySelectorAll("[data-lb]").forEach(el=>el.onclick=()=>openLightbox(_lbsrc,+el.dataset.lb)); }
   { const pk=b.querySelector("#pPark"); if(pk) pk.onclick=()=>navToNearestParking(p.lat,p.lng,p.name); }
   document.getElementById("placeSheet").classList.add("show");
+  if(_free && !p._freeGallery && _free.source!=="datatourisme"){ freeGalleryOf(p).then(urls=>{ if(urls&&urls.length>=2){ p._freeGallery=urls; if(openPlaceObj===p && document.getElementById("placeSheet").classList.contains("show")) openPlace(p,mode); } }); }
   if(mode!=="hotel" && googleReady() && S.settings.autoTranslate!==false && ((p.lang0 && p.lang0!==lang()) || !p.reviews)){
     gDetails(p.id).then(fresh=>{ if(fresh && openPlaceObj===p){ Object.assign(p,fresh); persistPlace(p);
       if(document.getElementById("placeSheet").classList.contains("show")) openPlace(p,mode); } });
   }
 }
 function closePlace(){ document.getElementById("placeSheet").classList.remove("show"); openPlaceObj=null; }
+/* Galerie gratuite (Wikimedia) : appelee UNIQUEMENT a l'ouverture d'une fiche a photo gratuite.
+   Le worker renvoie jusqu'a 4 photos filtrees (parasites ecartes). Aucun appel Google. */
+async function freeGalleryOf(p){
+  try{ if(!p||p.lat==null||p.lng==null) return null; const nm=p.name||""; if(!nm) return null;
+    const j=await workerFetch("/photo/free",{lat:p.lat,lng:p.lng,q:nm,pays:(typeof _exploreCC==="function"?_exploreCC():""),lang:lang(),gallery:1});
+    return (j&&Array.isArray(j.gallery)&&j.gallery.length>=2)?j.gallery.slice(0,4):null;
+  }catch(e){ return null; } }
 /* ----- Visualiseur photo plein écran (lightbox) ----- */
 let _lbPhotos=[], _lbIdx=0;
 function openLightbox(photos,idx){ _lbPhotos=(photos||[]).filter(Boolean); if(!_lbPhotos.length) return;
@@ -5825,7 +5836,7 @@ function openLightbox(photos,idx){ _lbPhotos=(photos||[]).filter(Boolean); if(!_
   document.body.classList.add("map-locked"); document.getElementById("lightbox").classList.add("show"); }
 function lbRender(){ const img=document.getElementById("lbImg"); if(!img) return;
   try{ if(window._lbReset) window._lbReset(false); }catch(e){}
-  img.src=gPhoto(_lbPhotos[_lbIdx],1200);
+  { const _s=_lbPhotos[_lbIdx]; img.src=(typeof _s==="string"&&/^https?:\/\//.test(_s))?_s:gPhoto(_s,1200); }
   const c=document.getElementById("lbCount"); if(c) c.textContent=(_lbIdx+1)+" / "+_lbPhotos.length;
   const multi=_lbPhotos.length>1; ["lbPrev","lbNext"].forEach(id=>{ const e=document.getElementById(id); if(e) e.classList.toggle("hidden",!multi); }); }
 function lbNext(){ if(_lbPhotos.length<2) return; _lbIdx=(_lbIdx+1)%_lbPhotos.length; lbRender(); }
