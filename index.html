@@ -3105,7 +3105,7 @@ const DEFAULT_S={ version:"0.2.0", settings:{ lang:"fr", theme:"system", units:"
 /* Clé Maps JS partagée (restreinte au domaine GitHub Pages). Repli : clé perso de l'utilisateur si fournie. */
 const SHARED_MAP_KEY="AIzaSyCt5iVx8nPr1V067A3daE0X1YA568XJNbU";
 function mapKey(){ return (S.settings.mapKey||"").trim() || SHARED_MAP_KEY; }
-const BUILD="0.3.18 · v559 ux-polish";
+const BUILD="0.3.19 · v560 fiche-credit-fix + quota600";
 let S=loadState();
 function normalizeTrip(tr){ if(!tr||typeof tr!=="object") return tr;
   tr.id=tr.id||("t"+Date.now()+Math.random().toString(36).slice(2,7));
@@ -5821,7 +5821,8 @@ function openPlace(p,mode){ if(!p) return; mode=mode||"explore"; openPlaceObj=p;
     ? `<div class="reviews"><div class="rowhead"><h2>${t("place.reviewsTitle")}</h2></div>${p.reviews.map(r=>`<div class="rev"><div class="rev-top"><span class="rev-stars">${'★'.repeat(Math.max(1,Math.round(r.rating)))}</span><span class="rev-auth">${escapeHtml(r.author)}${r.when?' · '+escapeHtml(r.when):''}</span></div><div class="rev-txt">${escapeHtml(r.text.length>240?r.text.slice(0,240)+'…':r.text)}</div></div>`).join("")}</div>` : "";
   const phoneHtml=p.phone?`<div style="margin-top:10px"><a class="btn" style="width:100%;background:var(--surface);color:var(--ink);border:1px solid var(--line)" href="tel:${escapeHtml(p.phone.replace(/\s/g,''))}">${escapeHtml(p.phone)}</a></div>`:"";
   const _cred=(function(){ const bits=[];
-    const ph=_free?(_free.source==="datatourisme"?("Photo : DATAtourisme"+(_free.license?(" · "+_free.license):"")):("Photo : "+(_free.author||"Wikimedia Commons")+(_free.license?(" · "+_free.license):"")+" · Wikimedia Commons")):(p.photo?"Photos : Google":"");
+    const _au=(_free&&_free.author&&_free.author!=="Wikimedia Commons")?_free.author:"";
+    const ph=_free?(_free.source==="datatourisme"?("Photo : DATAtourisme"+(_free.license?(" · "+_free.license):"")):("Photo : "+(_au?_au+" · ":"")+"Wikimedia Commons"+(_free.license?(" · "+_free.license):""))):(p.photo?"Photos : Google":"");
     if(ph) bits.push(ph);
     if((p.reviews&&p.reviews.length)||(p.count||0)>0) bits.push("Avis : Google");
     if(p._fsq) bits.push("Lieu : Foursquare");
