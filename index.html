@@ -451,6 +451,17 @@ select.csel{width:100%;padding:13px 14px;border:1px solid var(--line);border-rad
 #expFilterSheet .bud-actions{margin-top:auto!important;position:sticky;bottom:0;
   padding:14px 0 max(14px,env(safe-area-inset-bottom));background:var(--bg);
   border-top:1px solid var(--line-soft,#EEF1F7)}
+/* ---------- Bottom-sheet du filtre Explore (façon Google Maps / TripAdvisor) ----------
+   PORTÉE STRICTE à #expFilterSheet : ne modifie AUCUN autre .sheet de l'app. */
+#expFilterBackdrop{position:fixed;inset:0;z-index:2999;background:rgba(15,23,42,.45);
+  opacity:0;visibility:hidden;transition:opacity .25s ease,visibility .25s ease}
+#expFilterBackdrop.show{opacity:1;visibility:visible}
+#expFilterSheet.botsheet{inset:auto;left:0;right:0;bottom:0;top:auto;height:auto;max-height:85vh;
+  border-radius:22px 22px 0 0;box-shadow:0 -10px 34px rgba(0,0,0,.20);will-change:transform}
+#expFilterSheet .sh-grip{flex:0 0 auto;display:flex;justify-content:center;padding:9px 0 2px;
+  cursor:grab;touch-action:none}
+#expFilterSheet .sh-grip>span{width:40px;height:5px;border-radius:999px;background:var(--line)}
+#expFilterSheet.botsheet .sh-head{padding-top:6px;border-top-left-radius:22px;border-top-right-radius:22px}
 .hrad-ends{display:flex;justify-content:space-between;margin:2px 2px -2px;
   font:600 10.5px "Inter",sans-serif;font-size:clamp(10px,2.7vw,10.8px);color:var(--muted)}
 .exp-loading{display:flex;align-items:center;gap:11px;color:var(--muted);padding:32px 6px;font-size:clamp(13.2px,3.59vw,14px)}
@@ -2930,7 +2941,9 @@ body.dragging-on{-webkit-user-select:none;user-select:none}
   <div class="sh-head"><h2 id="detailHd">—</h2><button class="sh-close" id="detailClose">✕</button></div>
   <div class="sh-body" id="detailBody"></div>
 </div>
-<div class="sheet" id="expFilterSheet">
+<div id="expFilterBackdrop"></div>
+<div class="sheet botsheet" id="expFilterSheet">
+  <div class="sh-grip" id="expFilterGrip"><span></span></div>
   <div class="sh-head"><h2 id="expFilterHd">Filtres</h2><button class="sh-close" id="expFilterClose">✕</button></div>
   <div class="sh-body" id="expFilterBody"></div>
 </div>
@@ -3092,7 +3105,7 @@ const DEFAULT_S={ version:"0.2.0", settings:{ lang:"fr", theme:"system", units:"
 /* Clé Maps JS partagée (restreinte au domaine GitHub Pages). Repli : clé perso de l'utilisateur si fournie. */
 const SHARED_MAP_KEY="AIzaSyCt5iVx8nPr1V067A3daE0X1YA568XJNbU";
 function mapKey(){ return (S.settings.mapKey||"").trim() || SHARED_MAP_KEY; }
-const BUILD="0.3.6 · v547 monument-names";
+const BUILD="0.3.7 · v548 filter-bottomsheet";
 let S=loadState();
 function normalizeTrip(tr){ if(!tr||typeof tr!=="object") return tr;
   tr.id=tr.id||("t"+Date.now()+Math.random().toString(36).slice(2,7));
@@ -5149,6 +5162,21 @@ function pcard(p,layout){
     <div class="pc-meta"><span class="chip-cat">${escapeHtml(p.primaryType||catLabel(p.types))}</span>${pr?`<span class="price">${pr}</span>`:""}${p.openNow!=null?`<span class="open ${p.openNow?"y":"n"}">${p.openNow?t("place.openNow"):t("place.closed")}</span>`:""}</div>${dist}${_pcardAttrib(p)}</div></div>`; }
 let _exSections=[]; const exFilter={minRating:0,px:new Set(),openNow:false,subcat:new Set()};
 function exFilterActive(){ return !!(exFilter.minRating||exFilter.px.size||exFilter.openNow||exFilter.subcat.size); }
+/* Compteur en direct pour le bouton "Voir les resultats (N)". Utilise EXACTEMENT le meme
+   predicat que paintExplore (exMatch note/prix/ouvert + sous-categories) sur les lieux charges.
+   Note : cocher une sous-categorie declenche un fetch a la validation -> le compteur en est un
+   minorant tant que le fetch n'a pas eu lieu (comme chez les concurrents). */
+function exFilterCount(){
+  try{
+    const secs=(typeof _subFetchSecs!=="undefined"&&_subFetchSecs)?_subFetchSecs:(_exSections||[]);
+    const _subs=subDefsFor(exploreState.cat);
+    const _subSel=(_subs&&exFilter.subcat&&exFilter.subcat.size)?_subs.filter(d=>exFilter.subcat.has(d.k)):null;
+    const seen=new Set(); let n=0;
+    for(const sec of secs){ let ps=(sec.places||[]).slice().filter(exMatch); if(_subSel) ps=ps.filter(p=>_subSel.some(d=>d.test(p)));
+      ps.forEach(p=>{ if(p&&p.id&&!seen.has(p.id)){ seen.add(p.id); n++; } }); }
+    return n;
+  }catch(e){ return 0; }
+}
 function exMatch(p){ const f=exFilter;
   if(f.minRating && (p.rating||0)<f.minRating) return false;
   if(f.px.size && !f.px.has(p.price)) return false;
@@ -5664,7 +5692,7 @@ function renderExpFilter(){ const b=document.getElementById("expFilterBody"); if
   b.innerHTML=subHtml+`<div class="fld"><label>${t("exp.fRating")}</label><div class="chips">${RAT.map(([v,l])=>`<button type="button" class="chip ${exFilter.minRating===v?'on':''}" data-rat="${v}">${l.indexOf("exp.")===0?t(l):l}</button>`).join("")}</div></div>
    ${exploreState.cat==="restaurants"?`<div class="fld"><label>${t("exp.fPrice")}</label><div class="chips">${PX.map(([k,l])=>`<button type="button" class="chip ${exFilter.px.has(k)?'on':''}" data-px="${k}">${l}</button>`).join("")}</div></div>`:""}
    <div class="fld"><label>${t("exp.fOpenNow")}</label><button type="button" class="filt-sw ${exFilter.openNow?'on':''}" data-opensw="1" role="switch" aria-checked="${exFilter.openNow?'true':'false'}"><span class="fsw-t">${t("exp.fOpenNow")}</span><span class="fsw-b"><i></i></span></button></div>
-   <div class="bud-actions" style="margin-top:18px"><button class="btn ghostline2" id="expFReset">${t("exp.fReset")}</button><button class="btn navy" id="expFApply">${t("exp.fApply")}</button></div><div style="height:18px"></div>`;
+   <div class="bud-actions" style="margin-top:18px"><button class="btn ghostline2" id="expFReset">${t("exp.fReset")}</button><button class="btn navy" id="expFApply">${t("exp.fApply")} (${exFilterCount()})</button></div><div style="height:18px"></div>`;
   b.querySelectorAll("[data-sub]").forEach(x=>x.onclick=()=>{ const k=x.dataset.sub; if(exFilter.subcat.has(k)) exFilter.subcat.delete(k); else exFilter.subcat.add(k); renderExpFilter(); });
   b.querySelectorAll("[data-rat]").forEach(x=>x.onclick=()=>{ exFilter.minRating=parseFloat(x.dataset.rat); renderExpFilter(); });
   b.querySelectorAll("[data-px]").forEach(x=>x.onclick=()=>{ const k=x.dataset.px; if(exFilter.px.has(k)) exFilter.px.delete(k); else exFilter.px.add(k); renderExpFilter(); });
@@ -5672,8 +5700,21 @@ function renderExpFilter(){ const b=document.getElementById("expFilterBody"); if
   b.querySelector("#expFReset").onclick=()=>{ exFilter.minRating=0; exFilter.px.clear(); exFilter.openNow=false; exFilter.subcat.clear(); renderExpFilter(); };
   b.querySelector("#expFApply").onclick=applySubFilter;
 }
-function openExpFilter(){ renderExpFilter(); document.getElementById("expFilterSheet").classList.add("show"); }
-function closeExpFilter(){ document.getElementById("expFilterSheet").classList.remove("show"); }
+function openExpFilter(){ renderExpFilter(); const bd=document.getElementById("expFilterBackdrop"); if(bd) bd.classList.add("show"); const s=document.getElementById("expFilterSheet"); if(s){ s.style.transform=""; s.classList.add("show"); } }
+function closeExpFilter(){ const s=document.getElementById("expFilterSheet"); if(s){ s.classList.remove("show"); s.style.transform=""; } const bd=document.getElementById("expFilterBackdrop"); if(bd) bd.classList.remove("show"); }
+/* Bottom-sheet : fermeture par le fond assombri, la croix et le glissement vers le bas. */
+(function(){
+  const s=document.getElementById("expFilterSheet"); if(!s) return;
+  const bd=document.getElementById("expFilterBackdrop"), grip=document.getElementById("expFilterGrip");
+  const head=s.querySelector(".sh-head"), closeBtn=document.getElementById("expFilterClose");
+  if(bd) bd.addEventListener("click",closeExpFilter);
+  if(closeBtn) closeBtn.addEventListener("click",closeExpFilter);
+  let startY=0,dy=0,drag=false;
+  const start=e=>{ drag=true; dy=0; startY=(e.touches?e.touches[0].clientY:e.clientY); s.style.transition="none"; };
+  const move=e=>{ if(!drag) return; const y=(e.touches?e.touches[0].clientY:e.clientY); dy=Math.max(0,y-startY); s.style.transform="translateY("+dy+"px)"; };
+  const end=()=>{ if(!drag) return; drag=false; s.style.transition=""; if(dy>90) closeExpFilter(); else s.style.transform=""; };
+  [grip,head].forEach(el=>{ if(!el) return; el.addEventListener("touchstart",start,{passive:true}); el.addEventListener("touchmove",move,{passive:true}); el.addEventListener("touchend",end); });
+})();
 
 /* ===================== PRIX COMMUNAUTAIRES (Supabase: price_reports) ===================== */
 const PCI={
