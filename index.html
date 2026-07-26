@@ -3092,7 +3092,7 @@ const DEFAULT_S={ version:"0.2.0", settings:{ lang:"fr", theme:"system", units:"
 /* Clé Maps JS partagée (restreinte au domaine GitHub Pages). Repli : clé perso de l'utilisateur si fournie. */
 const SHARED_MAP_KEY="AIzaSyCt5iVx8nPr1V067A3daE0X1YA568XJNbU";
 function mapKey(){ return (S.settings.mapKey||"").trim() || SHARED_MAP_KEY; }
-const BUILD="0.3.5 · v546 fsq-authority-3";
+const BUILD="0.3.6 · v547 monument-names";
 let S=loadState();
 function normalizeTrip(tr){ if(!tr||typeof tr!=="object") return tr;
   tr.id=tr.id||("t"+Date.now()+Math.random().toString(36).slice(2,7));
@@ -5438,7 +5438,7 @@ function catOf(p){ if(!p) return null; const ty=((p.types||[]).concat([p.ptype||
   if(isLodging(p)) return null;
   if(isEatery(p)&&!isAttraction(p)) return "restaurants";
   if(isShop(p)) return "shops";
-  if(/\bmonument\b|m[ée]morial|\bstatue\b|mausol[ée]e|c[ée]notaphe/.test(nm)) return "culture"; // monument dans un square -> culture, pas parc
+  if(/\bmonument\b|m[ée]morial|\bstatue\b|mausol[ée]e|c[ée]notaphe|aux victimes|aux morts|monument aux|comm[ée]morati|\bst[èe]le\b|ob[ée]lisque|arc de triomphe|morts pour la france/.test(nm)) return "culture"; // monument/mémorial (même au nom atypique) -> culture, pas parc
   if(has("beach")) return "beach";
   if(has("marina")||/marina|\bport\b|vieux[- ]port|harbou?r/.test(nm)) return "port";
   if(has("hiking_area")||/randonn|sentier|\btrail\b/.test(nm)) return "hiking";
