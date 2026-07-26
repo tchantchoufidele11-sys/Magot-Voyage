@@ -3105,7 +3105,7 @@ const DEFAULT_S={ version:"0.2.0", settings:{ lang:"fr", theme:"system", units:"
 /* Clé Maps JS partagée (restreinte au domaine GitHub Pages). Repli : clé perso de l'utilisateur si fournie. */
 const SHARED_MAP_KEY="AIzaSyCt5iVx8nPr1V067A3daE0X1YA568XJNbU";
 function mapKey(){ return (S.settings.mapKey||"").trim() || SHARED_MAP_KEY; }
-const BUILD="0.3.17 · v558 dt-verify";
+const BUILD="0.3.18 · v559 ux-polish";
 let S=loadState();
 function normalizeTrip(tr){ if(!tr||typeof tr!=="object") return tr;
   tr.id=tr.id||("t"+Date.now()+Math.random().toString(36).slice(2,7));
@@ -5135,12 +5135,13 @@ function fmtCount(n){ n=+n||0; const L=(typeof LOCALE!=='undefined'&&LOCALE[lang
   return (Math.round(n/100000)/10).toLocaleString(L)+'\u00a0M'; }
 function _pcardAttrib(p){
   const st="font-size:9px;line-height:1.2;color:var(--muted);opacity:.7;margin-top:5px";
-  const fsq=p._fsq?" \u00b7 Lieu : Foursquare":"";   // uniquement si FSQ a REELLEMENT apparie le lieu
+  /* Carte allegee : source photo + avis seulement. "Lieu : Foursquare" est deja couvert par le
+     footer d'ecran ("Powered by Foursquare", exige par l'EULA 2.2) et le credit complet de la
+     fiche -> inutile de l'empiler sur chaque carte. */
   if(p._freePhoto){ const src=(p._freePhoto.source==="datatourisme")?"DATAtourisme":"Wikimedia";
-    /* Carte : source courte. Auteur + licence complets -> dans la fiche (voir openPlace). */
-    return `<div style="${st}">Photo : ${src} \u00b7 Avis : Google${fsq}</div>`; }
-  if(p.photo) return `<div style="${st}">Photos, avis : Google${fsq}</div>`;
-  return p._fsq?`<div style="${st}">Lieu : Foursquare</div>`:""; }
+    return `<div style="${st}">Photo : ${src} \u00b7 Avis : Google</div>`; }
+  if(p.photo) return `<div style="${st}">Photos, avis : Google</div>`;
+  return ""; }
 function pcard(p,layout){
   const ph=p._freePhoto?`background-image:url('${p._freePhoto.url}')`:(p.photo?`background-image:url('${gPhoto(p.photo,500)}')`:`background:${COVERS[hashStr(p.id)%COVERS.length]}`);
   const attr=isAttraction(p);
@@ -5629,7 +5630,7 @@ async function dtVerify(places,dest){
 }
 async function renderExplore(){
   _subFetchKey=""; _subFetchSecs=null; _exMore=12; _exMorePending=false; _exMoreFn=null; _exMoreBusy=false;
-  { const db=document.getElementById("dtOpenBtn"); if(db) db.onclick=openDataTourisme; }
+  { const db=document.getElementById("dtOpenBtn"); if(db){ db.onclick=openDataTourisme; db.style.display=(_exploreCC()==="FR")?"":"none"; } }
   renderExploreChips(); renderExploreRadius();
   { const fb=document.getElementById("expFilter"); if(fb) fb.classList.toggle("on", exFilterActive()); }
   { const _es=document.getElementById("expSearch"); if(_es) _es.placeholder=(exploreState.cat==="shops")?t("exp.shopsPh"):((exploreState.cat==="restaurants")?t("exp.restoPh"):t("exp.searchPh")); }
@@ -5735,8 +5736,10 @@ function afterExplore(box){ bindPlaceCards(box); const k=box.querySelector("#exp
 let _exFilterLoading=false;   /* vrai pendant qu'une categorie choisie dans le filtre se charge */
 function renderExpFilter(){ const b=document.getElementById("expFilterBody"); if(!b) return;
   document.getElementById("expFilterHd").textContent=t("exp.filters");
-  /* Selecteur de CATEGORIES (toutes) : la barre du haut n'en garde que 4, le reste vit ici. */
-  const catHtml=`<div class="fld"><div class="chips">${CATS.map(c=>`<button type="button" class="chip ${exploreState.cat===c.k?'on':''}" data-cat2="${c.k}">${t("cat."+c.k)}</button>`).join("")}</div></div>`;
+  /* Selecteur de CATEGORIES : la barre du haut garde les 4 courantes (Tout/Culture/Restaurants/
+     Boutiques) ; le filtre montre LES AUTRES pour eviter la redondance. */
+  const _barCats=["all","culture","restaurants","shops"];
+  const catHtml=`<div class="fld"><div class="chips">${CATS.filter(c=>!_barCats.includes(c.k)).map(c=>`<button type="button" class="chip ${exploreState.cat===c.k?'on':''}" data-cat2="${c.k}">${t("cat."+c.k)}</button>`).join("")}</div></div>`;
   const _subs=subDefsFor(exploreState.cat);
   const subHtml=_subs?`<div class="fld"><label>${t("cat."+exploreState.cat)}</label><div class="chips">${_subs.map(d=>`<button type="button" class="chip ${exFilter.subcat.has(d.k)?'on':''}" data-sub="${d.k}">${t("sub."+d.k)}</button>`).join("")}</div></div>`:"";
   b.innerHTML=catHtml+subHtml+
