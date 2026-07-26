@@ -3105,7 +3105,7 @@ const DEFAULT_S={ version:"0.2.0", settings:{ lang:"fr", theme:"system", units:"
 /* Clé Maps JS partagée (restreinte au domaine GitHub Pages). Repli : clé perso de l'utilisateur si fournie. */
 const SHARED_MAP_KEY="AIzaSyCt5iVx8nPr1V067A3daE0X1YA568XJNbU";
 function mapKey(){ return (S.settings.mapKey||"").trim() || SHARED_MAP_KEY; }
-const BUILD="0.3.8 · v549 attribution-legal";
+const BUILD="0.3.9 · v550 explore-ui";
 let S=loadState();
 function normalizeTrip(tr){ if(!tr||typeof tr!=="object") return tr;
   tr.id=tr.id||("t"+Date.now()+Math.random().toString(36).slice(2,7));
@@ -5587,7 +5587,9 @@ const CAT_ICON={
   divers:'<path d="m12 3.6 2.5 5.4 5.9.7-4.4 4 1.2 5.8L12 16.6 6.8 19.5 8 13.7 3.6 9.7l5.9-.7z"/>'
 };
 function renderExploreChips(){ const el=document.getElementById("expCats"); if(!el) return;
-  el.innerHTML=CATS.map(c=>`<button class="chip ${exploreState.cat===c.k?'on':''}" data-cat="${c.k}"><svg viewBox="0 0 24 24">${CAT_ICON[c.k]||CAT_ICON.divers}</svg>${t("cat."+c.k)}</button>`).join("");
+  const BAR=["all","culture","restaurants","shops"]; let barCats=CATS.filter(c=>BAR.includes(c.k));
+  if(!BAR.includes(exploreState.cat)){ const ex=CATS.find(c=>c.k===exploreState.cat); if(ex) barCats=barCats.concat([ex]); }  /* montre la categorie active choisie via le filtre */
+  el.innerHTML=barCats.map(c=>`<button class="chip ${exploreState.cat===c.k?'on':''}" data-cat="${c.k}"><svg viewBox="0 0 24 24">${CAT_ICON[c.k]||CAT_ICON.divers}</svg>${t("cat."+c.k)}</button>`).join("");
   el.querySelectorAll("[data-cat]").forEach(b=>b.onclick=()=>{ exploreState.cat=b.dataset.cat; exploreState.query=""; exFilter.subcat.clear(); exFilter.px.clear(); _subFetchKey=""; _subFetchSecs=null; const s=document.getElementById("expSearch"); if(s) s.value=""; renderExplore(); }); }
 function renderExploreRadius(){ const el=document.getElementById("expRadius"); if(!el) return;
   el.innerHTML=`<div class="hotel-rad"><div class="hrad-top"><span class="hpx-lab">${t("hotel.radius")}</span><span class="hrad-val">${_exploreRadiusKm} km</span></div><div class="hrad-ends"><span>5 km</span><span>150 km</span></div><input type="range" id="exRadSlider" min="5" max="150" step="5" value="${_exploreRadiusKm}"></div>`;
@@ -5690,19 +5692,21 @@ async function renderExplore(){
 function afterExplore(box){ bindPlaceCards(box); const k=box.querySelector("#expKey"); if(k) k.onclick=openSettings; }
 function renderExpFilter(){ const b=document.getElementById("expFilterBody"); if(!b) return;
   document.getElementById("expFilterHd").textContent=t("exp.filters");
-  const RAT=[[0,"exp.fAny"],[3.5,"3,5+"],[4,"4,0+"],[4.5,"4,5+"]];
-  const PX=[["PRICE_LEVEL_INEXPENSIVE","€"],["PRICE_LEVEL_MODERATE","€€"],["PRICE_LEVEL_EXPENSIVE","€€€"],["PRICE_LEVEL_VERY_EXPENSIVE","€€€€"]];
+  /* Selecteur de CATEGORIES (toutes) : la barre du haut n'en garde que 4, le reste vit ici. */
+  const catHtml=`<div class="fld"><div class="chips">${CATS.map(c=>`<button type="button" class="chip ${exploreState.cat===c.k?'on':''}" data-cat2="${c.k}">${t("cat."+c.k)}</button>`).join("")}</div></div>`;
   const _subs=subDefsFor(exploreState.cat);
   const subHtml=_subs?`<div class="fld"><label>${t("cat."+exploreState.cat)}</label><div class="chips">${_subs.map(d=>`<button type="button" class="chip ${exFilter.subcat.has(d.k)?'on':''}" data-sub="${d.k}">${t("sub."+d.k)}</button>`).join("")}</div></div>`:"";
-  b.innerHTML=subHtml+`<div class="fld"><label>${t("exp.fRating")}</label><div class="chips">${RAT.map(([v,l])=>`<button type="button" class="chip ${exFilter.minRating===v?'on':''}" data-rat="${v}">${l.indexOf("exp.")===0?t(l):l}</button>`).join("")}</div></div>
-   ${exploreState.cat==="restaurants"?`<div class="fld"><label>${t("exp.fPrice")}</label><div class="chips">${PX.map(([k,l])=>`<button type="button" class="chip ${exFilter.px.has(k)?'on':''}" data-px="${k}">${l}</button>`).join("")}</div></div>`:""}
-   <div class="fld"><label>${t("exp.fOpenNow")}</label><button type="button" class="filt-sw ${exFilter.openNow?'on':''}" data-opensw="1" role="switch" aria-checked="${exFilter.openNow?'true':'false'}"><span class="fsw-t">${t("exp.fOpenNow")}</span><span class="fsw-b"><i></i></span></button></div>
+  b.innerHTML=catHtml+subHtml+
+   `<div class="fld"><label>${t("exp.fOpenNow")}</label><button type="button" class="filt-sw ${exFilter.openNow?'on':''}" data-opensw="1" role="switch" aria-checked="${exFilter.openNow?'true':'false'}"><span class="fsw-t">${t("exp.fOpenNow")}</span><span class="fsw-b"><i></i></span></button></div>
    <div class="bud-actions" style="margin-top:18px"><button class="btn ghostline2" id="expFReset">${t("exp.fReset")}</button><button class="btn navy" id="expFApply">${t("exp.fApply")} (${exFilterCount()})</button></div><div style="height:18px"></div>`;
+  /* Choisir une categorie : applique (recherche derriere le panneau) mais NE FERME PAS -> l'utilisateur
+     peut ensuite regler sous-cats / ouvert, voir le compteur, puis "Voir les resultats". (Interaction pt 2.) */
+  b.querySelectorAll("[data-cat2]").forEach(x=>x.onclick=()=>{ const k=x.dataset.cat2; if(k===exploreState.cat) return;
+    exploreState.cat=k; exploreState.query=""; exFilter.subcat.clear(); _subFetchKey=""; _subFetchSecs=null; const s=document.getElementById("expSearch"); if(s) s.value="";
+    renderExpFilter(); Promise.resolve(renderExplore()).then(()=>renderExpFilter()); });
   b.querySelectorAll("[data-sub]").forEach(x=>x.onclick=()=>{ const k=x.dataset.sub; if(exFilter.subcat.has(k)) exFilter.subcat.delete(k); else exFilter.subcat.add(k); renderExpFilter(); });
-  b.querySelectorAll("[data-rat]").forEach(x=>x.onclick=()=>{ exFilter.minRating=parseFloat(x.dataset.rat); renderExpFilter(); });
-  b.querySelectorAll("[data-px]").forEach(x=>x.onclick=()=>{ const k=x.dataset.px; if(exFilter.px.has(k)) exFilter.px.delete(k); else exFilter.px.add(k); renderExpFilter(); });
   b.querySelectorAll("[data-opensw]").forEach(x=>x.onclick=()=>{ exFilter.openNow=!exFilter.openNow; renderExpFilter(); });
-  b.querySelector("#expFReset").onclick=()=>{ exFilter.minRating=0; exFilter.px.clear(); exFilter.openNow=false; exFilter.subcat.clear(); renderExpFilter(); };
+  b.querySelector("#expFReset").onclick=()=>{ exFilter.openNow=false; exFilter.subcat.clear(); exFilter.minRating=0; exFilter.px.clear(); renderExpFilter(); };
   b.querySelector("#expFApply").onclick=applySubFilter;
 }
 function openExpFilter(){ renderExpFilter(); const bd=document.getElementById("expFilterBackdrop"); if(bd) bd.classList.add("show"); const s=document.getElementById("expFilterSheet"); if(s){ s.style.transform=""; s.classList.add("show"); } }
