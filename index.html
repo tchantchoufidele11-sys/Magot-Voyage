@@ -3105,7 +3105,7 @@ const DEFAULT_S={ version:"0.2.0", settings:{ lang:"fr", theme:"system", units:"
 /* Clé Maps JS partagée (restreinte au domaine GitHub Pages). Repli : clé perso de l'utilisateur si fournie. */
 const SHARED_MAP_KEY="AIzaSyCt5iVx8nPr1V067A3daE0X1YA568XJNbU";
 function mapKey(){ return (S.settings.mapKey||"").trim() || SHARED_MAP_KEY; }
-const BUILD="0.3.19 · v560 fiche-credit-fix + quota600";
+const BUILD="0.3.20 · v561 filter-label";
 let S=loadState();
 function normalizeTrip(tr){ if(!tr||typeof tr!=="object") return tr;
   tr.id=tr.id||("t"+Date.now()+Math.random().toString(36).slice(2,7));
@@ -5739,7 +5739,8 @@ function renderExpFilter(){ const b=document.getElementById("expFilterBody"); if
   /* Selecteur de CATEGORIES : la barre du haut garde les 4 courantes (Tout/Culture/Restaurants/
      Boutiques) ; le filtre montre LES AUTRES pour eviter la redondance. */
   const _barCats=["all","culture","restaurants","shops"];
-  const catHtml=`<div class="fld"><div class="chips">${CATS.filter(c=>!_barCats.includes(c.k)).map(c=>`<button type="button" class="chip ${exploreState.cat===c.k?'on':''}" data-cat2="${c.k}">${t("cat."+c.k)}</button>`).join("")}</div></div>`;
+  const _catLbl={fr:"Toutes les catégories",en:"All categories",es:"Todas las categorías",it:"Tutte le categorie",de:"Alle Kategorien"}[lang()]||"Toutes les catégories";
+  const catHtml=`<div class="fld"><label>${_catLbl}</label><div class="chips">${CATS.filter(c=>!_barCats.includes(c.k)).map(c=>`<button type="button" class="chip ${exploreState.cat===c.k?'on':''}" data-cat2="${c.k}">${t("cat."+c.k)}</button>`).join("")}</div></div>`;
   const _subs=subDefsFor(exploreState.cat);
   const subHtml=_subs?`<div class="fld"><label>${t("cat."+exploreState.cat)}</label><div class="chips">${_subs.map(d=>`<button type="button" class="chip ${exFilter.subcat.has(d.k)?'on':''}" data-sub="${d.k}">${t("sub."+d.k)}</button>`).join("")}</div></div>`:"";
   b.innerHTML=catHtml+subHtml+
