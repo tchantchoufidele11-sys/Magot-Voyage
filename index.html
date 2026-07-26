@@ -3105,7 +3105,7 @@ const DEFAULT_S={ version:"0.2.0", settings:{ lang:"fr", theme:"system", units:"
 /* Clé Maps JS partagée (restreinte au domaine GitHub Pages). Repli : clé perso de l'utilisateur si fournie. */
 const SHARED_MAP_KEY="AIzaSyCt5iVx8nPr1V067A3daE0X1YA568XJNbU";
 function mapKey(){ return (S.settings.mapKey||"").trim() || SHARED_MAP_KEY; }
-const BUILD="0.3.9 · v550 explore-ui";
+const BUILD="0.3.10 · v551 filter-loading";
 let S=loadState();
 function normalizeTrip(tr){ if(!tr||typeof tr!=="object") return tr;
   tr.id=tr.id||("t"+Date.now()+Math.random().toString(36).slice(2,7));
@@ -5690,6 +5690,7 @@ async function renderExplore(){
   }catch(e){ box.innerHTML=`<div class="empty" style="padding:28px 8px"><p>${t("exp.error")}</p></div>`; }
 }
 function afterExplore(box){ bindPlaceCards(box); const k=box.querySelector("#expKey"); if(k) k.onclick=openSettings; }
+let _exFilterLoading=false;   /* vrai pendant qu'une categorie choisie dans le filtre se charge */
 function renderExpFilter(){ const b=document.getElementById("expFilterBody"); if(!b) return;
   document.getElementById("expFilterHd").textContent=t("exp.filters");
   /* Selecteur de CATEGORIES (toutes) : la barre du haut n'en garde que 4, le reste vit ici. */
@@ -5698,12 +5699,12 @@ function renderExpFilter(){ const b=document.getElementById("expFilterBody"); if
   const subHtml=_subs?`<div class="fld"><label>${t("cat."+exploreState.cat)}</label><div class="chips">${_subs.map(d=>`<button type="button" class="chip ${exFilter.subcat.has(d.k)?'on':''}" data-sub="${d.k}">${t("sub."+d.k)}</button>`).join("")}</div></div>`:"";
   b.innerHTML=catHtml+subHtml+
    `<div class="fld"><label>${t("exp.fOpenNow")}</label><button type="button" class="filt-sw ${exFilter.openNow?'on':''}" data-opensw="1" role="switch" aria-checked="${exFilter.openNow?'true':'false'}"><span class="fsw-t">${t("exp.fOpenNow")}</span><span class="fsw-b"><i></i></span></button></div>
-   <div class="bud-actions" style="margin-top:18px"><button class="btn ghostline2" id="expFReset">${t("exp.fReset")}</button><button class="btn navy" id="expFApply">${t("exp.fApply")} (${exFilterCount()})</button></div><div style="height:18px"></div>`;
+   <div class="bud-actions" style="margin-top:18px"><button class="btn ghostline2" id="expFReset">${t("exp.fReset")}</button><button class="btn navy" id="expFApply">${t("exp.fApply")}${_exFilterLoading?` <span class="spin" style="display:inline-block;width:13px;height:13px;border-width:2px;vertical-align:-2px"></span>`:` (${exFilterCount()})`}</button></div><div style="height:18px"></div>`;
   /* Choisir une categorie : applique (recherche derriere le panneau) mais NE FERME PAS -> l'utilisateur
      peut ensuite regler sous-cats / ouvert, voir le compteur, puis "Voir les resultats". (Interaction pt 2.) */
   b.querySelectorAll("[data-cat2]").forEach(x=>x.onclick=()=>{ const k=x.dataset.cat2; if(k===exploreState.cat) return;
     exploreState.cat=k; exploreState.query=""; exFilter.subcat.clear(); _subFetchKey=""; _subFetchSecs=null; const s=document.getElementById("expSearch"); if(s) s.value="";
-    renderExpFilter(); Promise.resolve(renderExplore()).then(()=>renderExpFilter()); });
+    renderExpFilter(); _exFilterLoading=true; renderExpFilter(); Promise.resolve(renderExplore()).then(()=>{ _exFilterLoading=false; renderExpFilter(); }); });
   b.querySelectorAll("[data-sub]").forEach(x=>x.onclick=()=>{ const k=x.dataset.sub; if(exFilter.subcat.has(k)) exFilter.subcat.delete(k); else exFilter.subcat.add(k); renderExpFilter(); });
   b.querySelectorAll("[data-opensw]").forEach(x=>x.onclick=()=>{ exFilter.openNow=!exFilter.openNow; renderExpFilter(); });
   b.querySelector("#expFReset").onclick=()=>{ exFilter.openNow=false; exFilter.subcat.clear(); exFilter.minRating=0; exFilter.px.clear(); renderExpFilter(); };
