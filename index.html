@@ -7453,7 +7453,7 @@ function renderDayMap(stops,tr,day){ const el=document.getElementById("planMap")
         new google.maps.Polyline({path:_tp,map,strokeColor:"#0E2148",strokeOpacity:1,strokeWeight:4,zIndex:3,icons:[{icon:{path:google.maps.SymbolPath.FORWARD_CLOSED_ARROW,scale:2.4,strokeColor:"#ffffff",strokeWeight:1.2,fillColor:"#0E2148",fillOpacity:1},offset:"50%",repeat:"180px"}]});
         _tp.forEach(p=>boundsFull.extend(p)); }
       // Cadrage selon le mode : "local" (défaut, détail de la ville) ou "full" (trajet inter-villes).
-      fitMode=function(m){ el._transMode=m; const bb=(m==="full"&&boundsFull&&!boundsFull.isEmpty())?boundsFull:bounds; if(bb&&!bb.isEmpty()) map.fitBounds(bb,40); if(_modeBtn) _modeBtn.textContent=(m==="full")?("📍 "+t("map.modeLocal")):("🗺️ "+t("map.modeRoute")); };
+      fitMode=function(m){ el._transMode=m; const bb=(m==="full"&&boundsFull&&!boundsFull.isEmpty())?boundsFull:bounds; if(bb&&!bb.isEmpty()) map.fitBounds(bb,(m==="full")?40:{top:74,right:54,bottom:52,left:54}); if(_modeBtn) _modeBtn.textContent=(m==="full")?("📍 "+t("map.modeLocal")):("🗺️ "+t("map.modeRoute")); };
       // Bouton bascule : uniquement s'il y a AUSSI des visites locales à montrer (sinon le mode local n'a rien à afficher).
       const _wrap=document.getElementById("mapWrap");
       if(pts.length && _wrap){ const _old=_wrap.querySelector(".map-modebtn"); if(_old) _old.remove();
