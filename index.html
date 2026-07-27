@@ -368,10 +368,10 @@ nav.tabs button.active .ico{background:var(--navy);color:#fff;box-shadow:0 6px 1
   stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round;color:var(--gold-d,#C2872A)}
 .chips-scroll>.chip.on svg{color:currentColor}
 .chips-scroll::-webkit-scrollbar{display:none}
-.exp-cats-row{display:flex;flex-wrap:wrap;align-items:center;gap:7px;margin-bottom:16px}
-.exp-cats-row #expCats{display:contents}
+.exp-cats-row{margin-bottom:16px}
+.exp-cats-row #expCats{display:flex;flex-wrap:wrap;align-items:center;gap:7px;margin-bottom:0;overflow:visible}
 .exp-cats-row #expCats .chip{flex:0 0 auto}
-.exp-cats-row #expFilter{flex:0 0 auto}
+.exp-cats-row #expCats #expFilter{flex:0 0 auto;width:38px;height:38px;padding:0}
 .chips-scroll .chip{flex:0 0 auto}
 .exp-sec{margin-bottom:22px}
 .exp-sec .rowhead{margin-bottom:12px}
@@ -2872,7 +2872,6 @@ body.dragging-on{-webkit-user-select:none;user-select:none}
       <div class="exp-search"><svg id="expSearchBtn" style="cursor:pointer" viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="m21 21-4-4"/></svg><input id="expSearch" data-i18n-ph="exp.searchPh" placeholder="Rechercher un lieu, une activité…" autocomplete="off"></div>
       <div class="exp-cats-row">
         <div class="chips chips-scroll" id="expCats"></div>
-        <button class="round-act" id="expFilter" aria-label="Filtres"><svg viewBox="0 0 24 24"><path d="M4 6h16M7 12h10M10 18h4"/></svg></button>
       </div>
       <button class="dt-open-btn" id="dtOpenBtn">🇫🇷 <span data-i18n="dt.official">Lieux officiels France</span><i aria-hidden="true">›</i></button>
       <div id="expRadius"></div>
@@ -3124,7 +3123,7 @@ const DEFAULT_S={ version:"0.2.0", settings:{ lang:"fr", theme:"system", units:"
 /* Clé Maps JS partagée (restreinte au domaine GitHub Pages). Repli : clé perso de l'utilisateur si fournie. */
 const SHARED_MAP_KEY="AIzaSyCt5iVx8nPr1V067A3daE0X1YA568XJNbU";
 function mapKey(){ return (S.settings.mapKey||"").trim() || SHARED_MAP_KEY; }
-const BUILD="0.3.24 · v565 filter-spacing";
+const BUILD="0.3.26 · v567 filter-inflow";
 let S=loadState();
 function normalizeTrip(tr){ if(!tr||typeof tr!=="object") return tr;
   tr.id=tr.id||("t"+Date.now()+Math.random().toString(36).slice(2,7));
@@ -5612,8 +5611,13 @@ const CAT_ICON={
 function renderExploreChips(){ const el=document.getElementById("expCats"); if(!el) return;
   const BAR=["all","culture","restaurants","shops"]; let barCats=CATS.filter(c=>BAR.includes(c.k));
   if(!BAR.includes(exploreState.cat)){ const ex=CATS.find(c=>c.k===exploreState.cat); if(ex) barCats=barCats.concat([ex]); }  /* montre la categorie active choisie via le filtre */
-  el.innerHTML=barCats.map(c=>`<button class="chip ${exploreState.cat===c.k?'on':''}" data-cat="${c.k}"><svg viewBox="0 0 24 24">${CAT_ICON[c.k]||CAT_ICON.divers}</svg>${t("cat."+c.k)}</button>`).join("");
-  el.querySelectorAll("[data-cat]").forEach(b=>b.onclick=()=>{ exploreState.cat=b.dataset.cat; exploreState.query=""; exFilter.subcat.clear(); exFilter.px.clear(); _subFetchKey=""; _subFetchSecs=null; const s=document.getElementById("expSearch"); if(s) s.value=""; renderExplore(); }); }
+  const FBTN=`<button class="round-act" id="expFilter" aria-label="Filtres"><svg viewBox="0 0 24 24"><path d="M4 6h16M7 12h10M10 18h4"/></svg></button>`;
+  let html="", fput=false;
+  barCats.forEach(c=>{ html+=`<button class="chip ${exploreState.cat===c.k?'on':''}" data-cat="${c.k}"><svg viewBox="0 0 24 24">${CAT_ICON[c.k]||CAT_ICON.divers}</svg>${t("cat."+c.k)}</button>`; if(c.k==="restaurants"){ html+=FBTN; fput=true; } });
+  if(!fput) html+=FBTN;   /* sécurité : si restaurants absent, filtre en fin */
+  el.innerHTML=html;
+  el.querySelectorAll("[data-cat]").forEach(b=>b.onclick=()=>{ exploreState.cat=b.dataset.cat; exploreState.query=""; exFilter.subcat.clear(); exFilter.px.clear(); _subFetchKey=""; _subFetchSecs=null; const s=document.getElementById("expSearch"); if(s) s.value=""; renderExplore(); });
+  { const fb=el.querySelector("#expFilter"); if(fb) fb.onclick=openExpFilter; } }
 function renderExploreRadius(){ const el=document.getElementById("expRadius"); if(!el) return;
   el.innerHTML=`<div class="hotel-rad"><div class="hrad-top"><span class="hpx-lab">${t("hotel.radius")}</span><span class="hrad-val">${_exploreRadiusKm} km</span></div><div class="hrad-ends"><span>5 km</span><span>150 km</span></div><input type="range" id="exRadSlider" min="5" max="150" step="5" value="${_exploreRadiusKm}"></div>`;
   const sl=el.querySelector("#exRadSlider"); if(sl){ sl.oninput=()=>{ _exploreRadiusKm=+sl.value; const v=el.querySelector(".hrad-val"); if(v) v.textContent=_exploreRadiusKm+" km"; }; sl.onchange=()=>{ _exRadiusUserSet=true; renderExplore(); }; } }
@@ -12920,7 +12924,7 @@ function init(){
   { const pc=document.getElementById("parkClose"); if(pc) pc.onclick=closeParkSheet; }
   document.getElementById("memFile").addEventListener("change",e=>{ addMemPhotos(e.target.files,false); e.target.value=""; });
   document.getElementById("memCamera").addEventListener("change",e=>{ addMemPhotos(e.target.files,true); e.target.value=""; });
-  document.getElementById("expFilter").onclick=openExpFilter;
+  { const _f=document.getElementById("expFilter"); if(_f) _f.onclick=openExpFilter; }
   { const db=document.getElementById("exDayBtn"); if(db) db.onclick=(e)=>{ e.stopPropagation(); toggleExDayMenu(); }; }
   if(!window._exDayOutside){ window._exDayOutside=true; document.addEventListener("click",(e)=>{ const m=document.getElementById("exDayMenu"); if(m&&m.classList.contains("show")){ const w=document.querySelector(".daysel-wrap"); if(w&&!w.contains(e.target)) closeExDayMenu(); } }); }
   const es=document.getElementById("expSearch");
