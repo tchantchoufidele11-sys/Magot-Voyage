@@ -6586,8 +6586,11 @@ function renderPlan(){
   const _rcDay=(stops.length>=1)?routeC:null;
   let _dayKmC=(_rcDay&&_rcDay.distanceMeters)?_rcDay.distanceMeters/1000:0;
   let travelMin=(_rcDay&&_rcDay.duration)?Math.round(_rcDay.duration/60):0;
-  /* Jour de transition sans visite : la « distance du jour » = le trajet inter-étapes RÉEL (Google), cohérent avec l'étape. */
-  if(!_dayKmC && _transStep){ _dayKmC=_transStep.transKm; travelMin=_transStep.transMin; }
+  /* Le trajet inter-étapes (transition) fait partie de la route du jour : on l'AJOUTE
+     à la distance/au temps/au coût du jour, EN PLUS des visites locales éventuelles.
+     Sans ça, un jour de transition avec une visite ne comptait que le trajet local
+     (ex. 3,9 km) et le coût carburant était faux. */
+  if(_transStep){ _dayKmC+=_transStep.transKm; travelMin+=_transStep.transMin; }
   const startT=sched.length?sched[0].startStr:""; const endMin=sched.length?sched[sched.length-1].end:0; const endT=sched.length?sched[sched.length-1].endStr:"";
   const anyShift=sched.some(s=>s.shifted);
   const visitEndMin=(function(){ let e=0; sched.forEach(s=>{ const it=items.find(x=>x.id===s.id); if(it&&it.kind!=="meal"&&s.end>e) e=s.end; }); return e; })();
@@ -6830,6 +6833,7 @@ async function ensureTransRoute(tr,it){
   it._transBusy=false;
   if(cr&&cr.duration){
     it.transSig=sig; it.transMin=Math.round(cr.duration/60); it.transKm=Math.round((cr.distanceMeters||0)/1000); it.dur=it.transMin; it.transPending=false;
+    it.transPolyline=cr.polyline||""; it.transFrom={lat:oA.lat,lng:oA.lng,name:(oA.name||"")}; it.transTo={lat:dA.lat,lng:dA.lng,name:(dA.name||"")};
     /* Le déjeuner AUTO (générique, non choisi) tombait pendant le trajet -> retiré :
        le repas se prend en route. Jamais un repas ajouté/choisi par l'utilisateur. */
     const depMin=timeToMin(it.time||"09:00"), arrMin=depMin+it.transMin;
@@ -7432,13 +7436,23 @@ function renderDayMap(stops,tr,day){ const el=document.getElementById("planMap")
     return;
   }
   _osmEngine=false; // en ligne : Google par défaut
-  loadMaps().then(()=>{ const pts=stops.filter(s=>s.lat!=null); if(!pts.length){ el.style.display="none"; return; } el.style.display="block";
+  loadMaps().then(()=>{ const pts=stops.filter(s=>s.lat!=null); const _trs=(tr.plan||[]).find(x=>x.day===day&&x._trans&&x.transPolyline&&x.transFrom&&x.transTo); if(!pts.length&&!_trs){ el.style.display="none"; return; } el.style.display="block";
     const mode=travelMode(tr); const start=dayStart(tr,day); const info=new google.maps.InfoWindow(); const _dd=(tripDays(tr)[day]||{}).date;
-    const map=new google.maps.Map(el,{center:{lat:pts[0].lat,lng:pts[0].lng},zoom:14,mapTypeId:"roadmap",mapTypeControl:false,streetViewControl:false,fullscreenControl:false,zoomControl:false,keyboardShortcuts:false,gestureHandling:"greedy"});
+    const map=new google.maps.Map(el,{center:(pts.length?{lat:pts[0].lat,lng:pts[0].lng}:{lat:+_trs.transTo.lat,lng:+_trs.transTo.lng}),zoom:14,mapTypeId:"roadmap",mapTypeControl:false,streetViewControl:false,fullscreenControl:false,zoomControl:false,keyboardShortcuts:false,gestureHandling:"greedy"});
     const bounds=new google.maps.LatLngBounds();
     if(start){ const sp={lat:start.lat,lng:start.lng}; mapMarker(map,info,sp,"🏨 "+start.name,mode,{icon:lodgingIcon(),z:999}); bounds.extend(sp); }
     pts.forEach((s,i)=>{ const pos={lat:s.lat,lng:s.lng}; mapMarker(map,info,pos,s.title||"",mode,{icon:markerIcon(catEmoji(s),i+1,_stepDone(s,_dd)),desc:stopDesc(s)}); bounds.extend(pos); });
     el._gmap=map; el._fit={bounds};
+    // Trajet de transition (inter-étapes) : dessiné EN PLUS des visites locales ; le cadre s'élargit aux deux villes ce jour-là.
+    if(_trs){ const _eg=google.maps.geometry&&google.maps.geometry.encoding; const _dep={lat:+_trs.transFrom.lat,lng:+_trs.transFrom.lng}, _arr={lat:+_trs.transTo.lat,lng:+_trs.transTo.lng};
+      mapMarker(map,info,_dep,"🏨 "+(_trs.transFrom.name||t("map.depart")),mode,{icon:lodgingIcon(),z:998}); bounds.extend(_dep); bounds.extend(_arr);
+      if(_eg&&_trs.transPolyline){ const _tp=_eg.decodePath(_trs.transPolyline);
+        new google.maps.Polyline({path:_tp,map,strokeColor:"#ffffff",strokeOpacity:.9,strokeWeight:7,zIndex:2});
+        new google.maps.Polyline({path:_tp,map,strokeColor:"#0E2148",strokeOpacity:1,strokeWeight:4,zIndex:3,icons:[{icon:{path:google.maps.SymbolPath.FORWARD_CLOSED_ARROW,scale:2.4,strokeColor:"#ffffff",strokeWeight:1.2,fillColor:"#0E2148",fillOpacity:1},offset:"50%",repeat:"180px"}]});
+        _tp.forEach(p=>bounds.extend(p)); }
+    }
+    // Jour de transition SANS visite locale : on cadre sur le trajet et on affiche sa distance/durée, puis on s'arrête (pas de route locale).
+    if(!pts.length){ if(!bounds.isEmpty()) map.fitBounds(bounds,40); if(_trs) showRouteSummary({distanceMeters:(_trs.transKm||0)*1000,duration:(_trs.transMin||0)*60,mode}); return; }
     const routeStops=start?[start].concat(pts,[start]):pts;
     let fbLines=[]; if(routeStops.length>1){ fbLines.push(new google.maps.Polyline({path:routeStops.map(s=>({lat:s.lat,lng:s.lng})),map,strokeColor:"#ffffff",strokeOpacity:.5,strokeWeight:2})); map.fitBounds(bounds,40); } else map.setZoom(14);
     if(routeStops.length>1) ensureRoute(tr,day,routeStops).then(route=>{ if(!route) return;
@@ -7496,8 +7510,9 @@ function renderDayMap(stops,tr,day){ const el=document.getElementById("planMap")
               seg.forEach(p=>b2.extend(p)); } }
         }
       });
+      if(_trs){ b2.extend({lat:+_trs.transFrom.lat,lng:+_trs.transFrom.lng}); b2.extend({lat:+_trs.transTo.lat,lng:+_trs.transTo.lng}); }
       if(!b2.isEmpty()) map.fitBounds(b2,40);
-      showRouteSummary(route);
+      showRouteSummary(_trs?{distanceMeters:(route.distanceMeters||0)+(_trs.transKm||0)*1000,duration:(route.duration||0)+(_trs.transMin||0)*60,mode:route.mode}:route);
       renderFideleAI(tr,day,route,pts,_dd);
       _osmData={route,pts,tr}; autoOfflineOSM(tr); if(_osmEngine){ const _om=document.getElementById("osmMap"); if(_om&&_om.style.display!=="none") renderDayOSM(); }
       if(!route.mixed) injectLegs(pts, start?(route.legs||[]).slice(1,-1):route.legs, route.mode);
