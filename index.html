@@ -6579,7 +6579,15 @@ function renderPlan(){
   const stops=items.filter(x=>x.lat!=null);
   const intensity=tr.intensity||"normal";
   const visitMin=items.reduce((s,it)=>s+stepDur(it),0);
-  const routeC=tr._routes&&tr._routes[d.i]; const travelMin=(routeC&&routeC.duration)?Math.round(routeC.duration/60):0;
+  const routeC=tr._routes&&tr._routes[d.i];
+  const _transStep=items.find(x=>x._trans && x.transKm!=null && x.transMin!=null);
+  /* La route du jour (tr._routes) ne vaut que s'il existe des visites géolocalisées :
+     sinon c'est une valeur périmée (ex. jour de transition à 0 visite). */
+  const _rcDay=(stops.length>=1)?routeC:null;
+  let _dayKmC=(_rcDay&&_rcDay.distanceMeters)?_rcDay.distanceMeters/1000:0;
+  let travelMin=(_rcDay&&_rcDay.duration)?Math.round(_rcDay.duration/60):0;
+  /* Jour de transition sans visite : la « distance du jour » = le trajet inter-étapes RÉEL (Google), cohérent avec l'étape. */
+  if(!_dayKmC && _transStep){ _dayKmC=_transStep.transKm; travelMin=_transStep.transMin; }
   const startT=sched.length?sched[0].startStr:""; const endMin=sched.length?sched[sched.length-1].end:0; const endT=sched.length?sched[sched.length-1].endStr:"";
   const anyShift=sched.some(s=>s.shifted);
   const visitEndMin=(function(){ let e=0; sched.forEach(s=>{ const it=items.find(x=>x.id===s.id); if(it&&it.kind!=="meal"&&s.end>e) e=s.end; }); return e; })();
@@ -6590,12 +6598,12 @@ function renderPlan(){
   const over=items.length>0 && (overEnd || tooMany || (wantEnd==null && (visitEndMin>20*60 || daySpan>INTENS_CAP[intensity])));
   const intHtml=`<div class="seg modes">${[["calme","plan.intCalm","🪷"],["normal","plan.intNormal","〰️"],["intense","plan.intIntense","⛰️"]].map(([k,lk,ic])=>`<button data-int="${k}" class="${intensity===k?'on':''}"><span class="seg-ic">${ic}</span>${t(lk)}</button>`).join("")}</div>`;
   const hasMeal=items.some(x=>x.kind==="meal");
-  const dayDist=(routeC&&routeC.distanceMeters)?fmtDist(routeC.distanceMeters):"—";
+  const dayDist=_dayKmC?fmtDist(_dayKmC*1000):"—";
   const statsHtml=items.length?`<div class="day-stats"><div class="dstat"><svg class="dst-svg" viewBox="0 0 24 24"><path d="M12 21s-7-6.2-7-11a7 7 0 0 1 14 0c0 4.8-7 11-7 11z"/><circle cx="12" cy="10" r="2.4"/></svg><div><b>${stops.length} ${t("plan.steps")}</b><span>${t("plan.visitsTime")}</span></div></div><div class="dstat"><svg class="dst-svg" viewBox="0 0 24 24"><path d="M6 19a3 3 0 0 1 0-6h8a3 3 0 0 0 0-6H6"/><circle cx="6" cy="19" r="1.5"/><circle cx="18" cy="7" r="1.5"/></svg><div><b>${dayDist}</b><span>${t("plan.travel")}</span></div></div>${travelMin?`<div class="dstat"><span class="dst-em">${modeEmoji(travelMode(tr))}</span><div><b>${fmtDur(travelMin*60)}<span id="dstTraffic"></span></b><span>${t("plan.travelTime")}</span></div></div>`:""}<div class="dstat"><svg class="dst-svg" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.5"/><path d="M12 7.5V12l3 2"/></svg><div><b>${endT||"—"}</b><span>${t("plan.end")}</span></div></div></div>`:"";
   const actsHtml=items.length?`${(!ro&&stops.length>=2)?`<div class="day-acts primary"><button class="dact primary" id="optDay">✨ ${t("plan.optimize")}</button></div>`:""}<div class="act-bar"><div class="act-cells">${stops.length?`<button class="acell" id="navDay" title="${escapeHtml(t("map.launch"))}"><svg class="aci" viewBox="0 0 24 24"><path d="M3 11l18-8-8 18-2-8z"/></svg><span class="al">${t("plan.aNav")}</span></button>`:""}${stops.length?`<button class="acell" id="calDay" title="${escapeHtml(t("map.cal"))}"><svg class="aci" viewBox="0 0 24 24"><rect x="3.5" y="5" width="17" height="15" rx="2.5"/><path d="M3.5 9.5h17M8 3v4M16 3v4"/></svg><span class="al">${t("plan.aCal")}</span></button>`:""}${(!ro&&stops.length)?`<button class="acell arrive" id="arriveDay" title="${escapeHtml(t("gps.arrive"))}"><svg class="aci" viewBox="0 0 24 24"><path d="M12 21s-7-6.2-7-11a7 7 0 0 1 14 0c0 4.8-7 11-7 11z"/><circle cx="12" cy="10" r="2.4"/></svg><span class="al">${t("plan.aArrive")}</span></button>`:""}${(!ro&&!hasMeal)?`<button class="acell" id="lunchDay" title="${escapeHtml(t("plan.lunch"))}"><svg class="aci" viewBox="0 0 24 24"><path d="M4 8h12v5a4 4 0 0 1-4 4H8a4 4 0 0 1-4-4z"/><path d="M16 9h2.5a2.5 2.5 0 0 1 0 5H16"/></svg><span class="al">${t("plan.aPause")}</span></button>`:""}</div><button class="acell toggle" id="toggleList" title="${escapeHtml(planState.collapsed?t("plan.showList"):t("plan.hideList"))}" aria-label="${escapeHtml(planState.collapsed?t("plan.showList"):t("plan.hideList"))}">${planState.collapsed?"▸":"▾"}</button></div>`:"";
   const _veh=tr.veh||{}; const _fd=fuelDefault(_veh.fuel);
   const _conso=parseFloat(String(_veh.conso||"").replace(",","."))||_fd.conso; const _price=parseFloat(String(_veh.price||"").replace(",","."))||fuelPrice((destForDay(tr,d.i)||tr.dest||{}).cc,_veh.fuel);
-  const _dayKm=(routeC&&routeC.distanceMeters)?routeC.distanceMeters/1000:0;
+  const _dayKm=_dayKmC;
   _dayCtx={tr,iso:(d.date?d.date.toISOString().slice(0,10):""),dayKm:_dayKm,mode:travelMode(tr),stops:stops.length};
   const fuelHtml=(usesCar(tr)&&travelMode(tr)==="DRIVE"&&_dayKm>0&&_price>0)?`<div class="ds-fuel">⛽ ${t("plan.fuelDay")} · <b>${money(_dayKm*_conso/100*_price,tr.currency)}</b></div>`:"";
   const _fuelC=(usesCar(tr)&&travelMode(tr)==="DRIVE"&&_dayKm>0&&_price>0)?_dayKm*_conso/100*_price:0;
