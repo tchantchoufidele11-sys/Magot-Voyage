@@ -6826,7 +6826,7 @@ async function ensureTransRoute(tr,it){
   const oA=trs&&legAnchor(trs.fromLeg), dA=trs&&legAnchor(trs.toLeg);
   if(!oA||!dA){ it.transPending=true; return; }
   const sig=oA.lat.toFixed(5)+","+oA.lng.toFixed(5)+">"+dA.lat.toFixed(5)+","+dA.lng.toFixed(5);
-  if(it.transSig===sig && it.transMin!=null) return;   /* déjà calculé pour ces points exacts */
+  if(it.transSig===sig && it.transMin!=null && it.transPolyline!=null) return;   /* déjà calculé (avec tracé) pour ces points exacts ; sinon on recalcule une fois pour stocker la polyline */
   if(!navigator.onLine||!googleReady()){ it.transPending=true; return; }
   it._transBusy=true;
   const cr=await computeRoute([oA,dA],travelMode(tr));
