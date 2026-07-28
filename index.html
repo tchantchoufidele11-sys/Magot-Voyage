@@ -5806,8 +5806,8 @@ function exAddPlace(p){ const tr=currentTrip(); if(!tr||!p) return;
       const isResto=/restaurant|caf[eé]|\bbar\b|food|bakery|bistro|brasserie|meal/i.test(((p.primaryType||"")+" "+((p.types||[]).join(" "))).toLowerCase());
       const kind=isResto?"meal":"place";
       const _dd=durFromTypes(p.types); const _du=(_dd!=null?_dd:(kind==="meal"?(MEAL_DUR.lunch||60):(KIND_DUR.place||90)));
-      const _pid2=uid();
-      tr.plan.push({id:_pid2,day:_exAddDay,time:nextTimeFor(tr,_exAddDay),title:p.name,sub:p.primaryType||"",subLang:(p.lang0||lang()),kind:kind,placeId:p.id,ptype:p.primaryType||"",types:(p.types||[]).slice(0,6),lat:p.lat,lng:p.lng,price:p.price||"",hours:p.hours||[],dur:_du,done:false});
+      const _pid2=uid(); const _at=_planAddTime(tr,_exAddDay,null);
+      tr.plan.push({id:_pid2,day:_exAddDay,time:_at.time,notBefore:_at.notBefore,title:p.name,sub:p.primaryType||"",subLang:(p.lang0||lang()),kind:kind,placeId:p.id,ptype:p.primaryType||"",types:(p.types||[]).slice(0,6),lat:p.lat,lng:p.lng,price:p.price||"",hours:p.hours||[],dur:_du,done:false});
       saveState();
       if(kind!=="meal"){ const _it=(tr.plan||[]).find(x=>x.id===_pid2); if(_it) smartDuration(tr,_it); } /* durée par type + affinage Mistral, comme addPlanPlace */
     }
@@ -6459,6 +6459,7 @@ function tickPlanProgress(){ const body=document.getElementById("planBody"); if(
     row.classList.toggle("done",shownDone); const chk=row.querySelector(".pl-check"); if(chk){ chk.classList.toggle("done",shownDone); chk.textContent=shownDone?"✓":(it.arrived?"📍":""); }
   });
 }
+function _planAddTime(tr,day,chosen){ const dd=(tripDays(tr)[day]||{}).date; const isToday=!!(dd&&_sameDay(dd,new Date())); let m=chosen?timeToMin(chosen):timeToMin(nextTimeFor(tr,day)); let nb=null; if(isToday){ const fl=nowMin()+15; if(m<fl) m=fl; nb=fl; } return {time:minToTime(m),notBefore:nb}; } /* jour même : heure jamais sous now+15 min ; notBefore = plancher moteur */
 function nextTimeFor(tr,day){ const its=(tr.plan||[]).filter(x=>x.day===day&&x.time); if(!its.length) return "09:00"; const last=its.map(x=>x.time).sort().slice(-1)[0]; let h=parseInt(last.split(":")[0],10)+1; if(h>22)h=22; return String(h).padStart(2,"0")+":00"; }
 function timeToMin(s){ const p=(s||"0:0").split(":"); return (parseInt(p[0],10)||0)*60+(parseInt(p[1],10)||0); }
 function minToTime(m){ m=Math.max(0,Math.round(m)); const h=Math.floor(m/60)%24, mm=m%60; return String(h).padStart(2,"0")+":"+String(mm).padStart(2,"0"); }
@@ -6488,6 +6489,7 @@ function daySchedule(items,tr,day){
     const lo = honored ? 0 : base;
     let start = honored ? Math.max(desired, lo) : Math.max(desired, base);
     if(!honored && isGeo){ const om=_openMin(it); if(om!=null && start<om) start=om; } // on n'arrive pas avant l'ouverture du lieu
+    if(!honored && it.notBefore!=null && _dd && _sameDay(_dd,new Date()) && start<it.notBefore) start=it.notBefore; // jour même : jamais avant l'heure de validation + 15 min
     const clamped = !!(honored && start>desired+1);
     const tight = !!(honored && !clamped && base>desired+20);
     const shifted = clamped || tight;
@@ -6743,15 +6745,15 @@ async function smartDuration(tr,item){ try{ if(!item||!item.placeId||!navigator.
 function addPlanPlace(pid){ const tr=currentTrip(); const p=(tr.places||[]).find(x=>x.id===pid); if(!p) return; tr.plan=tr.plan||[];
   const day=planState.dayIndex; const dd=durFromTypes(p.types); const newDur=(dd!=null?dd:KIND_DUR.place);
   if(!dayHasRoom(tr,day,newDur)){ const cutoff=tr.dayEnd?tr.dayEnd:"20h"; toast(t("plan.dayFull",{t:cutoff})); return; }
-  const _newId=uid(); tr.plan.push({id:_newId,day:planState.dayIndex,time:nextTimeFor(tr,planState.dayIndex),title:p.name,sub:p.primaryType||"",subLang:(p.lang0||lang()),kind:"place",placeId:p.id,ptype:p.ptype||"",types:(p.types||[]).slice(0,6),lat:p.lat,lng:p.lng,hours:p.hours||[],dur:(dd!=null?dd:KIND_DUR.place),done:false});
+  const _at=_planAddTime(tr,planState.dayIndex,null); const _newId=uid(); tr.plan.push({id:_newId,day:planState.dayIndex,time:_at.time,notBefore:_at.notBefore,title:p.name,sub:p.primaryType||"",subLang:(p.lang0||lang()),kind:"place",placeId:p.id,ptype:p.ptype||"",types:(p.types||[]).slice(0,6),lat:p.lat,lng:p.lng,hours:p.hours||[],dur:(dd!=null?dd:KIND_DUR.place),done:false});
   ensureDayMeals(tr,day); autoOrderDay(tr,day);
   saveState(); closePlanAdd(); renderPlan();
   { const it=(tr.plan||[]).find(x=>x.id===_newId); if(it) smartDuration(tr,it); }
   enrichMealPlaces(tr,day); }
 function addPlanCustom(){ const tr=currentTrip(); const body=document.getElementById("planAddBody"); const title=(body.querySelector("#paTitle").value||"").trim();
   if(!title){ body.querySelector("#paTitle").focus(); return; }
-  const time=body.querySelector("#paTime").value||nextTimeFor(tr,planState.dayIndex), kind=body.querySelector("#paKind").value;
-  tr.plan=tr.plan||[]; const _isMeal=(kind==="meal"); tr.plan.push({id:uid(),day:planState.dayIndex,time,title,sub:"",kind,meal:_isMeal?"lunch":undefined,fixed:_isMeal,dur:(KIND_DUR[kind]||60),done:false}); saveState(); closePlanAdd(); renderPlan(); }
+  const _chosen=body.querySelector("#paTime").value||nextTimeFor(tr,planState.dayIndex); const _at=_planAddTime(tr,planState.dayIndex,_chosen); const time=_at.time, kind=body.querySelector("#paKind").value;
+  tr.plan=tr.plan||[]; const _isMeal=(kind==="meal"); tr.plan.push({id:uid(),day:planState.dayIndex,time,notBefore:_at.notBefore,title,sub:"",kind,meal:_isMeal?"lunch":undefined,fixed:_isMeal,dur:(KIND_DUR[kind]||60),done:false}); saveState(); closePlanAdd(); renderPlan(); }
 function autoIntensity(items){ const vis=(items||[]).filter(x=>x&&x.kind!=="transport"); const n=vis.length; let mins=0; vis.forEach(it=>mins+=(stepDur(it)||0));
   if(n===0) return "normal";
   if(n<=2 && mins<=210) return "calme";
