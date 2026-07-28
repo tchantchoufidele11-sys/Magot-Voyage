@@ -6920,13 +6920,14 @@ function orderDayScheduled(tr,day){
   meals.forEach(m=>{ if(!m.time) m.time=mealWin(tr,m.meal||"lunch",day); m.fixed=true; });
   const prov=daySchedule(flex,tr,day); const pm={}; prov.forEach(s=>pm[s.id]=s.start);
   const fixedAll=meals.slice().sort((a,b)=>timeToMin(a.time)-timeToMin(b.time));
-  const fixed=fixedAll.filter(m=>m.meal!=="dinner"); const dinners=fixedAll.filter(m=>m.meal==="dinner"); // le dîner clôt toujours la journée
+  // Interclassement CHRONOLOGIQUE : chaque repas (dîner compris) est placé selon son heure ; chaque
+  // visite selon son heure planifiée (pm, plancher inclus). Une visite poussée après le dîner
+  // (ex. plancher 21:57) apparaît donc APRÈS le dîner de 20:00 → la timeline suit toujours l'heure.
   const out=[]; let fi=0;
   for(const v of flex){ const vt=pm[v.id]!=null?pm[v.id]:9999;
-    while(fi<fixed.length && timeToMin(fixed[fi].time)<=vt){ out.push(fixed[fi]); fi++; }
+    while(fi<fixedAll.length && timeToMin(fixedAll[fi].time)<=vt){ out.push(fixedAll[fi]); fi++; }
     out.push(v); }
-  while(fi<fixed.length){ out.push(fixed[fi]); fi++; }
-  dinners.forEach(d=>out.push(d)); // dîner en dernier, après toutes les visites
+  while(fi<fixedAll.length){ out.push(fixedAll[fi]); fi++; }
   out.forEach((it,k)=>it.ord=k);
   return out;
 }
