@@ -7305,7 +7305,7 @@ function openOverview(){ const tr=currentTrip(); if(!tr){ toast(t("plan.noTrip")
     rows+=`<div class="ov-day" data-ovd="${i}" role="button" tabindex="0"><span class="ov-dot" style="background:${col}"></span><span class="ov-info"><span class="ov-date">${escapeHtml(fmtDayLong(d.date))}</span><span class="ov-meta">${stops.length} visite${stops.length>1?"s":""}${meals.length?` · ${meals.length} repas`:""}${km?` · ${km.toFixed(0)} km`:""}</span>${names?`<span class="ov-names">${escapeHtml(names)}</span>`:""}</span><button class="ov-go" type="button" data-ovopen="${i}" aria-label="${escapeHtml(t("plan.openDay"))}" title="${escapeHtml(t("plan.openDay"))}">›</button></div>`;
   });
   body.innerHTML=`<div id="ovMap" class="planmap" style="height:260px;margin-bottom:14px"></div>${rows||`<div class="about">${t("plan.empty")}</div>`}`;
-  body.querySelectorAll(".ov-day").forEach(row=>row.addEventListener("click",e=>{ if(e.target.closest("[data-ovopen]")) return; const i=+row.dataset.ovd; const el=document.getElementById("ovMap"); if(el&&el._ovMap&&el._dayBounds&&el._dayBounds[i]&&!el._dayBounds[i].isEmpty()){ el._ovMap.fitBounds(el._dayBounds[i],56); el.scrollIntoView({behavior:"smooth",block:"start"}); } body.querySelectorAll(".ov-day").forEach(r=>r.classList.remove("on")); row.classList.add("on"); }));
+  body.querySelectorAll(".ov-day").forEach(row=>row.addEventListener("click",e=>{ if(e.target.closest("[data-ovopen]")) return; const i=+row.dataset.ovd; const el=document.getElementById("ovMap"); if(el&&el._ovMap&&el._dayBounds&&el._dayBounds[i]&&!el._dayBounds[i].isEmpty()){ el._ovMap.fitBounds(el._dayBounds[i],{top:60,right:56,bottom:56,left:56}); el.scrollIntoView({behavior:"smooth",block:"start"}); } body.querySelectorAll(".ov-day").forEach(r=>r.classList.remove("on")); row.classList.add("on"); }));
   body.querySelectorAll("[data-ovopen]").forEach(btn=>btn.addEventListener("click",e=>{ e.stopPropagation(); planState.dayIndex=+btn.dataset.ovopen; document.getElementById("overviewSheet").classList.remove("show"); renderPlan(); }));
   document.getElementById("overviewSheet").classList.add("show");
   if(!mapKey()) return;
@@ -7323,8 +7323,10 @@ function openOverview(){ const tr=currentTrip(); if(!tr){ toast(t("plan.noTrip")
     });
     // Trajets inter-villes (transitions) : vrai tracé routier, coloré par jour, fléché — relie tout le voyage.
     (tr.plan||[]).filter(x=>x&&x._trans&&x.transPolyline&&x.transFrom&&x.transTo).forEach(x=>{ const di=(x.day!=null?x.day:0); const col=LEG_COLORS[di%LEG_COLORS.length];
-      try{ const path=enc?enc.decodePath(x.transPolyline):null; if(path&&path.length){ new google.maps.Polyline({map,path,strokeColor:col,strokeOpacity:.95,strokeWeight:4,icons:[ARR(col)]}); path.forEach(pp=>{bAll.extend(pp); if(dayBounds[di]) dayBounds[di].extend(pp);}); has=true; } }catch(e){}
-      const fp={lat:+x.transFrom.lat,lng:+x.transFrom.lng}, tp={lat:+x.transTo.lat,lng:+x.transTo.lng}; bAll.extend(fp); bAll.extend(tp); if(dayBounds[di]){ dayBounds[di].extend(fp); dayBounds[di].extend(tp); }
+      /* Le trajet inter-villes n'étend QUE le cadre global (bAll), PAS dayBounds :
+         le zoom-jour reste local (visites + hôtel), comme la carte du Planning. */
+      try{ const path=enc?enc.decodePath(x.transPolyline):null; if(path&&path.length){ new google.maps.Polyline({map,path,strokeColor:col,strokeOpacity:.95,strokeWeight:4,icons:[ARR(col)]}); path.forEach(pp=>bAll.extend(pp)); has=true; } }catch(e){}
+      bAll.extend({lat:+x.transFrom.lat,lng:+x.transFrom.lng}); bAll.extend({lat:+x.transTo.lat,lng:+x.transTo.lng});
     });
     if(has) map.fitBounds(bAll,40);
     el._ovMap=map; el._dayBounds=dayBounds;
