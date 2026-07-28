@@ -7852,6 +7852,8 @@ async function computeRoute(stops,mode,opts){
   // 2) On retire les doublons consécutifs (même point deux fois de suite = étape inutile qui fait planter Google).
   clean=clean.filter((s,i)=>i===0||s.lat!==clean[i-1].lat||s.lng!==clean[i-1].lng);
   if(clean.length<2) return null;
+  // Round-trip dégénéré : tous les points se réduisent à un seul lieu → aucune route possible (Google renverrait {} vide). On abandonne proprement.
+  if(new Set(clean.map(p=>p.lat+","+p.lng)).size<2) return null;
   const loc=s=>({location:{latLng:{latitude:s.lat,longitude:s.lng}}});
   const body={ origin:loc(clean[0]), destination:loc(clean[clean.length-1]), travelMode:mode, polylineEncoding:"ENCODED_POLYLINE", languageCode:lang() };
   if(mode!=="TRANSIT") body.polylineQuality="HIGH_QUALITY"; else body.departureTime=new Date(Date.now()+3600000).toISOString();
@@ -7863,7 +7865,7 @@ async function computeRoute(stops,mode,opts){
   try{ let rt=null; const delays=[0,400]; // un réessai court suffit pour un vide passager ; on ne fige pas l'affichage
     for(let a=0;a<delays.length;a++){ if(delays[a]) await new Promise(r=>setTimeout(r,delays[a]));
       const j=await workerFetch("/google/routes",{fieldMask:fields,request:body}); rt=(((j&&j.data)||{}).routes||[])[0]; if(rt) break; }
-    if(!rt) return null; // Google ne trouve VRAIMENT pas de route dans ce mode → ensureRoute retentera à pied.
+    if(!rt){ try{console.warn("[route] Google a renvoyé une réponse vide",{mode,points:clean.length,from:clean[0],to:clean[clean.length-1]});}catch(e){} return null; } // vide → ensureRoute retentera à pied ; le log dit POURQUOI (coords/mode) sans popup
     return { distanceMeters:rt.distanceMeters||0, duration:parseInt((rt.duration||"0s").replace("s",""),10)||0,
       polyline:(rt.polyline&&rt.polyline.encodedPolyline)||"", mode,
       legs:(rt.legs||[]).map(l=>({dist:l.distanceMeters||0,dur:parseInt((l.duration||"0s").replace("s",""),10)||0,poly:(l.polyline&&l.polyline.encodedPolyline)||""})) };
@@ -7878,6 +7880,7 @@ async function computeTraffic(stops,whenMs){
   let clean=(stops||[]).filter(s=>s&&num(+s.lat)&&num(+s.lng)).map(s=>({lat:+s.lat,lng:+s.lng}));
   clean=clean.filter((s,i)=>i===0||s.lat!==clean[i-1].lat||s.lng!==clean[i-1].lng);
   if(clean.length<2) return null;
+  if(new Set(clean.map(p=>p.lat+","+p.lng)).size<2) return null; // round-trip dégénéré → {} garanti
   /* Une heure de depart passee est refusee par Google : on part de maintenant. */
   const dep=new Date(Math.max(Date.now()+60000, whenMs||0));
   const loc=s=>({location:{latLng:{latitude:s.lat,longitude:s.lng}}});
