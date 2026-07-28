@@ -5805,8 +5805,11 @@ function exAddPlace(p){ const tr=currentTrip(); if(!tr||!p) return;
     if(!tr.plan.some(s=>s.day===_exAddDay && s.placeId===p.id)){
       const isResto=/restaurant|caf[eé]|\bbar\b|food|bakery|bistro|brasserie|meal/i.test(((p.primaryType||"")+" "+((p.types||[]).join(" "))).toLowerCase());
       const kind=isResto?"meal":"place";
-      tr.plan.push({id:uid(),day:_exAddDay,time:nextTimeFor(tr,_exAddDay),title:p.name,sub:p.primaryType||"",subLang:(p.lang0||lang()),kind:kind,placeId:p.id,lat:p.lat,lng:p.lng,price:p.price||"",hours:p.hours||[],dur:(KIND_DUR[kind]||90),done:false});
+      const _dd=durFromTypes(p.types); const _du=(_dd!=null?_dd:(kind==="meal"?(MEAL_DUR.lunch||60):(KIND_DUR.place||90)));
+      const _pid2=uid();
+      tr.plan.push({id:_pid2,day:_exAddDay,time:nextTimeFor(tr,_exAddDay),title:p.name,sub:p.primaryType||"",subLang:(p.lang0||lang()),kind:kind,placeId:p.id,ptype:p.primaryType||"",types:(p.types||[]).slice(0,6),lat:p.lat,lng:p.lng,price:p.price||"",hours:p.hours||[],dur:_du,done:false});
       saveState();
+      if(kind!=="meal"){ const _it=(tr.plan||[]).find(x=>x.id===_pid2); if(_it) smartDuration(tr,_it); } /* durée par type + affinage Mistral, comme addPlanPlace */
     }
     const M={fr:"Ajouté au ",en:"Added to ",es:"Añadido al ",it:"Aggiunto al ",de:"Hinzugefügt: "}[lang()]||"Ajouté au ";
     toast(M+_exDayShort(_exAddDay));
@@ -5975,7 +5978,7 @@ function closeStreetView(){ const ov=document.getElementById("svPano"), host=doc
 
 function isRestaurant(p){ const ty=p&&p.types||[]; return ty.includes("restaurant")||ty.includes("cafe")||ty.includes("bar")||ty.includes("bakery")||ty.includes("meal_takeaway")||ty.includes("meal_delivery")||ty.some(x=>x.endsWith("_restaurant")); }
 function addRestaurantMeal(p){ const tr=currentTrip(); if(!tr) return; tr.plan=tr.plan||[];
-  tr.plan.push({id:uid(),day:planState.dayIndex,time:nextTimeFor(tr,planState.dayIndex),title:p.name,sub:p.primaryType||"",subLang:(p.lang0||lang()),kind:"meal",placeId:p.id,lat:p.lat,lng:p.lng,price:p.price||"",hours:p.hours||[],dur:KIND_DUR.meal||75,done:false});
+  tr.plan.push({id:uid(),day:planState.dayIndex,time:nextTimeFor(tr,planState.dayIndex),title:p.name,sub:p.primaryType||"",subLang:(p.lang0||lang()),kind:"meal",placeId:p.id,lat:p.lat,lng:p.lng,price:p.price||"",hours:p.hours||[],dur:(durFromTypes(p.types)||KIND_DUR.meal||75),done:false});
   saveState(); closeResto(); closePlace(); renderPlan(); toast(t("resto.added")); }
 async function openNearbyRestaurants(lat,lng,anchorName){ const sheet=document.getElementById("restoSheet");
   document.getElementById("restoHd").textContent=t("resto.near");
@@ -6463,7 +6466,7 @@ function addMin(s,min){ return minToTime(timeToMin(s)+min); }
 const KIND_DUR={place:90,meal:75,cafe:45,culture:90,nature:120,hike:180,beach:120,sport:90,shopping:90,nightlife:120,relax:60,lodging:30,transport:30,custom:60};
 const KIND_EMOJI={place:"📍",meal:"🍽️",cafe:"☕",culture:"🎭",nature:"🌳",hike:"🥾",beach:"🏖️",sport:"⚽",shopping:"🛍️",nightlife:"🍸",relax:"🧘",lodging:"🏨",transport:"🚗",custom:"⭐"};
 const KIND_COLOR={place:"#0E9F6E",meal:"#E0467E",cafe:"#A16207",culture:"#8B5CF6",nature:"#16A34A",hike:"#0F766E",beach:"#0EA5E9",sport:"#DC2626",shopping:"#F59E0B",nightlife:"#9333EA",relax:"#14B8A6",lodging:"#6366F1",transport:"#2F6BE0",custom:"#E0A33E"};
-const TYPE_DUR={museum:120,art_gallery:90,tourist_attraction:90,park:90,national_park:180,botanical_garden:90,zoo:180,aquarium:120,amusement_park:240,water_park:240,church:30,place_of_worship:30,hindu_temple:30,mosque:30,synagogue:30,monument:45,historical_landmark:45,historical_place:45,restaurant:75,cafe:45,coffee_shop:45,bakery:20,bar:60,night_club:120,spa:120,wellness_center:120,shopping_mall:90,department_store:60,store:40,market:60,beach:120,hiking_area:150,stadium:150,casino:120,library:45,movie_theater:150,zoo_aquarium:150};
+const TYPE_DUR={museum:120,art_gallery:90,tourist_attraction:90,park:90,national_park:180,botanical_garden:90,zoo:180,aquarium:120,amusement_park:240,water_park:240,church:30,place_of_worship:30,hindu_temple:30,mosque:30,synagogue:30,monument:45,historical_landmark:45,historical_place:45,restaurant:75,cafe:45,coffee_shop:45,bakery:20,bar:60,night_club:120,spa:120,wellness_center:120,shopping_mall:90,department_store:60,store:40,market:60,beach:120,hiking_area:150,stadium:150,casino:120,library:45,movie_theater:150,zoo_aquarium:150,castle:120,palace:120,fort:90,garden:75,plaza:25,sculpture:15,observation_deck:30,cultural_landmark:60,planetarium:75,opera_house:150,concert_hall:150,performing_arts_theater:150,wildlife_park:150,wildlife_refuge:120,natural_feature:45};
 function durFromTypes(types){ for(const ty of (types||[])){ if(TYPE_DUR[ty]!=null) return TYPE_DUR[ty]; } return null; }
 function stepDur(it){ if(it&&it._durFit!=null) return it._durFit; return (it&&it.dur!=null)?it.dur:(KIND_DUR[it&&it.kind]||60); }
 const INTENS_CAP={calme:360,normal:480,intense:600};
