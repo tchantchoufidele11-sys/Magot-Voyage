@@ -8214,7 +8214,7 @@ function projectEnd(tr){ if(!tr||!tr.dateStart||!tr.dateEnd) return null;
   const fixRemaining=Math.max(0, fixEstimated - fixPaid);
   const projection=Math.round(varPaid + rhythm*daysLeft + fixPaid + fixRemaining);
   return {enough:true, projection, rhythm:Math.round(rhythm), elapsed, daysLeft}; }
-function budTxt(k){ const D={fr:{spent:"dépensé",remain:"Il te reste",ie:"soit",left:"sur les jours restants"},en:{spent:"spent",remain:"Left",ie:"i.e.",left:"over the remaining days"},es:{spent:"gastado",remain:"Te queda",ie:"es decir",left:"para los días restantes"},it:{spent:"speso",remain:"Ti resta",ie:"ovvero",left:"per i giorni rimanenti"},de:{spent:"ausgegeben",remain:"Übrig",ie:"d.h.",left:"für die restlichen Tage"}}; return (D[lang()]||D.fr)[k]||k; }
+function budTxt(k){ const D={fr:{budget:"budget",spent:"dépensé",remain:"Il te reste",ie:"soit",left:"sur les jours restants"},en:{budget:"budget",spent:"spent",remain:"Left",ie:"i.e.",left:"over the remaining days"},es:{budget:"presupuesto",spent:"gastado",remain:"Te queda",ie:"es decir",left:"para los días restantes"},it:{budget:"budget",spent:"speso",remain:"Ti resta",ie:"ovvero",left:"per i giorni rimanenti"},de:{budget:"Budget",spent:"ausgegeben",remain:"Übrig",ie:"d.h.",left:"für die restlichen Tage"}}; return (D[lang()]||D.fr)[k]||k; }
 function renderBudget(){ const body=document.getElementById("budgetBody"); if(!body) return; const tr=currentTrip();
   if(!tr){ body.innerHTML=`<div class="empty" style="padding:30px 18px"><p>${t("bud.noTrip")}</p></div>`; return; }
   if(tr.budgetAuto && !tripFinished(tr)){ estimateBudget(tr).then(est=>{ if(!est) return; if(Math.round(est.total)!==Math.round(tr.budget||0)){ tr.budget=est.total; tr.catBudgets=Object.assign({},tr.catBudgets||{},est.byCat); saveState(); renderBudget(); } }); }
@@ -8237,7 +8237,7 @@ function renderBudget(){ const body=document.getElementById("budgetBody"); if(!b
     ? `<div class="budcard"><div class="bc-left"><div class="bc-k">${t("bud.total")}</div><div class="bc-v">${money(total,cur)}</div><div class="bc-k" style="margin-top:12px">${t("bud.spent")}</div><div class="bc-v2">${money(spent,cur)}</div>${_estT>0?`<div class="bc-k" style="margin-top:12px">${t("bilan.est")}</div><div class="bc-v2">${money(_estT,cur)}</div>`:""}</div><div class="bc-ring">${budgetRing(pct)}<div class="bc-used">${t("bud.used")}</div></div></div>`
     : `<button class="budcard budcard-cta" id="budSetCta"><div class="bc-left"><div class="bc-k">${t("bud.total")}</div><div class="bc-v">${t("bud.setCta")}</div>${spent>0?`<div class="bc-k" style="margin-top:10px">${t("bud.spent")}: ${money(spent,cur)}</div>`:''}</div><span class="bc-cta-plus">+</span></button>`;
   { const _days=Math.max(1,tripDays(tr).length), _trav=Math.max(1,tr.travelers||1), _baseT=(total>0?total:_estT), _lb=budPerLabels();
-    if(_baseT>0) h+=`<div class="bud-perline">${money(Math.round(_baseT/_days),cur)} / ${_lb[0]} · ${money(Math.round(_baseT/_trav),cur)} / ${_lb[1]}</div>`;
+    if(_baseT>0) h+=`<div class="bud-perline">${budTxt("budget")} : ${money(Math.round(_baseT/_days),cur)} / ${_lb[0]} · ${money(Math.round(_baseT/_trav),cur)} / ${_lb[1]}</div>`;
     if(spent>0) h+=`<div class="bud-perline spent">${budTxt("spent")} : ${money(Math.round(spent/_days),cur)} / ${_lb[0]} · ${money(Math.round(spent/_trav),cur)} / ${_lb[1]}</div>`;
     { const _pj=projectEnd(tr);
       if(_pj && _pj.enough){ const _ov=_pj.projection-total;
@@ -8367,28 +8367,32 @@ function openBudgetPlan(){ const tr=currentTrip(); if(!tr) return; const cb=tr.c
   const recalc=()=>{ const tot=parseFloat(b.querySelector("#bpTotal").value)||0; let sum=0; BUDCATS.forEach(c=>{ sum+=parseFloat(b.querySelector("#bp_"+c.k).value)||0; });
     const over=tot>0&&sum>tot; const el=b.querySelector("#bpSum"); if(!el) return; el.className="bp-sum"+(over?" over":"");
     el.innerHTML=`${t("bud.allocated")} · <b>${money(sum,tr.currency)}</b>${tot>0?` / ${money(tot,tr.currency)}`:""}${over?`<div class="bp-over">⚠️ ${t("bud.overAlloc",{x:money(sum-tot,tr.currency)})}</div>`:""}`; };
-  b.querySelectorAll("input").forEach(i=>i.oninput=recalc); recalc();
+  b.querySelectorAll("input").forEach(i=>i.oninput=()=>{ if(i.id&&i.id.indexOf("bp_")===0) i.dataset.user="1"; recalc(); }); recalc();
   { const _disp=b.querySelector("#bpDispatch"); if(_disp) _disp.onclick=async()=>{
       const tot=parseFloat(b.querySelector("#bpTotal").value)||0; if(tot<=0){ toast(t("exp.needAmount")); b.querySelector("#bpTotal").focus(); return; }
       _disp.disabled=true; let src=(_estCache[tr.id]&&_estCache[tr.id].byCat)||null; if(!src){ const est=await estimateBudget(tr); src=(est&&est.byCat)||null; } _disp.disabled=false;
       const keys=BUDCATS.map(c=>c.k);
-      /* Montants DÉJÀ ENGAGÉS (certains) : posés tels quels, jamais répartis. Le prix
-         hôtel réservé et le billet réel sont des planchers incompressibles. */
-      const fixed={}; { const _lgs=normalizeLegs(tr); let _lsum=0; _lgs.forEach(l=>{ const p=+l.lodgingPrice||0; if(p>0) _lsum+=convCur(p, l.currency||tr.currency, tr.currency); }); if(_lsum<=0) _lsum=+tr.lodgingPrice||0; if(_lsum>0) fixed.lodging=Math.round(_lsum); }
+      /* 1. Cases modifiées À LA MAIN par l'utilisateur : intouchables. Sa saisie prime
+         sur tout (même sur le prix hôtel fixe, s'il a réécrit l'hébergement lui-même). */
+      const locked={}; keys.forEach(k=>{ const inp=b.querySelector("#bp_"+k); if(inp&&inp.dataset.user==="1"){ locked[k]=Math.round(parseFloat(inp.value)||0); } });
+      /* 2. Montants DÉJÀ ENGAGÉS (certains) : prix hôtels de toutes les étapes + billet.
+         Posés tels quels, sauf si l'utilisateur a verrouillé la case à la main. */
+      const fixed={}; if(locked.lodging==null){ const _lgs=normalizeLegs(tr); let _lsum=0; _lgs.forEach(l=>{ const p=+l.lodgingPrice||0; if(p>0) _lsum+=convCur(p, l.currency||tr.currency, tr.currency); }); if(_lsum<=0) _lsum=+tr.lodgingPrice||0; if(_lsum>0) fixed.lodging=Math.round(_lsum); }
       const ticket=(+tr.ticketPrice>0)?Math.round(+tr.ticketPrice):0;
+      const lockedSum=Object.keys(locked).reduce((a,k)=>a+locked[k],0);
       const fixedSum=Object.keys(fixed).reduce((a,k)=>a+fixed[k],0);
-      const rest=Math.max(0, tot-fixedSum);
-      const dk=keys.filter(k=>fixed[k]==null);
+      /* 3. Seul le RELIQUAT se ventile sur les cases ni verrouillées ni fixes. */
+      const rest=Math.max(0, tot-lockedSum-fixedSum);
+      const dk=keys.filter(k=>locked[k]==null && fixed[k]==null);
       let esum=src?dk.reduce((a,k)=>a+(+src[k]||0),0):0;
-      /* Reste réparti au prorata de l'estimation, avec plancher = socle par défaut
-         (transport, repas, activités…) pour ne jamais laisser un poste structurant à 0. */
       const w={}; dk.forEach(k=>{ const ep=(esum>0)?(+src[k]||0)/esum:0; w[k]=Math.max(ep, DEFAULT_SPLIT[k]||0); });
       let wsum=dk.reduce((a,k)=>a+w[k],0)||1;
       let acc=0; const out={}; dk.forEach(k=>{ out[k]=Math.round(rest*(w[k]/wsum)); acc+=out[k]; });
-      if(ticket>0 && (out.transport||0)<ticket){ acc+=ticket-(out.transport||0); out.transport=ticket; }
+      if(ticket>0 && locked.transport==null && (out.transport||0)<ticket){ acc+=ticket-(out.transport||0); out.transport=ticket; }
       Object.keys(fixed).forEach(k=>{ out[k]=fixed[k]; });
-      out.misc=Math.max(0,(out.misc||0)+(tot-fixedSum-acc));
-      keys.forEach(k=>{ const inp=b.querySelector("#bp_"+k); if(inp) inp.value=out[k]>0?out[k]:""; });
+      /* Ajustement d'arrondi : sur "misc" s'il est libre, sinon sur la 1re case libre. */
+      { const _adj=tot-lockedSum-fixedSum-acc; const _tgt=(locked.misc==null&&fixed.misc==null)?"misc":dk[0]; if(_tgt!=null&&_adj!==0) out[_tgt]=Math.max(0,(out[_tgt]||0)+_adj); }
+      keys.forEach(k=>{ if(locked[k]!=null) return; const inp=b.querySelector("#bp_"+k); if(inp) inp.value=out[k]>0?out[k]:""; });
       recalc(); toast(t("bud.dispatched")); }; }
   b.querySelector("#bpSave").onclick=saveBudgetPlan;
   document.getElementById("budgetPlanSheet").classList.add("show");
