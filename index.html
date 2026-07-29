@@ -4651,7 +4651,7 @@ function legsCardHtml(){
   const body=D
     ? rows+`<div class="fld legadd"><input id="cLegAdd" type="text" autocomplete="off" placeholder="${escapeHtml(t("legs.addPh"))}"><div class="ac" id="cLegAc"></div></div>`
     : `<div class="hwide-note">${t("legs.needDates")}</div>`;
-  return `<div class="acard${multi?" open":""}" data-card="legs">
+  return `<div class="acard" data-card="legs">
     <div class="acard-h"><img class="acard-ic" src="${MED.globe}" width="42" height="42" alt=""><span class="acard-tt"><span class="acard-t">${t("legs.title")}</span><span class="acard-s">${multi?escapeHtml(L.map(l=>(l.dest&&l.dest.name)||"").filter(Boolean).join(" \u2192 ")):t("legs.sub")}</span></span>${ICO_CHEV}</div>
     <div class="acard-b">${body}</div>
   </div>`;
@@ -8502,7 +8502,7 @@ async function openBudgetEst(){ const tr=currentTrip(); if(!tr) return;
       const blocks=Object.keys(est.byCurrency).map(c=>{ const bb=est.byCurrency[c];
         const rowsC=[["lodging",bb.lodging],["food",bb.food],["activities",bb.other],["transport",bb.transport],["reserve",bb.reserve]].filter(x=>x[1]>0).map(x=>`<div class="est-row"><span class="est-n">${t("bcat."+x[0])}</span><span class="est-a">${money(x[1],c)}</span></div>`).join("");
         const cities=(bb.legs&&bb.legs.length)?`<small style="font-weight:500;color:var(--muted)"> · ${escapeHtml(bb.legs.join(" · "))}</small>`:"";
-        return `<div style="border:1px solid var(--line);border-radius:14px;padding:10px 12px;margin:8px 0"><div style="font-weight:800;margin-bottom:2px">${curSym(c)} ${c}${cities}</div>${rowsC}<div class="est-row" style="border-top:1px solid var(--line);margin-top:4px;padding-top:6px"><span class="est-n" style="font-weight:700">${t("bud.curSubtotal")}</span><span class="est-a" style="font-weight:800">${money(bb.total,c)}</span></div></div>`; }).join("");
+        return `<div style="border:1px solid var(--line);border-radius:14px;padding:10px 12px;margin:8px 0"><div style="font-weight:800;margin-bottom:2px">${curSym(c)} ${c}${cities}</div>${rowsC}<div class="est-row" style="border-top:1px solid var(--line);margin-top:4px;padding-top:6px"><span class="est-n" style="font-weight:700">${t("bud.curSubtotal")}</span><span class="est-a" style="font-weight:800">${money(bb.total,c)}</span></div>${c!==cur?`<div style="text-align:right;font-size:12px;color:var(--muted);margin-top:3px">≈ ${money(convCur(bb.total,c,cur),cur)}</div>`:""}</div>`; }).join("");
       bodyHtml=`${blocks}<div class="est-tot"><span>${t("bud.consolidated")}${est.travelers>1?` · ${t("trips.travelers",{n:est.travelers})}`:""}</span><b>≈ ${money(est.total,cur)}</b></div><div class="est-sub" style="margin-top:2px"><span>${t("bud.consolidatedNote")}</span></div>`;
     } else {
       bodyHtml=`<div class="est-list">${rows}</div><div class="est-tot"><span>${t("bud.total")}${est.travelers>1?` · ${t("trips.travelers",{n:est.travelers})}`:""}</span><b>${money(est.total,cur)}</b></div>`;
