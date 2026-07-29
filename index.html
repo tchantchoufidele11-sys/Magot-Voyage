@@ -3981,7 +3981,7 @@ function applyLang(code){ S.settings.lang=code; saveState(); applyI18n(); render
 }
 function newDraft(){ return { legs:[], dest:null, lodging:null, depart:null, veh:{fuel:"essence",conso:"",price:""}, transport:"car", styles:[], style:"mixed", travelers:2, currency:"EUR" }; }
 function openCreate(id){ editId=(typeof id==="string"&&id)?id:null; const tr=editId?S.trips.find(x=>x.id===editId):null;
-  draft= tr ? { dest:(tr.dest&&tr.dest.name)?{name:tr.dest.name,country:tr.dest.country||"",cc:tr.dest.cc||"",lat:tr.dest.lat,lng:tr.dest.lng,bbox:tr.dest.bbox||null,label:tr.dest.name+(tr.dest.country?", "+tr.dest.country:"")}:null, lodging:tr.lodging||null, depart:tr.depart||null, depHub:tr.depHub||null, arrHub:tr.arrHub||null, veh:tr.veh||{fuel:"essence",conso:"",price:""}, transport:tr.transport||"car", localTransport:tr.localTransport||null, styles:(tr.styles&&tr.styles.length)?tr.styles.slice():(tr.style&&tr.style!=="mixed"?[tr.style]:[]), style:tr.style||"mixed", travelers:tr.travelers||2, currency:tr.currency||"EUR" } : newDraft();
+  draft= tr ? { dest:(tr.dest&&tr.dest.name)?{name:tr.dest.name,country:tr.dest.country||"",cc:tr.dest.cc||"",lat:tr.dest.lat,lng:tr.dest.lng,bbox:tr.dest.bbox||null,label:tr.dest.name+(tr.dest.country?", "+tr.dest.country:"")}:null, lodging:tr.lodging||null, dateStart:tr.dateStart||"", dateEnd:tr.dateEnd||"", depart:tr.depart||null, depHub:tr.depHub||null, arrHub:tr.arrHub||null, veh:tr.veh||{fuel:"essence",conso:"",price:""}, transport:tr.transport||"car", localTransport:tr.localTransport||null, styles:(tr.styles&&tr.styles.length)?tr.styles.slice():(tr.style&&tr.style!=="mixed"?[tr.style]:[]), style:tr.style||"mixed", travelers:tr.travelers||2, currency:tr.currency||"EUR" } : newDraft();
   /* Modification d'un voyage déjà découpé : on ramène ses étapes dans le brouillon,
      converties en nombre de jours (la forme que manipule l'écran de création). */
   if(tr&&Array.isArray(tr.legs)&&tr.legs.length>1){
@@ -4697,8 +4697,10 @@ function bindLegs(host){
 /* Conversion jours → tranches, juste avant l'enregistrement. */
 function draftLegsForTrip(){ const L=draftLegs(); if(L.length<2) return null;
   let d=0; return L.map((l,idx)=>{ const from=d, to=d+Math.max(1,l.days)-1; d=to+1;
-    /* leg 0 : hôtel = champ principal (rempli par normalizeLegs) ; legs suivants : leur propre hôtel */
-    return { dest:l.dest, dayFrom:from, dayTo:to, currency:draft.currency||"EUR", lodging:(idx===0?null:(l.lodging||null)), lodgingAddr:(idx===0?"":(l.lodgingAddr||"")) }; }); }
+    /* leg 0 : hôtel = champ principal (rempli par normalizeLegs) ; legs suivants : leur propre hôtel.
+       Devise : déduite du pays de l'étape (UK→GBP), sinon celle du voyage. */
+    const _cc=l.dest&&l.dest.cc, _cur=(_cc&&CC_CUR[_cc])||draft.currency||"EUR";
+    return { dest:l.dest, dayFrom:from, dayTo:to, currency:_cur, lodging:(idx===0?null:(l.lodging||null)), lodgingAddr:(idx===0?"":(l.lodgingAddr||"")) }; }); }
 
 /* Signalement des champs manquants.
    Le rouge n'apparaît qu'après une tentative d'enregistrement : signaler un
@@ -5797,7 +5799,7 @@ function toggleExDayMenu(){ const m=document.getElementById("exDayMenu"); if(!m)
   let h=`<button type="button" data-exday="" class="${_exAddDay==null?'on':''}">${RES}</button>`;
   ds.forEach(dd=>{ h+=`<button type="button" data-exday="${dd.i}" class="${_exAddDay===dd.i?'on':''}">${escapeHtml(_exDayLong(dd.i))}</button>`; });
   m.innerHTML=h;
-  m.querySelectorAll("[data-exday]").forEach(el=>el.onclick=()=>{ const v=el.dataset.exday; _exAddDay=(v==="")?null:(+v); closeExDayMenu(); renderExDay(); });
+  m.querySelectorAll("[data-exday]").forEach(el=>el.onclick=()=>{ const v=el.dataset.exday; _exAddDay=(v==="")?null:(+v); closeExDayMenu(); renderExDay(); if(typeof renderExplore==="function") renderExplore(); });
   m.classList.add("show"); }
 /* Ajout depuis Explore : répertoire (toujours) + jour choisi (si présent). */
 function exAddPlace(p){ const tr=currentTrip(); if(!tr||!p) return;
