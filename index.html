@@ -8339,14 +8339,22 @@ function openBudgetPlan(){ const tr=currentTrip(); if(!tr) return; const cb=tr.c
       const tot=parseFloat(b.querySelector("#bpTotal").value)||0; if(tot<=0){ toast(t("exp.needAmount")); b.querySelector("#bpTotal").focus(); return; }
       _disp.disabled=true; let src=(_estCache[tr.id]&&_estCache[tr.id].byCat)||null; if(!src){ const est=await estimateBudget(tr); src=(est&&est.byCat)||null; } _disp.disabled=false;
       const keys=BUDCATS.map(c=>c.k);
-      let esum=src?keys.reduce((a,k)=>a+(+src[k]||0),0):0;
-      /* Poids = part de l'estimation, mais avec un plancher = répartition socle par défaut
-         (hébergement, repas, transport, activités, réserve…). Ainsi un poste structurant
-         comme le transport n'est jamais laissé à 0 quand l'estimation ne l'a pas chiffré. */
-      const w={}; keys.forEach(k=>{ const estPart=(esum>0)?(+src[k]||0)/esum:0; w[k]=Math.max(estPart, DEFAULT_SPLIT[k]||0); });
-      let wsum=keys.reduce((a,k)=>a+w[k],0)||1;
-      let acc=0; const out={}; keys.forEach(k=>{ out[k]=Math.round(tot*(w[k]/wsum)); acc+=out[k]; });
-      out.misc=Math.max(0,(out.misc||0)+(tot-acc));
+      /* Montants DÉJÀ ENGAGÉS (certains) : posés tels quels, jamais répartis. Le prix
+         hôtel réservé et le billet réel sont des planchers incompressibles. */
+      const fixed={}; if(+tr.lodgingPrice>0) fixed.lodging=Math.round(+tr.lodgingPrice);
+      const ticket=(+tr.ticketPrice>0)?Math.round(+tr.ticketPrice):0;
+      const fixedSum=Object.keys(fixed).reduce((a,k)=>a+fixed[k],0);
+      const rest=Math.max(0, tot-fixedSum);
+      const dk=keys.filter(k=>fixed[k]==null);
+      let esum=src?dk.reduce((a,k)=>a+(+src[k]||0),0):0;
+      /* Reste réparti au prorata de l'estimation, avec plancher = socle par défaut
+         (transport, repas, activités…) pour ne jamais laisser un poste structurant à 0. */
+      const w={}; dk.forEach(k=>{ const ep=(esum>0)?(+src[k]||0)/esum:0; w[k]=Math.max(ep, DEFAULT_SPLIT[k]||0); });
+      let wsum=dk.reduce((a,k)=>a+w[k],0)||1;
+      let acc=0; const out={}; dk.forEach(k=>{ out[k]=Math.round(rest*(w[k]/wsum)); acc+=out[k]; });
+      if(ticket>0 && (out.transport||0)<ticket){ acc+=ticket-(out.transport||0); out.transport=ticket; }
+      Object.keys(fixed).forEach(k=>{ out[k]=fixed[k]; });
+      out.misc=Math.max(0,(out.misc||0)+(tot-fixedSum-acc));
       keys.forEach(k=>{ const inp=b.querySelector("#bp_"+k); if(inp) inp.value=out[k]>0?out[k]:""; });
       recalc(); toast(t("bud.dispatched")); }; }
   b.querySelector("#bpSave").onclick=saveBudgetPlan;
