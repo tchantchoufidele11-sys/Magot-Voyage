@@ -8374,7 +8374,7 @@ function openBudgetPlan(){ const tr=currentTrip(); if(!tr) return; const cb=tr.c
       const keys=BUDCATS.map(c=>c.k);
       /* Montants DÉJÀ ENGAGÉS (certains) : posés tels quels, jamais répartis. Le prix
          hôtel réservé et le billet réel sont des planchers incompressibles. */
-      const fixed={}; if(+tr.lodgingPrice>0) fixed.lodging=Math.round(+tr.lodgingPrice);
+      const fixed={}; { const _lgs=normalizeLegs(tr); let _lsum=0; _lgs.forEach(l=>{ const p=+l.lodgingPrice||0; if(p>0) _lsum+=convCur(p, l.currency||tr.currency, tr.currency); }); if(_lsum<=0) _lsum=+tr.lodgingPrice||0; if(_lsum>0) fixed.lodging=Math.round(_lsum); }
       const ticket=(+tr.ticketPrice>0)?Math.round(+tr.ticketPrice):0;
       const fixedSum=Object.keys(fixed).reduce((a,k)=>a+fixed[k],0);
       const rest=Math.max(0, tot-fixedSum);
@@ -8494,7 +8494,7 @@ async function estimateBudget(tr){
     if(curs.size>1){
       byCurrency={};
       const ensure=c=>byCurrency[c]||(byCurrency[c]={lodging:0,food:0,other:0,transport:0,reserve:0,total:0,legs:[]});
-      _lodgeLegs.forEach(x=>{ const b=ensure(x.cur); b.lodging+=x.amount; if(x.name&&b.legs.indexOf(x.name)<0) b.legs.push(x.name); });
+      _lodgeLegs.forEach(x=>{ const b=ensure(x.cur); b.lodging+=x.amount; if(x.name&&b.legs.indexOf(x.name)<0) b.legs.push(x.name); b.lodgeDetail=b.lodgeDetail||[]; b.lodgeDetail.push({name:x.name,amount:Math.round(x.amount),src:x.src}); });
       const _foodTot=byCat.food||0;
       const _otherTot=(byCat.activities||0)+(byCat.shopping||0)+(byCat.groceries||0)+(byCat.nightlife||0)+(byCat.health||0)+(byCat.souvenirs||0)+(byCat.misc||0);
       _legsE.forEach(lg=>{ const legDays=Math.max(1,(lg.dayTo-lg.dayFrom+1)); const frac=legDays/Math.max(1,days); const cur=lg.currency||tr.currency; const b=ensure(cur);
@@ -8539,7 +8539,10 @@ async function openBudgetEst(){ const tr=currentTrip(); if(!tr) return; _estLodg
     let bodyHtml;
     if(est.byCurrency){
       const blocks=Object.keys(est.byCurrency).map(c=>{ const bb=est.byCurrency[c];
-        const rowsC=[["lodging",bb.lodging],["food",bb.food],["activities",bb.other],["transport",bb.transport],["reserve",bb.reserve]].filter(x=>x[1]>0).map(x=>`<div class="est-row"><span class="est-n">${t("bcat."+x[0])}</span><span class="est-a">${money(x[1],c)}</span></div>`).join("");
+        const rowsC=[["lodging",bb.lodging],["food",bb.food],["activities",bb.other],["transport",bb.transport],["reserve",bb.reserve]].filter(x=>x[1]>0).map(x=>{
+          let sub="";
+          if(x[0]==="lodging"&&bb.lodgeDetail&&bb.lodgeDetail.length>1){ sub=bb.lodgeDetail.map(d=>`<div class="est-sub2"><span>📍 ${escapeHtml(d.name)} <small style="color:var(--muted)">· ${d.src==="yours"?t("bud.srcYours"):t("bud.srcRegional")}</small></span><span>${money(d.amount,c)}</span></div>`).join(""); }
+          return `<div class="est-row"><span class="est-n">${t("bcat."+x[0])}</span><span class="est-a">${money(x[1],c)}</span></div>${sub?`<div class="est-subwrap">${sub}</div>`:""}`; }).join("");
         const cities=(bb.legs&&bb.legs.length)?`<small style="font-weight:500;color:var(--muted)"> · ${escapeHtml(bb.legs.join(" · "))}</small>`:"";
         return `<div style="border:1px solid var(--line);border-radius:14px;padding:10px 12px;margin:8px 0"><div style="font-weight:800;margin-bottom:2px">${curSym(c)} ${c}${cities}</div>${rowsC}<div class="est-row" style="border-top:1px solid var(--line);margin-top:4px;padding-top:6px"><span class="est-n" style="font-weight:700">${t("bud.curSubtotal")}</span><span class="est-a" style="font-weight:800">${money(bb.total,c)}</span></div>${c!==cur?`<div style="text-align:right;font-size:12px;color:var(--muted);margin-top:3px">≈ ${money(convCur(bb.total,c,cur),cur)}</div>`:""}</div>`; }).join("");
       bodyHtml=`${blocks}<div class="est-tot"><span>${t("bud.consolidated")}${est.travelers>1?` · ${t("trips.travelers",{n:est.travelers})}`:""}</span><b>≈ ${money(est.total,cur)}</b></div><div class="est-sub" style="margin-top:2px"><span>${t("bud.consolidatedNote")}</span></div>`;
