@@ -3192,6 +3192,7 @@ function normalizeLegs(tr){
     l.dayFrom=Math.round(+l.dayFrom||0);
     l.dayTo=(l.dayTo==null)?D-1:Math.round(+l.dayTo||0);
     if(!l.currency) l.currency=tr.currency||"EUR";
+    { const _lc=l.dest&&l.dest.cc; if(!l.curLock && _lc && CC_CUR[_lc]) l.currency=CC_CUR[_lc]; }
     if(l.lodgingAddr==null) l.lodgingAddr="";
     if(l.lodging===undefined) l.lodging=null; });
   L.sort((a,b)=>(a.dayFrom-b.dayFrom)||(a.dayTo-b.dayTo));
@@ -8168,13 +8169,32 @@ function printBilan(tr){ const pa=document.getElementById("printArea"); if(!pa) 
   setTimeout(()=>{ try{ window.print(); }catch(e){ toast(t("bilan.printErr")); } }, 80);
 }
 const _estCache={};
+/* Signature des paramètres qui influencent estimateBudget : dès qu'elle change,
+   le cache d'estimation de la carte est recalculé (fini l'estimation figée qui
+   divergeait de l'écran « Budget estimé »). */
+function _estSignature(tr){
+  if(!tr) return "";
+  const pl=(tr.places||[]).map(p=>p.id).join(",");
+  const pn=(tr.plan||[]).map(s=>(s.kind||"")+(s.placeId||"")+(s.day==null?"":s.day)).join(",");
+  const v=tr.veh||{};
+  return [
+    tripDays(tr).length, tr.travelers, (tr.rooms==null?"":tr.rooms),
+    (+tr.lodgingPrice||0), (+tr.ticketPrice||0),
+    (tr.styles||[]).join("+"), tr.budEcoFood?1:0, tr.budEcoLodge?1:0,
+    tr.transport||"", tr.hubMode||"", tr.hubRoundTrip?1:0, tr.currency||"EUR",
+    v.fuel||"", v.conso||"", v.price||"",
+    (tr.dest&&tr.dest.cc)||"", (tr.depart&&tr.depart.cc)||"",
+    pl, pn
+  ].join("|");
+}
 function budPerLabels(){ const D={fr:["jour","pers."],en:["day","pers."],es:["día","pers."],it:["giorno","pers."],de:["Tag","Pers."]}; return D[lang()]||D.fr; }
 function tripDaysLeft(tr){ if(!tr||!tr.dateEnd) return 0; const today=todayISO(); if(today>tr.dateEnd) return 0; const start=(tr.dateStart&&today<tr.dateStart)?tr.dateStart:today; const a=new Date(start+"T00:00:00"),b=new Date(tr.dateEnd+"T00:00:00"); return Math.max(1,Math.round((b-a)/86400000)+1); }
 function budTxt(k){ const D={fr:{spent:"dépensé",remain:"Il te reste",ie:"soit",left:"sur les jours restants"},en:{spent:"spent",remain:"Left",ie:"i.e.",left:"over the remaining days"},es:{spent:"gastado",remain:"Te queda",ie:"es decir",left:"para los días restantes"},it:{spent:"speso",remain:"Ti resta",ie:"ovvero",left:"per i giorni rimanenti"},de:{spent:"ausgegeben",remain:"Übrig",ie:"d.h.",left:"für die restlichen Tage"}}; return (D[lang()]||D.fr)[k]||k; }
 function renderBudget(){ const body=document.getElementById("budgetBody"); if(!body) return; const tr=currentTrip();
   if(!tr){ body.innerHTML=`<div class="empty" style="padding:30px 18px"><p>${t("bud.noTrip")}</p></div>`; return; }
   if(tr.budgetAuto && !tripFinished(tr)){ estimateBudget(tr).then(est=>{ if(!est) return; if(Math.round(est.total)!==Math.round(tr.budget||0)){ tr.budget=est.total; tr.catBudgets=Object.assign({},tr.catBudgets||{},est.byCat); saveState(); renderBudget(); } }); }
-  if(!_estCache[tr.id]){ estimateBudget(tr).then(est=>{ if(est){ _estCache[tr.id]={total:Math.round(est.total||0),byCat:est.byCat||{},regional:!!est.regional,at:Date.now()}; renderBudget(); } }); }
+  const _estSig=_estSignature(tr);
+  if(!_estCache[tr.id] || _estCache[tr.id].sig!==_estSig){ estimateBudget(tr).then(est=>{ if(est){ _estCache[tr.id]={total:Math.round(est.total||0),byCat:est.byCat||{},regional:!!est.regional,sig:_estSig,at:Date.now()}; renderBudget(); } }); }
   _fxMiss.clear();
   const cur=tr.currency||"EUR", total=+tr.budget||0, spent=tripSpent(tr), pct=total>0?spent/total*100:0, cb=tr.catBudgets||{}; const _estT=(_estCache[tr.id]||{}).total||0;
   let tiersHtml=""; { const _e=_estCache[tr.id]; if(_e&&_e.total>0){ const _sub=_e.total/(1+RESERVE); const _tight=Math.round(_sub/MARKUP), _reco=Math.round(_e.total), _cmf=Math.round(_sub*(1+RESERVE*2)); const _conf=_e.regional?t("tiers.confLow"):t("tiers.confHigh"); tiersHtml=`<div class="tiers"><div class="tiers-h">📊 ${t("tiers.title")}</div><div class="tiers-grid"><div><span>${t("tiers.tight")}</span><b>${money(_tight,cur)}</b></div><div class="reco"><span>${t("tiers.reco")}</span><b>${money(_reco,cur)}</b></div><div><span>${t("tiers.comfort")}</span><b>${money(_cmf,cur)}</b></div></div><div class="tiers-sub">${_conf}</div></div>`; } }
@@ -8247,7 +8267,18 @@ async function nearbyEstablishments(zone){ const res=document.getElementById("ex
   const list=r.places.map(placeFromG).slice(0,8);
   res.innerHTML=`<div class="exsug-lbl">${t("exp.nearby")}</div>`+list.map((p,i)=>`<button class="exsug-row" data-i="${i}"><span>${escapeHtml(p.name)}</span>${p.locality?`<span class="exsug-loc">${escapeHtml(p.locality)}</span>`:""}</button>`).join("");
   res.querySelectorAll(".exsug-row").forEach(b=>b.onclick=()=>pickEstablishment(list[+b.dataset.i])); }
-function openExpense(editId){ const tr=currentTrip(); if(!tr) return; const _ex=editId?(tr.expenses||[]).find(x=>x.id===editId):null; expenseDraft={editId:(_ex?_ex.id:""),category:(_ex?_ex.category:"food"),date:(_ex?_ex.date:todayISO()),currency:(_ex?(_ex.currency||tr.currency):tr.currency),estPlaceId:(_ex&&_ex.estPlaceId?_ex.estPlaceId:""),estLat:(_ex&&_ex.lat!=null?_ex.lat:undefined),estLng:(_ex&&_ex.lng!=null?_ex.lng:undefined)};
+/* Devise de l'étape qui couvre une date donnée (multi-devises par étape).
+   Retombe sur la devise du voyage si l'étape n'est pas résolue. */
+function legCurForDate(tr, dateISO){
+  if(!tr) return "EUR";
+  const base=tr.currency||"EUR";
+  if(!dateISO || !tr.dateStart) return base;
+  const legs=normalizeLegs(tr); if(!legs.length) return base;
+  const di=Math.round((new Date(dateISO+"T00:00:00")-new Date(tr.dateStart+"T00:00:00"))/86400000);
+  const leg=legs.find(l=>di>=l.dayFrom && di<=l.dayTo);
+  return (leg&&leg.currency)||base;
+}
+function openExpense(editId){ const tr=currentTrip(); if(!tr) return; const _ex=editId?(tr.expenses||[]).find(x=>x.id===editId):null; expenseDraft={editId:(_ex?_ex.id:""),category:(_ex?_ex.category:"food"),date:(_ex?_ex.date:todayISO()),currency:(_ex?(_ex.currency||tr.currency):(legCurForDate(tr,todayISO())||tr.currency)),estPlaceId:(_ex&&_ex.estPlaceId?_ex.estPlaceId:""),estLat:(_ex&&_ex.lat!=null?_ex.lat:undefined),estLng:(_ex&&_ex.lng!=null?_ex.lng:undefined)};
   document.getElementById("expenseHd").textContent=(_ex?({fr:"Modifier la dépense",en:"Edit expense",es:"Editar gasto",it:"Modifica spesa",de:"Ausgabe bearbeiten"}[lang()]||"Modifier la dépense"):t("bud.addExpense"));
   const _curList=Array.from(new Set([expenseDraft.currency,tr.currency].concat(Object.keys(FX))));
   const b=document.getElementById("expenseBody");
@@ -8259,7 +8290,7 @@ function openExpense(editId){ const tr=currentTrip(); if(!tr) return; const _ex=
    <div class="fld"><label>${t("exp.date")}</label><input id="exDate" type="date" value="${_ex?(_ex.date||todayISO()):todayISO()}"></div>
    <button class="btn navy block" id="exSave">${t("exp.save")}</button><div style="height:18px"></div>`;
   b.querySelector("#exCat").onchange=e=>{ expenseDraft.category=e.target.value; const rq=b.querySelector("#exEstReq"); if(rq) rq.textContent=expNeedsEst(expenseDraft.category)?"*":""; };
-  { const ie=b.querySelector("#exEst"); if(ie) ie.oninput=()=>{ expenseDraft.estPlaceId=""; expenseDraft.estLat=undefined; expenseDraft.estLng=undefined; }; const dd=b.querySelector("#exDate"); if(dd) dd.onchange=()=>renderExpSug(); renderExpSug(); }
+  { const ie=b.querySelector("#exEst"); if(ie) ie.oninput=()=>{ expenseDraft.estPlaceId=""; expenseDraft.estLat=undefined; expenseDraft.estLng=undefined; }; const cc=b.querySelector("#exCur"); if(cc) cc.onchange=()=>{ expenseDraft.currency=cc.value; expenseDraft.curTouched=true; }; const dd=b.querySelector("#exDate"); if(dd) dd.onchange=()=>{ if(!expenseDraft.editId && !expenseDraft.curTouched){ const nc=legCurForDate(tr, dd.value); if(nc){ expenseDraft.currency=nc; const _c=b.querySelector("#exCur"); if(_c){ if(![].some.call(_c.options,o=>o.value===nc)){ _c.insertAdjacentHTML("beforeend",`<option value="${nc}">${nc}</option>`); } _c.value=nc; } } } renderExpSug(); }; renderExpSug(); }
   b.querySelector("#exSave").onclick=addExpense;
   document.getElementById("expenseSheet").classList.add("show");
 }
@@ -8307,8 +8338,14 @@ function openBudgetPlan(){ const tr=currentTrip(); if(!tr) return; const cb=tr.c
   { const _disp=b.querySelector("#bpDispatch"); if(_disp) _disp.onclick=async()=>{
       const tot=parseFloat(b.querySelector("#bpTotal").value)||0; if(tot<=0){ toast(t("exp.needAmount")); b.querySelector("#bpTotal").focus(); return; }
       _disp.disabled=true; let src=(_estCache[tr.id]&&_estCache[tr.id].byCat)||null; if(!src){ const est=await estimateBudget(tr); src=(est&&est.byCat)||null; } _disp.disabled=false;
-      let sum=src?Object.values(src).reduce((a,x)=>a+(+x||0),0):0; if(!src||sum<=0){ src=DEFAULT_SPLIT; sum=Object.values(DEFAULT_SPLIT).reduce((a,x)=>a+x,0); }
-      const keys=BUDCATS.map(c=>c.k); let acc=0; const out={}; keys.forEach(k=>{ out[k]=Math.round(tot*((+src[k]||0)/sum)); acc+=out[k]; });
+      const keys=BUDCATS.map(c=>c.k);
+      let esum=src?keys.reduce((a,k)=>a+(+src[k]||0),0):0;
+      /* Poids = part de l'estimation, mais avec un plancher = répartition socle par défaut
+         (hébergement, repas, transport, activités, réserve…). Ainsi un poste structurant
+         comme le transport n'est jamais laissé à 0 quand l'estimation ne l'a pas chiffré. */
+      const w={}; keys.forEach(k=>{ const estPart=(esum>0)?(+src[k]||0)/esum:0; w[k]=Math.max(estPart, DEFAULT_SPLIT[k]||0); });
+      let wsum=keys.reduce((a,k)=>a+w[k],0)||1;
+      let acc=0; const out={}; keys.forEach(k=>{ out[k]=Math.round(tot*(w[k]/wsum)); acc+=out[k]; });
       out.misc=Math.max(0,(out.misc||0)+(tot-acc));
       keys.forEach(k=>{ const inp=b.querySelector("#bp_"+k); if(inp) inp.value=out[k]>0?out[k]:""; });
       recalc(); toast(t("bud.dispatched")); }; }
