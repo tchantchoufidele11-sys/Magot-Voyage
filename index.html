@@ -8285,11 +8285,12 @@ function legCurForDate(tr, dateISO){
   const leg=legs.find(l=>di>=l.dayFrom && di<=l.dayTo);
   return (leg&&leg.currency)||base;
 }
-function openExpense(editId){ const tr=currentTrip(); if(!tr) return; const _ex=editId?(tr.expenses||[]).find(x=>x.id===editId):null; expenseDraft={editId:(_ex?_ex.id:""),category:(_ex?_ex.category:"food"),date:(_ex?_ex.date:todayISO()),currency:(_ex?(_ex.currency||tr.currency):(legCurForDate(tr,todayISO())||tr.currency)),estPlaceId:(_ex&&_ex.estPlaceId?_ex.estPlaceId:""),estLat:(_ex&&_ex.lat!=null?_ex.lat:undefined),estLng:(_ex&&_ex.lng!=null?_ex.lng:undefined)};
+function openExpense(editId){ const tr=currentTrip(); if(!tr) return; const _ex=editId?(tr.expenses||[]).find(x=>x.id===editId):null; expenseDraft={editId:(_ex?_ex.id:""),category:(_ex?_ex.category:"food"),date:(_ex?_ex.date:todayISO()),currency:(_ex?(_ex.currency||tr.currency):(legCurForDate(tr,todayISO())||tr.currency)),refund:(_ex?((+_ex.amount)<0):false),estPlaceId:(_ex&&_ex.estPlaceId?_ex.estPlaceId:""),estLat:(_ex&&_ex.lat!=null?_ex.lat:undefined),estLng:(_ex&&_ex.lng!=null?_ex.lng:undefined)};
   document.getElementById("expenseHd").textContent=(_ex?({fr:"Modifier la dépense",en:"Edit expense",es:"Editar gasto",it:"Modifica spesa",de:"Ausgabe bearbeiten"}[lang()]||"Modifier la dépense"):t("bud.addExpense"));
   const _curList=Array.from(new Set([expenseDraft.currency,tr.currency].concat(Object.keys(FX))));
   const b=document.getElementById("expenseBody");
-  b.innerHTML=`<div class="fld2"><div class="fld" style="flex:1"><label>${t("exp.amount")}</label><input id="exAmt" type="number" inputmode="decimal" placeholder="0" value="${_ex?_ex.amount:''}"></div><div class="fld" style="width:118px"><label>${({fr:"Devise",en:"Currency",es:"Moneda",it:"Valuta",de:"Währung"}[lang()]||"Devise")}</label><select id="exCur" class="bsel">${_curList.map(c=>`<option value="${c}" ${c===expenseDraft.currency?'selected':''}>${c}</option>`).join("")}</select></div></div>
+  b.innerHTML=`<div class="fld"><label>${t("exp.kind")}</label><div style="display:flex;gap:8px"><button type="button" id="exKindE" class="btn ${expenseDraft.refund?"ghostline2":"navy"}" style="flex:1;margin:0">${t("exp.typeExpense")}</button><button type="button" id="exKindR" class="btn ${expenseDraft.refund?"navy":"ghostline2"}" style="flex:1;margin:0">${t("exp.typeRefund")}</button></div></div>
+   <div class="fld2"><div class="fld" style="flex:1"><label>${t("exp.amount")}</label><input id="exAmt" type="number" inputmode="decimal" placeholder="0" value="${_ex?Math.abs(_ex.amount):''}"></div><div class="fld" style="width:118px"><label>${({fr:"Devise",en:"Currency",es:"Moneda",it:"Valuta",de:"Währung"}[lang()]||"Devise")}</label><select id="exCur" class="bsel">${_curList.map(c=>`<option value="${c}" ${c===expenseDraft.currency?'selected':''}>${c}</option>`).join("")}</select></div></div>
    <div class="fld"><label>${t("exp.category")}</label><select id="exCat" class="bsel">${BUDCATS.map(c=>`<option value="${c.k}" ${c.k===expenseDraft.category?'selected':''}>${t("bcat."+c.k)}</option>`).join("")}</select></div>
    <div class="fld"><label>${t("exp.establishment")} <span id="exEstReq" style="color:var(--danger)">${expNeedsEst(expenseDraft.category)?"*":""}</span></label><input id="exEst" value="${_ex?escapeHtml(_ex.establishment||''):''}" placeholder="${escapeHtml(t("exp.estPh"))}"></div>
    <div id="exSug"></div>
@@ -8297,21 +8298,25 @@ function openExpense(editId){ const tr=currentTrip(); if(!tr) return; const _ex=
    <div class="fld"><label>${t("exp.date")}</label><input id="exDate" type="date" value="${_ex?(_ex.date||todayISO()):todayISO()}"></div>
    <button class="btn navy block" id="exSave">${t("exp.save")}</button><div style="height:18px"></div>`;
   b.querySelector("#exCat").onchange=e=>{ expenseDraft.category=e.target.value; const rq=b.querySelector("#exEstReq"); if(rq) rq.textContent=expNeedsEst(expenseDraft.category)?"*":""; };
-  { const ie=b.querySelector("#exEst"); if(ie) ie.oninput=()=>{ expenseDraft.estPlaceId=""; expenseDraft.estLat=undefined; expenseDraft.estLng=undefined; }; const cc=b.querySelector("#exCur"); if(cc) cc.onchange=()=>{ expenseDraft.currency=cc.value; expenseDraft.curTouched=true; }; const dd=b.querySelector("#exDate"); if(dd) dd.onchange=()=>{ if(!expenseDraft.editId && !expenseDraft.curTouched){ const nc=legCurForDate(tr, dd.value); if(nc){ expenseDraft.currency=nc; const _c=b.querySelector("#exCur"); if(_c){ if(![].some.call(_c.options,o=>o.value===nc)){ _c.insertAdjacentHTML("beforeend",`<option value="${nc}">${nc}</option>`); } _c.value=nc; } } } renderExpSug(); }; renderExpSug(); }
+  { const kE=b.querySelector("#exKindE"), kR=b.querySelector("#exKindR"); const _sk=(r)=>{ expenseDraft.refund=r; if(kE)kE.className="btn "+(r?"ghostline2":"navy"); if(kR)kR.className="btn "+(r?"navy":"ghostline2"); }; if(kE)kE.onclick=()=>_sk(false); if(kR)kR.onclick=()=>_sk(true);
+    const ie=b.querySelector("#exEst"); if(ie) ie.oninput=()=>{ expenseDraft.estPlaceId=""; expenseDraft.estLat=undefined; expenseDraft.estLng=undefined; }; const cc=b.querySelector("#exCur"); if(cc) cc.onchange=()=>{ expenseDraft.currency=cc.value; expenseDraft.curTouched=true; }; const dd=b.querySelector("#exDate"); if(dd) dd.onchange=()=>{ if(!expenseDraft.editId && !expenseDraft.curTouched){ const nc=legCurForDate(tr, dd.value); if(nc){ expenseDraft.currency=nc; const _c=b.querySelector("#exCur"); if(_c){ if(![].some.call(_c.options,o=>o.value===nc)){ _c.insertAdjacentHTML("beforeend",`<option value="${nc}">${nc}</option>`); } _c.value=nc; } } } renderExpSug(); }; renderExpSug(); }
   b.querySelector("#exSave").onclick=addExpense;
   document.getElementById("expenseSheet").classList.add("show");
 }
 function closeExpense(){ document.getElementById("expenseSheet").classList.remove("show"); }
+let _expSaving=false;
 function addExpense(){ const tr=currentTrip(); if(!tr) return; const b=document.getElementById("expenseBody");
   const amt=parseFloat(String(b.querySelector("#exAmt").value).replace(",",".")); if(!amt||amt<=0){ toast(t("exp.needAmount")); b.querySelector("#exAmt").focus(); return; }
   const est=(b.querySelector("#exEst").value||"").trim(); const city=(b.querySelector("#exCity").value||"").trim();
   if(expNeedsEst(expenseDraft.category) && !est){ toast(t("exp.needEst")); b.querySelector("#exEst").focus(); return; }
   const _cs=b.querySelector("#exCur"); const ecur=(_cs&&_cs.value)||tr.currency||"EUR";
   const date=b.querySelector("#exDate").value||todayISO();
+  if(_expSaving) return; _expSaving=true; setTimeout(()=>{_expSaving=false;},500);
+  const signed=expenseDraft.refund ? -Math.abs(amt) : Math.abs(amt);
   tr.expenses=tr.expenses||[]; let e, isEdit=false;
   if(expenseDraft.editId){ const ix=tr.expenses.findIndex(x=>x.id===expenseDraft.editId);
-    if(ix>=0){ e=Object.assign(tr.expenses[ix],{ amount:amt, currency:ecur, category:expenseDraft.category, establishment:est, estPlaceId:(expenseDraft.estPlaceId||tr.expenses[ix].estPlaceId||""), lat:(expenseDraft.estLat!=null?expenseDraft.estLat:tr.expenses[ix].lat), lng:(expenseDraft.estLng!=null?expenseDraft.estLng:tr.expenses[ix].lng), city:city, label:est, date:date }); isEdit=true; } }
-  if(!isEdit){ e={ id:uid(), amount:amt, currency:ecur, category:expenseDraft.category, establishment:est, estPlaceId:expenseDraft.estPlaceId||"", lat:(expenseDraft.estLat!=null?expenseDraft.estLat:null), lng:(expenseDraft.estLng!=null?expenseDraft.estLng:null), city:city, label:est, date:date, createdAt:Date.now() }; tr.expenses.push(e); }
+    if(ix>=0){ e=Object.assign(tr.expenses[ix],{ amount:signed, currency:ecur, category:expenseDraft.category, establishment:est, estPlaceId:(expenseDraft.estPlaceId||tr.expenses[ix].estPlaceId||""), lat:(expenseDraft.estLat!=null?expenseDraft.estLat:tr.expenses[ix].lat), lng:(expenseDraft.estLng!=null?expenseDraft.estLng:tr.expenses[ix].lng), city:city, label:est, date:date }); isEdit=true; } }
+  if(!isEdit){ e={ id:uid(), amount:signed, currency:ecur, category:expenseDraft.category, establishment:est, estPlaceId:expenseDraft.estPlaceId||"", lat:(expenseDraft.estLat!=null?expenseDraft.estLat:null), lng:(expenseDraft.estLng!=null?expenseDraft.estLng:null), city:city, label:est, date:date, createdAt:Date.now() }; tr.expenses.push(e); }
   saveState(); closeExpense(); renderBudget(); renderHome();
   { const _g=EST_GROUP[e.category], _ec=_estCache[tr.id], _ge=(_ec&&_ec.byCat)?(+_ec.byCat[_g]||0):0;
     if(_g && _ge>0){ const gs=estGroupSpent(tr,_g), pct=gs/_ge*100, lab=t("bcat."+_g);
@@ -8413,7 +8418,7 @@ async function estimateBudget(tr){
     const _lgPrice=+lg.lodgingPrice||0; let amt, src;
     if(_lgPrice>0){ amt=_lgPrice; src="yours"; }
     else { amt=lgNights*HOTEL_NIGHTLY*rooms*(_premium?1.7:1)*lgFac*lgFx*MARKUP; src="regional"; }
-    _lodgeLegs.push({cur:lgCur,amount:amt,src:src,nights:lgNights,name:(lg.dest&&lg.dest.name)||"",li:li});
+    _lodgeLegs.push({cur:lgCur,amount:signed,src:src,nights:lgNights,name:(lg.dest&&lg.dest.name)||"",li:li});
     _lodgeCons+=convCur(amt,lgCur,tr.currency);
   });
   byCat.lodging=_lodgeCons; srcMap.lodging=_lodgeLegs.some(x=>x.src==="yours")?"yours":"regional";
