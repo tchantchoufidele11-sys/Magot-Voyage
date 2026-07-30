@@ -3126,7 +3126,7 @@ const DEFAULT_S={ version:"0.2.0", settings:{ lang:"fr", theme:"system", units:"
 /* Clé Maps JS partagée (restreinte au domaine GitHub Pages). Repli : clé perso de l'utilisateur si fournie. */
 const SHARED_MAP_KEY="AIzaSyCt5iVx8nPr1V067A3daE0X1YA568XJNbU";
 function mapKey(){ return (S.settings.mapKey||"").trim() || SHARED_MAP_KEY; }
-const BUILD="0.3.28 · v612 legs-multipays";
+const BUILD="0.3.29 · v613 dates-etapes";
 let S=loadState();
 function normalizeTrip(tr){ if(!tr||typeof tr!=="object") return tr;
   tr.id=tr.id||("t"+Date.now()+Math.random().toString(36).slice(2,7));
@@ -3983,13 +3983,13 @@ function applyLang(code){ S.settings.lang=code; saveState(); applyI18n(); render
   if(sh("detailSheet")&&detailId) renderDetail(detailId);
   /* la fenêtre de création n'est pas re-rendue pour ne pas effacer la saisie en cours */
 }
-function newDraft(){ return { legs:[], dest:null, lodging:null, depart:null, veh:{fuel:"essence",conso:"",price:""}, transport:"car", styles:[], style:"mixed", travelers:2, currency:"EUR" }; }
+function newDraft(){ return { legs:[], dest:null, lodging:null, depart:null, veh:{fuel:"essence",conso:"",price:""}, transport:"car", styles:[], style:"mixed", travelers:2, currency:"EUR", _legsDateEdited:{} }; }
 function openCreate(id){ editId=(typeof id==="string"&&id)?id:null; const tr=editId?S.trips.find(x=>x.id===editId):null;
   draft= tr ? { dest:(tr.dest&&tr.dest.name)?{name:tr.dest.name,country:tr.dest.country||"",cc:tr.dest.cc||"",lat:tr.dest.lat,lng:tr.dest.lng,bbox:tr.dest.bbox||null,label:tr.dest.name+(tr.dest.country?", "+tr.dest.country:"")}:null, lodging:tr.lodging||null, dateStart:tr.dateStart||"", dateEnd:tr.dateEnd||"", depart:tr.depart||null, depHub:tr.depHub||null, arrHub:tr.arrHub||null, veh:tr.veh||{fuel:"essence",conso:"",price:""}, transport:tr.transport||"car", localTransport:tr.localTransport||null, styles:(tr.styles&&tr.styles.length)?tr.styles.slice():(tr.style&&tr.style!=="mixed"?[tr.style]:[]), style:tr.style||"mixed", travelers:tr.travelers||2, currency:tr.currency||"EUR" } : newDraft();
   /* Modification d'un voyage déjà découpé : on ramène ses étapes dans le brouillon,
      converties en nombre de jours (la forme que manipule l'écran de création). */
   if(tr&&Array.isArray(tr.legs)&&tr.legs.length>1){
-    draft.legs=tr.legs.map(l=>({dest:l.dest,days:Math.max(1,(l.dayTo-l.dayFrom)+1),lodging:l.lodging||null,lodgingAddr:l.lodgingAddr||""}));
+    draft.legs=tr.legs.map(l=>({dest:l.dest,days:Math.max(1,(l.dayTo-l.dayFrom)+1),lodging:l.lodging||null,lodgingAddr:l.lodgingAddr||"",dateFrom:null,dateTo:null}));
     if(typeof balanceDraftLegs==="function") balanceDraftLegs();
   }
   _createTried=false; _allowNoDates=false;
@@ -4594,6 +4594,30 @@ function draftLegs(){ if(!Array.isArray(draft.legs)) draft.legs=[];
 function legsInUse(){ return Array.isArray(draft.legs)&&draft.legs.length>1; }
 
 /* Répartit les jours du voyage sans jamais laisser une étape à zéro. */
+function balanceDraftLegsWithDateEdit(legIdx,dateFrom,dateTo){
+  const L=draftLegs(); if(L.length<2||legIdx<0||legIdx>=L.length) return false;
+  if(!draft.dateStart||!draft.dateEnd) return false;
+  const tripStart=new Date(draft.dateStart+"T00:00:00"), tripEnd=new Date(draft.dateEnd+"T00:00:00");
+  const df=new Date(dateFrom+"T00:00:00"), dt=new Date(dateTo+"T00:00:00");
+  if(isNaN(df.getTime())||isNaN(dt.getTime())||df>dt) return false;
+  if(df<tripStart||dt>tripEnd) return false;
+  const editedDays=Math.round((dt-df)/86400000)+1;
+  if(editedDays<1) return false;
+  L[legIdx].days=editedDays; L[legIdx].dateFrom=dateFrom; L[legIdx].dateTo=dateTo;
+  let _d=dt;
+  for(let i=legIdx+1;i<L.length;i++){
+    _d=new Date(_d.getTime()+86400000);
+    const nextEnd=new Date(_d.getTime()+(Math.max(1,L[i].days)-1)*86400000);
+    if(nextEnd>tripEnd){
+      const daysLeft=Math.round((tripEnd-_d)/86400000)+1;
+      L[i].days=Math.max(1,daysLeft);
+    }
+    L[i].dateFrom=null; L[i].dateTo=null;
+    _d=new Date(_d.getTime()+(L[i].days-1)*86400000);
+  }
+  balanceDraftLegs(); saveDraft(); return true;
+}
+
 function balanceDraftLegs(){ const L=draftLegs(); if(L.length<2) { draft.legs=[]; return; }
   const D=draftDayCount(); if(!D) return;
   L.forEach(l=>{ l.days=Math.max(1,Math.round(+l.days||1)); });
@@ -4610,7 +4634,7 @@ function addDraftLeg(dest){ const D=draftDayCount();
   /* La nouvelle étape prend un jour à la précédente. */
   const last=L[L.length-1];
   if(last.days>1) last.days-=1;
-  L.push({dest:dest,days:1});
+  L.push({dest:dest,days:1,dateFrom:null,dateTo:null});
   draft.legs=L; balanceDraftLegs(); saveDraft(); refreshLegs();
 }
 
@@ -4653,7 +4677,7 @@ function legsCardHtml(){
       <div class="legrow-m"><div class="legrow-n">${escapeHtml(nm)}</div><div class="legrow-d">${escapeHtml(legDaysLabel(l.days))}${_dr?(" \u00b7 "+escapeHtml(_dr)):""}</div></div>
       <div class="stepper legrow-s"><button type="button" data-legm="${i}">&#8722;</button><span class="n">${l.days}</span><button type="button" data-legp="${i}">+</button></div>
       ${i>0?`<button type="button" class="legrow-x" data-legx="${i}" aria-label="${escapeHtml(t("legs.remove"))}">\u2715</button>`:""}
-    </div>${i>0?`<div class="fld leglodge" style="margin:2px 0 10px 40px"><input id="cLegLodge${i}" type="text" autocomplete="off" placeholder="${escapeHtml(t("legs.lodgingPh",{c:nm}))}" value="${escapeHtml((l.lodgingAddr||(l.lodging&&l.lodging.name)||""))}"><div class="ac" id="cLegLac${i}"></div><button type="button" class="btn block" data-legsug="${i}" style="margin-top:6px">${escapeHtml(t("lodging.suggest"))}</button></div>`:""}`; }).join(""):"";
+    </div>${i>0?`<div class="fld leglodge" style="margin:2px 0 10px 40px"><div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px"><input id="cLegDateFrom${i}" type="date" class="legdate" data-leg="${i}" value="${l.dateFrom||""}" placeholder="Du"><input id="cLegDateTo${i}" type="date" class="legdate" data-leg="${i}" value="${l.dateTo||""}" placeholder="Au"></div><input id="cLegLodge${i}" type="text" autocomplete="off" placeholder="${escapeHtml(t("legs.lodgingPh",{c:nm}))}" value="${escapeHtml((l.lodgingAddr||(l.lodging&&l.lodging.name)||""))}"><div class="ac" id="cLegLac${i}"></div><button type="button" class="btn block" data-legsug="${i}" style="margin-top:6px">${escapeHtml(t("lodging.suggest"))}</button></div>`:""}`; }).join(""):"";
   const body=D
     ? rows+`<div class="fld legadd"><input id="cLegAdd" type="text" autocomplete="off" placeholder="${escapeHtml(t("legs.addPh"))}"><div class="ac" id="cLegAc"></div></div>`
     : `<div class="hwide-note">${t("legs.needDates")}</div>`;
@@ -4703,11 +4727,24 @@ function bindLegs(host){
         la.classList.add("show");
         la.querySelectorAll("div[data-k]").forEach(el=>el.onclick=()=>{ const r=res[+el.dataset.k]; li.value=r.name; if(draft.legs&&draft.legs[i]){ draft.legs[i].lodging={name:r.name,addr:r.addr,lat:r.lat,lng:r.lng,locality:r.locality||"",zone:r.zone||""}; draft.legs[i].lodgingAddr=r.name; } saveDraft(); la.classList.remove("show"); }); },600); });
   });
+  host.querySelectorAll(".legdate").forEach(inp=>{
+    inp.addEventListener("change",()=>{
+      const legIdx=+inp.dataset.leg;
+      const df=host.querySelector("#cLegDateFrom"+legIdx), dt=host.querySelector("#cLegDateTo"+legIdx);
+      if(!df||!dt||!df.value||!dt.value) return;
+      if(!balanceDraftLegsWithDateEdit(legIdx,df.value,dt.value)){
+        toast(t("create.dateError"));
+        refreshLegs();
+      } else { refreshLegs(); }
+    });
+  });
 }
 
 /* Conversion jours → tranches, juste avant l'enregistrement. */
 function draftLegsForTrip(){ const L=draftLegs(); if(L.length<2) return null;
-  let d=0; return L.map((l,idx)=>{ const from=d, to=d+Math.max(1,l.days)-1; d=to+1;
+  return L.map((l,idx)=>{ let from=0, to=0;
+    if(l.dateFrom&&l.dateTo&&draft.dateStart){ from=Math.round((new Date(l.dateFrom+"T00:00:00")-new Date(draft.dateStart+"T00:00:00"))/86400000); to=Math.round((new Date(l.dateTo+"T00:00:00")-new Date(draft.dateStart+"T00:00:00"))/86400000); }
+    else { from=idx===0?0:(L.slice(0,idx).reduce((a,x)=>a+Math.max(1,x.days),0)); to=from+Math.max(1,l.days)-1; }
     /* leg 0 : hôtel = champ principal (rempli par normalizeLegs) ; legs suivants : leur propre hôtel.
        Devise : déduite du pays de l'étape (UK→GBP), sinon celle du voyage. */
     const _cc=l.dest&&l.dest.cc, _cur=(_cc&&CC_CUR[_cc])||draft.currency||"EUR";
