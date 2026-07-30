@@ -1346,6 +1346,7 @@ body.dragging-on{-webkit-user-select:none;user-select:none}
 .cal-m{margin-bottom:4px}
 .cal-mh{font-weight:700;font-size:clamp(14.1px,3.846vw,15px);color:var(--ink);text-align:center;padding:9px 0 6px;position:sticky;top:0;background:var(--surface,#fff);z-index:2}
 .cal-d.muted{color:var(--muted);opacity:.32;cursor:default;pointer-events:none}
+.cal-d.occupied{color:var(--muted);opacity:.5;background:repeating-linear-gradient(-45deg,transparent,transparent 4px,rgba(110,121,145,.12) 4px,rgba(110,121,145,.12) 8px)}
 
 .bud-perline{margin-top:9px;color:var(--muted,#6E7991);font-size:clamp(12.2px,3.333vw,13px);font-weight:600;text-align:center}
 
@@ -3126,7 +3127,7 @@ const DEFAULT_S={ version:"0.2.0", settings:{ lang:"fr", theme:"system", units:"
 /* Clé Maps JS partagée (restreinte au domaine GitHub Pages). Repli : clé perso de l'utilisateur si fournie. */
 const SHARED_MAP_KEY="AIzaSyCt5iVx8nPr1V067A3daE0X1YA568XJNbU";
 function mapKey(){ return (S.settings.mapKey||"").trim() || SHARED_MAP_KEY; }
-const BUILD="0.3.30 · v614 leg-calendar";
+const BUILD="0.3.31 · v615 dates-occupees-cliquables";
 let S=loadState();
 function normalizeTrip(tr){ if(!tr||typeof tr!=="object") return tr;
   tr.id=tr.id||("t"+Date.now()+Math.random().toString(36).slice(2,7));
@@ -4040,19 +4041,12 @@ function syncDateField(inp,txtId,phKey){ const txt=document.getElementById(txtId
 let _calYM=null, _calStart="", _calEnd="", _calMin="";
 let _legCalIdx=-1, _legCalStart="", _legCalEnd="", _legCalMin="", _legCalMax="", _legCalDisabled=new Set();
 function generateDisabledDates(legIdx){
-  /* Retourne un Set de dates désactivées pour une étape : hors voyage + autres étapes occupées */
-  const disabled=new Set();
-  if(!draft.dateStart||!draft.dateEnd) return disabled;
-  const tripStart=new Date(draft.dateStart+"T00:00:00"), tripEnd=new Date(draft.dateEnd+"T00:00:00");
+  /* Retourne {occupied:Set} = dates prises par d'autres étapes (grisées MAIS cliquables).
+     Les dates hors voyage sont gérées séparément par _legCalMin/_legCalMax (bloquées). */
+  const occupied=new Set();
+  if(!draft.dateStart||!draft.dateEnd) return {occupied};
   const L=draftLegsForTrip();
-  if(!L||L.length<2) return disabled;
-  /* Griser toutes les dates hors voyage */
-  let d=new Date("2000-01-01"); while(d<=tripEnd){
-    const iso=d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0");
-    if(d<tripStart||d>tripEnd) disabled.add(iso);
-    d.setDate(d.getDate()+1);
-  }
-  /* Griser les dates des autres étapes */
+  if(!L||L.length<2) return {occupied};
   for(let i=0;i<L.length;i++){
     if(i===legIdx) continue;
     const leg=L[i];
@@ -4060,10 +4054,10 @@ function generateDisabledDates(legIdx){
       const d=new Date(draft.dateStart+"T00:00:00");
       d.setDate(d.getDate()+j);
       const iso=d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0");
-      disabled.add(iso);
+      occupied.add(iso);
     }
   }
-  return disabled;
+  return {occupied};
 }
 
 function calT(k){ const D={
@@ -4148,7 +4142,7 @@ function openLegCalendar(legIdx){
   }
   _legCalMin=draft.dateStart||"";
   _legCalMax=draft.dateEnd||"";
-  _legCalDisabled=generateDisabledDates(legIdx);
+  _legCalDisabled=generateDisabledDates(legIdx).occupied;
   const base=new Date(_legCalMin+"T00:00:00"); _calYM={y:base.getFullYear(), m:base.getMonth()};
   let ov=document.getElementById("legCalOv"); if(ov) ov.remove();
   ov=document.createElement("div"); ov.id="legCalOv"; ov.className="cal-ov";
@@ -4173,8 +4167,10 @@ function legCalBuild(){
     for(let i=0;i<lead;i++) html+=`<span class="cal-d empty"></span>`;
     for(let d=1;d<=dim;d++){
       const iso=y+"-"+String(m+1).padStart(2,"0")+"-"+String(d).padStart(2,"0");
-      const isDisabled=iso<_legCalMin||iso>_legCalMax||_legCalDisabled.has(iso);
-      html+=`<button type="button" class="cal-d${isDisabled?' muted':''}" data-iso="${iso}"${isDisabled?' disabled':''}>${d}</button>`;
+      const outOfTrip=iso<_legCalMin||iso>_legCalMax;
+      const isOccupied=_legCalDisabled.has(iso);
+      let cls="cal-d"; if(outOfTrip) cls+=" muted"; else if(isOccupied) cls+=" occupied";
+      html+=`<button type="button" class="${cls}" data-iso="${iso}"${outOfTrip?' disabled':''}>${d}</button>`;
     }
     html+=`</div></div>`;
     m++; if(m>11){m=0;y++;}
