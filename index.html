@@ -3126,7 +3126,7 @@ const DEFAULT_S={ version:"0.2.0", settings:{ lang:"fr", theme:"system", units:"
 /* Clé Maps JS partagée (restreinte au domaine GitHub Pages). Repli : clé perso de l'utilisateur si fournie. */
 const SHARED_MAP_KEY="AIzaSyCt5iVx8nPr1V067A3daE0X1YA568XJNbU";
 function mapKey(){ return (S.settings.mapKey||"").trim() || SHARED_MAP_KEY; }
-const BUILD="0.3.29 · v613 dates-etapes";
+const BUILD="0.3.30 · v614 leg-calendar";
 let S=loadState();
 function normalizeTrip(tr){ if(!tr||typeof tr!=="object") return tr;
   tr.id=tr.id||("t"+Date.now()+Math.random().toString(36).slice(2,7));
@@ -4038,6 +4038,34 @@ function syncDateField(inp,txtId,phKey){ const txt=document.getElementById(txtId
 
 /* ===================== Calendrier de voyage (sélection de plage, type Booking) ===================== */
 let _calYM=null, _calStart="", _calEnd="", _calMin="";
+let _legCalIdx=-1, _legCalStart="", _legCalEnd="", _legCalMin="", _legCalMax="", _legCalDisabled=new Set();
+function generateDisabledDates(legIdx){
+  /* Retourne un Set de dates désactivées pour une étape : hors voyage + autres étapes occupées */
+  const disabled=new Set();
+  if(!draft.dateStart||!draft.dateEnd) return disabled;
+  const tripStart=new Date(draft.dateStart+"T00:00:00"), tripEnd=new Date(draft.dateEnd+"T00:00:00");
+  const L=draftLegsForTrip();
+  if(!L||L.length<2) return disabled;
+  /* Griser toutes les dates hors voyage */
+  let d=new Date("2000-01-01"); while(d<=tripEnd){
+    const iso=d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0");
+    if(d<tripStart||d>tripEnd) disabled.add(iso);
+    d.setDate(d.getDate()+1);
+  }
+  /* Griser les dates des autres étapes */
+  for(let i=0;i<L.length;i++){
+    if(i===legIdx) continue;
+    const leg=L[i];
+    for(let j=leg.dayFrom;j<=leg.dayTo;j++){
+      const d=new Date(draft.dateStart+"T00:00:00");
+      d.setDate(d.getDate()+j);
+      const iso=d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0");
+      disabled.add(iso);
+    }
+  }
+  return disabled;
+}
+
 function calT(k){ const D={
   fr:{title:"Dates du voyage",pickStart:"Choisis la date de départ",pickEnd:"Choisis la date de retour",clear:"Effacer",ok:"Valider"},
   en:{title:"Trip dates",pickStart:"Pick your start date",pickEnd:"Pick your return date",clear:"Clear",ok:"Confirm"},
@@ -4102,6 +4130,89 @@ function calPick(iso){ if(iso<_calMin) return;
 function calValidate(){ draft.dateStart=_calStart||""; draft.dateEnd=_calEnd||"";
   if(typeof checkCreate==="function") setTimeout(()=>checkCreate(false),0);
   if(typeof balanceDraftLegs==="function"){ balanceDraftLegs(); if(typeof refreshLegs==="function") refreshLegs(); } updateTripDatesField(); if(typeof updateRecap==="function") updateRecap(); if(typeof saveDraft==="function") saveDraft(); calClose(); }
+
+function legCalRangeShort(a,b){ try{ const da=new Date(a+"T00:00:00"),db=new Date(b+"T00:00:00"),L=LOCALE[lang()]||'fr-FR'; const sfx=new Intl.DateTimeFormat(L,{day:'numeric',month:'short'}).format(da); const efx=new Intl.DateTimeFormat(L,{day:'numeric',month:'short',year:'numeric'}).format(db); return sfx+" – "+efx; }catch(e){ return a+" – "+b; } }
+function openLegCalendar(legIdx){
+  _legCalIdx=legIdx;
+  const L=draftLegsForTrip(); if(!L||L.length<2||legIdx<0||legIdx>=L.length) return;
+  const leg=L[legIdx];
+  /* Calculer _legCalStart/End depuis dayFrom/dayTo */
+  _legCalStart=""; _legCalEnd="";
+  if(leg.dayFrom!==undefined && leg.dayTo!==undefined && draft.dateStart){
+    const s=new Date(draft.dateStart+"T00:00:00");
+    s.setDate(s.getDate()+leg.dayFrom);
+    const e=new Date(draft.dateStart+"T00:00:00");
+    e.setDate(e.getDate()+leg.dayTo);
+    _legCalStart=s.getFullYear()+"-"+String(s.getMonth()+1).padStart(2,"0")+"-"+String(s.getDate()).padStart(2,"0");
+    _legCalEnd=e.getFullYear()+"-"+String(e.getMonth()+1).padStart(2,"0")+"-"+String(e.getDate()).padStart(2,"0");
+  }
+  _legCalMin=draft.dateStart||"";
+  _legCalMax=draft.dateEnd||"";
+  _legCalDisabled=generateDisabledDates(legIdx);
+  const base=new Date(_legCalMin+"T00:00:00"); _calYM={y:base.getFullYear(), m:base.getMonth()};
+  let ov=document.getElementById("legCalOv"); if(ov) ov.remove();
+  ov=document.createElement("div"); ov.id="legCalOv"; ov.className="cal-ov";
+  const destName=(leg.dest&&leg.dest.name)||"";
+  ov.innerHTML=`<div class="cal-sheet" role="dialog" aria-modal="true"><div class="cal-head"><div class="cal-title">Dates · ${escapeHtml(destName)}</div><button class="cal-x" id="legCalX" type="button" aria-label="Fermer">×</button></div><div class="cal-sub" id="legCalSub"></div><div class="cal-dow">${_CALDOW.map(x=>`<span>${x}</span>`).join("")}</div><div class="cal-scroll" id="legCalScroll"></div><div class="cal-foot"><button class="btn ghostline2" id="legCalClear" type="button">${calT("clear")}</button><button class="btn navy" id="legCalOk" type="button">${calT("ok")}</button></div></div>`;
+  document.body.appendChild(ov);
+  ov.addEventListener("click",e=>{ if(e.target===ov) legCalClose(); });
+  ov.querySelector("#legCalX").onclick=legCalClose;
+  ov.querySelector("#legCalClear").onclick=()=>{ _legCalStart=""; _legCalEnd=""; legCalPaint(); };
+  ov.querySelector("#legCalOk").onclick=legCalValidate;
+  legCalBuild(); legCalPaint();
+  const sc=ov.querySelector("#legCalScroll");
+  requestAnimationFrame(()=>{ ov.classList.add("show"); const tgt=sc.querySelector(".cal-d.sel-start")||sc.querySelector(".cal-d.today"); if(tgt){ const mEl=tgt.closest(".cal-m"); if(mEl) sc.scrollTop=Math.max(0,mEl.offsetTop-4); } });
+}
+function legCalClose(){ const ov=document.getElementById("legCalOv"); if(ov){ ov.classList.remove("show"); setTimeout(()=>{ if(ov&&ov.parentNode) ov.remove(); },200); } }
+function legCalBuild(){
+  const sc=document.getElementById("legCalScroll"); if(!sc) return;
+  let y=_calYM.y, m=_calYM.m, html="";
+  for(let k=0;k<16;k++){
+    html+=`<div class="cal-m"><div class="cal-mh">${_calMonthName(y,m)}</div><div class="cal-grid">`;
+    const first=new Date(y,m,1); const lead=(first.getDay()+6)%7; const dim=new Date(y,m+1,0).getDate();
+    for(let i=0;i<lead;i++) html+=`<span class="cal-d empty"></span>`;
+    for(let d=1;d<=dim;d++){
+      const iso=y+"-"+String(m+1).padStart(2,"0")+"-"+String(d).padStart(2,"0");
+      const isDisabled=iso<_legCalMin||iso>_legCalMax||_legCalDisabled.has(iso);
+      html+=`<button type="button" class="cal-d${isDisabled?' muted':''}" data-iso="${iso}"${isDisabled?' disabled':''}>${d}</button>`;
+    }
+    html+=`</div></div>`;
+    m++; if(m>11){m=0;y++;}
+  }
+  sc.innerHTML=html;
+  sc.querySelectorAll('.cal-d[data-iso]:not([disabled])').forEach(b=>b.onclick=()=>legCalPick(b.dataset.iso));
+}
+function legCalPaint(){
+  const sub=document.getElementById("legCalSub"); if(sub) sub.textContent=!_legCalStart?calT("pickStart"):(!_legCalEnd?calT("pickEnd"):legCalRangeShort(_legCalStart,_legCalEnd));
+  const hasRange=!!(_legCalStart&&_legCalEnd&&_legCalEnd!==_legCalStart); const today=todayISO();
+  document.querySelectorAll('#legCalScroll .cal-d[data-iso]').forEach(b=>{ const iso=b.dataset.iso;
+    b.classList.remove("in-range","sel-start","sel-end","rng","today");
+    if(iso===today) b.classList.add("today");
+    if(_legCalStart&&_legCalEnd&&iso>_legCalStart&&iso<_legCalEnd) b.classList.add("in-range");
+    if(iso===_legCalStart){ b.classList.add("sel-start"); if(hasRange) b.classList.add("rng"); }
+    if(iso===_legCalEnd){ b.classList.add("sel-end"); if(hasRange) b.classList.add("rng"); }
+  });
+}
+function legCalPick(iso){
+  if(!_legCalStart || (_legCalStart&&_legCalEnd)){ _legCalStart=iso; _legCalEnd=""; }
+  else if(iso<_legCalStart){ _legCalStart=iso; }
+  else { _legCalEnd=iso; }
+  legCalPaint();
+}
+function legCalValidate(){
+  if(!_legCalStart||!_legCalEnd) { toast("Dates incomplètes"); return; }
+  /* Convertir _legCalStart/End en dayFrom/dayTo */
+  const L=draftLegsForTrip(); if(!L||L.length<2||_legCalIdx<0||_legCalIdx>=L.length) return;
+  const ds=new Date(_legCalStart+"T00:00:00"), de=new Date(_legCalEnd+"T00:00:00"), dtStart=new Date(draft.dateStart+"T00:00:00");
+  const dayFrom=Math.round((ds-dtStart)/86400000), dayTo=Math.round((de-dtStart)/86400000);
+  /* Mettre à jour les jours */
+  const leg=draft.legs[_legCalIdx]; if(leg){
+    leg.days=Math.max(1,dayTo-dayFrom+1);
+    leg.dateFrom=_legCalStart;
+    leg.dateTo=_legCalEnd;
+  }
+  saveDraft(); refreshLegs(); legCalClose();
+}
 
 function destSubText(){ if(draft.dest){ const cn=(draft.country&&draft.country.name)||draft.dest.country||""; return (cn?cn+", ":"")+draft.dest.name; } return t("create.subDest"); }
 function updateDestSub(){ const el=document.getElementById("cDestSub"); if(el) el.textContent=destSubText(); }
@@ -4594,30 +4705,6 @@ function draftLegs(){ if(!Array.isArray(draft.legs)) draft.legs=[];
 function legsInUse(){ return Array.isArray(draft.legs)&&draft.legs.length>1; }
 
 /* Répartit les jours du voyage sans jamais laisser une étape à zéro. */
-function balanceDraftLegsWithDateEdit(legIdx,dateFrom,dateTo){
-  const L=draftLegs(); if(L.length<2||legIdx<0||legIdx>=L.length) return false;
-  if(!draft.dateStart||!draft.dateEnd) return false;
-  const tripStart=new Date(draft.dateStart+"T00:00:00"), tripEnd=new Date(draft.dateEnd+"T00:00:00");
-  const df=new Date(dateFrom+"T00:00:00"), dt=new Date(dateTo+"T00:00:00");
-  if(isNaN(df.getTime())||isNaN(dt.getTime())||df>dt) return false;
-  if(df<tripStart||dt>tripEnd) return false;
-  const editedDays=Math.round((dt-df)/86400000)+1;
-  if(editedDays<1) return false;
-  L[legIdx].days=editedDays; L[legIdx].dateFrom=dateFrom; L[legIdx].dateTo=dateTo;
-  let _d=dt;
-  for(let i=legIdx+1;i<L.length;i++){
-    _d=new Date(_d.getTime()+86400000);
-    const nextEnd=new Date(_d.getTime()+(Math.max(1,L[i].days)-1)*86400000);
-    if(nextEnd>tripEnd){
-      const daysLeft=Math.round((tripEnd-_d)/86400000)+1;
-      L[i].days=Math.max(1,daysLeft);
-    }
-    L[i].dateFrom=null; L[i].dateTo=null;
-    _d=new Date(_d.getTime()+(L[i].days-1)*86400000);
-  }
-  balanceDraftLegs(); saveDraft(); return true;
-}
-
 function balanceDraftLegs(){ const L=draftLegs(); if(L.length<2) { draft.legs=[]; return; }
   const D=draftDayCount(); if(!D) return;
   L.forEach(l=>{ l.days=Math.max(1,Math.round(+l.days||1)); });
@@ -4677,7 +4764,7 @@ function legsCardHtml(){
       <div class="legrow-m"><div class="legrow-n">${escapeHtml(nm)}</div><div class="legrow-d">${escapeHtml(legDaysLabel(l.days))}${_dr?(" \u00b7 "+escapeHtml(_dr)):""}</div></div>
       <div class="stepper legrow-s"><button type="button" data-legm="${i}">&#8722;</button><span class="n">${l.days}</span><button type="button" data-legp="${i}">+</button></div>
       ${i>0?`<button type="button" class="legrow-x" data-legx="${i}" aria-label="${escapeHtml(t("legs.remove"))}">\u2715</button>`:""}
-    </div>${i>0?`<div class="fld leglodge" style="margin:2px 0 10px 40px"><div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px"><input id="cLegDateFrom${i}" type="date" class="legdate" data-leg="${i}" value="${l.dateFrom||""}" placeholder="Du"><input id="cLegDateTo${i}" type="date" class="legdate" data-leg="${i}" value="${l.dateTo||""}" placeholder="Au"></div><input id="cLegLodge${i}" type="text" autocomplete="off" placeholder="${escapeHtml(t("legs.lodgingPh",{c:nm}))}" value="${escapeHtml((l.lodgingAddr||(l.lodging&&l.lodging.name)||""))}"><div class="ac" id="cLegLac${i}"></div><button type="button" class="btn block" data-legsug="${i}" style="margin-top:6px">${escapeHtml(t("lodging.suggest"))}</button></div>`:""}`; }).join(""):"";
+    </div>${i>0?`<div class="fld leglodge" style="margin:2px 0 10px 40px"><div style="margin-bottom:8px"><input id="cLegDate${i}" type="text" class="legdateField" data-leg="${i}" readonly placeholder="Dates" value="${_dr||""}" style="cursor:pointer;background:#f9f9f9;border:1px solid #ddd;padding:10px;border-radius:6px;font-size:15px;"></div><input id="cLegLodge${i}" type="text" autocomplete="off" placeholder="${escapeHtml(t("legs.lodgingPh",{c:nm}))}" value="${escapeHtml((l.lodgingAddr||(l.lodging&&l.lodging.name)||""))}"><div class="ac" id="cLegLac${i}"></div><button type="button" class="btn block" data-legsug="${i}" style="margin-top:6px">${escapeHtml(t("lodging.suggest"))}</button></div>`:""}`; }).join(""):"";
   const body=D
     ? rows+`<div class="fld legadd"><input id="cLegAdd" type="text" autocomplete="off" placeholder="${escapeHtml(t("legs.addPh"))}"><div class="ac" id="cLegAc"></div></div>`
     : `<div class="hwide-note">${t("legs.needDates")}</div>`;
@@ -4727,16 +4814,8 @@ function bindLegs(host){
         la.classList.add("show");
         la.querySelectorAll("div[data-k]").forEach(el=>el.onclick=()=>{ const r=res[+el.dataset.k]; li.value=r.name; if(draft.legs&&draft.legs[i]){ draft.legs[i].lodging={name:r.name,addr:r.addr,lat:r.lat,lng:r.lng,locality:r.locality||"",zone:r.zone||""}; draft.legs[i].lodgingAddr=r.name; } saveDraft(); la.classList.remove("show"); }); },600); });
   });
-  host.querySelectorAll(".legdate").forEach(inp=>{
-    inp.addEventListener("change",()=>{
-      const legIdx=+inp.dataset.leg;
-      const df=host.querySelector("#cLegDateFrom"+legIdx), dt=host.querySelector("#cLegDateTo"+legIdx);
-      if(!df||!dt||!df.value||!dt.value) return;
-      if(!balanceDraftLegsWithDateEdit(legIdx,df.value,dt.value)){
-        toast(t("create.dateError"));
-        refreshLegs();
-      } else { refreshLegs(); }
-    });
+  host.querySelectorAll(".legdateField").forEach(inp=>{
+    inp.onclick=()=>{ const legIdx=+inp.dataset.leg; openLegCalendar(legIdx); };
   });
 }
 
