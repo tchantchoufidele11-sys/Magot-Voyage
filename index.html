@@ -3127,7 +3127,7 @@ const DEFAULT_S={ version:"0.2.0", settings:{ lang:"fr", theme:"system", units:"
 /* Clé Maps JS partagée (restreinte au domaine GitHub Pages). Repli : clé perso de l'utilisateur si fournie. */
 const SHARED_MAP_KEY="AIzaSyCt5iVx8nPr1V067A3daE0X1YA568XJNbU";
 function mapKey(){ return (S.settings.mapKey||"").trim() || SHARED_MAP_KEY; }
-const BUILD="0.3.32 · v616 jours-partages";
+const BUILD="0.3.34 · v618 partage-planning-budget";
 let S=loadState();
 function normalizeTrip(tr){ if(!tr||typeof tr!=="object") return tr;
   tr.id=tr.id||("t"+Date.now()+Math.random().toString(36).slice(2,7));
@@ -4773,7 +4773,7 @@ function legsCardHtml(){
       <div class="legrow-m"><div class="legrow-n">${escapeHtml(nm)}</div><div class="legrow-d">${escapeHtml(legDaysLabel(l.days))}${_dr?(" \u00b7 "+escapeHtml(_dr)):""}</div></div>
       <div class="stepper legrow-s"><button type="button" data-legm="${i}">&#8722;</button><span class="n">${l.days}</span><button type="button" data-legp="${i}">+</button></div>
       ${i>0?`<button type="button" class="legrow-x" data-legx="${i}" aria-label="${escapeHtml(t("legs.remove"))}">\u2715</button>`:""}
-    </div>${i>0?`<div class="fld leglodge" style="margin:2px 0 10px 40px"><div style="margin-bottom:8px"><input id="cLegDate${i}" type="text" class="legdateField" data-leg="${i}" readonly placeholder="Dates" value="${_dr||""}" style="cursor:pointer;background:#f9f9f9;border:1px solid #ddd;padding:10px;border-radius:6px;font-size:15px;"></div><input id="cLegLodge${i}" type="text" autocomplete="off" placeholder="${escapeHtml(t("legs.lodgingPh",{c:nm}))}" value="${escapeHtml((l.lodgingAddr||(l.lodging&&l.lodging.name)||""))}"><div class="ac" id="cLegLac${i}"></div><button type="button" class="btn block" data-legsug="${i}" style="margin-top:6px">${escapeHtml(t("lodging.suggest"))}</button></div>`:""}`; }).join(""):"";
+    </div>${i>0?`<div class="fld leglodge" style="margin:2px 0 10px 40px"><div style="margin-bottom:8px"><input id="cLegDate${i}" type="text" class="legdateField" data-leg="${i}" readonly placeholder="Dates" value="${_dr||""}" style="cursor:pointer"></div><input id="cLegLodge${i}" type="text" autocomplete="off" placeholder="${escapeHtml(t("legs.lodgingPh",{c:nm}))}" value="${escapeHtml((l.lodgingAddr||(l.lodging&&l.lodging.name)||""))}"><div class="ac" id="cLegLac${i}"></div><button type="button" class="btn block" data-legsug="${i}" style="margin-top:6px">${escapeHtml(t("lodging.suggest"))}</button></div>`:""}`; }).join(""):"";
   const body=D
     ? rows+`<div class="fld legadd"><input id="cLegAdd" type="text" autocomplete="off" placeholder="${escapeHtml(t("legs.addPh"))}"><div class="ac" id="cLegAc"></div></div>`
     : `<div class="hwide-note">${t("legs.needDates")}</div>`;
@@ -8603,10 +8603,18 @@ async function estimateBudget(tr){
   const _legsE=normalizeLegs(tr);
   /* Hébergement étape par étape : prix réel de l'étape, sinon forfait du PAYS de
      l'étape. La marge de prudence ne s'applique qu'aux estimations régionales. */
+  /* Nuitées réelles par étape : on compte, pour chaque nuit du séjour, l'étape
+     où l'on dort (le jour d'arrivée). Évite de double-compter le jour de
+     transition partagé entre deux étapes. */
+  const _nightsByLeg={};
+  for(let _n=0; _n<nights; _n++){
+    /* nuit _n = on dort la nuit qui suit le jour _n, donc dans l'étape du jour _n+1 */
+    const _idx=(typeof legIndexOfDay==="function")?legIndexOfDay(tr,_n+1):0;
+    _nightsByLeg[_idx]=(_nightsByLeg[_idx]||0)+1;
+  }
   const _lodgeLegs=[]; let _lodgeCons=0;
   _legsE.forEach((lg,li)=>{
-    const legDays=Math.max(1,(lg.dayTo-lg.dayFrom+1));
-    const lgNights=Math.max(0,Math.round(nights*legDays/Math.max(1,days)));
+    const lgNights=Math.max(0,_nightsByLeg[li]||0);
     const lgCur=lg.currency||tr.currency, lgFx=fxRate(lgCur), lgFac=costFactor(lg.dest&&lg.dest.cc).g;
     const _lgPrice=+lg.lodgingPrice||0; let amt, src;
     if(_lgPrice>0){ amt=_lgPrice; src="yours"; }
