@@ -7145,14 +7145,33 @@ async function maybeAskAgentBudget(tr){
   // Répartition par catégorie dépensée
   const byCat={}; (tr.expenses||[]).forEach(e=>{ const k=e.category||"misc"; byCat[k]=(byCat[k]||0)+expToTripCur(e,tr); });
   const catTxt=Object.keys(byCat).length? Object.entries(byCat).map(([k,v])=>`${t("bcat."+k)||k}: ${money(Math.round(v),cur)}`).join(", ") : "aucune dépense enregistrée";
-  const ck=(tr.id||"")+"_"+budget+"_"+est+"_"+spent;
+  /* Contexte réel du voyage : Fidèle doit savoir OÙ on en est pour conseiller juste. */
+  const _st=tripStatus(tr);
+  const _elapsed=tripDaysElapsed(tr), _left=tripDaysLeft(tr);
+  const statutTxt=_st==="ongoing"?`voyage en cours (jour ${_elapsed}, ${_left} jour(s) restant(s))`:(_st==="upcoming"?"avant le départ":(_st==="done"?"voyage terminé":"dates non définies"));
+  const _pj=projectEnd(tr);
+  const projTxt=(_pj&&_pj.enough)?`${money(_pj.projection,cur)} (rythme des dépenses variables ≈ ${money(_pj.rhythm,cur)}/jour ; hébergement déjà payé non extrapolé)`:null;
+  /* Dépenses dans leurs devises d'origine (jamais additionnées entre elles ici). */
+  const _byCur={}; (tr.expenses||[]).forEach(e=>{ const c2=(e.currency||cur).toUpperCase(); _byCur[c2]=(_byCur[c2]||0)+(+e.amount||0); });
+  const devTxt=Object.keys(_byCur).length>1?Object.entries(_byCur).map(([c2,v])=>money(Math.round(v),c2)).join(" + ")+` (consolidé : ${money(spent,cur)})`:null;
+  const _refs=(tr.expenses||[]).filter(e=>(+e.amount)<0);
+  const refTxt=_refs.length?`${_refs.length} remboursement(s) totalisant ${money(Math.round(_refs.reduce((a,e)=>a+expToTripCur(e,tr),0)),cur)} (déjà déduits du dépensé)`:null;
+  const fxMissTxt=_fxMiss.size?Array.from(_fxMiss).join(", "):null;
+  const ck=(tr.id||"")+"_"+budget+"_"+est+"_"+spent+"_"+_st+"_"+_left+"_"+(_pj&&_pj.enough?_pj.projection:0);
   if(_agentBudgetCache[ck]) return paintAgentBudget(_agentBudgetCache[ck]);
   el.innerHTML=`<div class="agent-thinking">🧭 ${t("agent.thinking")}</div>`;
   const payload={ lang:lang(),
+    statut: statutTxt,
+    voyageurs: tr.travelers||1,
     budgetPrevu: budget>0?money(budget,cur):"non défini",
     estimation: est>0?money(est,cur):"non calculée",
     depense: money(spent,cur),
+    reste: budget>0?money(Math.round(budget-spent),cur):"budget non défini",
     parCategorie: catTxt };
+  if(projTxt) payload.projection=projTxt;
+  if(devTxt) payload.parDevise=devTxt;
+  if(refTxt) payload.remboursements=refTxt;
+  if(fxMissTxt) payload.tauxManquant=fxMissTxt;
   const out=await workerFetch("/agent/conseil-budget",payload);
   if(out&&out.text){ _agentBudgetCache[ck]=out.text; paintAgentBudget(out.text); }
   else if(el){ el.innerHTML=""; }
