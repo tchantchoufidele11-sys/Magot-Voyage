@@ -3127,7 +3127,7 @@ const DEFAULT_S={ version:"0.2.0", settings:{ lang:"fr", theme:"system", units:"
 /* Clé Maps JS partagée (restreinte au domaine GitHub Pages). Repli : clé perso de l'utilisateur si fournie. */
 const SHARED_MAP_KEY="AIzaSyCt5iVx8nPr1V067A3daE0X1YA568XJNbU";
 function mapKey(){ return (S.settings.mapKey||"").trim() || SHARED_MAP_KEY; }
-const BUILD="0.3.31 · v615 dates-occupees-cliquables";
+const BUILD="0.3.32 · v616 jours-partages";
 let S=loadState();
 function normalizeTrip(tr){ if(!tr||typeof tr!=="object") return tr;
   tr.id=tr.id||("t"+Date.now()+Math.random().toString(36).slice(2,7));
@@ -3204,9 +3204,14 @@ function normalizeLegs(tr){
   const out=[]; let cursor=0;
   for(const l of L){
     if(cursor>D-1) break;                       /* le voyage a été raccourci : étape sans jour */
-    l.dayFrom=out.length?Math.max(cursor,Math.min(l.dayFrom,D-1)):0;
+    /* Jour de transition partagé : si l'étape a été saisie avec un jour de départ
+       qui coïncide avec la fin de la précédente (l._shareStart), on autorise le
+       chevauchement d'un seul jour au lieu de raboter. Le planning attribue ce
+       jour à l'étape qui commence (voir legIndexOfDay). */
+    const _shared = out.length && l._shareStart && (Math.min(l.dayFrom,D-1) === out[out.length-1].dayTo);
+    l.dayFrom=out.length?Math.max(_shared?out[out.length-1].dayTo:cursor,Math.min(l.dayFrom,D-1)):0;
     l.dayTo=Math.max(l.dayFrom,Math.min(l.dayTo,D-1));
-    if(out.length) out[out.length-1].dayTo=l.dayFrom-1;
+    if(out.length && !_shared) out[out.length-1].dayTo=l.dayFrom-1;
     out.push(l); cursor=l.dayTo+1;
   }
   if(!out.length) out.push(legFromTrip(tr));
@@ -3238,7 +3243,9 @@ function tripLegs(tr){ return normalizeLegs(tr); }
 
 function legIndexOfDay(tr,day){ const L=tripLegs(tr);
   const d=Math.max(0,Math.min(Math.round(+day||0),L[L.length-1].dayTo));
-  for(let i=0;i<L.length;i++) if(d>=L[i].dayFrom&&d<=L[i].dayTo) return i;
+  /* Balayage inverse : si un jour est partagé entre deux étapes (jour de
+     transition), l'étape qui COMMENCE ce jour-là (index le plus élevé) l'emporte. */
+  for(let i=L.length-1;i>=0;i--) if(d>=L[i].dayFrom&&d<=L[i].dayTo) return i;
   return 0; }
 
 function legOfDay(tr,day){ const L=tripLegs(tr); return L[legIndexOfDay(tr,day)]; }
@@ -4130,9 +4137,12 @@ function openLegCalendar(legIdx){
   _legCalIdx=legIdx;
   const L=draftLegsForTrip(); if(!L||L.length<2||legIdx<0||legIdx>=L.length) return;
   const leg=L[legIdx];
-  /* Calculer _legCalStart/End depuis dayFrom/dayTo */
+  /* Relire les vraies dates saisies si présentes, sinon les déduire de dayFrom/dayTo. */
   _legCalStart=""; _legCalEnd="";
-  if(leg.dayFrom!==undefined && leg.dayTo!==undefined && draft.dateStart){
+  const _rawLeg=draft.legs&&draft.legs[legIdx];
+  if(_rawLeg&&_rawLeg.dateFrom&&_rawLeg.dateTo){
+    _legCalStart=_rawLeg.dateFrom; _legCalEnd=_rawLeg.dateTo;
+  } else if(leg.dayFrom!==undefined && leg.dayTo!==undefined && draft.dateStart){
     const s=new Date(draft.dateStart+"T00:00:00");
     s.setDate(s.getDate()+leg.dayFrom);
     const e=new Date(draft.dateStart+"T00:00:00");
@@ -4753,7 +4763,10 @@ function legsCardHtml(){
     const nm=(l.dest&&l.dest.name)||"";
     const _from=_acc, _to=_acc+Math.max(1,l.days)-1; _acc=_to+1;
     let _dr="";
-    if(draft.dateStart){ const _ds=isoAddDays(draft.dateStart,_from), _de=isoAddDays(draft.dateStart,_to);
+    if(l.dateFrom&&l.dateTo){
+      /* Vraies dates saisies par l'utilisateur : priorité absolue sur le cumul. */
+      _dr=(l.dateFrom!==l.dateTo)?(fmtDateShort(l.dateFrom)+" \u2192 "+fmtDateShort(l.dateTo)):fmtDateShort(l.dateFrom);
+    } else if(draft.dateStart){ const _ds=isoAddDays(draft.dateStart,_from), _de=isoAddDays(draft.dateStart,_to);
       _dr=(l.days>1)?(fmtDateShort(_ds)+" \u2192 "+fmtDateShort(_de)):fmtDateShort(_ds); }
     return `<div class="legrow">
       <div class="legrow-i">${i+1}</div>
@@ -4820,10 +4833,15 @@ function draftLegsForTrip(){ const L=draftLegs(); if(L.length<2) return null;
   return L.map((l,idx)=>{ let from=0, to=0;
     if(l.dateFrom&&l.dateTo&&draft.dateStart){ from=Math.round((new Date(l.dateFrom+"T00:00:00")-new Date(draft.dateStart+"T00:00:00"))/86400000); to=Math.round((new Date(l.dateTo+"T00:00:00")-new Date(draft.dateStart+"T00:00:00"))/86400000); }
     else { from=idx===0?0:(L.slice(0,idx).reduce((a,x)=>a+Math.max(1,x.days),0)); to=from+Math.max(1,l.days)-1; }
+    /* Jour de transition partagé : si cette étape commence le jour où la précédente
+       finit (dates saisies qui se touchent), on le signale pour que normalizeLegs
+       autorise le chevauchement d'un jour. */
+    let _shareStart=false;
+    if(idx>0 && l.dateFrom){ const prev=L[idx-1]; if(prev && prev.dateTo && prev.dateTo===l.dateFrom) _shareStart=true; }
     /* leg 0 : hôtel = champ principal (rempli par normalizeLegs) ; legs suivants : leur propre hôtel.
        Devise : déduite du pays de l'étape (UK→GBP), sinon celle du voyage. */
     const _cc=l.dest&&l.dest.cc, _cur=(_cc&&CC_CUR[_cc])||draft.currency||"EUR";
-    return { dest:l.dest, dayFrom:from, dayTo:to, currency:_cur, lodging:(idx===0?null:(l.lodging||null)), lodgingAddr:(idx===0?"":(l.lodgingAddr||"")) }; }); }
+    return { dest:l.dest, dayFrom:from, dayTo:to, _shareStart:_shareStart, currency:_cur, lodging:(idx===0?null:(l.lodging||null)), lodgingAddr:(idx===0?"":(l.lodgingAddr||"")) }; }); }
 
 /* Signalement des champs manquants.
    Le rouge n'apparaît qu'après une tentative d'enregistrement : signaler un
