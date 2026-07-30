@@ -3126,7 +3126,7 @@ const DEFAULT_S={ version:"0.2.0", settings:{ lang:"fr", theme:"system", units:"
 /* Clé Maps JS partagée (restreinte au domaine GitHub Pages). Repli : clé perso de l'utilisateur si fournie. */
 const SHARED_MAP_KEY="AIzaSyCt5iVx8nPr1V067A3daE0X1YA568XJNbU";
 function mapKey(){ return (S.settings.mapKey||"").trim() || SHARED_MAP_KEY; }
-const BUILD="0.3.27 · v568 dt-search";
+const BUILD="0.3.28 · v612 legs-multipays";
 let S=loadState();
 function normalizeTrip(tr){ if(!tr||typeof tr!=="object") return tr;
   tr.id=tr.id||("t"+Date.now()+Math.random().toString(36).slice(2,7));
@@ -4033,6 +4033,7 @@ const ICO_PEN="<svg viewBox='0 0 24 24' width='14' height='14' fill='none' strok
 const ICO_CHEV="<svg class='acard-chev' viewBox='0 0 24 24' width='20' height='20' fill='none' stroke='currentColor' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><path d='M6 9l6 6 6-6'/></svg>";
 function fmtDateShort(s){ if(!s) return ""; try{ return new Date(s+"T00:00:00").toLocaleDateString(lang(),{day:"numeric",month:"short"}); }catch(e){ return s; } }
 function fmtDateLong(s){ if(!s) return ""; try{ return new Date(s+"T00:00:00").toLocaleDateString(lang(),{day:"numeric",month:"long",year:"numeric"}); }catch(e){ return s; } }
+function isoAddDays(iso,n){ try{ const d=new Date(iso+"T00:00:00"); if(isNaN(d.getTime())) return iso; d.setDate(d.getDate()+(n||0)); const y=d.getFullYear(),m=String(d.getMonth()+1).padStart(2,"0"),day=String(d.getDate()).padStart(2,"0"); return y+"-"+m+"-"+day; }catch(e){ return iso; } }
 function syncDateField(inp,txtId,phKey){ const txt=document.getElementById(txtId); if(!txt||!inp) return; const wrap=inp.closest(".datefld"); if(inp.value){ txt.textContent=fmtDateLong(inp.value); if(wrap) wrap.classList.add("filled"); } else { txt.textContent=t(phKey); if(wrap) wrap.classList.remove("filled"); } }
 
 /* ===================== Calendrier de voyage (sélection de plage, type Booking) ===================== */
@@ -4640,11 +4641,16 @@ function legsCardHtml(){
   const D=draftDayCount();
   const L=draftLegs();
   const multi=legsInUse();
+  let _acc=0;
   const rows=multi?L.map((l,i)=>{
     const nm=(l.dest&&l.dest.name)||"";
+    const _from=_acc, _to=_acc+Math.max(1,l.days)-1; _acc=_to+1;
+    let _dr="";
+    if(draft.dateStart){ const _ds=isoAddDays(draft.dateStart,_from), _de=isoAddDays(draft.dateStart,_to);
+      _dr=(l.days>1)?(fmtDateShort(_ds)+" \u2192 "+fmtDateShort(_de)):fmtDateShort(_ds); }
     return `<div class="legrow">
       <div class="legrow-i">${i+1}</div>
-      <div class="legrow-m"><div class="legrow-n">${escapeHtml(nm)}</div><div class="legrow-d">${escapeHtml(legDaysLabel(l.days))}</div></div>
+      <div class="legrow-m"><div class="legrow-n">${escapeHtml(nm)}</div><div class="legrow-d">${escapeHtml(legDaysLabel(l.days))}${_dr?(" \u00b7 "+escapeHtml(_dr)):""}</div></div>
       <div class="stepper legrow-s"><button type="button" data-legm="${i}">&#8722;</button><span class="n">${l.days}</span><button type="button" data-legp="${i}">+</button></div>
       ${i>0?`<button type="button" class="legrow-x" data-legx="${i}" aria-label="${escapeHtml(t("legs.remove"))}">\u2715</button>`:""}
     </div>${i>0?`<div class="fld leglodge" style="margin:2px 0 10px 40px"><input id="cLegLodge${i}" type="text" autocomplete="off" placeholder="${escapeHtml(t("legs.lodgingPh",{c:nm}))}" value="${escapeHtml((l.lodgingAddr||(l.lodging&&l.lodging.name)||""))}"><div class="ac" id="cLegLac${i}"></div><button type="button" class="btn block" data-legsug="${i}" style="margin-top:6px">${escapeHtml(t("lodging.suggest"))}</button></div>`:""}`; }).join(""):"";
@@ -4673,9 +4679,10 @@ function bindLegs(host){
   let tmr=null;
   inp.addEventListener("input",()=>{ const q=inp.value.trim(); clearTimeout(tmr);
     if(q.length<3){ ac.classList.remove("show"); ac.innerHTML=""; return; }
-    tmr=setTimeout(async()=>{ const cc=(draft.country&&draft.country.cc)||null;
-      let res=await zoneSuggest(q,null,cc);
-      if(cc) res=res.filter(r=>!r.cc||r.cc===cc);
+    tmr=setTimeout(async()=>{
+      /* Etape multi-pays : la recherche n'est plus bridee au pays du voyage.
+         Le vrai pays (et donc la devise) de l'etape est recupere au choix via resolveSuggestion. */
+      let res=await zoneSuggest(q,null,null);
       if(!res.length){ ac.classList.remove("show"); ac.innerHTML=""; return; }
       ac.innerHTML=res.slice(0,6).map((r,i)=>`<div data-i="${i}"><svg viewBox="0 0 24 24"><path d="M12 21s-7-6.2-7-11a7 7 0 0 1 14 0c0 4.8-7 11-7 11z"/><circle cx="12" cy="10" r="2.4"/></svg><div class="ac-txt"><div class="ac-n">${escapeHtml(r.name||"")}</div>${r.sub||r.label?`<div class="ac-l">${escapeHtml(r.sub||r.label)}</div>`:""}</div></div>`).join("");
       ac.classList.add("show");
