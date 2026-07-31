@@ -3142,7 +3142,7 @@ const DEFAULT_S={ version:"0.2.0", settings:{ lang:"fr", theme:"system", units:"
 /* Clé Maps JS partagée (restreinte au domaine GitHub Pages). Repli : clé perso de l'utilisateur si fournie. */
 const SHARED_MAP_KEY="AIzaSyCt5iVx8nPr1V067A3daE0X1YA568XJNbU";
 function mapKey(){ return (S.settings.mapKey||"").trim() || SHARED_MAP_KEY; }
-const BUILD="0.3.41 · v625 acts-clean";
+const BUILD="0.3.42 · v626 finsouhaitee-fix";
 let S=loadState();
 function normalizeTrip(tr){ if(!tr||typeof tr!=="object") return tr;
   tr.id=tr.id||("t"+Date.now()+Math.random().toString(36).slice(2,7));
@@ -6783,7 +6783,13 @@ function renderPlan(){
   const startT=sched.length?sched[0].startStr:""; const endMin=sched.length?sched[sched.length-1].end:0; const endT=sched.length?sched[sched.length-1].endStr:"";
   const anyShift=sched.some(s=>s.shifted);
   const visitEndMin=(function(){ let e=0; sched.forEach(s=>{ const it=items.find(x=>x.id===s.id); if(it&&it.kind!=="meal"&&s.end>e) e=s.end; }); return e; })();
-  const wantEnd=tr.dayEnd?timeToMin(tr.dayEnd):null; const overEnd=(wantEnd!=null && items.length>0 && visitEndMin>wantEnd);
+  const wantEndRaw=tr.dayEnd?timeToMin(tr.dayEnd):null;
+  /* Une fin souhaitée n'a de sens que si elle tombe APRÈS le début des visites.
+     Sinon (ex. heure du matin saisie par erreur via le sélecteur iOS), on
+     l'ignore pour ne pas déclencher un faux avertissement. */
+  const _visitStart0=(function(){ let s0=null; sched.forEach(s=>{ const it=items.find(x=>x.id===s.id); if(it&&it.kind!=="meal"){ if(s0==null||s.start<s0) s0=s.start; } }); return s0; })();
+  const wantEnd=(wantEndRaw!=null && _visitStart0!=null && wantEndRaw<=_visitStart0)?null:wantEndRaw;
+  const overEnd=(wantEnd!=null && items.length>0 && visitEndMin>wantEnd);
   const visitStartMin=(function(){ let s0=null; sched.forEach(s=>{ const it=items.find(x=>x.id===s.id); if(it&&it.kind!=="meal"){ if(s0==null||s.start<s0) s0=s.start; } }); return s0!=null?s0:(sched[0]?sched[0].start:540); })();
   const daySpan=(visitEndMin>0?(visitEndMin-visitStartMin):0); // amplitude des VISITES uniquement (repas exclus)
   const tooMany = stops.length>8; // plafond ~8 visites/jour (limite pratique Google + journée trop dense)
@@ -6826,7 +6832,14 @@ function renderPlan(){
   body.innerHTML=sel+`<div id="fideleAlert"></div><div class="daycard"><div class="dc-top"><div class="dc-left"><div class="dc-date">${escapeHtml(dateLabel)}</div><div class="dc-wx" id="dcWeather"></div></div></div>${actsHtml}${_detailsToggle}${_detailsBlock}${(!ro)?`<div class="dc-nudges" id="dayNudges"${_planDetailed?"":` style="display:none"`}></div><div id="dayAgentAdvice"${_planDetailed?"":` style="display:none"`}></div>`:""}${ro?`<div class="pl-ro">🔒 ${t("plan.readonly")}</div>`:""}${lateBanner}<div class="timeline">${tl}</div>${sumHtml}</div>`+(stops.length?`<div class="rowhead" style="margin-top:18px"><h2>${t("plan.mapTitle")}</h2></div><div class="map-wrap" id="mapWrap"><div id="planMap" class="planmap"></div><div id="osmMap" class="planmap osm-map" style="display:none"></div><button class="map-fab" id="mapFull" type="button" title="${escapeHtml(t("plan.mapFull"))}">⛶</button></div>`:"");
   body.querySelectorAll("[data-day]").forEach(b=>b.onclick=()=>{ planState.dayIndex=+b.dataset.day; renderPlan(); });
   if(!ro) body.querySelectorAll("[data-int]").forEach(b=>b.onclick=()=>{ tr.intensity=b.dataset.int; tr.intensityAuto=false; saveState(); renderPlan(); });
-  { const de=body.querySelector("#dayEndInput"); if(de&&!ro) de.onchange=()=>{ tr.dayEnd=de.value||""; saveState(); renderPlan(); }; }
+  { const de=body.querySelector("#dayEndInput"); if(de&&!ro) de.onchange=()=>{
+    const v=de.value||"";
+    /* Refuse une fin souhaitée avant le début des visites (souvent l'heure du
+       moment saisie par erreur via le sélecteur iOS). On efface alors le champ. */
+    if(v && _visitStart0!=null && timeToMin(v)<=_visitStart0){ tr.dayEnd=""; de.value=""; }
+    else { tr.dayEnd=v; }
+    saveState(); renderPlan();
+  }; }
   { const rn=body.querySelector("#reschedNow"); if(rn) rn.onclick=optimizeDay; }
   { const _tb=body.querySelector("#addTransBtn"); if(_tb) _tb.onclick=()=>addTransitionStep(d.i); }
   (tr.plan||[]).filter(x=>x.day===d.i&&x._trans&&!x._transBusy).forEach(_it=>ensureTransRoute(tr,_it));
