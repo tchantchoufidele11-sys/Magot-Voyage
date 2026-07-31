@@ -542,15 +542,18 @@ a.btn{text-decoration:none}
 .day-detoggle{display:flex;align-items:center;gap:10px;width:100%;background:var(--surface-2);border:1px solid var(--line);border-radius:14px;padding:12px 15px;margin:10px 0 0;color:var(--muted);font:600 13.5px/1.3 system-ui,-apple-system,sans-serif;cursor:pointer;-webkit-tap-highlight-color:transparent}
 .day-detoggle .dt-sum{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;text-align:left}
 .day-detoggle b{margin-left:auto;color:var(--ink);white-space:nowrap;font-weight:700}
-.day-details{margin:8px 0 0;padding:12px 13px;border:1px solid var(--line);border-radius:14px;background:var(--surface-2);display:flex;flex-direction:column;gap:12px}
+.day-details{margin:8px 0 0;padding:11px 12px;border:1px solid var(--line);border-radius:14px;background:var(--surface-2);display:flex;flex-direction:column;gap:10px}
 .day-details .dd-mode{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
 .day-details .day-stats{margin:0}
-.day-trans{display:flex;align-items:center;gap:10px;flex-wrap:wrap;padding:10px 12px;border:1px solid var(--line);border-radius:12px;background:var(--surface)}
-.day-trans .dt-main{display:flex;align-items:center;gap:7px;flex:1;min-width:150px}
+.day-statline{display:flex;flex-wrap:wrap;align-items:center;gap:6px 14px;padding:2px 2px}
+.day-statline .dsl{display:inline-flex;align-items:center;gap:5px;font:600 12.5px/1.2 system-ui,-apple-system,sans-serif;color:var(--ink);white-space:nowrap}
+.day-statline .dsl-i{font-size:13px;line-height:1;filter:saturate(.9)}
+.day-trans{display:flex;align-items:center;gap:8px;flex-wrap:nowrap;padding:8px 10px;border:1px solid var(--line);border-radius:11px;background:var(--surface)}
+.day-trans .dt-main{display:flex;align-items:center;gap:6px;flex:1;min-width:0}
 .day-trans .dt-ico{font-size:15px;flex:0 0 auto}
-.day-trans .dt-txt{font:600 13.5px/1.3 system-ui,-apple-system,sans-serif;color:var(--ink)}
+.day-trans .dt-txt{font:600 12.5px/1.3 system-ui,-apple-system,sans-serif;color:var(--ink);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .day-trans .dt-ok{font:700 13px/1 system-ui;color:var(--emerald);white-space:nowrap;flex:0 0 auto}
-.day-trans .dt-add{flex:0 0 auto;background:var(--navy,#0E2148);color:#fff;border:none;border-radius:9px;padding:8px 14px;font:600 13px/1 system-ui,-apple-system,sans-serif;cursor:pointer;-webkit-tap-highlight-color:transparent}
+.day-trans .dt-add{flex:0 0 auto;background:var(--navy,#0E2148);color:#fff;border:none;border-radius:8px;padding:7px 12px;font:600 12px/1 system-ui,-apple-system,sans-serif;cursor:pointer;-webkit-tap-highlight-color:transparent;white-space:nowrap}
 .dc-left{flex:1 1 auto;min-width:0;display:flex;flex-direction:column;gap:4px}
 .dc-right{flex:0 0 56%;display:flex;flex-direction:column;gap:5px}
 .dc-wx{font:600 13px "Inter",sans-serif;font-size:clamp(12.2px,3.333vw,13px);color:var(--ink-2)}
@@ -3139,7 +3142,7 @@ const DEFAULT_S={ version:"0.2.0", settings:{ lang:"fr", theme:"system", units:"
 /* Clé Maps JS partagée (restreinte au domaine GitHub Pages). Repli : clé perso de l'utilisateur si fournie. */
 const SHARED_MAP_KEY="AIzaSyCt5iVx8nPr1V067A3daE0X1YA568XJNbU";
 function mapKey(){ return (S.settings.mapKey||"").trim() || SHARED_MAP_KEY; }
-const BUILD="0.3.39 · v623 planning-details-unifie";
+const BUILD="0.3.40 · v624 details-compact";
 let S=loadState();
 function normalizeTrip(tr){ if(!tr||typeof tr!=="object") return tr;
   tr.id=tr.id||("t"+Date.now()+Math.random().toString(36).slice(2,7));
@@ -6806,13 +6809,20 @@ function renderPlan(){
   const _hasTrans=(tr.plan||[]).some(x=>x.day===d.i&&x._trans);
   /* Bandeau transition CONDENSÉ, intégré dans le bloc détails (plus de gros pavé en haut).
      Une ligne : villes + distance, puis état (✓ ajouté) ou bouton compact d'ajout. */
-  const transHtml=(_trs&&!ro)?`<div class="day-trans"><div class="dt-main"><span class="dt-ico">🧳</span><span class="dt-txt">${escapeHtml(((_trs.from&&_trs.from.name)||"—")+" → "+((_trs.to&&_trs.to.name)||"—"))}${_trs.km!=null?` · ${escapeHtml(t("plan.transDist",{km:_trs.km}))}`:` · ${escapeHtml(t("plan.transDistUnknown"))}`}</span></div>${_hasTrans?`<span class="dt-ok">✓ ${escapeHtml(t("plan.transExists"))}</span>`:`<button class="dt-add" id="addTransBtn" type="button">${escapeHtml(t("plan.transAdd"))}</button>`}</div>`:"";
+  const transHtml=(_trs&&!ro)?`<div class="day-trans"><div class="dt-main"><span class="dt-ico">🧳</span><span class="dt-txt">${escapeHtml(((_trs.from&&_trs.from.name)||"—")+" → "+((_trs.to&&_trs.to.name)||"—"))}${_trs.km!=null?` · ~${_trs.km} km`:` · ${escapeHtml(t("plan.transDistUnknown"))}`}</span></div>${_hasTrans?`<span class="dt-ok">✓ ${escapeHtml(t("plan.transExists"))}</span>`:`<button class="dt-add" id="addTransBtn" type="button">${escapeHtml(t("plan.transAdd"))}</button>`}</div>`:"";
   /* Un SEUL onglet Détails, placé sous "Optimiser ma journée". Replié par défaut :
      on voit la carte. Déplié : mode de journée + stats + transition + coûts. */
   const _detailsSummary=`${_trs?`🧳 ${escapeHtml(((_trs.from&&_trs.from.name)||"—")+" → "+((_trs.to&&_trs.to.name)||"—"))} · `:""}${endT?`${t("plan.end")} ~${escapeHtml(endT)}`:t("plan.mapTitle")}${_dayKmC>0?` · ${dayDist}`:""}${_dayC>0?` · ${escapeHtml(money(_dayC,tr.currency))}`:""}`;
   const _detailsToggle=items.length?`<button class="day-detoggle js-planmode" type="button"><span class="dt-sum">${_detailsSummary}</span><b>${_planDetailed?`${t("plan.simpleView")} ▲`:`${t("plan.detailView")} ▾`}</b></button>`:"";
   /* Contenu repliable : mode de journée (intensité) + stats + transition condensée. */
-  const _detailsBlock=(_planDetailed&&items.length)?`<div class="day-details">${(!ro)?`<div class="dd-mode"><span class="di-mode">${t("plan.dayMode")}</span>${intHtml}</div>`:""}${statsHtml}${transHtml}</div>`:"";
+  /* Stats condensées : une seule ligne fine de pastilles, au lieu de la grille haute. */
+  const statsCompact=items.length?`<div class="day-statline">`+
+    `<span class="dsl"><span class="dsl-i">📍</span>${stops.length} ${t(stops.length<=1?"plan.step":"plan.steps")}</span>`+
+    `<span class="dsl"><span class="dsl-i">🛣️</span>${dayDist}</span>`+
+    (travelMin?`<span class="dsl"><span class="dsl-i">${modeEmoji(travelMode(tr))}</span>${fmtDur(travelMin*60)}<span id="dstTraffic"></span></span>`:"")+
+    `<span class="dsl"><span class="dsl-i">🏁</span>${endT||"—"}</span>`+
+    `</div>`:"";
+  const _detailsBlock=(_planDetailed&&items.length)?`<div class="day-details">${(!ro)?`<div class="dd-mode"><span class="di-mode">${t("plan.dayMode")}</span>${intHtml}</div>`:""}${statsCompact}${transHtml}</div>`:"";
   body.innerHTML=sel+`<div id="fideleAlert"></div><div class="daycard"><div class="dc-top"><div class="dc-left"><div class="dc-date">${escapeHtml(dateLabel)}</div><div class="dc-wx" id="dcWeather"></div></div></div>${actsHtml}${_detailsToggle}${_detailsBlock}${(!ro)?`<div class="dc-nudges" id="dayNudges"${_planDetailed?"":` style="display:none"`}></div><div id="dayAgentAdvice"${_planDetailed?"":` style="display:none"`}></div>`:""}${ro?`<div class="pl-ro">🔒 ${t("plan.readonly")}</div>`:""}${lateBanner}<div class="timeline ${planState.collapsed?'collapsed':''}">${tl}</div>${sumHtml}</div>`+(stops.length?`<div class="rowhead" style="margin-top:18px"><h2>${t("plan.mapTitle")}</h2></div><div class="map-wrap" id="mapWrap"><div id="planMap" class="planmap"></div><div id="osmMap" class="planmap osm-map" style="display:none"></div><button class="map-fab" id="mapFull" type="button" title="${escapeHtml(t("plan.mapFull"))}">⛶</button></div>`:"");
   body.querySelectorAll("[data-day]").forEach(b=>b.onclick=()=>{ planState.dayIndex=+b.dataset.day; renderPlan(); });
   if(!ro) body.querySelectorAll("[data-int]").forEach(b=>b.onclick=()=>{ tr.intensity=b.dataset.int; tr.intensityAuto=false; saveState(); renderPlan(); });
