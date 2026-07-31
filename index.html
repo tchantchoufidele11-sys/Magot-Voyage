@@ -539,6 +539,18 @@ a.btn{text-decoration:none}
 .dc-edit{position:absolute;top:12px;right:12px;width:30px;height:30px;border-radius:50%;border:1px solid var(--line);background:var(--surface-2);color:var(--muted);font-size:clamp(12.2px,3.333vw,13px);cursor:pointer;display:flex;align-items:center;justify-content:center;z-index:2}
 .dc-edit:active{transform:scale(.92)}
 .day-mode-toggle{display:inline-flex;align-items:center;gap:5px;background:none;border:none;color:var(--muted);font:600 13px/1 system-ui,-apple-system,sans-serif;cursor:pointer;padding:8px 2px;-webkit-tap-highlight-color:transparent}.day-simplebar{display:flex;align-items:center;gap:8px;width:100%;background:rgba(15,31,61,.045);border:1px solid rgba(15,31,61,.1);border-radius:14px;padding:13px 15px;margin:10px 0 2px;color:var(--ink);font:600 14px/1.25 system-ui,-apple-system,sans-serif;cursor:pointer;-webkit-tap-highlight-color:transparent}.day-simplebar b{margin-left:auto;color:#0E2148;white-space:nowrap}.dc-top{display:flex;gap:10px;align-items:flex-start;margin:0 0 12px 0}
+.day-detoggle{display:flex;align-items:center;gap:10px;width:100%;background:var(--surface-2);border:1px solid var(--line);border-radius:14px;padding:12px 15px;margin:10px 0 0;color:var(--muted);font:600 13.5px/1.3 system-ui,-apple-system,sans-serif;cursor:pointer;-webkit-tap-highlight-color:transparent}
+.day-detoggle .dt-sum{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;text-align:left}
+.day-detoggle b{margin-left:auto;color:var(--ink);white-space:nowrap;font-weight:700}
+.day-details{margin:8px 0 0;padding:12px 13px;border:1px solid var(--line);border-radius:14px;background:var(--surface-2);display:flex;flex-direction:column;gap:12px}
+.day-details .dd-mode{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.day-details .day-stats{margin:0}
+.day-trans{display:flex;align-items:center;gap:10px;flex-wrap:wrap;padding:10px 12px;border:1px solid var(--line);border-radius:12px;background:var(--surface)}
+.day-trans .dt-main{display:flex;align-items:center;gap:7px;flex:1;min-width:150px}
+.day-trans .dt-ico{font-size:15px;flex:0 0 auto}
+.day-trans .dt-txt{font:600 13.5px/1.3 system-ui,-apple-system,sans-serif;color:var(--ink)}
+.day-trans .dt-ok{font:700 13px/1 system-ui;color:var(--emerald);white-space:nowrap;flex:0 0 auto}
+.day-trans .dt-add{flex:0 0 auto;background:var(--navy,#0E2148);color:#fff;border:none;border-radius:9px;padding:8px 14px;font:600 13px/1 system-ui,-apple-system,sans-serif;cursor:pointer;-webkit-tap-highlight-color:transparent}
 .dc-left{flex:1 1 auto;min-width:0;display:flex;flex-direction:column;gap:4px}
 .dc-right{flex:0 0 56%;display:flex;flex-direction:column;gap:5px}
 .dc-wx{font:600 13px "Inter",sans-serif;font-size:clamp(12.2px,3.333vw,13px);color:var(--ink-2)}
@@ -3127,7 +3139,7 @@ const DEFAULT_S={ version:"0.2.0", settings:{ lang:"fr", theme:"system", units:"
 /* Clé Maps JS partagée (restreinte au domaine GitHub Pages). Repli : clé perso de l'utilisateur si fournie. */
 const SHARED_MAP_KEY="AIzaSyCt5iVx8nPr1V067A3daE0X1YA568XJNbU";
 function mapKey(){ return (S.settings.mapKey||"").trim() || SHARED_MAP_KEY; }
-const BUILD="0.3.37 · v621 i18n-calendrier";
+const BUILD="0.3.39 · v623 planning-details-unifie";
 let S=loadState();
 function normalizeTrip(tr){ if(!tr||typeof tr!=="object") return tr;
   tr.id=tr.id||("t"+Date.now()+Math.random().toString(36).slice(2,7));
@@ -6738,6 +6750,7 @@ function attachPlanDrag(box){ if(!box) return; let drag=null; const mainEl=docum
 function renderPlan(){
   const body=document.getElementById("planBody"); if(!body) return; const tr=currentTrip(); document.body.classList.remove("map-locked");
   if(!tr){ body.innerHTML=`<div class="empty" style="padding:34px 18px"><span class="medallion"><svg viewBox="0 0 24 24"><rect x="5" y="7.5" width="14" height="12.5" rx="2.4"/><path d="M9 7.5V5.5A1.5 1.5 0 0 1 10.5 4h3A1.5 1.5 0 0 1 15 5.5v2M5 12.5h14"/></svg></span><p>${t("plan.noTrip")}</p><button class="btn gold" id="planCreate" style="margin-top:14px">${t("home.create")}</button></div>`; const c=body.querySelector("#planCreate"); if(c) c.onclick=()=>openCreate(); return; }
+  reconcileTransitions(tr);
   const days=tripDays(tr); if(!_planInited){ _planInited=true; planState.dayIndex=planTodayIndex(days); } if(planState.dayIndex>=days.length) planState.dayIndex=0; const d=days[planState.dayIndex]; const ro=!!(tr&&tripFinished(tr));
   const sel=`<div class="day-sel">${days.map(dd=>`<button class="day-chip ${dd.i===planState.dayIndex?'on':''}" data-day="${dd.i}"><span class="dc-w">${dayWk(dd)}</span><span class="dc-n">${dayNum(dd)}</span></button>`).join("")}</div>`;
   const dateLabel=d.date?cap(new Intl.DateTimeFormat(LOCALE[lang()]||'fr-FR',{weekday:'long',day:'numeric',month:'long'}).format(d.date)):(t("plan.day")+" "+(d.i+1));
@@ -6791,10 +6804,16 @@ function renderPlan(){
   const sumHtml=items.length?`<div class="day-sum ${over?'over':''}"><div class="ds-grid"><div class="ds-col"><span class="ds-k">${t("plan.start")}</span><b>${startT||"—"}</b><span class="ds-s">${t("plan.visitsTime")} · ${fmtMin(visitMin)}</span></div><div class="ds-col"><span class="ds-k">${t("plan.endWanted")}</span><div class="ds-want"><input type="time" id="dayEndInput" value="${escapeHtml(tr.dayEnd||'')}"${ro?" disabled":""}></div></div></div>${_planDetailed?distBreakHtml+costHtml:""}${anyShift?`<div class="ds-warn soft">↪ ${t("plan.conflict")}</div>`:""}${over?`<div class="ds-warn">⚠️ ${overEnd?t("plan.overEnd",{t:tr.dayEnd}):t("plan.overload")}</div>`:""}</div>`:"";
   const _trs=(typeof legTransitions==="function")?legTransitions(tr).find(x=>x.day===d.i):null;
   const _hasTrans=(tr.plan||[]).some(x=>x.day===d.i&&x._trans);
-  const transHtml=(_trs&&!ro)?`<div style="display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;margin:12px 0 2px;padding:11px 13px;border:1px solid var(--line);border-radius:14px;background:var(--surface-2)"><div style="font-size:14px;line-height:1.35;flex:1;min-width:180px">🧳 ${escapeHtml(t("plan.transBanner",{a:((_trs.from&&_trs.from.name)||"—"),b:((_trs.to&&_trs.to.name)||"—")}))} · ${_trs.km!=null?escapeHtml(t("plan.transDist",{km:_trs.km})):escapeHtml(t("plan.transDistUnknown"))}</div>${_hasTrans?`<div style="font-size:14px;color:#0E9F6E;font-weight:700">✓ ${escapeHtml(t("plan.transExists"))}</div>`:`<button class="btn navy" id="addTransBtn" style="flex:0 0 auto">${escapeHtml(t("plan.transAdd"))}</button>`}</div>`:"";
-  const _modeBtn=(_planDetailed&&items.length)?`<button class="day-mode-toggle js-planmode">▲ ${t("plan.simpleView")}</button>`:"";
-  const _simpleBar=(!_planDetailed&&items.length)?`<button class="day-simplebar js-planmode">${endT?`${t("plan.end")} ~${escapeHtml(endT)}`:t("plan.mapTitle")}${_dayKmC>0?` · ${dayDist}`:""}${_dayC>0?` · ${escapeHtml(money(_dayC,tr.currency))}`:""} <b>${t("plan.detailView")} ▾</b></button>`:"";
-  body.innerHTML=sel+`<div id="fideleAlert"></div><div class="daycard"><div class="dc-top"><div class="dc-left"><div class="dc-date">${escapeHtml(dateLabel)}</div><div class="dc-wx" id="dcWeather"></div></div>${_planDetailed?`<div class="dc-right"><span class="di-mode">${t("plan.dayMode")}</span>${intHtml}</div>`:""}</div>${transHtml}${_modeBtn?`<div style="text-align:right;margin:2px 2px -2px 0">${_modeBtn}</div>`:""}${_planDetailed?statsHtml:_simpleBar}${actsHtml}${(!ro)?`<div class="dc-nudges" id="dayNudges"${_planDetailed?"":` style="display:none"`}></div><div id="dayAgentAdvice"${_planDetailed?"":` style="display:none"`}></div>`:""}${ro?`<div class="pl-ro">🔒 ${t("plan.readonly")}</div>`:""}${lateBanner}<div class="timeline ${planState.collapsed?'collapsed':''}">${tl}</div>${sumHtml}</div>`+(stops.length?`<div class="rowhead" style="margin-top:18px"><h2>${t("plan.mapTitle")}</h2></div><div class="map-wrap" id="mapWrap"><div id="planMap" class="planmap"></div><div id="osmMap" class="planmap osm-map" style="display:none"></div><button class="map-fab" id="mapFull" type="button" title="${escapeHtml(t("plan.mapFull"))}">⛶</button></div>`:"");
+  /* Bandeau transition CONDENSÉ, intégré dans le bloc détails (plus de gros pavé en haut).
+     Une ligne : villes + distance, puis état (✓ ajouté) ou bouton compact d'ajout. */
+  const transHtml=(_trs&&!ro)?`<div class="day-trans"><div class="dt-main"><span class="dt-ico">🧳</span><span class="dt-txt">${escapeHtml(((_trs.from&&_trs.from.name)||"—")+" → "+((_trs.to&&_trs.to.name)||"—"))}${_trs.km!=null?` · ${escapeHtml(t("plan.transDist",{km:_trs.km}))}`:` · ${escapeHtml(t("plan.transDistUnknown"))}`}</span></div>${_hasTrans?`<span class="dt-ok">✓ ${escapeHtml(t("plan.transExists"))}</span>`:`<button class="dt-add" id="addTransBtn" type="button">${escapeHtml(t("plan.transAdd"))}</button>`}</div>`:"";
+  /* Un SEUL onglet Détails, placé sous "Optimiser ma journée". Replié par défaut :
+     on voit la carte. Déplié : mode de journée + stats + transition + coûts. */
+  const _detailsSummary=`${_trs?`🧳 ${escapeHtml(((_trs.from&&_trs.from.name)||"—")+" → "+((_trs.to&&_trs.to.name)||"—"))} · `:""}${endT?`${t("plan.end")} ~${escapeHtml(endT)}`:t("plan.mapTitle")}${_dayKmC>0?` · ${dayDist}`:""}${_dayC>0?` · ${escapeHtml(money(_dayC,tr.currency))}`:""}`;
+  const _detailsToggle=items.length?`<button class="day-detoggle js-planmode" type="button"><span class="dt-sum">${_detailsSummary}</span><b>${_planDetailed?`${t("plan.simpleView")} ▲`:`${t("plan.detailView")} ▾`}</b></button>`:"";
+  /* Contenu repliable : mode de journée (intensité) + stats + transition condensée. */
+  const _detailsBlock=(_planDetailed&&items.length)?`<div class="day-details">${(!ro)?`<div class="dd-mode"><span class="di-mode">${t("plan.dayMode")}</span>${intHtml}</div>`:""}${statsHtml}${transHtml}</div>`:"";
+  body.innerHTML=sel+`<div id="fideleAlert"></div><div class="daycard"><div class="dc-top"><div class="dc-left"><div class="dc-date">${escapeHtml(dateLabel)}</div><div class="dc-wx" id="dcWeather"></div></div></div>${actsHtml}${_detailsToggle}${_detailsBlock}${(!ro)?`<div class="dc-nudges" id="dayNudges"${_planDetailed?"":` style="display:none"`}></div><div id="dayAgentAdvice"${_planDetailed?"":` style="display:none"`}></div>`:""}${ro?`<div class="pl-ro">🔒 ${t("plan.readonly")}</div>`:""}${lateBanner}<div class="timeline ${planState.collapsed?'collapsed':''}">${tl}</div>${sumHtml}</div>`+(stops.length?`<div class="rowhead" style="margin-top:18px"><h2>${t("plan.mapTitle")}</h2></div><div class="map-wrap" id="mapWrap"><div id="planMap" class="planmap"></div><div id="osmMap" class="planmap osm-map" style="display:none"></div><button class="map-fab" id="mapFull" type="button" title="${escapeHtml(t("plan.mapFull"))}">⛶</button></div>`:"");
   body.querySelectorAll("[data-day]").forEach(b=>b.onclick=()=>{ planState.dayIndex=+b.dataset.day; renderPlan(); });
   if(!ro) body.querySelectorAll("[data-int]").forEach(b=>b.onclick=()=>{ tr.intensity=b.dataset.int; tr.intensityAuto=false; saveState(); renderPlan(); });
   { const de=body.querySelector("#dayEndInput"); if(de&&!ro) de.onchange=()=>{ tr.dayEnd=de.value||""; saveState(); renderPlan(); }; }
@@ -6983,6 +7002,37 @@ function twoOpt(seq,start){ if(!seq||seq.length<3) return seq||[]; let best=seq.
       const cand=best.slice(0,i).concat(best.slice(i,k+1).reverse(),best.slice(k+1));
       if(_tourLen(cand,start)+1e-9<_tourLen(best,start)){ best=cand; improved=true; } } } }
   return best; }
+/* Réaligne les étapes de trajet inter-étapes sur les VRAIES transitions actuelles.
+   Nécessaire car un step _trans fige son .day à l'ajout : si les dates des étapes
+   changent ensuite (jour de transition qui bouge), le trajet doit suivre et les
+   doublons/orphelins doivent disparaître. Un seul trajet par couple d'étapes. */
+function reconcileTransitions(tr){
+  if(!tr||!Array.isArray(tr.plan)) return;
+  const trans=(typeof legTransitions==="function")?legTransitions(tr):[];
+  const transByPair={}; /* clé "from|to" -> jour réel de la transition */
+  trans.forEach(x=>{ const key=((x.from&&x.from.name)||"")+"|"+((x.to&&x.to.name)||""); transByPair[key]=x.day; });
+  const seen={}; const keep=[]; let changed=false;
+  for(const it of tr.plan){
+    if(!it || !it._trans){ keep.push(it); continue; }
+    /* Retrouver la transition correspondant à ce trajet via son couple de villes
+       (stocké à la création, robuste au changement de langue). Fallback : parse du titre. */
+    let fromN=it._transFromName, toN=it._transToName;
+    if(fromN==null||toN==null){ const m=(it.title||"").match(/([^\u2192]+)\u2192(.+)$/); if(m){ fromN=m[1].replace(/^\s*[^A-Za-z\u00C0-\u017F]*/,"").trim(); toN=m[2].trim(); } }
+    let day=null;
+    const key=((fromN||"").trim())+"|"+((toN||"").trim());
+    if(transByPair.hasOwnProperty(key)) day=transByPair[key];
+    if(day==null){
+      /* Aucune transition ne correspond (couple obsolète) -> orphelin, on retire. */
+      changed=true; continue;
+    }
+    if(seen[day]){ changed=true; continue; } /* doublon sur le même jour -> on garde le premier */
+    seen[day]=true;
+    if(it.day!==day){ it.day=day; changed=true; } /* réaligner sur le vrai jour de transition */
+    keep.push(it);
+  }
+  if(changed){ tr.plan=keep; saveState(); }
+}
+
 function addTransitionStep(day){ const tr=currentTrip(); if(!tr||tripFinished(tr)) return;
   const trs=(typeof legTransitions==="function")?legTransitions(tr).find(x=>x.day===day):null; if(!trs) return;
   tr.plan=tr.plan||[];
@@ -6991,7 +7041,7 @@ function addTransitionStep(day){ const tr=currentTrip(); if(!tr||tripFinished(tr
   /* Étape de trajet : rien n'est inventé. La durée et la distance sont RÉELLES,
      calculées par Google (ensureTransRoute) ; en attente ou hors ligne on affiche
      « à calculer », jamais un temps faux. */
-  const it={id:uid(),day,time:"09:00",title:t("plan.transStep",{a:from,b:to}),sub:"",kind:"transport",fixed:true,dur:0,done:false,_trans:true};
+  const it={id:uid(),day,time:"09:00",title:t("plan.transStep",{a:from,b:to}),sub:"",kind:"transport",fixed:true,dur:0,done:false,_trans:true,_transFromName:from,_transToName:to};
   tr.plan.push(it); ensureDayMeals(tr,day); saveState(); renderPlan(); toast(t("plan.transAdded")); ensureTransRoute(tr,it); }
 /* Durée + distance RÉELLES d'un trajet inter-étapes, via Google. Corrige aussi
    les étapes déjà ajoutées (transMin absent) au prochain rendu, sans boucler :
