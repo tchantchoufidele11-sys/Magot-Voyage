@@ -538,7 +538,7 @@ a.btn{text-decoration:none}
 .daycard{position:relative}
 .dc-edit{position:absolute;top:12px;right:12px;width:30px;height:30px;border-radius:50%;border:1px solid var(--line);background:var(--surface-2);color:var(--muted);font-size:clamp(12.2px,3.333vw,13px);cursor:pointer;display:flex;align-items:center;justify-content:center;z-index:2}
 .dc-edit:active{transform:scale(.92)}
-.day-mode-toggle{display:inline-flex;align-items:center;gap:5px;background:none;border:none;color:#64748b;font:600 13px/1 system-ui,-apple-system,sans-serif;cursor:pointer;padding:8px 2px;-webkit-tap-highlight-color:transparent}.day-simplebar{display:flex;align-items:center;gap:8px;width:100%;background:rgba(15,31,61,.045);border:1px solid rgba(15,31,61,.1);border-radius:14px;padding:13px 15px;margin:10px 0 2px;color:var(--ink);font:600 14px/1.25 system-ui,-apple-system,sans-serif;cursor:pointer;-webkit-tap-highlight-color:transparent}.day-simplebar b{margin-left:auto;color:#0E2148;white-space:nowrap}.dc-top{display:flex;gap:10px;align-items:flex-start;margin:0 0 12px 0}
+.day-mode-toggle{display:inline-flex;align-items:center;gap:5px;background:none;border:none;color:var(--muted);font:600 13px/1 system-ui,-apple-system,sans-serif;cursor:pointer;padding:8px 2px;-webkit-tap-highlight-color:transparent}.day-simplebar{display:flex;align-items:center;gap:8px;width:100%;background:rgba(15,31,61,.045);border:1px solid rgba(15,31,61,.1);border-radius:14px;padding:13px 15px;margin:10px 0 2px;color:var(--ink);font:600 14px/1.25 system-ui,-apple-system,sans-serif;cursor:pointer;-webkit-tap-highlight-color:transparent}.day-simplebar b{margin-left:auto;color:#0E2148;white-space:nowrap}.dc-top{display:flex;gap:10px;align-items:flex-start;margin:0 0 12px 0}
 .dc-left{flex:1 1 auto;min-width:0;display:flex;flex-direction:column;gap:4px}
 .dc-right{flex:0 0 56%;display:flex;flex-direction:column;gap:5px}
 .dc-wx{font:600 13px "Inter",sans-serif;font-size:clamp(12.2px,3.333vw,13px);color:var(--ink-2)}
@@ -3127,7 +3127,7 @@ const DEFAULT_S={ version:"0.2.0", settings:{ lang:"fr", theme:"system", units:"
 /* Clé Maps JS partagée (restreinte au domaine GitHub Pages). Repli : clé perso de l'utilisateur si fournie. */
 const SHARED_MAP_KEY="AIzaSyCt5iVx8nPr1V067A3daE0X1YA568XJNbU";
 function mapKey(){ return (S.settings.mapKey||"").trim() || SHARED_MAP_KEY; }
-const BUILD="0.3.34 · v618 partage-planning-budget";
+const BUILD="0.3.37 · v621 i18n-calendrier";
 let S=loadState();
 function normalizeTrip(tr){ if(!tr||typeof tr!=="object") return tr;
   tr.id=tr.id||("t"+Date.now()+Math.random().toString(36).slice(2,7));
@@ -4068,11 +4068,11 @@ function generateDisabledDates(legIdx){
 }
 
 function calT(k){ const D={
-  fr:{title:"Dates du voyage",pickStart:"Choisis la date de départ",pickEnd:"Choisis la date de retour",clear:"Effacer",ok:"Valider"},
-  en:{title:"Trip dates",pickStart:"Pick your start date",pickEnd:"Pick your return date",clear:"Clear",ok:"Confirm"},
-  es:{title:"Fechas del viaje",pickStart:"Elige la fecha de salida",pickEnd:"Elige la fecha de regreso",clear:"Borrar",ok:"Confirmar"},
-  it:{title:"Date del viaggio",pickStart:"Scegli la data di partenza",pickEnd:"Scegli la data di ritorno",clear:"Cancella",ok:"Conferma"},
-  de:{title:"Reisedaten",pickStart:"Abreisedatum wählen",pickEnd:"Rückreisedatum wählen",clear:"Löschen",ok:"Bestätigen"}
+  fr:{title:"Dates du voyage",pickStart:"Choisis la date de départ",pickEnd:"Choisis la date de retour",clear:"Effacer",ok:"Valider",stageDates:"Dates",incomplete:"Dates incomplètes"},
+  en:{title:"Trip dates",pickStart:"Pick your start date",pickEnd:"Pick your return date",clear:"Clear",ok:"Confirm",stageDates:"Dates",incomplete:"Incomplete dates"},
+  es:{title:"Fechas del viaje",pickStart:"Elige la fecha de salida",pickEnd:"Elige la fecha de regreso",clear:"Borrar",ok:"Confirmar",stageDates:"Fechas",incomplete:"Fechas incompletas"},
+  it:{title:"Date del viaggio",pickStart:"Scegli la data di partenza",pickEnd:"Scegli la data di ritorno",clear:"Cancella",ok:"Conferma",stageDates:"Date",incomplete:"Date incomplete"},
+  de:{title:"Reisedaten",pickStart:"Abreisedatum wählen",pickEnd:"Rückreisedatum wählen",clear:"Löschen",ok:"Bestätigen",stageDates:"Daten",incomplete:"Unvollständige Daten"}
 }; return (D[lang()]||D.fr)[k]||D.fr[k]||k; }
 const _CALDOW=["L","M","M","J","V","S","D"];
 function _calMonthName(y,m){ try{ return cap2(new Intl.DateTimeFormat(LOCALE[lang()]||'fr-FR',{month:'long',year:'numeric'}).format(new Date(y,m,1))); }catch(e){ return (m+1)+"/"+y; } }
@@ -4157,7 +4157,7 @@ function openLegCalendar(legIdx){
   let ov=document.getElementById("legCalOv"); if(ov) ov.remove();
   ov=document.createElement("div"); ov.id="legCalOv"; ov.className="cal-ov";
   const destName=(leg.dest&&leg.dest.name)||"";
-  ov.innerHTML=`<div class="cal-sheet" role="dialog" aria-modal="true"><div class="cal-head"><div class="cal-title">Dates · ${escapeHtml(destName)}</div><button class="cal-x" id="legCalX" type="button" aria-label="Fermer">×</button></div><div class="cal-sub" id="legCalSub"></div><div class="cal-dow">${_CALDOW.map(x=>`<span>${x}</span>`).join("")}</div><div class="cal-scroll" id="legCalScroll"></div><div class="cal-foot"><button class="btn ghostline2" id="legCalClear" type="button">${calT("clear")}</button><button class="btn navy" id="legCalOk" type="button">${calT("ok")}</button></div></div>`;
+  ov.innerHTML=`<div class="cal-sheet" role="dialog" aria-modal="true"><div class="cal-head"><div class="cal-title">${calT("stageDates")} · ${escapeHtml(destName)}</div><button class="cal-x" id="legCalX" type="button" aria-label="Fermer">×</button></div><div class="cal-sub" id="legCalSub"></div><div class="cal-dow">${_CALDOW.map(x=>`<span>${x}</span>`).join("")}</div><div class="cal-scroll" id="legCalScroll"></div><div class="cal-foot"><button class="btn ghostline2" id="legCalClear" type="button">${calT("clear")}</button><button class="btn navy" id="legCalOk" type="button">${calT("ok")}</button></div></div>`;
   document.body.appendChild(ov);
   ov.addEventListener("click",e=>{ if(e.target===ov) legCalClose(); });
   ov.querySelector("#legCalX").onclick=legCalClose;
@@ -4206,7 +4206,7 @@ function legCalPick(iso){
   legCalPaint();
 }
 function legCalValidate(){
-  if(!_legCalStart||!_legCalEnd) { toast("Dates incomplètes"); return; }
+  if(!_legCalStart||!_legCalEnd) { toast(calT("incomplete")); return; }
   /* Convertir _legCalStart/End en dayFrom/dayTo */
   const L=draftLegsForTrip(); if(!L||L.length<2||_legCalIdx<0||_legCalIdx>=L.length) return;
   const ds=new Date(_legCalStart+"T00:00:00"), de=new Date(_legCalEnd+"T00:00:00"), dtStart=new Date(draft.dateStart+"T00:00:00");
@@ -4714,10 +4714,19 @@ function legsInUse(){ return Array.isArray(draft.legs)&&draft.legs.length>1; }
 function balanceDraftLegs(){ const L=draftLegs(); if(L.length<2) { draft.legs=[]; return; }
   const D=draftDayCount(); if(!D) return;
   L.forEach(l=>{ l.days=Math.max(1,Math.round(+l.days||1)); });
+  /* Jours de transition partagés : une étape qui commence le jour où la précédente
+     finit (dates saisies qui se touchent) compte ce jour dans les deux durées. La
+     cible de la somme est donc D + (nombre de partages), sinon on raboterait à tort
+     le chevauchement voulu. */
+  let shared=0;
+  for(let i=1;i<L.length;i++){
+    if(L[i].dateFrom && L[i-1].dateTo && L[i].dateFrom===L[i-1].dateTo) shared++;
+  }
+  const target=D+shared;
   let sum=L.reduce((a,l)=>a+l.days,0);
   /* Trop de jours attribués : on rogne à partir de la fin, sans passer sous 1. */
-  for(let i=L.length-1;i>=0&&sum>D;i--){ const take=Math.min(L[i].days-1,sum-D); L[i].days-=take; sum-=take; }
-  if(sum<D) L[L.length-1].days+=(D-sum);
+  for(let i=L.length-1;i>=0&&sum>target;i--){ const take=Math.min(L[i].days-1,sum-target); L[i].days-=take; sum-=take; }
+  if(sum<target) L[L.length-1].days+=(target-sum);
 }
 
 function addDraftLeg(dest){ const D=draftDayCount();
@@ -4739,6 +4748,10 @@ function removeDraftLeg(i){ const L=draftLegs().slice(); if(L.length<2||i<1||i>=
 function setLegDays(i,n){ const L=draftLegs(); if(L.length<2) return;
   const D=draftDayCount(); if(!D) return;
   n=Math.max(1,Math.round(n));
+  /* Le stepper modifie une durée : l'étape touchée repasse en mode « jours cumulés »
+     (ses dates calendrier sont effacées pour éviter un désaccord jours/dates). Les
+     autres étapes gardent leurs dates saisies. */
+  if(L[i]){ L[i].dateFrom=null; L[i].dateTo=null; }
   /* Une étape ne peut pas prendre les jours dont les autres ont besoin. */
   const others=L.length-1;
   n=Math.min(n,D-others);
@@ -4773,7 +4786,7 @@ function legsCardHtml(){
       <div class="legrow-m"><div class="legrow-n">${escapeHtml(nm)}</div><div class="legrow-d">${escapeHtml(legDaysLabel(l.days))}${_dr?(" \u00b7 "+escapeHtml(_dr)):""}</div></div>
       <div class="stepper legrow-s"><button type="button" data-legm="${i}">&#8722;</button><span class="n">${l.days}</span><button type="button" data-legp="${i}">+</button></div>
       ${i>0?`<button type="button" class="legrow-x" data-legx="${i}" aria-label="${escapeHtml(t("legs.remove"))}">\u2715</button>`:""}
-    </div>${i>0?`<div class="fld leglodge" style="margin:2px 0 10px 40px"><div style="margin-bottom:8px"><input id="cLegDate${i}" type="text" class="legdateField" data-leg="${i}" readonly placeholder="Dates" value="${_dr||""}" style="cursor:pointer"></div><input id="cLegLodge${i}" type="text" autocomplete="off" placeholder="${escapeHtml(t("legs.lodgingPh",{c:nm}))}" value="${escapeHtml((l.lodgingAddr||(l.lodging&&l.lodging.name)||""))}"><div class="ac" id="cLegLac${i}"></div><button type="button" class="btn block" data-legsug="${i}" style="margin-top:6px">${escapeHtml(t("lodging.suggest"))}</button></div>`:""}`; }).join(""):"";
+    </div>${i>0?`<div class="fld leglodge" style="margin:2px 0 10px 40px"><div style="margin-bottom:8px"><input id="cLegDate${i}" type="text" class="legdateField" data-leg="${i}" readonly placeholder="${calT("stageDates")}" value="${_dr||""}" style="cursor:pointer"></div><input id="cLegLodge${i}" type="text" autocomplete="off" placeholder="${escapeHtml(t("legs.lodgingPh",{c:nm}))}" value="${escapeHtml((l.lodgingAddr||(l.lodging&&l.lodging.name)||""))}"><div class="ac" id="cLegLac${i}"></div><button type="button" class="btn block" data-legsug="${i}" style="margin-top:6px">${escapeHtml(t("lodging.suggest"))}</button></div>`:""}`; }).join(""):"";
   const body=D
     ? rows+`<div class="fld legadd"><input id="cLegAdd" type="text" autocomplete="off" placeholder="${escapeHtml(t("legs.addPh"))}"><div class="ac" id="cLegAc"></div></div>`
     : `<div class="hwide-note">${t("legs.needDates")}</div>`;
@@ -6778,7 +6791,7 @@ function renderPlan(){
   const sumHtml=items.length?`<div class="day-sum ${over?'over':''}"><div class="ds-grid"><div class="ds-col"><span class="ds-k">${t("plan.start")}</span><b>${startT||"—"}</b><span class="ds-s">${t("plan.visitsTime")} · ${fmtMin(visitMin)}</span></div><div class="ds-col"><span class="ds-k">${t("plan.endWanted")}</span><div class="ds-want"><input type="time" id="dayEndInput" value="${escapeHtml(tr.dayEnd||'')}"${ro?" disabled":""}></div></div></div>${_planDetailed?distBreakHtml+costHtml:""}${anyShift?`<div class="ds-warn soft">↪ ${t("plan.conflict")}</div>`:""}${over?`<div class="ds-warn">⚠️ ${overEnd?t("plan.overEnd",{t:tr.dayEnd}):t("plan.overload")}</div>`:""}</div>`:"";
   const _trs=(typeof legTransitions==="function")?legTransitions(tr).find(x=>x.day===d.i):null;
   const _hasTrans=(tr.plan||[]).some(x=>x.day===d.i&&x._trans);
-  const transHtml=(_trs&&!ro)?`<div style="display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;margin:12px 0 2px;padding:11px 13px;border:1px solid rgba(15,31,61,.15);border-radius:14px;background:rgba(15,31,61,.04)"><div style="font-size:14px;line-height:1.35;flex:1;min-width:180px">🧳 ${escapeHtml(t("plan.transBanner",{a:((_trs.from&&_trs.from.name)||"—"),b:((_trs.to&&_trs.to.name)||"—")}))} · ${_trs.km!=null?escapeHtml(t("plan.transDist",{km:_trs.km})):escapeHtml(t("plan.transDistUnknown"))}</div>${_hasTrans?`<div style="font-size:14px;color:#0E9F6E;font-weight:700">✓ ${escapeHtml(t("plan.transExists"))}</div>`:`<button class="btn navy" id="addTransBtn" style="flex:0 0 auto">${escapeHtml(t("plan.transAdd"))}</button>`}</div>`:"";
+  const transHtml=(_trs&&!ro)?`<div style="display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;margin:12px 0 2px;padding:11px 13px;border:1px solid var(--line);border-radius:14px;background:var(--surface-2)"><div style="font-size:14px;line-height:1.35;flex:1;min-width:180px">🧳 ${escapeHtml(t("plan.transBanner",{a:((_trs.from&&_trs.from.name)||"—"),b:((_trs.to&&_trs.to.name)||"—")}))} · ${_trs.km!=null?escapeHtml(t("plan.transDist",{km:_trs.km})):escapeHtml(t("plan.transDistUnknown"))}</div>${_hasTrans?`<div style="font-size:14px;color:#0E9F6E;font-weight:700">✓ ${escapeHtml(t("plan.transExists"))}</div>`:`<button class="btn navy" id="addTransBtn" style="flex:0 0 auto">${escapeHtml(t("plan.transAdd"))}</button>`}</div>`:"";
   const _modeBtn=(_planDetailed&&items.length)?`<button class="day-mode-toggle js-planmode">▲ ${t("plan.simpleView")}</button>`:"";
   const _simpleBar=(!_planDetailed&&items.length)?`<button class="day-simplebar js-planmode">${endT?`${t("plan.end")} ~${escapeHtml(endT)}`:t("plan.mapTitle")}${_dayKmC>0?` · ${dayDist}`:""}${_dayC>0?` · ${escapeHtml(money(_dayC,tr.currency))}`:""} <b>${t("plan.detailView")} ▾</b></button>`:"";
   body.innerHTML=sel+`<div id="fideleAlert"></div><div class="daycard"><div class="dc-top"><div class="dc-left"><div class="dc-date">${escapeHtml(dateLabel)}</div><div class="dc-wx" id="dcWeather"></div></div>${_planDetailed?`<div class="dc-right"><span class="di-mode">${t("plan.dayMode")}</span>${intHtml}</div>`:""}</div>${transHtml}${_modeBtn?`<div style="text-align:right;margin:2px 2px -2px 0">${_modeBtn}</div>`:""}${_planDetailed?statsHtml:_simpleBar}${actsHtml}${(!ro)?`<div class="dc-nudges" id="dayNudges"${_planDetailed?"":` style="display:none"`}></div><div id="dayAgentAdvice"${_planDetailed?"":` style="display:none"`}></div>`:""}${ro?`<div class="pl-ro">🔒 ${t("plan.readonly")}</div>`:""}${lateBanner}<div class="timeline ${planState.collapsed?'collapsed':''}">${tl}</div>${sumHtml}</div>`+(stops.length?`<div class="rowhead" style="margin-top:18px"><h2>${t("plan.mapTitle")}</h2></div><div class="map-wrap" id="mapWrap"><div id="planMap" class="planmap"></div><div id="osmMap" class="planmap osm-map" style="display:none"></div><button class="map-fab" id="mapFull" type="button" title="${escapeHtml(t("plan.mapFull"))}">⛶</button></div>`:"");
@@ -8422,7 +8435,7 @@ function renderBudget(){ const body=document.getElementById("budgetBody"); if(!b
   h+=`<div class="bud-actions"><button class="btn navy" id="budAdd">＋ ${t("bud.addExpense")}</button><button class="btn ghostline2" id="budEst">✨ ${t("bud.estimate")}</button><button class="btn ghostline2" id="budPlan">${t("bud.plan")}</button></div>`;
   const exps=(tr.expenses||[]).slice().sort((a,b)=>(b.date||"").localeCompare(a.date||"")||(b.createdAt||0)-(a.createdAt||0));
   h+=`<div class="rowhead" style="margin-top:22px"><h2>${t("bud.recent")}</h2></div>`;
-  h+= exps.length ? `<div class="exp-list">`+exps.map(e=>{ const c=catMeta(e.category); const _rf=(+e.amount)<0; return `<div class="exp-row"><span class="bd-ic sm" style="background:${c.bg};color:${c.c}">${c.ic}</span><div class="er-main"><div class="er-l">${escapeHtml(e.establishment||e.label||t("bcat."+e.category))}${_rf?` <small style="color:#1a7f4b;font-weight:700;font-size:10.5px;background:#e7f5ec;border-radius:6px;padding:1px 6px;vertical-align:middle">↩︎ ${t("exp.typeRefund")}</small>`:""}</div><div class="er-d">${e.city?escapeHtml(e.city)+" · ":""}${escapeHtml(fmtDate(e.date))}</div></div><div class="er-amt"${_rf?' style="color:#1a7f4b"':''}>${money(e.amount,e.currency||cur)}</div><button class="er-edit" data-edit="${e.id}" aria-label="Modifier">✎</button><button class="er-del" data-del="${e.id}">✕</button></div>`; }).join("")+`</div>` : `<div class="empty" style="padding:18px 8px"><p>${t("bud.noExpenses")}</p></div>`;
+  h+= exps.length ? `<div class="exp-list">`+exps.map(e=>{ const c=catMeta(e.category); const _rf=(+e.amount)<0; return `<div class="exp-row"><span class="bd-ic sm" style="background:${c.bg};color:${c.c}">${c.ic}</span><div class="er-main"><div class="er-l">${escapeHtml(e.establishment||e.label||t("bcat."+e.category))}${_rf?` <small style="color:var(--emerald);font-weight:700;font-size:10.5px;background:rgba(34,197,94,.14);border-radius:6px;padding:1px 6px;vertical-align:middle">↩︎ ${t("exp.typeRefund")}</small>`:""}</div><div class="er-d">${e.city?escapeHtml(e.city)+" · ":""}${escapeHtml(fmtDate(e.date))}</div></div><div class="er-amt"${_rf?' style="color:var(--emerald)"':''}>${money(e.amount,e.currency||cur)}</div><button class="er-edit" data-edit="${e.id}" aria-label="Modifier">✎</button><button class="er-del" data-del="${e.id}">✕</button></div>`; }).join("")+`</div>` : `<div class="empty" style="padding:18px 8px"><p>${t("bud.noExpenses")}</p></div>`;
   body.innerHTML=bilanHtml+h;
   { const bo=body.querySelector("#bilanOpen"); if(bo) bo.onclick=()=>openBilan(tr); }
   body.querySelector("#budAdd").onclick=openExpense;
@@ -10234,8 +10247,8 @@ function openDirectorNote(){
     <div class="cal-h"><b>\u2726 Note du r\u00e9alisateur</b><button class="cal-x" id="dnX" type="button">\u2715</button></div>
     <div style="padding:4px 16px 20px">
       ${mvMediaReportHtml()}
-      ${notes.map(x=>`<p style="margin:0 0 12px;line-height:1.55;color:#0E2148;font-size:14.2px">${escapeHtml(x)}</p>`).join("")}
-      <p style="margin:14px 0 0;font-size:12px;color:#6b7280;line-height:1.5">Ces explications d\u00e9crivent des d\u00e9cisions r\u00e9ellement prises par le montage \u2014 rien n'est invent\u00e9.</p>
+      ${notes.map(x=>`<p style="margin:0 0 12px;line-height:1.55;color:var(--ink);font-size:14.2px">${escapeHtml(x)}</p>`).join("")}
+      <p style="margin:14px 0 0;font-size:12px;color:var(--muted);line-height:1.5">Ces explications d\u00e9crivent des d\u00e9cisions r\u00e9ellement prises par le montage \u2014 rien n'est invent\u00e9.</p>
     </div></div>`;
   document.body.appendChild(ov);
   ov.querySelector("#dnX").onclick=()=>ov.remove();
