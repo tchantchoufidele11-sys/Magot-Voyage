@@ -832,7 +832,7 @@ input[type=range]::-moz-range-thumb{width:22px;height:22px;border:0;border-radiu
 <main class="app">
   <header class="header">
     <div class="header-left"></div>
-    <div class="brand"><h1>Studio Magot<i>✦</i></h1><p>Montage vidéo · C267</p></div>
+    <div class="brand"><h1>Studio Magot<i>✦</i></h1><p>Montage vidéo · C269</p></div>
     <button class="export" id="expBtn"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 15V3m0 0L7 8m5-5l5 5M5 15v4h14v-4"/></svg> Exporter</button>
   </header>
 
@@ -8232,8 +8232,14 @@ function _parseLRC(txt){ SUBS=[]; if(!txt) return 0; var ls=String(txt).split(/\
 function _subAt(t){ if(!SUBS.length) return ""; var cur=""; for(var i=0;i<SUBS.length;i++){ if(SUBS[i].t<=t+0.02) cur=SUBS[i].text; else break; } return cur; }
 function _musicTimeNow(){ /* temps DANS la musique (pour caler les paroles) */
   try{ if(window.LOOP_ON){ var md=(window.MUSIC_DUR||(A?A.dur:0))||0; var mt=montageNow(); return md>0?(mt%md):mt; } return (audioEl?audioEl.currentTime:montageNow()); }catch(e){ return montageNow(); } }
-function _updateSub(){ try{ if(!_subEl){ var h=document.querySelector(".hero"); if(!h) return; _subEl=document.createElement("div"); _subEl.id="karaokeSub"; _subEl.style.cssText="position:absolute;left:0;right:0;bottom:12%;text-align:center;padding:0 8%;z-index:16;pointer-events:none;font:700 clamp(15px,4.4vw,26px)/1.32 'Playfair Display',Georgia,serif;color:#fff;text-shadow:0 2px 10px rgba(0,0,0,.85),0 0 3px rgba(0,0,0,.9);opacity:0;transition:opacity .25s"; h.appendChild(_subEl); }
+function _updateSub(){ try{ if(!_subEl){ var h=document.querySelector(".hero"); if(!h) return; _subEl=document.createElement("div"); _subEl.id="karaokeSub"; _subEl.style.cssText="position:absolute;text-align:center;z-index:16;pointer-events:none;font-weight:700;font-family:'Playfair Display',Georgia,serif;line-height:1.32;color:#fff;text-shadow:0 2px 10px rgba(0,0,0,.85),0 0 3px rgba(0,0,0,.9);opacity:0;transition:opacity .25s"; h.appendChild(_subEl); }
   if(!SUBS.length || !playing){ _subEl.style.opacity="0"; return; }
+  try{ var _h=document.querySelector(".hero"); var _cv=_h&&_h.querySelector("canvas");
+    if(_h&&_cv){ var _hr=_h.getBoundingClientRect(), _cr=_cv.getBoundingClientRect();
+      if(_cr.width>1&&_cr.height>1){ _subEl.style.left=(_cr.left-_hr.left)+"px"; _subEl.style.width=_cr.width+"px"; _subEl.style.right="auto";
+        _subEl.style.top=((_cr.top-_hr.top)+_cr.height*0.72)+"px"; _subEl.style.bottom="auto";
+        var _pad=Math.round(_cr.width*0.06); _subEl.style.paddingLeft=_pad+"px"; _subEl.style.paddingRight=_pad+"px";
+        _subEl.style.fontSize=Math.max(14,Math.round(_cr.height*0.042))+"px"; } } }catch(e){}
   var line=_subAt(_musicTimeNow());
   if(line!==_subLast){ _subLast=line; _subEl.textContent=line; }
   _subEl.style.opacity=line?"1":"0";
@@ -8243,7 +8249,7 @@ function _subExpTime(t){ try{ if(window.LOOP_ON){ var md=(window.MUSIC_DUR||(A?A
 function _drawSubOnCanvas(cx, W, H, mt){ try{ if(!SUBS.length||!cx) return; var line=_subAt(mt); if(!line) return;
   cx.save(); var fs=Math.max(14,Math.round(H*0.042)); cx.font="700 "+fs+"px 'Playfair Display',Georgia,serif"; cx.textAlign="center"; cx.textBaseline="bottom";
   var maxW=W*0.86, words=line.split(" "), lns=[], cur=""; for(var i=0;i<words.length;i++){ var tst=cur?(cur+" "+words[i]):words[i]; if(cx.measureText(tst).width>maxW && cur){ lns.push(cur); cur=words[i]; } else cur=tst; } if(cur) lns.push(cur);
-  var lh=fs*1.32, base=H*0.90; for(var j=lns.length-1;j>=0;j--){ var ty=base-(lns.length-1-j)*lh; cx.shadowColor="rgba(0,0,0,.85)"; cx.shadowBlur=fs*0.45; cx.shadowOffsetX=0; cx.shadowOffsetY=2; cx.fillStyle="#ffffff"; cx.fillText(lns[j], W/2, ty); }
+  var lh=fs*1.32, base=H*0.76; for(var j=lns.length-1;j>=0;j--){ var ty=base-(lns.length-1-j)*lh; cx.shadowColor="rgba(0,0,0,.85)"; cx.shadowBlur=fs*0.45; cx.shadowOffsetX=0; cx.shadowOffsetY=2; cx.fillStyle="#ffffff"; cx.fillText(lns[j], W/2, ty); }
   cx.restore(); }catch(e){} }
 function loop(){
   if(!playing) return;
