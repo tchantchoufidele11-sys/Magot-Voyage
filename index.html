@@ -187,6 +187,20 @@ nav.tabs button.active .ico{background:var(--navy);color:#fff;box-shadow:0 6px 1
 /* ---------- Sheet (réglages) ---------- */
 .sheet{position:fixed;inset:0;z-index:3000;background:var(--bg);display:none;flex-direction:column;animation:slideup .3s ease both}
 .sheet.show{display:flex}
+.exp-zone{margin:0 0 12px}
+.exz-pill{display:inline-flex;align-items:center;gap:7px;max-width:100%;padding:8px 12px;border:1px solid var(--line);border-radius:12px;background:var(--surface);color:var(--ink);font:600 12.5px "Inter",sans-serif;font-size:clamp(11.5px,3.2vw,12.5px);cursor:pointer;-webkit-tap-highlight-color:transparent}
+.exz-pill svg{width:15px;height:15px;fill:none;stroke:var(--navy);stroke-width:1.8;flex:0 0 auto}
+.exz-name{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:70vw}
+.exz-x{margin-left:2px;width:18px;height:18px;border-radius:50%;background:var(--line);color:var(--ink);display:inline-flex;align-items:center;justify-content:center;font-size:11px;line-height:1;flex:0 0 auto}
+[data-theme="dark"] .exz-pill svg{stroke:var(--gold)}
+.exz-ac{position:absolute;left:0;right:0;top:100%;z-index:20;background:var(--surface);border:1px solid var(--line);border-radius:12px;margin-top:6px;box-shadow:var(--shadow-sm);display:none;max-height:260px;overflow:auto}
+.exz-ac.show{display:block}
+.exz-ac div[data-i]{display:flex;align-items:center;gap:9px;padding:10px 12px;cursor:pointer;border-bottom:1px solid var(--line)}
+.exz-ac div[data-i]:last-child{border-bottom:0}
+.exz-ac svg{width:16px;height:16px;fill:none;stroke:var(--navy);stroke-width:1.7;flex:0 0 auto}
+.exz-ac .ac-txt{display:flex;flex-direction:column;gap:1px;min-width:0}
+.exz-ac .ac-n{font:600 13px "Inter",sans-serif;color:var(--ink);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.exz-ac .ac-l{font:500 11px "Inter",sans-serif;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 @keyframes slideup{from{transform:translateY(100%)}to{transform:none}}
 .sh-head{flex:0 0 auto;display:flex;align-items:center;justify-content:space-between;
   padding:calc(env(safe-area-inset-top) + 14px) 18px 14px;border-bottom:1px solid var(--line);background:var(--surface)}
@@ -2889,6 +2903,7 @@ body.dragging-on{-webkit-user-select:none;user-select:none}
         </div>
       </div>
       <div class="exp-search"><svg id="expSearchBtn" style="cursor:pointer" viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="m21 21-4-4"/></svg><input id="expSearch" data-i18n-ph="exp.searchPh" placeholder="Rechercher un lieu, une activité…" autocomplete="off"></div>
+      <div id="expZone" class="exp-zone"></div>
       <div class="exp-cats-row">
         <div class="chips chips-scroll" id="expCats"></div>
       </div>
@@ -2989,6 +3004,19 @@ body.dragging-on{-webkit-user-select:none;user-select:none}
 <div class="sheet" id="photoAddSheet">
   <div class="sh-head"><h2 id="photoAddHd">—</h2><button class="sh-close" id="photoAddClose">✕</button></div>
   <div class="sh-body" id="photoAddBody"></div>
+</div>
+<div class="sheet" id="exZoneSheet">
+  <div class="sh-head"><h2>Choisir une zone</h2><button class="sh-close" id="exZoneClose">✕</button></div>
+  <div class="sh-body">
+    <p class="ss-hint">Cherche dans une autre ville ou commune. Laisse ta destination pour le comportement habituel.</p>
+    <div class="fld" style="position:relative">
+      <label>Zone</label>
+      <input id="exZoneInp" placeholder="Ville, commune, quartier…" autocomplete="off">
+      <div id="exZoneAc" class="exz-ac"></div>
+    </div>
+    <button class="btn ghostline2 block" id="exZoneReset" style="margin-top:8px">↩︎ Revenir à ma destination</button>
+    <div style="height:18px"></div>
+  </div>
 </div>
 <div class="sheet" id="placeNoteSheet">
   <div class="sh-head"><h2 id="placeNoteHd">—</h2><button class="sh-close" id="placeNoteClose">✕</button></div>
@@ -3140,7 +3168,7 @@ const DEFAULT_S={ version:"0.2.0", settings:{ lang:"fr", theme:"system", units:"
 /* Clé Maps JS partagée (restreinte au domaine GitHub Pages). Repli : clé perso de l'utilisateur si fournie. */
 const SHARED_MAP_KEY="AIzaSyCt5iVx8nPr1V067A3daE0X1YA568XJNbU";
 function mapKey(){ return (S.settings.mapKey||"").trim() || SHARED_MAP_KEY; }
-const BUILD="0.3.31 · v615 save-native";
+const BUILD="0.3.32 · v616 explore-zone";
 let S=loadState();
 function normalizeTrip(tr){ if(!tr||typeof tr!=="object") return tr;
   tr.id=tr.id||("t"+Date.now()+Math.random().toString(36).slice(2,7));
@@ -4904,7 +4932,7 @@ const STYLE_MAP={
  nightlife:{types:["bar","night_club"],q:"bar club rooftop",kw:/\bbar\b|club|rooftop|nuit|cocktail/i}
 };
 const STYLE_MOD={premium:1,romantic:1,family:1,eco:1,local:1,mixed:1,roadtrip:1,solo:1,friends:1,business:1,backpacking:1};
-let exploreState={cat:"all",query:""}; let _exMore=12;
+let exploreState={cat:"all",query:"",zone:null}; let _exMore=12;
 const _placeReg={};
 function gPhoto(name,w){
   /* Les photos ne passent pas par workerFetch : elles sont chargées par le
@@ -5649,6 +5677,46 @@ const CAT_ICON={
   shops:'<path d="M5 8h14l-1 12H6z"/><path d="M9 8V6a3 3 0 0 1 6 0v2"/>',
   divers:'<path d="m12 3.6 2.5 5.4 5.9.7-4.4 4 1.2 5.8L12 16.6 6.8 19.5 8 13.7 3.6 9.7l5.9-.7z"/>'
 };
+let _exZoneT;
+/* Zone Explore : par défaut la destination du voyage ; l'utilisateur peut viser
+   une autre ville. Tout Explore (catégories, recherche, rayon) se recentre dessus. */
+function renderExpZone(){ const el=document.getElementById("expZone"); if(!el) return;
+  const tr=currentTrip(); if(!tr){ el.innerHTML=""; return; }
+  const z=(exploreState.zone&&exploreState.zone.lat!=null&&exploreState.zone.forTrip===tr.id)?exploreState.zone:null;
+  const _d0=tr.dest||{}, _anc=(typeof _exAnchor==="function")?_exAnchor():null;
+  const name=z?z.name:((_anc&&_anc.name)||_d0.name||"—");
+  const pin=`<svg viewBox="0 0 24 24"><path d="M12 21s-7-6.2-7-11a7 7 0 0 1 14 0c0 4.8-7 11-7 11z"/><circle cx="12" cy="10" r="2.4"/></svg>`;
+  el.innerHTML=`<button class="exz-pill" id="exzOpen">${pin}<span class="exz-name">${escapeHtml(name)}</span>${z?`<span class="exz-x" id="exzReset">✕</span>`:""}</button>`;
+  const ob=el.querySelector("#exzOpen"); if(ob) ob.onclick=(e)=>{ if(e.target.closest("#exzReset")) return; openExZone(); };
+  const rb=el.querySelector("#exzReset"); if(rb) rb.onclick=(e)=>{ e.stopPropagation(); exploreState.zone=null; _exRadiusUserSet=false; renderExplore(); };
+}
+function closeExZone(){ const sh=document.getElementById("exZoneSheet"); if(sh) sh.classList.remove("show"); }
+function openExZone(){ const tr=currentTrip(); if(!tr) return;
+  const sh=document.getElementById("exZoneSheet"); if(!sh) return;
+  const inp=sh.querySelector("#exZoneInp"), ac=sh.querySelector("#exZoneAc");
+  if(inp) inp.value=""; if(ac){ ac.classList.remove("show"); ac.innerHTML=""; }
+  const cls=sh.querySelector("#exZoneClose"); if(cls) cls.onclick=closeExZone;
+  const rst=sh.querySelector("#exZoneReset"); if(rst) rst.onclick=()=>{ exploreState.zone=null; _exRadiusUserSet=false; closeExZone(); renderExplore(); };
+  if(inp){ inp.oninput=()=>{ const q=inp.value.trim(); clearTimeout(_exZoneT);
+    if(q.length<3){ ac.classList.remove("show"); ac.innerHTML=""; return; }
+    _exZoneT=setTimeout(async()=>{
+      const tr2=currentTrip(); const cc=(tr2&&tr2.dest&&tr2.dest.cc)||null;
+      const list=await zoneSuggest(q,(tr2&&tr2.dest)||null,cc);
+      if(!list||!list.length){ ac.classList.remove("show"); ac.innerHTML=""; return; }
+      ac.innerHTML=list.map((r,i)=>`<div data-i="${i}"><svg viewBox="0 0 24 24"><path d="M12 21s-7-6.2-7-11a7 7 0 0 1 14 0c0 4.8-7 11-7 11z"/><circle cx="12" cy="10" r="2.4"/></svg><div class="ac-txt"><div class="ac-n">${escapeHtml(r.name||"")}</div>${(r.sub||r.label)?`<div class="ac-l">${escapeHtml(r.sub||r.label)}</div>`:""}</div></div>`).join("");
+      ac.classList.add("show");
+      ac.querySelectorAll("div[data-i]").forEach(el2=>el2.onclick=async()=>{ let r=list[+el2.dataset.i];
+        ac.classList.remove("show"); if(inp) inp.value=r.name||"";
+        r=await resolveSuggestion(r)||r;
+        if(r.lat==null){ toast("Lieu introuvable — précise la ville."); return; }
+        const tr3=currentTrip(); if(!tr3) return;
+        exploreState.zone={name:r.name||q, lat:r.lat, lng:r.lng, cc:r.cc||(tr3.dest&&tr3.dest.cc)||"", forTrip:tr3.id};
+        _exRadiusUserSet=false;
+        closeExZone(); renderExplore(); });
+    },600); }; }
+  sh.classList.add("show");
+  setTimeout(()=>{ try{ inp.focus(); }catch(e){} },120);
+}
 function renderExploreChips(){ const el=document.getElementById("expCats"); if(!el) return;
   const BAR=["all","culture","restaurants","shops"]; let barCats=CATS.filter(c=>BAR.includes(c.k));
   if(!BAR.includes(exploreState.cat)){ const ex=CATS.find(c=>c.k===exploreState.cat); if(ex) barCats=barCats.concat([ex]); }  /* montre la categorie active choisie via le filtre */
@@ -5695,7 +5763,7 @@ async function dtVerify(places,dest){
 async function renderExplore(){
   _subFetchKey=""; _subFetchSecs=null; _exMore=12; _exMorePending=false; _exMoreFn=null; _exMoreBusy=false;
   { const db=document.getElementById("dtOpenBtn"); if(db){ db.onclick=openDataTourisme; db.style.display=(_exploreCC()==="FR")?"":"none"; } }
-  renderExDay(); renderExploreChips(); renderExploreRadius();
+  renderExDay(); renderExploreChips(); renderExploreRadius(); renderExpZone();
   { const fb=document.getElementById("expFilter"); if(fb) fb.classList.toggle("on", exFilterActive()); }
   { const _es=document.getElementById("expSearch"); if(_es) _es.placeholder=(exploreState.cat==="shops")?t("exp.shopsPh"):((exploreState.cat==="restaurants")?t("exp.restoPh"):t("exp.searchPh")); }
   const box=document.getElementById("exploreResults"); if(!box) return;
@@ -5704,7 +5772,7 @@ async function renderExplore(){
     const c=box.querySelector("#expCreate"); if(c) c.onclick=openCreate; return; }
   if(!googleReady()){ box.innerHTML=needKeyHtml(); const k=box.querySelector("#expKey"); if(k) k.onclick=openSettings; return; }
   box.innerHTML=`<div class="exp-loading"><span class="spin"></span>${t("exp.loading")}</div>`;
-  const _d0=trip.dest||{}, _anc=(typeof _exAnchor==="function")?_exAnchor():null; const dest=_anc?Object.assign({},_d0,{lat:_anc.lat,lng:_anc.lng}):_d0; const hasLoc=(dest.lat!=null), dn=dest.name||"";
+  const _d0=trip.dest||{}, _anc=(typeof _exAnchor==="function")?_exAnchor():null; const _zn=(exploreState.zone&&exploreState.zone.lat!=null&&exploreState.zone.forTrip===trip.id)?exploreState.zone:null; const dest=_zn?{name:_zn.name,lat:_zn.lat,lng:_zn.lng,cc:_zn.cc||_d0.cc}:(_anc?Object.assign({},_d0,{lat:_anc.lat,lng:_anc.lng}):_d0); const hasLoc=(dest.lat!=null), dn=dest.name||"";
   /* Rayon = memes paliers que la recherche d'hotel (anchorTiers), fini le 25 fige.
      On part du palier large pour trouver PLUS ; borne au max Google (50 km/appel). Le slider ajuste ; >50 km via tuilage. */
   if(!_exRadiusUserSet && hasLoc){ const _ti=(typeof anchorTiers==="function")?anchorTiers(dest):[10,30,80]; const _t2=(_ti&&_ti[2])||80; _exploreRadiusKm=Math.max(25,Math.min(50,_t2)); /* paliers hotel, borne au max Google (50 km/appel). Au-dela: tuilage sur clic categorie. */ renderExploreRadius(); }
