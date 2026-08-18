@@ -190,8 +190,9 @@ nav.tabs button.active .ico{background:var(--navy);color:#fff;box-shadow:0 6px 1
 .studio-ov{position:fixed;inset:0;z-index:9999;background:#000;display:none}
 .studio-ov.show{display:block}
 .studio-ov #studioFrame{position:absolute;inset:0;width:100%;height:100%;border:0;background:#000;display:block}
-.studio-close{position:absolute;top:calc(env(safe-area-inset-top,0px) + 10px);left:12px;z-index:2;width:38px;height:38px;border-radius:50%;background:rgba(0,0,0,.55);border:1px solid rgba(255,255,255,.35);box-shadow:0 2px 10px rgba(0,0,0,.4);display:flex;align-items:center;justify-content:center;-webkit-tap-highlight-color:transparent}
-.studio-close svg{width:20px;height:20px;fill:none;stroke:#fff;stroke-width:2;stroke-linecap:round}
+.studio-back{position:absolute;top:calc(env(safe-area-inset-top,0px) + 12px);left:14px;z-index:3;display:inline-flex;align-items:center;gap:5px;height:38px;padding:0 15px 0 10px;border-radius:999px;background:rgba(16,18,26,.55);border:1px solid rgba(255,255,255,.16);color:#fff;font:600 14px/1 "Inter",-apple-system,sans-serif;-webkit-backdrop-filter:blur(14px) saturate(1.2);backdrop-filter:blur(14px) saturate(1.2);box-shadow:0 4px 16px rgba(0,0,0,.35);-webkit-tap-highlight-color:transparent}
+.studio-back svg{width:19px;height:19px;fill:none;stroke:#fff;stroke-width:2.2;stroke-linecap:round;stroke-linejoin:round}
+.studio-back:active{background:rgba(16,18,26,.78)}
 html.studio-open{overflow:hidden}
 .exp-zone{margin:0 0 12px}
 .exz-pill{display:inline-flex;align-items:center;gap:7px;max-width:100%;padding:8px 12px;border:1px solid var(--line);border-radius:12px;background:var(--surface);color:var(--ink);font:600 12.5px "Inter",sans-serif;font-size:clamp(11.5px,3.2vw,12.5px);cursor:pointer;-webkit-tap-highlight-color:transparent}
@@ -3174,7 +3175,7 @@ const DEFAULT_S={ version:"0.2.0", settings:{ lang:"fr", theme:"system", units:"
 /* Clé Maps JS partagée (restreinte au domaine GitHub Pages). Repli : clé perso de l'utilisateur si fournie. */
 const SHARED_MAP_KEY="AIzaSyCt5iVx8nPr1V067A3daE0X1YA568XJNbU";
 function mapKey(){ return (S.settings.mapKey||"").trim() || SHARED_MAP_KEY; }
-const BUILD="0.3.35 · v619 studio-close";
+const BUILD="0.3.36 · v620 studio-feed";
 let S=loadState();
 function normalizeTrip(tr){ if(!tr||typeof tr!=="object") return tr;
   tr.id=tr.id||("t"+Date.now()+Math.random().toString(36).slice(2,7));
@@ -9075,11 +9076,43 @@ function mvDirectEntry(tr){
 /* ===== Studio Magot : éditeur vidéo autonome (studio.html) ouvert en plein écran.
    On le nourrit via ses hooks window (studioAutoMontage, STUDIO_LANG…). Le montage
    des données du voyage arrive au Lot 1 ; ici : ouverture/fermeture + langue + admin. ===== */
-let _studioTrip=null;
+let _studioTrip=null; let _studioURLs=[];
+function _studioRevoke(){ try{ _studioURLs.forEach(u=>{ try{ URL.revokeObjectURL(u); }catch(e){} }); }catch(e){} _studioURLs=[]; }
+function _studioPlaceName(tr,pid){ if(!pid||!tr) return ""; const p=(tr.places||[]).find(x=>x.id===pid); return p?(p.name||""):""; }
+async function _dataURLtoBlob(u){ try{ const r=await fetch(u); return await r.blob(); }catch(e){ return null; } }
+/* Construit la liste items (photos + clips) du voyage pour le Studio, en ordre chronologique.
+   Photos = dataURL (clé id) ; vidéos = blob (clé vid_<id>). Tout est converti en objectURL
+   (léger et valide entre l'app et l'iframe même origine), révoqué à la construction suivante. */
+async function studioBuildItems(tr){ if(!tr) return []; _studioRevoke();
+  const mems=(tr.memories||[]).slice();
+  mems.sort((a,b)=>{ const da=(a&&a.day!=null)?a.day:9999, db=(b&&b.day!=null)?b.day:9999; if(da!==db) return da-db; return ((a.createdAt||a.at||0)-(b.createdAt||b.at||0)); });
+  const items=[];
+  for(const m of mems){ if(!m||!m.id) continue; const isVid=(m.kind==="video");
+    let media=null; try{ media=await idbGetMedia(isVid?("vid_"+m.id):m.id); }catch(e){}
+    if(!media) continue;
+    let blob=(typeof media==="string")?await _dataURLtoBlob(media):media;
+    if(!blob) continue;
+    let url=null; try{ url=URL.createObjectURL(blob); _studioURLs.push(url); }catch(e){}
+    if(!url) continue;
+    const it={ id:m.id, url, caption:(m.caption||_studioPlaceName(tr,m.placeId)||""), time:(m.createdAt||m.at||0), video:isVid };
+    if(m.day!=null) it.day=m.day+1;
+    items.push(it); }
+  return items; }
+async function studioFeed(w, tr){ if(!w||!tr) return;
+  let items=[]; try{ items=await studioBuildItems(tr); }catch(e){}
+  if(!items.length) return;   /* rien à monter : le Studio garde son écran d\u2019accueil */
+  try{ w.studioAutoMontage({ items, mood:"voyage", sign:true, signText:(w.SIGN_TEXT||undefined), dayMarkers:true, project:tr.id, autoplay:false }); }catch(e){}
+  /* format d\u2019origine par défaut (best-effort) */
+  setTimeout(()=>{ try{
+    if(typeof w._origFmt==="function" && typeof w._setFormat==="function"){ const f=w._origFmt(); if(f&&f.w&&f.h) w._setFormat(f.w,f.h,"Origine"); }
+    else { const c=w.document&&w.document.querySelector('.fmc[data-n="orig"]'); if(c) c.click(); }
+  }catch(e){} }, 700);
+}
 function openStudio(tr,version,autoplay){ tr=tr||souvTrip(); if(!tr){ toast(t("mem.noTrip")); return; } _studioTrip=tr;
   let ov=document.getElementById("studioOverlay");
+  const backLbl=({fr:"Retour",en:"Back",es:"Volver",it:"Indietro",de:"Zur\u00fcck"})[(typeof lang==="function"?lang():"fr")]||"Retour";
   if(!ov){ ov=document.createElement("div"); ov.id="studioOverlay"; ov.className="studio-ov";
-    ov.innerHTML=`<button class="studio-close" id="studioClose" aria-label="Fermer"><svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></svg></button><iframe id="studioFrame" title="Studio Magot" allow="autoplay; fullscreen; encrypted-media" src="studio.html"></iframe>`;
+    ov.innerHTML=`<button class="studio-back" id="studioClose" aria-label="${backLbl}"><svg viewBox="0 0 24 24"><path d="M15 5l-7 7 7 7"/></svg><span>${backLbl}</span></button><iframe id="studioFrame" title="Studio Magot" allow="autoplay; fullscreen; encrypted-media" src="studio.html"></iframe>`;
     document.body.appendChild(ov);
     const cl=ov.querySelector("#studioClose"); if(cl) cl.onclick=closeStudio;
     const fr=ov.querySelector("#studioFrame");
@@ -9087,9 +9120,10 @@ function openStudio(tr,version,autoplay){ tr=tr||souvTrip(); if(!tr){ toast(t("m
       w.STUDIO_LANG=(typeof lang==="function")?lang():"fr";
       w.STUDIO_ADMIN=(typeof isAdmin==="function")?isAdmin():false;
       try{ if(typeof w._applyStudioLang==="function") w._applyStudioLang(w.STUDIO_LANG); }catch(e){}
-      /* Lot 1 : construire items depuis IndexedDB puis w.studioAutoMontage({items,...}) */
+      let _tries=0; const _feed=()=>{ if(w.studioAutoMontage){ studioFeed(w,_studioTrip); } else if(_tries++<25){ setTimeout(_feed,150); } }; _feed();
     }catch(e){} });
   }
+  { const sp=ov.querySelector(".studio-back span"); if(sp) sp.textContent=backLbl; }
   ov.classList.add("show"); document.documentElement.classList.add("studio-open");
 }
 function closeStudio(){ const ov=document.getElementById("studioOverlay"); if(ov) ov.classList.remove("show"); document.documentElement.classList.remove("studio-open"); }
