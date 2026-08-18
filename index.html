@@ -3175,7 +3175,7 @@ const DEFAULT_S={ version:"0.2.0", settings:{ lang:"fr", theme:"system", units:"
 /* Clé Maps JS partagée (restreinte au domaine GitHub Pages). Repli : clé perso de l'utilisateur si fournie. */
 const SHARED_MAP_KEY="AIzaSyCt5iVx8nPr1V067A3daE0X1YA568XJNbU";
 function mapKey(){ return (S.settings.mapKey||"").trim() || SHARED_MAP_KEY; }
-const BUILD="0.3.41 · v625 studio-publish";
+const BUILD="0.3.42 · v626 whisper-debug";
 let S=loadState();
 function normalizeTrip(tr){ if(!tr||typeof tr!=="object") return tr;
   tr.id=tr.id||("t"+Date.now()+Math.random().toString(36).slice(2,7));
@@ -9079,12 +9079,18 @@ function mvDirectEntry(tr){
 let _studioTrip=null; let _studioURLs=[];
 /* Catalogue musique pour le Studio : lit la table Supabase music_catalog (via magotCatalog)
    et la mappe au format attendu par STUDIO_CATALOG. cover/artist/lyrics restent optionnels. */
-let _studioTranscribing=new Set();
+let _studioTranscribing=new Set(); let _studioTranscribeWarned=false;
 /* Transcription auto (Voxtral via worker) des morceaux sans paroles : le worker écrit
    le LRC dans music_catalog.lyrics ; au prochain chargement, le karaoké est dispo. */
 async function magotTranscribe(id, url){ try{
   const r=await fetch(WORKER_URL+"/lyrics/transcribe",{ method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify({ id, url }) });
-  if(!r.ok) return null; const d=await r.json().catch(()=>null); return (d&&d.lrc)||null;
+  const d=await r.json().catch(()=>null);
+  if(!r.ok || !d || !d.lrc){
+    if(typeof isAdmin==="function" && isAdmin() && !_studioTranscribeWarned){ _studioTranscribeWarned=true;
+      const msg=(d&&(d.detail||d.error))||("HTTP "+(r&&r.status)); toast("Paroles \u2014 "+String(msg).slice(0,90)); }
+    return null;
+  }
+  return d.lrc;
 }catch(e){ return null; } }
 function _studioAutoTranscribe(rows){ try{ (rows||[]).forEach(x=>{
   if(!x||!x.id) return; if(x.lyrics||x.lrc) return;
