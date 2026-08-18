@@ -1,5 +1,5 @@
 /* Magot Voyage — Service Worker */
-const VERSION = "v626";
+const VERSION = "v612";
 const CACHE = "magot-voyage-" + VERSION;
 const SHELL = [
   "./","./index.html","./manifest.json","./icon-192.png","./icon-512.png","./icon-maskable-512.png","./apple-touch-icon.png"
