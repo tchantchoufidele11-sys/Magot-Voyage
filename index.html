@@ -3175,7 +3175,7 @@ const DEFAULT_S={ version:"0.2.0", settings:{ lang:"fr", theme:"system", units:"
 /* Clé Maps JS partagée (restreinte au domaine GitHub Pages). Repli : clé perso de l'utilisateur si fournie. */
 const SHARED_MAP_KEY="AIzaSyCt5iVx8nPr1V067A3daE0X1YA568XJNbU";
 function mapKey(){ return (S.settings.mapKey||"").trim() || SHARED_MAP_KEY; }
-const BUILD="0.3.37 · v621 studio-lang";
+const BUILD="0.3.38 · v622 studio-music";
 let S=loadState();
 function normalizeTrip(tr){ if(!tr||typeof tr!=="object") return tr;
   tr.id=tr.id||("t"+Date.now()+Math.random().toString(36).slice(2,7));
@@ -9077,10 +9077,24 @@ function mvDirectEntry(tr){
    On le nourrit via ses hooks window (studioAutoMontage, STUDIO_LANG…). Le montage
    des données du voyage arrive au Lot 1 ; ici : ouverture/fermeture + langue + admin. ===== */
 let _studioTrip=null; let _studioURLs=[];
+/* Catalogue musique pour le Studio : lit la table Supabase music_catalog (via magotCatalog)
+   et la mappe au format attendu par STUDIO_CATALOG. cover/artist/lyrics restent optionnels. */
+async function studioCatalog(){ try{
+  const rows=(typeof magotCatalog==="function")?await magotCatalog():[];
+  return (rows||[]).map(x=>({
+    id:x.id, title:x.title||"Musique", artist:x.artist||"",
+    mood:x.mood||"", type:x.type||x.genre||x.mood||"", genre:x.genre||x.mood||"",
+    cover:(x.cover&&/^https?:/.test(x.cover))?x.cover:(x.cover_url||""),
+    url:(x.path?magotUrl(x.path):(x.url||"")),
+    duration:+x.duration||0, bpm:+x.bpm||0,
+    lyrics:x.lyrics||x.lrc||""
+  })).filter(t=>t.url);
+}catch(e){ return []; } }
 function _studioLang(){ const l=String((typeof lang==="function"?lang():"fr")||"fr").slice(0,2).toLowerCase(); return ["fr","en","es","it","de"].includes(l)?l:"fr"; }
 function _studioSync(){ const fr=document.getElementById("studioFrame"); if(!fr) return; let w=null; try{ w=fr.contentWindow; }catch(e){} if(!w) return;
   try{ w.STUDIO_LANG=_studioLang(); }catch(e){}
   try{ w.STUDIO_ADMIN=(typeof isAdmin==="function")?!!isAdmin():false; }catch(e){}
+  try{ w.STUDIO_CATALOG=studioCatalog; }catch(e){}
   try{ if(typeof w._applyStudioLang==="function") w._applyStudioLang(w.STUDIO_LANG); }catch(e){}
 }
 function _studioRevoke(){ try{ _studioURLs.forEach(u=>{ try{ URL.revokeObjectURL(u); }catch(e){} }); }catch(e){} _studioURLs=[]; }
@@ -9125,6 +9139,7 @@ function openStudio(tr,version,autoplay){ tr=tr||souvTrip(); if(!tr){ toast(t("m
     fr.addEventListener("load",()=>{ try{ const w=fr.contentWindow; if(!w) return;
       w.STUDIO_LANG=_studioLang();
       w.STUDIO_ADMIN=(typeof isAdmin==="function")?!!isAdmin():false;
+      try{ w.STUDIO_CATALOG=studioCatalog; }catch(e){}
       try{ if(typeof w._applyStudioLang==="function") w._applyStudioLang(w.STUDIO_LANG); }catch(e){}
       let _tries=0; const _feed=()=>{ if(w.studioAutoMontage){ studioFeed(w,_studioTrip); } else if(_tries++<25){ setTimeout(_feed,150); } }; _feed();
     }catch(e){} });
