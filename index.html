@@ -3175,7 +3175,7 @@ const DEFAULT_S={ version:"0.2.0", settings:{ lang:"fr", theme:"system", units:"
 /* Clé Maps JS partagée (restreinte au domaine GitHub Pages). Repli : clé perso de l'utilisateur si fournie. */
 const SHARED_MAP_KEY="AIzaSyCt5iVx8nPr1V067A3daE0X1YA568XJNbU";
 function mapKey(){ return (S.settings.mapKey||"").trim() || SHARED_MAP_KEY; }
-const BUILD="0.3.40 · v624 studio-whisper";
+const BUILD="0.3.41 · v625 studio-publish";
 let S=loadState();
 function normalizeTrip(tr){ if(!tr||typeof tr!=="object") return tr;
   tr.id=tr.id||("t"+Date.now()+Math.random().toString(36).slice(2,7));
@@ -12915,6 +12915,16 @@ async function magotCatalog(){
   }catch(e){ return []; }
 }
 function magotUrl(path){ return SB_URL+"/storage/v1/object/public/musics/"+encodeURIComponent(path); }
+/* Publication depuis le Studio : l\u2019admin importe une musique -> elle part dans le catalogue
+   Supabase (partagée à tous) et sera transcrite au prochain chargement du catalogue. */
+window.magotUploadFromStudio=async function(file){ try{
+  if(typeof isAdmin!=="function" || !isAdmin() || !file) return;
+  toast("Publication au catalogue\u2026");
+  const title=String(file.name||"Musique").replace(/\.[^.]+$/,"");
+  const r=await magotUpload(file, title, "");
+  if(r===true) toast("\u00ab "+title+" \u00bb publi\u00e9e au catalogue partag\u00e9 \u2713");
+  else toast(typeof r==="string"?r:"Publication au catalogue \u00e9chou\u00e9e.");
+}catch(e){ toast("Publication impossible (r\u00e9seau ?)."); } };
 async function magotDelete(id, path){
   if(!isAdmin()) return "Action r\u00e9serv\u00e9e \u00e0 l'administrateur.";
   const tok=await sbAccessToken(); if(!tok || tok===SB_ANON) return "Session admin introuvable. Reconnecte-toi.";
