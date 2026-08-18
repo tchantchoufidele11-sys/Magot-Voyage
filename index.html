@@ -1058,6 +1058,11 @@ body.dragging-on{-webkit-user-select:none;user-select:none}
 [data-theme="dark"] .mdc.on .mdc-c{background:rgba(0,0,0,.28);color:#fff}
 .ph-tile{position:relative;aspect-ratio:1;border-radius:12px;background:var(--surface-2) center/cover no-repeat;cursor:pointer;overflow:hidden}
 .ph-tile.loading{animation:phpulse 1.2s ease-in-out infinite}
+.ph-add{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:5px;border:1.5px dashed var(--line);background:var(--surface);color:var(--muted);animation:none}
+.ph-add .ph-add-ic svg{width:28px;height:28px;fill:none;stroke:var(--navy);stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round}
+.ph-add .ph-add-t{font:700 11px "Inter",sans-serif;color:var(--navy)}
+[data-theme="dark"] .ph-add .ph-add-ic svg,[data-theme="dark"] .ph-add .ph-add-t{stroke:var(--gold);color:var(--gold)}
+.ph-vid{position:absolute;top:6px;left:6px;width:22px;height:22px;border-radius:50%;background:rgba(0,0,0,.55);color:#fff;display:flex;align-items:center;justify-content:center;font-size:10px;padding-left:2px;z-index:2}
 @keyframes phpulse{0%,100%{opacity:.55}50%{opacity:.85}}
 .ph-tile .ph-cap{position:absolute;left:0;right:0;bottom:0;padding:14px 8px 6px;background:linear-gradient(transparent,rgba(0,0,0,.6));color:#fff;font:600 10.5px "Inter",sans-serif;font-size:clamp(10.5px,2.692vw,10.5px);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .day-block{margin-bottom:6px}
@@ -2912,14 +2917,12 @@ body.dragging-on{-webkit-user-select:none;user-select:none}
       <div class="page-head">
         <div><h1 class="page-title" data-i18n="nav.memories">Souvenirs</h1><p class="page-sub" data-i18n="mem.subtitle">Revivez vos plus beaux moments</p></div>
         <div class="head-acts">
-          <button class="round-act" id="memExportBtn" aria-label="Export"><svg viewBox="0 0 24 24"><path d="M12 3v12M8 11l4 4 4-4M5 21h14"/></svg></button>
-          <button class="round-act" id="memAddBtn" aria-label="+"><svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg></button>
         </div>
       </div>
       <div class="chips chips-scroll" id="memChips"></div>
       <div id="memBody"></div>
       <input type="file" id="memFile" accept="image/*,video/*" multiple style="display:none">
-      <input type="file" id="memCamera" accept="image/*" capture="environment" style="display:none">
+      <input type="file" id="memCamera" accept="image/*,video/*" capture="environment" style="display:none">
     </section>
   </main>
 
@@ -3137,7 +3140,7 @@ const DEFAULT_S={ version:"0.2.0", settings:{ lang:"fr", theme:"system", units:"
 /* Clé Maps JS partagée (restreinte au domaine GitHub Pages). Repli : clé perso de l'utilisateur si fournie. */
 const SHARED_MAP_KEY="AIzaSyCt5iVx8nPr1V067A3daE0X1YA568XJNbU";
 function mapKey(){ return (S.settings.mapKey||"").trim() || SHARED_MAP_KEY; }
-const BUILD="0.3.28 · v612 mem-daybar";
+const BUILD="0.3.29 · v613 day-add";
 let S=loadState();
 function normalizeTrip(tr){ if(!tr||typeof tr!=="object") return tr;
   tr.id=tr.id||("t"+Date.now()+Math.random().toString(36).slice(2,7));
@@ -8660,7 +8663,7 @@ function homeAction(act,tripId){ const tr=S.trips.find(x=>x.id===tripId); if(!tr
 }
 
 /* ===================== ÉTAPE 6 : SOUVENIRS ===================== */
-let souvState={filter:"all",tripId:null};
+let souvState={filter:"all",tripId:null,dayView:null};
 function souvTrip(){ return (souvState.tripId && S.trips.find(x=>x.id===souvState.tripId)) || currentTrip(); }
 function protectedDeleteTrip(tr){ if(!tr) return;
   askConfirm(t("mem.delConfirm1",{name:tripTitle(tr)}),t("common.delete"),()=>{
@@ -8720,7 +8723,7 @@ function cap2(s){ return s?s.charAt(0).toUpperCase()+s.slice(1):s; }
 function fmtDayLong(d){ try{ return cap2(new Intl.DateTimeFormat(LOCALE[lang()]||'fr-FR',{weekday:'long',day:'numeric',month:'long'}).format(d)); }catch(e){ return ""; } }
 function _pastTripsHtml(list){ let o=`<div class="mem-sec-head" style="margin-top:22px"><h2>${t("mem.pastTrips")}</h2></div><div class="past-trips">`,ly=""; list.forEach(pt=>{ const yr=(pt.dateEnd||"").slice(0,4); if(yr&&yr!==ly){ o+=`<div class="past-year">${yr}</div>`; ly=yr; } o+=`<button class="past-card" data-pasttrip="${escapeHtml(pt.id)}"><span class="pc-cv" style="${coverStyle(pt)}"></span><span class="pc-nf"><span class="pc-nn">${escapeHtml(tripTitle(pt))}</span><span class="pc-dd">${fmtRange(pt.dateStart,pt.dateEnd)}</span></span></button>`; }); return o+`</div>`; }
 function phTile(m){ const tr=souvTrip(); const pl=(m.placeId&&tr)?(tr.places||[]).find(p=>p.id===m.placeId):null; const lab=pl?pl.name:(m.caption||""); const geo=(m.lat!=null)?`<span class="ph-geo" title="Photo localisée">\ud83d\udccd</span>`:"";
-  return `<div class="ph-tile loading" data-media="${m.id}" data-pid="${m.id}">${geo}${lab?`<span class="ph-cap">${escapeHtml(lab)}</span>`:''}</div>`; }
+  return `<div class="ph-tile loading" data-media="${m.id}" data-pid="${m.id}">${geo}${m&&m.kind==="video"?`<span class="ph-vid">\u25b6</span>`:""}${lab?`<span class="ph-cap">${escapeHtml(lab)}</span>`:''}</div>`; }
 function memPlaceCard(tr,p){ const cov=p.photo?`background-image:url('${gPhoto(p.photo,500)}')`:`background:${COVERS[hashStr(p.id)%COVERS.length]}`;
   const ty=p.primaryType?escapeHtml(gStr(p.primaryType,p.lang0)):escapeHtml(catLabel(p.types));
   return `<div class="mpc" data-place="${p.id}"><button class="mpc-heart ${p.fav?'on':''}" data-fav="${p.id}" aria-label="♥"><svg viewBox="0 0 24 24"><path d="M12 20s-7-4.5-9.5-9C1 8 2.5 4.5 6 4.5c2 0 3.2 1.2 4 2.3.8-1.1 2-2.3 4-2.3 3.5 0 5 3.5 3.5 6.5C19 15.5 12 20 12 20z"/></svg></button>
@@ -12228,8 +12231,22 @@ function memDayGridHtml(tr, mems){ const sel=souvState.dayView; let list;
   if(sel==="none") list=(mems||[]).filter(m=>m&&m.day==null);
   else if(sel==="all"||sel==null) list=(mems||[]);
   else list=(mems||[]).filter(m=>m&&m.day===sel);
-  if(list.length) return `<div class="photo-grid">`+list.map(phTile).join("")+`</div>`;
-  return `<div class="mv-empty"><span class="mv-empty-ic"><svg viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="14" rx="2.6"/><circle cx="8.4" cy="10" r="1.6"/><path d="M3.6 17.2 9 12l3.2 3 2.6-2.4 5.6 4.6"/></svg></span><h4>${t("mem.noPhotos")}</h4><p>${t("mem.noPhotosSub")}</p><button class="btn navy mv-emptyAdd">${t("mem.add")}</button></div>`; }
+  const addLbl=(lang()==="fr")?"Ajouter":t("mem.add");
+  const add=`<button class="ph-tile ph-add" data-dayadd="1"><span class="ph-add-ic"><svg viewBox="0 0 24 24"><rect x="3" y="6.5" width="18" height="13.5" rx="2.6"/><circle cx="12" cy="13.2" r="3.05"/><path d="M8.2 6.5 9.5 4h5l1.3 2.5"/><path d="M12 10.8v4.8M9.6 13.2h4.8"/></svg></span><span class="ph-add-t">${addLbl}</span></button>`;
+  return `<div class="photo-grid">`+add+list.map(phTile).join("")+`</div>`; }
+/* Ajout depuis un jour : le jour est déjà connu, on ne demande que Galerie ou Appareil.
+   L'appareil autorise photo ET vidéo → iOS affiche son curseur natif (glisser sur Vidéo). */
+function openDayAdd(dayVal){ const tr=souvTrip(); if(!tr){ toast(t("mem.noTrip")); return; }
+  const dv=(typeof dayVal==="number")?dayVal:((typeof souvState.dayView==="number")?souvState.dayView:((memTodayDayIdx(tr)>=0)?memTodayDayIdx(tr):null));
+  photoTarget={placeId:null, day:dv};
+  const camLbl=({fr:"Appareil (photo/vidéo)",en:"Camera (photo/video)",es:"Cámara (foto/vídeo)",it:"Fotocamera (foto/video)",de:"Kamera (Foto/Video)"})[lang()]||"Appareil (photo/vidéo)";
+  document.getElementById("photoAddHd").textContent=(dv!=null?(t("plan.day")+" "+(dv+1)):t("mem.addTitle"));
+  const b=document.getElementById("photoAddBody");
+  b.innerHTML=`<button class="btn navy block" id="daImport" style="margin-top:2px">\ud83d\uddbc\ufe0f ${t("mem.import")}</button>`
+    +`<button class="btn ghostline2 block" id="daCam" style="margin-top:10px">\ud83d\udcf7 ${camLbl}</button><div style="height:18px"></div>`;
+  b.querySelector("#daImport").onclick=()=>{ closePhotoAdd(); document.getElementById("memFile").click(); };
+  b.querySelector("#daCam").onclick=()=>{ closePhotoAdd(); document.getElementById("memCamera").click(); };
+  document.getElementById("photoAddSheet").classList.add("show"); }
 function renderMemories(){ const body=document.getElementById("memBody"); if(!body) return; const chips=document.getElementById("memChips"); const tr=souvTrip();
   const viewingPast=!!souvState.tripId; const _past=S.trips.filter(x=>tripArchived(x)).sort((a,b)=>(b.dateEnd||"").localeCompare(a.dateEnd||""));
   const _pastHtml=(!viewingPast&&_past.length)?_pastTripsHtml(_past):"";
@@ -12242,13 +12259,13 @@ function renderMemories(){ const body=document.getElementById("memBody"); if(!bo
   const mems=(tr.memories||[]).slice().sort((a,b)=>(b.createdAt||0)-(a.createdAt||0));
   const places=tr.places||[], f=souvState.filter;
   if(!mems.length && !places.length){ body.innerHTML=_backHtml+_bilanBtn+`<div class="empty" style="padding:30px 18px"><span class="medallion"><svg viewBox="0 0 24 24"><rect x="3" y="6.5" width="18" height="13.5" rx="2.6"/><circle cx="12" cy="13.2" r="3.4"/><path d="M8.2 6.5 9.5 4h5l1.3 2.5"/></svg></span><p>${t("mem.empty")}</p><button class="btn navy" id="memEmptyAdd" style="margin-top:14px">${t("mem.add")}</button></div>`+_pastHtml+_delBtn;
-    const ba=body.querySelector("#memEmptyAdd"); if(ba) ba.onclick=openPhotoAdd; _bindExtra(); return; }
+    const ba=body.querySelector("#memEmptyAdd"); if(ba) ba.onclick=()=>openDayAdd(souvState.dayView); _bindExtra(); return; }
   let h=_backHtml+_bilanBtn;
   if(f==="photos"){ if(souvState.dayView==null) souvState.dayView=memDefaultDay(tr,mems); h+= memDayBarHtml(tr,mems)+memDayGridHtml(tr,mems); }
   else if(f==="places"){ h+= places.length? `<div class="mem-places">`+places.map(p=>memPlaceCard(tr,p)).join("")+`</div>` : `<div class="empty" style="padding:24px 8px"><p>${t("mem.noPlaces")}</p></div>`; }
   else if(f==="days"){ h+= byDayHtml(tr,mems); }
   else if(f==="videos"){ h+=`<div class="empty" style="padding:34px 14px"><p>${svT("noVideo")}</p></div>`; }
-  else if(f==="journal"){ h+=`<div id="souvAgentCard"></div>`+souvJournalHtml(tr); }
+  else if(f==="journal"){ h+=`<div id="souvAgentCard"></div>`+souvJournalHtml(tr)+`<button class="btn ghostline2 block" id="memExport2" style="margin-top:14px">\u2b07\ufe0e ${t("mem.export")}</button>`; }
   else if(f==="montage"){ h+=souvMontageCard(tr); }
   else if(f==="moments"){ const favs=places.filter(p=>p.fav); const list=favs.length?favs:places;
     h+= list.length? `<div class="mem-places">`+list.map(p=>memPlaceCard(tr,p)).join("")+`</div>` : `<div class="empty" style="padding:24px 8px"><p>${t("mem.noPlaces")}</p></div>`; }
@@ -12327,6 +12344,7 @@ function renderMemories(){ const body=document.getElementById("memBody"); if(!bo
   body.innerHTML=h+_pastHtml+_delBtn;
   body.querySelectorAll(".ph-tile[data-pid]").forEach(el=>el.onclick=()=>openMemViewer(el.dataset.pid));
   body.querySelectorAll("[data-md]").forEach(b=>b.onclick=()=>{ const v=b.dataset.md; souvState.dayView=(v==="all"||v==="none")?v:parseInt(v,10); renderMemories(); });
+  body.querySelectorAll("[data-dayadd]").forEach(b=>b.onclick=()=>openDayAdd(souvState.dayView));
   body.querySelectorAll("[data-fav]").forEach(b=>b.onclick=e=>{ e.stopPropagation(); toggleFav(b.dataset.fav); });
   body.querySelectorAll("[data-note]").forEach(b=>b.onclick=e=>{ e.stopPropagation(); openPlaceNote(b.dataset.note); });
   body.querySelectorAll("[data-place]").forEach(el=>el.onclick=e=>{ if(e.target.closest("[data-fav]")||e.target.closest("[data-note]")) return; const p=(tr.places||[]).find(x=>x.id===el.dataset.place); if(p) openPlace(p); });
@@ -12346,8 +12364,8 @@ function renderMemories(){ const body=document.getElementById("memBody"); if(!bo
     { const hp=body.querySelector("#heroPlay"); if(hp) hp.onclick=()=>openMontage(tr, tr.filmReady?null:"director", hp.dataset.replay==="1");
       const he=body.querySelector("#heroEdit"); if(he) he.onclick=()=>openMontage(tr);
       const hpl=body.querySelector("#heroPlan"); if(hpl) hpl.onclick=()=>switchTab("plan");
-      body.querySelectorAll(".mv-emptyAdd").forEach(b=>{ b.onclick=()=>{ if(typeof openPhotoAdd==="function") openPhotoAdd(); else { const b2=document.getElementById("memAddBtn"); if(b2) b2.click(); } }; });
-      const hpa=body.querySelector("#heroAdd"); if(hpa) hpa.onclick=()=>{ const b2=document.getElementById("memAddBtn")||document.getElementById("memAdd"); if(b2) b2.click(); else { const f=document.getElementById("memFile"); if(f) f.click(); } }; }
+      body.querySelectorAll(".mv-emptyAdd").forEach(b=>{ b.onclick=()=>openDayAdd(souvState.dayView); });
+      const hpa=body.querySelector("#heroAdd"); if(hpa) hpa.onclick=()=>openDayAdd(souvState.dayView); }
     body.querySelectorAll("[data-vers]").forEach(b=>b.onclick=()=>openMontage(tr,b.dataset.vers));
     body.querySelectorAll("[data-dopt]").forEach(b=>b.onclick=()=>{ const k=b.dataset.dopt;
       if(k==="voice"){ toast("La voix off arrive \u2014 pas encore disponible."); return; }
@@ -12361,6 +12379,7 @@ function renderMemories(){ const body=document.getElementById("memBody"); if(!bo
       if(kEl) mvStats(tr).then(st=>{ const km=+(st.km||0);
         if(km>0) kEl.textContent="  \u00b7  "+km+" km parcourus"; }).catch(()=>{}); }
     const _mini=body.querySelector("#svMapMini"); if(_mini) souvMiniMap(tr,_mini); }
+  { const _me=body.querySelector("#memExport2"); if(_me) _me.onclick=()=>openExport(); }
   _bindExtra();
   if(document.getElementById("souvAgentCard")) paintSouvCard(tr);
   /* Le récit s'écrit tout seul dès que le voyage est terminé — l'utilisateur n'a rien à demander. */
@@ -13183,9 +13202,10 @@ function openMemViewer(id){ const tr=souvTrip(); if(!tr) return; const m=(tr.mem
     <div class="fld"><label>${t("mem.assignDay")}</label><select id="mvDay"><option value="">${t("mem.noDay")}</option>${days.map(dd=>`<option value="${dd.i}" ${m.day===dd.i?'selected':''}>${t("plan.day")} ${dd.i+1}</option>`).join("")}</select></div>
     <button class="btn navy block" id="memSave">${t("common.save")}</button>
     <button class="danger-btn" id="mvDel">${t("mem.deletePhoto")}</button><div style="height:18px"></div>`;
-  loadMedia(id).then(d=>{ if(d){ const im=document.getElementById("mvImg"); if(im) im.style.backgroundImage="url('"+d+"')"; } });
+  if(m&&m.kind==="video"){ idbGetMedia("vid_"+id).then(f=>{ if(!f) return; const im=document.getElementById("mvImg"); if(!im) return; im.style.backgroundImage=""; im.innerHTML=""; const v=document.createElement("video"); v.controls=true; v.playsInline=true; v.setAttribute("playsinline",""); v.preload="metadata"; v.style.width="100%"; v.style.height="100%"; v.style.objectFit="cover"; try{ v.src=URL.createObjectURL(f instanceof Blob?f:new Blob([f])); }catch(e){} im.appendChild(v); }).catch(()=>{}); }
+  else { loadMedia(id).then(d=>{ if(d){ const im=document.getElementById("mvImg"); if(im) im.style.backgroundImage="url('"+d+"')"; } }); }
   b.querySelector("#memSave").onclick=()=>{ m.caption=(b.querySelector("#mvCap").value||"").trim(); m.placeId=b.querySelector("#mvPlace").value||null; const dv=b.querySelector("#mvDay").value; m.day=(dv===""?null:parseInt(dv,10)); saveState(); closeMemViewer(); renderMemories(); };
-  b.querySelector("#mvDel").onclick=()=>askConfirm(t("mem.deleteConfirm"),t("common.delete"),async()=>{ await idbDelMedia(id); delete _mediaCache[id]; tr.memories=(tr.memories||[]).filter(x=>x.id!==id); saveState(); closeMemViewer(); renderMemories(); });
+  b.querySelector("#mvDel").onclick=()=>askConfirm(t("mem.deleteConfirm"),t("common.delete"),async()=>{ await idbDelMedia(id); if(m&&m.kind==="video"){ try{ await idbDelMedia("vid_"+id); }catch(e){} } delete _mediaCache[id]; tr.memories=(tr.memories||[]).filter(x=>x.id!==id); saveState(); closeMemViewer(); renderMemories(); });
   document.getElementById("memViewer").classList.add("show"); }
 function closeMemViewer(){ document.getElementById("memViewer").classList.remove("show"); }
 
@@ -13287,10 +13307,8 @@ function init(){
   document.getElementById("budgetPlanClose").onclick=closeBudgetPlan;
   document.getElementById("budgetEstClose").onclick=closeBudgetEst;
   document.getElementById("memViewerClose").onclick=closeMemViewer;
-  document.getElementById("memAddBtn").onclick=openPhotoAdd;
   document.getElementById("photoAddClose").onclick=closePhotoAdd;
   document.getElementById("placeNoteClose").onclick=closePlaceNote;
-  document.getElementById("memExportBtn").onclick=openExport;
   document.getElementById("exportClose").onclick=closeExport;
   { const pc=document.getElementById("parkClose"); if(pc) pc.onclick=closeParkSheet; }
   document.getElementById("memFile").addEventListener("change",e=>{ addMemPhotos(e.target.files,false); e.target.value=""; });
