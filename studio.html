@@ -832,7 +832,7 @@ input[type=range]::-moz-range-thumb{width:22px;height:22px;border:0;border-radiu
 <main class="app">
   <header class="header">
     <div class="header-left"></div>
-    <div class="brand"><h1>Studio Magot<i>✦</i></h1><p>Montage vidéo · C269</p></div>
+    <div class="brand"><h1>Studio Magot<i>✦</i></h1><p>Montage vidéo · C270</p></div>
     <button class="export" id="expBtn"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 15V3m0 0L7 8m5-5l5 5M5 15v4h14v-4"/></svg> Exporter</button>
   </header>
 
@@ -9912,7 +9912,7 @@ essentiaReady.then(function(ok){ if(!ok && !A){ /* silencieux : le repli se fait
     var co=ov.querySelector("#teColor"); if(co){ var cbtn=ov.querySelector('.te-cbtn'); function _paintA(v){ if(caEl) caEl.style.color=v; if(cbtn) cbtn.style.color=v; } _paintA(p._capColor||'#f5f7fb'); co.oninput=function(){ p._capColor=co.value; setAll('_capColor',p._capColor); _paintA(co.value); rp(); }; }
     var ta=ov.querySelector("#teInput"), cnt=ov.querySelector("#teCount"); if(ta) ta.oninput=function(){ p._cap=ta.value; if(cnt) cnt.textContent=ta.value.length+"/"+MAXLEN; rp(); };
     var all=ov.querySelector("#teAll"); if(all) all.onclick=function(){ window._capApplyAll=!window._capApplyAll; all.classList.toggle("on",window._capApplyAll); if(window._capApplyAll){ setAll("_capStyle",p._capStyle); setAll("_capAnim",p._capAnim); setAll("_capColor",p._capColor); setAll("_capFont",p._capFont); setAll("_capSize",p._capSize); setAll("_capPos",p._capPos); setAll("_capAlign",p._capAlign); } };
-    var ai=ov.querySelector("#teAI"); if(ai) ai.onclick=function(){ try{ if(typeof setState==="function") setState("Fid\u00e8le r\u00e9g\u00e9n\u00e9rera ton texte ici (bient\u00f4t)."); }catch(e){} };
+    var ai=ov.querySelector("#teAI"); if(ai) ai.onclick=function(){ if(!(window.parent && window.parent!==window && typeof window.parent.magotCaptionSuggest==="function")){ try{ setState(_st("Suggestion indisponible ici.")); }catch(e){} return; } try{ setState(_st("Fid\u00e8le \u00e9crit une suggestion\u2026")); }catch(e){} try{ ai.disabled=true; }catch(e){} Promise.resolve(window.parent.magotCaptionSuggest(p._id, p._cap||"")).then(function(txt){ try{ ai.disabled=false; }catch(e){} if(txt){ p._cap=String(txt).slice(0,MAXLEN); if(ta){ ta.value=p._cap; } if(cnt){ cnt.textContent=p._cap.length+"/"+MAXLEN; } rp(); try{ setState(_st("Texte sugg\u00e9r\u00e9")); }catch(e){} } else { try{ setState(_st("Aucune suggestion (lieu non identifi\u00e9).")); }catch(e){} } }).catch(function(){ try{ ai.disabled=false; }catch(e){} try{ setState(_st("Suggestion indisponible.")); }catch(e){} }); };
     function done(){ try{ ov.remove(); }catch(e){} try{ if(typeof renderPGrid==="function") renderPGrid(); }catch(e){} try{ if(A&&SEGS&&SEGS.length) paintStrip(playing?visualTime():0); }catch(e){} }
     var dn=ov.querySelector("#teDone"); if(dn) dn.onclick=done;
     ov.onclick=function(e){ if(e.target===ov) done(); };

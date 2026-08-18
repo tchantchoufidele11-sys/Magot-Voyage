@@ -3175,7 +3175,7 @@ const DEFAULT_S={ version:"0.2.0", settings:{ lang:"fr", theme:"system", units:"
 /* Clé Maps JS partagée (restreinte au domaine GitHub Pages). Repli : clé perso de l'utilisateur si fournie. */
 const SHARED_MAP_KEY="AIzaSyCt5iVx8nPr1V067A3daE0X1YA568XJNbU";
 function mapKey(){ return (S.settings.mapKey||"").trim() || SHARED_MAP_KEY; }
-const BUILD="0.3.42 · v626 whisper-debug";
+const BUILD="0.3.44 · v630 studio-sign2";
 let S=loadState();
 function normalizeTrip(tr){ if(!tr||typeof tr!=="object") return tr;
   tr.id=tr.id||("t"+Date.now()+Math.random().toString(36).slice(2,7));
@@ -9080,6 +9080,21 @@ let _studioTrip=null; let _studioURLs=[];
 /* Catalogue musique pour le Studio : lit la table Supabase music_catalog (via magotCatalog)
    et la mappe au format attendu par STUDIO_CATALOG. cover/artist/lyrics restent optionnels. */
 let _studioTranscribing=new Set(); let _studioTranscribeWarned=false;
+/* Signature intro/outro du film (Mistral via worker), dans la langue du voyage -> SIGN_TEXT */
+async function magotSignText(tr){ try{
+  if(!tr) return null;
+  const dest=(tr.dest&&tr.dest.name)||"";
+  const lieux=(tr.places||[]).map(function(p){return p&&p.name;}).filter(Boolean).slice(0,12);
+  const dates=(tr.dateStart&&tr.dateEnd)?(tr.dateStart+" -> "+tr.dateEnd):"";
+  const payload={ destination:dest, dates:dates, lieux:lieux, lang:_studioLang(), title:tr.title||"", seed:Math.floor(Math.random()*1e6) };
+  const r=await fetch(WORKER_URL+"/agent/signature",{ method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify(payload) });
+  if(!r.ok) return null; const d=await r.json().catch(function(){return null;}); let raw=(d&&d.text)||"";
+  let o=null; try{ o=JSON.parse(String(raw).replace(/```json|```/gi,"").trim()); }catch(e){}
+  if(o && (o.introProverbe||o.introTexte||o.introProverb)){
+    return { introTitre:o.introTitre||o.introTitle||"", introTexte:o.introTexte||o.introText||"", introProverbe:o.introProverbe||o.introProverb||"", outroTexte:o.outroTexte||o.outroText||"", outroProverbe:o.outroProverbe||o.outroProverb||"" };
+  }
+  return null;
+}catch(e){ return null; } }
 /* Transcription auto (Voxtral via worker) des morceaux sans paroles : le worker écrit
    le LRC dans music_catalog.lyrics ; au prochain chargement, le karaoké est dispo. */
 async function magotTranscribe(id, url){ try{
@@ -9139,9 +9154,10 @@ async function studioBuildItems(tr){ if(!tr) return []; _studioRevoke();
     items.push(it); }
   return items; }
 async function studioFeed(w, tr){ if(!w||!tr) return;
-  let items=[]; try{ items=await studioBuildItems(tr); }catch(e){}
+  let items=[], sig=null;
+  try{ const _r=await Promise.all([studioBuildItems(tr), magotSignText(tr).catch(function(){return null;})]); items=_r[0]||[]; sig=_r[1]; }catch(e){ items=[]; }
   if(!items.length) return;   /* rien à monter : le Studio garde son écran d\u2019accueil */
-  try{ w.studioAutoMontage({ items, mood:"voyage", sign:true, signText:(w.SIGN_TEXT||undefined), dayMarkers:true, project:tr.id, autoplay:false }); }catch(e){}
+  try{ w.studioAutoMontage({ items, mood:"voyage", sign:true, signText:(sig||undefined), dayMarkers:true, project:tr.id, autoplay:false }); }catch(e){}
   /* format d\u2019origine par défaut (best-effort) */
   setTimeout(()=>{ try{
     if(typeof w._origFmt==="function" && typeof w._setFormat==="function"){ const f=w._origFmt(); if(f&&f.w&&f.h) w._setFormat(f.w,f.h,"Origine"); }
@@ -12923,6 +12939,19 @@ async function magotCatalog(){
 function magotUrl(path){ return SB_URL+"/storage/v1/object/public/musics/"+encodeURIComponent(path); }
 /* Publication depuis le Studio : l\u2019admin importe une musique -> elle part dans le catalogue
    Supabase (partagée à tous) et sera transcrite au prochain chargement du catalogue. */
+/* Suggestion IA de texte pour une photo (Mistral via /agent/legendes-photos), ancrée sur le lieu réel. */
+window.magotCaptionSuggest=async function(photoId, current){ try{
+  const tr=_studioTrip||currentTrip(); if(!tr) return "";
+  const m=(tr.memories||[]).find(x=>x&&x.id===photoId);
+  let lieu="", ville="", adresse="", jour=null, note=(current||"");
+  if(m){ if(m.day!=null) jour=m.day+1; if(!note) note=m.caption||"";
+    if(m.placeId){ const p=(tr.places||[]).find(x=>x&&x.id===m.placeId); if(p){ lieu=p.name||""; ville=p.city||p.locality||p.town||""; adresse=p.address||p.formattedAddress||p.vicinity||""; } } }
+  const payload={ lang:_studioLang(), photos:[{ i:0, lieu:lieu, ville:ville, adresse:adresse, jour:jour, type:"", tags:[], note:note }] };
+  const r=await fetch(WORKER_URL+"/agent/legendes-photos",{ method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify(payload) });
+  if(!r.ok) return ""; const d=await r.json().catch(()=>null); let raw=(d&&d.text)||"";
+  try{ const j=JSON.parse(String(raw).replace(/```json|```/gi,"").trim()); if(j&&j.photos&&j.photos[0]&&j.photos[0].texte) return String(j.photos[0].texte).trim(); }catch(e){}
+  return "";
+}catch(e){ return ""; } };
 window.magotUploadFromStudio=async function(file){ try{
   if(typeof isAdmin!=="function" || !isAdmin() || !file) return;
   toast("Publication au catalogue\u2026");
