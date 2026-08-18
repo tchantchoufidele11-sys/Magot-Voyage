@@ -3175,7 +3175,7 @@ const DEFAULT_S={ version:"0.2.0", settings:{ lang:"fr", theme:"system", units:"
 /* Clé Maps JS partagée (restreinte au domaine GitHub Pages). Repli : clé perso de l'utilisateur si fournie. */
 const SHARED_MAP_KEY="AIzaSyCt5iVx8nPr1V067A3daE0X1YA568XJNbU";
 function mapKey(){ return (S.settings.mapKey||"").trim() || SHARED_MAP_KEY; }
-const BUILD="0.3.39 · v623 studio-karaoke";
+const BUILD="0.3.40 · v624 studio-whisper";
 let S=loadState();
 function normalizeTrip(tr){ if(!tr||typeof tr!=="object") return tr;
   tr.id=tr.id||("t"+Date.now()+Math.random().toString(36).slice(2,7));
@@ -9079,8 +9079,22 @@ function mvDirectEntry(tr){
 let _studioTrip=null; let _studioURLs=[];
 /* Catalogue musique pour le Studio : lit la table Supabase music_catalog (via magotCatalog)
    et la mappe au format attendu par STUDIO_CATALOG. cover/artist/lyrics restent optionnels. */
+let _studioTranscribing=new Set();
+/* Transcription auto (Voxtral via worker) des morceaux sans paroles : le worker écrit
+   le LRC dans music_catalog.lyrics ; au prochain chargement, le karaoké est dispo. */
+async function magotTranscribe(id, url){ try{
+  const r=await fetch(WORKER_URL+"/lyrics/transcribe",{ method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify({ id, url }) });
+  if(!r.ok) return null; const d=await r.json().catch(()=>null); return (d&&d.lrc)||null;
+}catch(e){ return null; } }
+function _studioAutoTranscribe(rows){ try{ (rows||[]).forEach(x=>{
+  if(!x||!x.id) return; if(x.lyrics||x.lrc) return;
+  const url=x.path?magotUrl(x.path):(x.url||""); if(!url) return;
+  if(_studioTranscribing.has(x.id)) return; _studioTranscribing.add(x.id);
+  magotTranscribe(x.id,url).catch(()=>{});
+}); }catch(e){} }
 async function studioCatalog(){ try{
   const rows=(typeof magotCatalog==="function")?await magotCatalog():[];
+  try{ _studioAutoTranscribe(rows); }catch(e){}
   return (rows||[]).map(x=>({
     id:x.id, title:x.title||"Musique", artist:x.artist||"",
     mood:x.mood||"", type:x.type||x.genre||x.mood||"", genre:x.genre||x.mood||"",
