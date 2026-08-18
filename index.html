@@ -187,6 +187,12 @@ nav.tabs button.active .ico{background:var(--navy);color:#fff;box-shadow:0 6px 1
 /* ---------- Sheet (réglages) ---------- */
 .sheet{position:fixed;inset:0;z-index:3000;background:var(--bg);display:none;flex-direction:column;animation:slideup .3s ease both}
 .sheet.show{display:flex}
+.studio-ov{position:fixed;inset:0;z-index:9999;background:#000;display:none}
+.studio-ov.show{display:block}
+.studio-ov #studioFrame{position:absolute;inset:0;width:100%;height:100%;border:0;background:#000;display:block}
+.studio-close{position:absolute;top:calc(env(safe-area-inset-top,0px) + 10px);right:12px;z-index:2;width:38px;height:38px;border-radius:50%;background:rgba(0,0,0,.5);border:1px solid rgba(255,255,255,.25);display:flex;align-items:center;justify-content:center;-webkit-tap-highlight-color:transparent}
+.studio-close svg{width:20px;height:20px;fill:none;stroke:#fff;stroke-width:2;stroke-linecap:round}
+html.studio-open{overflow:hidden}
 .exp-zone{margin:0 0 12px}
 .exz-pill{display:inline-flex;align-items:center;gap:7px;max-width:100%;padding:8px 12px;border:1px solid var(--line);border-radius:12px;background:var(--surface);color:var(--ink);font:600 12.5px "Inter",sans-serif;font-size:clamp(11.5px,3.2vw,12.5px);cursor:pointer;-webkit-tap-highlight-color:transparent}
 .exz-pill svg{width:15px;height:15px;fill:none;stroke:var(--navy);stroke-width:1.8;flex:0 0 auto}
@@ -3168,7 +3174,7 @@ const DEFAULT_S={ version:"0.2.0", settings:{ lang:"fr", theme:"system", units:"
 /* Clé Maps JS partagée (restreinte au domaine GitHub Pages). Repli : clé perso de l'utilisateur si fournie. */
 const SHARED_MAP_KEY="AIzaSyCt5iVx8nPr1V067A3daE0X1YA568XJNbU";
 function mapKey(){ return (S.settings.mapKey||"").trim() || SHARED_MAP_KEY; }
-const BUILD="0.3.33 · v617 zone-gate";
+const BUILD="0.3.34 · v618 studio-embed";
 let S=loadState();
 function normalizeTrip(tr){ if(!tr||typeof tr!=="object") return tr;
   tr.id=tr.id||("t"+Date.now()+Math.random().toString(36).slice(2,7));
@@ -9066,7 +9072,28 @@ function mvDirectEntry(tr){
     return true;
   }catch(e){ return false; }
 }
-function openMontage(tr,version,autoplay){ tr=tr||souvTrip(); if(!tr) return; _mvState.style=""; _mvState.pace=1; _mvState.soft=false; _mvState.grade="natural"; _mvState.fx=""; _mvState.overlay=""; _mvState.overlayTr=""; if(_mvState.overlayInt==null) _mvState.overlayInt=0.55; try{ overlayCatalog(); }catch(e){} let _dir=null;
+/* ===== Studio Magot : éditeur vidéo autonome (studio.html) ouvert en plein écran.
+   On le nourrit via ses hooks window (studioAutoMontage, STUDIO_LANG…). Le montage
+   des données du voyage arrive au Lot 1 ; ici : ouverture/fermeture + langue + admin. ===== */
+let _studioTrip=null;
+function openStudio(tr,version,autoplay){ tr=tr||souvTrip(); if(!tr){ toast(t("mem.noTrip")); return; } _studioTrip=tr;
+  let ov=document.getElementById("studioOverlay");
+  if(!ov){ ov=document.createElement("div"); ov.id="studioOverlay"; ov.className="studio-ov";
+    ov.innerHTML=`<button class="studio-close" id="studioClose" aria-label="Fermer"><svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></svg></button><iframe id="studioFrame" title="Studio Magot" allow="autoplay; fullscreen; encrypted-media" src="studio.html"></iframe>`;
+    document.body.appendChild(ov);
+    const cl=ov.querySelector("#studioClose"); if(cl) cl.onclick=closeStudio;
+    const fr=ov.querySelector("#studioFrame");
+    fr.addEventListener("load",()=>{ try{ const w=fr.contentWindow; if(!w) return;
+      w.STUDIO_LANG=(typeof lang==="function")?lang():"fr";
+      w.STUDIO_ADMIN=(typeof isAdmin==="function")?isAdmin():false;
+      try{ if(typeof w._applyStudioLang==="function") w._applyStudioLang(w.STUDIO_LANG); }catch(e){}
+      /* Lot 1 : construire items depuis IndexedDB puis w.studioAutoMontage({items,...}) */
+    }catch(e){} });
+  }
+  ov.classList.add("show"); document.documentElement.classList.add("studio-open");
+}
+function closeStudio(){ const ov=document.getElementById("studioOverlay"); if(ov) ov.classList.remove("show"); document.documentElement.classList.remove("studio-open"); }
+function openMontage(tr,version,autoplay){ tr=tr||souvTrip(); if(!tr) return; return openStudio(tr,version,autoplay); /* --- ancien moteur inline désactivé : Studio Magot prend le relais --- */ _mvState.style=""; _mvState.pace=1; _mvState.soft=false; _mvState.grade="natural"; _mvState.fx=""; _mvState.overlay=""; _mvState.overlayTr=""; if(_mvState.overlayInt==null) _mvState.overlayInt=0.55; try{ overlayCatalog(); }catch(e){} let _dir=null;
   if(version==="director"){ _dir=mvApplyDirector(tr); } else if(version) mvApplyVersion(version);
   const mems=(tr.memories||[]).slice();
   let ov=document.getElementById("mvOv"); if(ov) ov.remove();

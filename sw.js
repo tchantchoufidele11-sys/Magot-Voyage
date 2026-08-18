@@ -1,8 +1,8 @@
 /* Magot Voyage — Service Worker */
-const VERSION = "v617";
+const VERSION = "v618";
 const CACHE = "magot-voyage-" + VERSION;
 const SHELL = [
-  "./","./index.html","./manifest.json","./icon-192.png","./icon-512.png","./icon-maskable-512.png","./apple-touch-icon.png"
+  "./","./index.html","./studio.html","./manifest.json","./icon-192.png","./icon-512.png","./icon-maskable-512.png","./apple-touch-icon.png"
 ];
 self.addEventListener("install", (e) => {
   self.skipWaiting();
