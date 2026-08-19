@@ -832,7 +832,7 @@ input[type=range]::-moz-range-thumb{width:22px;height:22px;border:0;border-radiu
 <main class="app">
   <header class="header">
     <div class="header-left"></div>
-    <div class="brand"><h1>Studio Magot<i>✦</i></h1><p>Montage vidéo · C274</p></div>
+    <div class="brand"><h1>Studio Magot<i>✦</i></h1><p>Montage vidéo · C275</p></div>
     <button class="export" id="expBtn"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 15V3m0 0L7 8m5-5l5 5M5 15v4h14v-4"/></svg> Exporter</button>
   </header>
 
@@ -9710,6 +9710,8 @@ essentiaReady.then(function(ok){ if(!ok && !A){ /* silencieux : le repli se fait
       return true;
     });
     if(!_list.length){ lib.innerHTML='<p class="sh-note" style="opacity:.72">Aucun r\u00e9sultat'+(_mCat?(' dans \u00ab '+esc(_mCat)+' \u00bb'):'')+(_mQuery?(' pour \u00ab '+esc(_mQuery)+' \u00bb'):'')+'.</p>'; return; }
+    /* Dédup : même titre + même durée = même morceau (garde actif > catalogue > local) */
+    try{ var _seen={}, _dl2=[]; for(var _di=0;_di<_list.length;_di++){ var _t=_list[_di]; var _dur=Math.round(_t.dur||0); var _key=String(_t.title||"").toLowerCase().trim()+"|"+_dur; if(_seen[_key]!=null){ var _pv=_dl2[_seen[_key]]; var _sN=((LIB_ACTIVE&&LIB_ACTIVE.id===_t.id)?3:(_t.remote?2:1)), _sP=((LIB_ACTIVE&&LIB_ACTIVE.id===_pv.id)?3:(_pv.remote?2:1)); if(_sN>_sP) _dl2[_seen[_key]]=_t; continue; } _seen[_key]=_dl2.length; _dl2.push(_t); } if(_dl2.length) _list=_dl2; }catch(e){}
     _list.sort(function(a,b){ var da=isDL(a)?(_DL[a.id]||1):0, db=isDL(b)?(_DL[b.id]||1):0; if(da!==db) return db-da; return 0; });   /* téléchargés en haut (plus récent d'abord) */
     lib.innerHTML=_list.map(function(t){
       var act=inMix(t.id); var _mp=mixPos(t.id);
