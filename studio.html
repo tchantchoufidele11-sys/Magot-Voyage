@@ -833,7 +833,7 @@ input[type=range]::-moz-range-thumb{width:22px;height:22px;border:0;border-radiu
 <main class="app">
   <header class="header">
     <div class="header-left"></div>
-    <div class="brand"><h1>Studio Magot<i>✦</i></h1><p>Montage vidéo · C284</p></div>
+    <div class="brand"><h1>Studio Magot<i>✦</i></h1><p>Montage vidéo · C287</p></div>
     <button class="export" id="expBtn"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 15V3m0 0L7 8m5-5l5 5M5 15v4h14v-4"/></svg> Exporter</button>
   </header>
 
@@ -9035,11 +9035,12 @@ async function _turboExport(){
       if(EXPORT_ABORT){ _aborted=true; throw new Error("abort"); }
       if(_vencErr) throw new Error("venc:"+_vencErr);
       var _t=fnum/FPS;
-      var _si=-1; for(var _q=0;_q<SEGS.length;_q++){ if(_t>=SEGS[_q].start && _t<SEGS[_q].end){ _si=_q; break; } }
+      var _tc=(typeof curSync==="function")?curSync():0; var _tr=Math.max(0, Math.min((typeof DUR!=="undefined"?DUR:_t), _t+_tc));   /* applique la synchro du mode -> coupes alignées comme l'aperçu */
+      var _si=-1; for(var _q=0;_q<SEGS.length;_q++){ if(_tr>=SEGS[_q].start && _tr<SEGS[_q].end){ _si=_q; break; } }
       var _sg=(_si>=0)?SEGS[_si]:null;
-      if(_sg && _sg.video && _sg.vclip!=null && CLIPS[_sg.vclip] && CLIPS[_sg.vclip].ready){ var _cl=CLIPS[_sg.vclip], _vt=(_sg.vstart||0)+(_t-_sg.start)*(_sg.vspeed||_cl.speed||1); _vt=Math.max(0,Math.min((_cl.dur||0.1)-0.05,_vt)); await seekClip(_cl.el, _vt); }
+      if(_sg && _sg.video && _sg.vclip!=null && CLIPS[_sg.vclip] && CLIPS[_sg.vclip].ready){ var _cl=CLIPS[_sg.vclip], _vt=(_sg.vstart||0)+(_tr-_sg.start)*(_sg.vspeed||_cl.speed||1); _vt=Math.max(0,Math.min((_cl.dur||0.1)-0.05,_vt)); await seekClip(_cl.el, _vt); }
       if(_sg && !_sg.video && _sg.img>=0 && PHOTOS[_sg.img] && !PHOTOS[_sg.img].c){ try{ await Promise.race([ ensurePhotoDecodedAsync(_sg.img), new Promise(function(r){ setTimeout(r,2500); }) ]); }catch(e){} }
-      renderMontageAt(_t);
+      renderMontageAt(_tr);
       var _fsrc=glReady?gl.canvas:base;
       if(SUBS.length){ try{ if(glReady && gl && gl.canvas) bctx.drawImage(gl.canvas,0,0,base.width,base.height); _drawSubOnCanvas(bctx, base.width, base.height, _subExpTime(_t)); _fsrc=base; }catch(e){} }
       var frame=new VideoFrame(_fsrc,{timestamp:Math.round(fnum*1000000/FPS), duration:Math.round(1000000/FPS)});
@@ -9857,7 +9858,7 @@ essentiaReady.then(function(ok){ if(!ok && !A){ /* silencieux : le repli se fait
       if(pick){ window._autoWantMusic=null; try{ useTrack(pick); }catch(e){} try{ _resetSyncBar(); }catch(e){} }
     })(0);
   }catch(e){} }
-  function _resetSyncBar(){ try{ var eS=document.getElementById("sync"); if(eS){ eS.value=0; eS.dispatchEvent(new Event("input",{bubbles:true})); eS.dispatchEvent(new Event("change",{bubbles:true})); } }catch(e){} }
+  function _resetSyncBar(){ try{ if(typeof recomputeSync==="function") recomputeSync(); else if(typeof syncApply==="function") syncApply(); try{ if(typeof mirrorSync==="function") mirrorSync(); }catch(e){} }catch(e){} }
   function useTrack(t){
     if(_mLoading) return; stopPreview();
     LIB_ACTIVE=t.id; TRACKS=[]; window.MULTI=0;
@@ -10451,7 +10452,7 @@ function renderVNav(){
     if(!target) return;
     qa(".choice").forEach(function(x){ x.classList.remove("active"); }); target.classList.add("active");
     try{ qa(".mood").forEach(function(x){ x.classList.toggle("on", (x.getAttribute("data-mood")===mood)); }); }catch(e){}
-    setInfoTile(target); try{ mirrorSync(); }catch(e){}
+    setInfoTile(target); try{ if(typeof syncApply==="function") syncApply(); }catch(e){} try{ mirrorSync(); }catch(e){}
   }catch(e){} };
 
   /* ---------- 9) Sync : slider + valeur = ms reelle du moteur ---------- */
