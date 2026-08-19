@@ -833,7 +833,7 @@ input[type=range]::-moz-range-thumb{width:22px;height:22px;border:0;border-radiu
 <main class="app">
   <header class="header">
     <div class="header-left"></div>
-    <div class="brand"><h1>Studio Magot<i>✦</i></h1><p>Montage vidéo · C281</p></div>
+    <div class="brand"><h1>Studio Magot<i>✦</i></h1><p>Montage vidéo · C283</p></div>
     <button class="export" id="expBtn"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 15V3m0 0L7 8m5-5l5 5M5 15v4h14v-4"/></svg> Exporter</button>
   </header>
 
@@ -8541,7 +8541,7 @@ function _afterOpenFilm(proj){ try{
   }
   _clipsP.then(function(){
     _pget(_curFilmId+":music").then(function(mb){ if(mb && window.__loadMusicBlob){ window.__loadMusicBlob(mb,(proj.music&&proj.music.title)||"Musique"); var n=0,_iv=setInterval(function(){ n++; if(A && (PHOTOS.length||clipVidReady)){ clearInterval(_iv); try{ buildPartition(); paintStrip(0); try{ for(var _pd=0;_pd<Math.min(PHOTOS.length,14);_pd++) ensurePhotoDecoded(_pd); renderMontageAt(0); }catch(_e){} var _cc=CLIPS.filter(function(c){return c.ready;}).length; setState(_st("Montage rechargé")+" ("+PHOTOS.length+" photos"+(_cc?(", "+_cc+" clips"):"")+")."); }catch(e){} } else if(n>90){ clearInterval(_iv); } },200); }
-      else { try{ if(PHOTOS.length||clipVidReady){ buildPartition(); paintStrip(0); setState(PHOTOS.length+" photos"+(clipVidReady?" + clips":"")+" recharg\u00e9s \u00b7 remets une musique."); } }catch(e){} } }).catch(function(){});
+      else { try{ if(PHOTOS.length||clipVidReady){ setState(_st("Chargement du montage\u2026")); try{ if(window._applyMoodUI) window._applyMoodUI(MOOD); }catch(_m){} if(typeof window._autoPickMusic==="function") window._autoPickMusic(MOOD); else if(typeof _autoPickMusic==="function") _autoPickMusic(MOOD); } }catch(e){} } }).catch(function(){});
   });
 }catch(e){} }
 function studioNewFilm(){ try{ studioSaveLocal(); }catch(e){} _curFilmId=null; try{ closeFilms(); }catch(e){} try{ document.getElementById("clear").click(); }catch(e){} try{ setState(_st("Nouveau montage \u2014 ajoute des photos et une musique.")); }catch(e){} }
@@ -9840,6 +9840,7 @@ essentiaReady.then(function(ok){ if(!ok && !A){ /* silencieux : le repli se fait
   /* Auto-choix d'une musique du catalogue selon le mode (priorité : dernier utilisé > déjà téléchargé > 1er) */
   var _LASTMUS="magot_lastmus_v1";
   function _lastMusMap(){ try{ return JSON.parse(localStorage.getItem(_LASTMUS)||"{}")||{}; }catch(e){ return {}; } }
+  window._autoPickMusic=_autoPickMusic;
   function _autoPickMusic(mode){ try{
     if(A) return; var md=String(mode||"cinema").toLowerCase(), lm=_lastMusMap(); window._autoWantMusic=md;
     (function tryPick(att){
@@ -9910,7 +9911,7 @@ essentiaReady.then(function(ok){ if(!ok && !A){ /* silencieux : le repli se fait
     var mi=$("mImport"); if(mi) mi.onclick=function(){ myMusicIn.click(); };
     var msrch=$("mSearch"); if(msrch) msrch.oninput=function(){ _mQuery=this.value||""; renderLib(); };
     renderLib();
-    function _addCatalog(arr){ if(!arr||!arr.length) return; arr.forEach(function(m){ var _sid=(m.id!=null&&m.id!=="")?("cat:"+m.id):("r"+(++LIB_SEQ)); var t={ id:_sid, title:m.title||cleanName(m.file||m.url||""), artist:m.artist||"", type:m.type||m.genre||m.style||"", cover:m.cover||"", url:m.file||m.url, lyrics:m.lyrics||"", path:m.path||null, remote:true }; if(typeof m.duration==="string") t.durStr=m.duration; else if(typeof m.duration==="number") t.dur=m.duration; LIB.push(t); probeDur(t); try{ if(window._autoWantMusic && !A){ setTimeout(function(){ if(window._autoWantMusic && !A) _autoPickMusic(window._autoWantMusic); }, 60); } }catch(e){} if(isDL(t)){ try{ if(typeof _pget==="function"){ _pget("dl:"+t.id).then(function(b){ if(b){ t._dlblob=b; t.file=b; try{ renderLib(); }catch(e){} } }).catch(function(){}); } }catch(e){} } }); renderLib(); }
+    function _addCatalog(arr){ if(!arr||!arr.length) return; arr.forEach(function(m){ var _sid=(m.id!=null&&m.id!=="")?("cat:"+m.id):("r"+(++LIB_SEQ)); var t={ id:_sid, title:m.title||cleanName(m.file||m.url||""), artist:m.artist||"", type:m.type||m.genre||m.style||"", cover:m.cover||"", url:m.file||m.url, lyrics:m.lyrics||"", path:m.path||null, remote:true }; if(typeof m.duration==="string") t.durStr=m.duration; else if(typeof m.duration==="number") t.dur=m.duration; LIB.push(t); probeDur(t); try{ if(window._autoWantMusic && !A){ setTimeout(function(){ if(window._autoWantMusic && !A) _autoPickMusic(window._autoWantMusic); }, 60); } }catch(e){} try{ if(typeof _pget==="function"){ _pget("dl:"+t.id).then(function(b){ if(b){ t._dlblob=b; t.file=b; if(!_DL[t.id]){ _DL[t.id]=Date.now(); _dlSave(); } try{ renderLib(); }catch(e){} } }).catch(function(){}); } }catch(e){} }); renderLib(); }
     function _loadCatalog(){ try{
       var c=(typeof window!=="undefined")?window.STUDIO_CATALOG:null;              /* greffe : MagotVoyage fournit le catalogue depuis Supabase */
       if(typeof c==="function"){ Promise.resolve().then(c).then(function(arr){ _addCatalog(arr); }).catch(function(){}); return; }
