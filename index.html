@@ -3175,7 +3175,7 @@ const DEFAULT_S={ version:"0.2.0", settings:{ lang:"fr", theme:"system", units:"
 /* Clé Maps JS partagée (restreinte au domaine GitHub Pages). Repli : clé perso de l'utilisateur si fournie. */
 const SHARED_MAP_KEY="AIzaSyCt5iVx8nPr1V067A3daE0X1YA568XJNbU";
 function mapKey(){ return (S.settings.mapKey||"").trim() || SHARED_MAP_KEY; }
-const BUILD="0.3.45 · v631 caption-ai";
+const BUILD="0.3.46 · v632 studio-projects";
 let S=loadState();
 function normalizeTrip(tr){ if(!tr||typeof tr!=="object") return tr;
   tr.id=tr.id||("t"+Date.now()+Math.random().toString(36).slice(2,7));
@@ -9153,11 +9153,26 @@ async function studioBuildItems(tr){ if(!tr) return []; _studioRevoke();
     if(m.day!=null) it.day=m.day+1;
     items.push(it); }
   return items; }
+/* Lot 6 : 1 voyage = 1 film. Si le film existe -> restaurer (éditions/musique/format),
+   puis (choix B) ajouter automatiquement les nouvelles photos. Sinon -> auto-montage. */
+function studioOpen(w, tr){ if(!w||!tr) return; var fid="trip:"+tr.id;
+  try{ if(w.studioHasFilm && w.studioHasFilm(fid)){
+    try{ w.studioOpenFilm(fid); }catch(e){}
+    setTimeout(function(){ (async function(){ try{
+      var have=(w.studioPhotoIds&&w.studioPhotoIds())||[];
+      var items=await studioBuildItems(tr);
+      var missing=items.filter(function(it){ return have.indexOf(it.id)<0; });
+      if(missing.length && w.studioAddPhotos) w.studioAddPhotos(missing);
+    }catch(e){} })(); }, 1600);
+    return;
+  } }catch(e){}
+  studioFeed(w, tr);
+}
 async function studioFeed(w, tr){ if(!w||!tr) return;
   let items=[], sig=null;
   try{ const _r=await Promise.all([studioBuildItems(tr), magotSignText(tr).catch(function(){return null;})]); items=_r[0]||[]; sig=_r[1]; }catch(e){ items=[]; }
   if(!items.length) return;   /* rien à monter : le Studio garde son écran d\u2019accueil */
-  try{ w.studioAutoMontage({ items, mood:"voyage", sign:true, signText:(sig||undefined), dayMarkers:true, project:tr.id, autoplay:false }); }catch(e){}
+  try{ w.studioAutoMontage({ items, mood:"voyage", sign:true, signText:(sig||undefined), dayMarkers:true, project:("trip:"+tr.id), autoplay:false }); }catch(e){}
   /* format d\u2019origine par défaut (best-effort) */
   setTimeout(()=>{ try{
     if(typeof w._origFmt==="function" && typeof w._setFormat==="function"){ const f=w._origFmt(); if(f&&f.w&&f.h) w._setFormat(f.w,f.h,"Origine"); }
@@ -9177,13 +9192,14 @@ function openStudio(tr,version,autoplay){ tr=tr||souvTrip(); if(!tr){ toast(t("m
       w.STUDIO_ADMIN=(typeof isAdmin==="function")?!!isAdmin():false;
       try{ w.STUDIO_CATALOG=studioCatalog; }catch(e){}
       try{ if(typeof w._applyStudioLang==="function") w._applyStudioLang(w.STUDIO_LANG); }catch(e){}
-      let _tries=0; const _feed=()=>{ if(w.studioAutoMontage){ studioFeed(w,_studioTrip); } else if(_tries++<25){ setTimeout(_feed,150); } }; _feed();
+      let _tries=0; const _feed=()=>{ if(w.studioAutoMontage){ studioOpen(w,_studioTrip); } else if(_tries++<25){ setTimeout(_feed,150); } }; _feed();
     }catch(e){} });
   }
   { const sp=ov.querySelector(".studio-back span"); if(sp) sp.textContent=backLbl; }
   ov.classList.add("show"); document.documentElement.classList.add("studio-open"); _studioSync();
+  try{ var _fr2=ov.querySelector("#studioFrame"); var _w2=_fr2&&_fr2.contentWindow; if(_w2 && _w2.studioAutoMontage){ studioOpen(_w2, _studioTrip); } }catch(e){}
 }
-function closeStudio(){ const ov=document.getElementById("studioOverlay"); if(ov) ov.classList.remove("show"); document.documentElement.classList.remove("studio-open"); }
+function closeStudio(){ try{ var _fr=document.getElementById("studioFrame"); var _w=_fr&&_fr.contentWindow; if(_w&&_w.studioStop) _w.studioStop(); }catch(e){} const ov=document.getElementById("studioOverlay"); if(ov) ov.classList.remove("show"); document.documentElement.classList.remove("studio-open"); }
 function openMontage(tr,version,autoplay){ tr=tr||souvTrip(); if(!tr) return; return openStudio(tr,version,autoplay); /* --- ancien moteur inline désactivé : Studio Magot prend le relais --- */ _mvState.style=""; _mvState.pace=1; _mvState.soft=false; _mvState.grade="natural"; _mvState.fx=""; _mvState.overlay=""; _mvState.overlayTr=""; if(_mvState.overlayInt==null) _mvState.overlayInt=0.55; try{ overlayCatalog(); }catch(e){} let _dir=null;
   if(version==="director"){ _dir=mvApplyDirector(tr); } else if(version) mvApplyVersion(version);
   const mems=(tr.memories||[]).slice();
