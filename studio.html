@@ -833,7 +833,7 @@ input[type=range]::-moz-range-thumb{width:22px;height:22px;border:0;border-radiu
 <main class="app">
   <header class="header">
     <div class="header-left"></div>
-    <div class="brand"><h1>Studio Magot<i>✦</i></h1><p>Montage vidéo · C287</p></div>
+    <div class="brand"><h1>Studio Magot<i>✦</i></h1><p>Montage vidéo · C288</p></div>
     <button class="export" id="expBtn"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 15V3m0 0L7 8m5-5l5 5M5 15v4h14v-4"/></svg> Exporter</button>
   </header>
 
@@ -8339,7 +8339,25 @@ function _paintRange(el){ try{ var mn=+el.min||0, mx=+el.max||100, v=+el.value; 
 function _paintAllRanges(){ try{ var r=document.querySelectorAll('input[type=range]'); for(var i=0;i<r.length;i++) _paintRange(r[i]); }catch(e){} }
 document.addEventListener("input",function(e){ if(e.target&&e.target.type==="range") _paintRange(e.target); },true);
 function _curPlanTrackIdx(){ if(!window.MULTI||!window.MPLAN||!window.MPLAN.length) return -1; var m=(typeof montageNow==="function")?montageNow():0; var plan=window.MPLAN; for(var i=plan.length-1;i>=0;i--){ if(m>=plan[i].mStart-0.001) return plan[i].ti; } return plan[0].ti; }
-function updateBadge(){
+/* Applique le format ORIGINE de façon robuste : réessaie jusqu'à ce que les photos aient de vraies dimensions */
+function _applyOrigineFormat(){ try{
+  if(typeof _origFmt!=="function" || !window._setFormat) return;
+  var _t=0;
+  (function go(){
+    var hasReal=false;
+    try{ for(var i=0;i<PHOTOS.length;i++){ var p=PHOTOS[i]; if(p && !(p.feat&&p.feat.skip) && (p._w||(p.c&&p.c.width))){ hasReal=true; break; } } }catch(e){}
+    if(!hasReal){ try{ for(var j=0;j<CLIPS.length;j++){ if(CLIPS[j]&&CLIPS[j].ready&&CLIPS[j].el&&CLIPS[j].el.videoWidth){ hasReal=true; break; } } }catch(e){} }
+    if(hasReal){ var of=_origFmt(); if(of && of.w && of.h){ try{ window._setFormat(of.w, of.h, "Origine"); }catch(e){} return; } }
+    if(_t++<14) setTimeout(go, 300);
+  })();
+}catch(e){} }
+/* Met à jour les libellés des sources (Musique / Photos / Vidéo) avec le contenu réel */
+function _updateSourceLabels(){ try{
+  var sm=document.getElementById("srcMus"); if(sm){ var nm=(window.__activeMusicMeta&&window.__activeMusicMeta.title)||(window.MULTI&&typeof TRACKS!=="undefined"&&TRACKS[0]&&TRACKS[0].name)||(A?"Musique":""); sm.textContent = nm || _st("Choisir"); }
+  var sp=document.getElementById("srcPho"); if(sp){ sp.textContent = PHOTOS.length ? (PHOTOS.length+" "+(PHOTOS.length>1?"photos":"photo")) : _st("Ajouter"); }
+  var sv=document.getElementById("srcVid"); if(sv){ var nc=(typeof CLIPS!=="undefined")?CLIPS.filter(function(c){return c&&c.ready;}).length:0; sv.textContent = nc ? (nc+" "+(nc>1?"clips":"clip")) : _st("Optionnel"); }
+}catch(e){} }
+function updateBadge(){ try{ _updateSourceLabels(); }catch(e){}
   var parts=[], _A=A, _nm=null;
   if(window.MULTI && typeof TRACKS!=="undefined" && TRACKS.length){ var _pi=_curPlanTrackIdx(); if(_pi>=0 && TRACKS[_pi]){ _A=TRACKS[_pi].A||A; _nm=TRACKS[_pi].name; } }
   if(_nm) parts.push("\u266A "+_nm);
@@ -8420,7 +8438,7 @@ function studioAutoMontage(input){
     if(input.music && input.music.url && window.__useTrack){ try{ window.__useTrack({ id:input.music.id||"auto", title:input.music.title||"Musique", url:input.music.url, type:input.music.type||"", cover:input.music.cover||"" }); }catch(e){} }
     else { try{ _autoPickMusic(MOOD); }catch(e){} }
     var n=0, _iv=setInterval(function(){ n++;
-      if(A && (PHOTOS.length||clipVidReady)){ clearInterval(_iv); try{ buildPartition(); paintStrip(0); try{ if((input.format===undefined||input.format==="orig") && typeof _origFmt==="function" && window._setFormat){ var _of=_origFmt(); if(_of&&_of.w&&_of.h) window._setFormat(_of.w,_of.h,"Origine"); } }catch(_fe){} setState((PHOTOS.length+(clipVidReady?CLIPS.filter(function(c){return c.ready;}).length:0))+" éléments · montage prêt"); if(input.autoplay) startPlay(); }catch(e){} }
+      if(A && (PHOTOS.length||clipVidReady)){ clearInterval(_iv); try{ buildPartition(); paintStrip(0); try{ if(input.format===undefined||input.format==="orig") _applyOrigineFormat(); }catch(_fe){} try{ updateBadge(); for(var _pd2=0;_pd2<Math.min(PHOTOS.length,14);_pd2++) ensurePhotoDecoded(_pd2); renderMontageAt(0); }catch(_e2){} setState((PHOTOS.length+(clipVidReady?CLIPS.filter(function(c){return c.ready;}).length:0))+" éléments · montage prêt"); if(input.autoplay) startPlay(); }catch(e){} }
       else if(n>80){ clearInterval(_iv); try{ setState(_st("Choisis une musique pour lancer le montage.")); }catch(e){} }
     }, 200);
   }
@@ -8540,7 +8558,7 @@ function _afterOpenFilm(proj){ try{
     _clipsP=Promise.all(proj.clips.map(function(cm){ return _pget(_curFilmId+":clip:"+cm.idx).then(function(cb){ if(!cb) return; return _addClipFromBlob(cb,{day:cm.day,cap:cm.cap}).then(function(){ var _cl=CLIPS[CLIPS.length-1]; if(_cl){ if(cm.trimStart!=null)_cl.trimStart=cm.trimStart; if(cm.speed)_cl.speed=cm.speed; if(cm.color)_cl.color=cm.color; _cl.sound=!!cm.sound; if(cm.bal!=null)_cl.bal=cm.bal; } }); }).catch(function(){}); }));
   }
   _clipsP.then(function(){
-    _pget(_curFilmId+":music").then(function(mb){ if(mb && window.__loadMusicBlob){ window.__loadMusicBlob(mb,(proj.music&&proj.music.title)||"Musique"); var n=0,_iv=setInterval(function(){ n++; if(A && (PHOTOS.length||clipVidReady)){ clearInterval(_iv); try{ buildPartition(); paintStrip(0); try{ for(var _pd=0;_pd<Math.min(PHOTOS.length,14);_pd++) ensurePhotoDecoded(_pd); renderMontageAt(0); }catch(_e){} var _cc=CLIPS.filter(function(c){return c.ready;}).length; setState(_st("Montage rechargé")+" ("+PHOTOS.length+" photos"+(_cc?(", "+_cc+" clips"):"")+")."); }catch(e){} } else if(n>90){ clearInterval(_iv); } },200); }
+    _pget(_curFilmId+":music").then(function(mb){ if(mb && window.__loadMusicBlob){ window.__loadMusicBlob(mb,(proj.music&&proj.music.title)||"Musique"); var n=0,_iv=setInterval(function(){ n++; if(A && (PHOTOS.length||clipVidReady)){ clearInterval(_iv); try{ buildPartition(); paintStrip(0); try{ for(var _pd=0;_pd<Math.min(PHOTOS.length,14);_pd++) ensurePhotoDecoded(_pd); renderMontageAt(0); }catch(_e){} try{ _applyOrigineFormat(); }catch(_o){} try{ updateBadge(); }catch(_b){} var _cc=CLIPS.filter(function(c){return c.ready;}).length; setState(_st("Montage rechargé")+" ("+PHOTOS.length+" photos"+(_cc?(", "+_cc+" clips"):"")+")."); }catch(e){} } else if(n>90){ clearInterval(_iv); } },200); }
       else { try{ if(PHOTOS.length||clipVidReady){ setState(_st("Chargement du montage\u2026")); try{ if(window._applyMoodUI) window._applyMoodUI(MOOD); }catch(_m){} if(typeof window._autoPickMusic==="function") window._autoPickMusic(MOOD); else if(typeof _autoPickMusic==="function") _autoPickMusic(MOOD); } }catch(e){} } }).catch(function(){});
   });
 }catch(e){} }
