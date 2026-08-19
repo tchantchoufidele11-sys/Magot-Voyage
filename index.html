@@ -9120,7 +9120,7 @@ async function studioCatalog(){ try{
     id:x.id, title:x.title||"Musique", artist:x.artist||"",
     mood:x.mood||"", type:x.type||x.genre||x.mood||"", genre:x.genre||x.mood||"",
     cover:(x.cover&&/^https?:/.test(x.cover))?x.cover:(x.cover_url||""),
-    url:(x.path?magotUrl(x.path):(x.url||"")),
+    url:(x.path?magotUrl(x.path):(x.url||"")), path:(x.path||null),
     duration:+x.duration||0, bpm:+x.bpm||0,
     lyrics:x.lyrics||x.lrc||""
   })).filter(t=>t.url);
@@ -12987,6 +12987,14 @@ async function magotDelete(id, path){
     return true;
   }catch(e){ return "Erreur r\u00e9seau."; }
 }
+window.magotDeleteFromStudio=async function(tr){ try{
+  if(typeof isAdmin!=="function" || !isAdmin() || !tr){ return; }
+  var path=tr.path; if(!path && tr.url){ try{ var m=String(tr.url).match(/\/musics\/(.+)$/); if(m) path=decodeURIComponent(m[1]); }catch(e){} }
+  toast("Suppression\u2026");
+  const r=await magotDelete(tr.id, path);
+  if(r===true) toast("\u00ab "+(tr.title||"Musique")+" \u00bb supprim\u00e9e du catalogue.");
+  else toast(typeof r==="string"?r:"Suppression \u00e9chou\u00e9e.");
+}catch(e){ toast("Suppression impossible (r\u00e9seau ?)."); } };
 async function magotDownload(tr2){
   try{
     toast("T\u00e9l\u00e9chargement\u2026");
