@@ -832,7 +832,7 @@ input[type=range]::-moz-range-thumb{width:22px;height:22px;border:0;border-radiu
 <main class="app">
   <header class="header">
     <div class="header-left"></div>
-    <div class="brand"><h1>Studio Magot<i>✦</i></h1><p>Montage vidéo · C273</p></div>
+    <div class="brand"><h1>Studio Magot<i>✦</i></h1><p>Montage vidéo · C274</p></div>
     <button class="export" id="expBtn"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 15V3m0 0L7 8m5-5l5 5M5 15v4h14v-4"/></svg> Exporter</button>
   </header>
 
@@ -9695,7 +9695,7 @@ essentiaReady.then(function(ok){ if(!ok && !A){ /* silencieux : le repli se fait
     if(types.length<1){ cwrap.style.display="none"; cwrap.innerHTML=""; return; }
     cwrap.style.display="flex";
     var html='<button class="mcat'+(_mCat===""?" on":"")+'" data-cat=""><span>Tout</span></button>';
-    html+=types.map(function(ty){ var cov=_catCover(ty); return '<button class="mcat'+(_mCat===ty?" on":"")+'" data-cat="'+esc(ty)+'"'+(cov?(' style="background-image:url(\''+esc(cov)+'\')"'):'')+'><span>'+esc(ty)+'</span></button>'; }).join("");
+    var _cml={cinema:'Cin\u00e9ma',doux:'Doux',dynamique:'Dynamique',voyage:'Voyage'}; html+=types.map(function(ty){ var cov=_catCover(ty); var _lb=_cml[String(ty).toLowerCase()]||ty; return '<button class="mcat'+(_mCat===ty?" on":"")+'" data-cat="'+esc(ty)+'"'+(cov?(' style="background-image:url(\''+esc(cov)+'\')"'):'')+'><span>'+esc(_lb)+'</span></button>'; }).join("");
     cwrap.innerHTML=html;
     Array.prototype.forEach.call(cwrap.querySelectorAll(".mcat"),function(b){ b.onclick=function(){ _mCat=b.getAttribute("data-cat")||""; renderCats(); renderLib(); }; });
   }
@@ -9780,6 +9780,20 @@ essentiaReady.then(function(ok){ if(!ok && !A){ /* silencieux : le repli se fait
   function _readID3(file, cb){
     try{ var sl=(file.slice?file.slice(0,4*1024*1024):file); var fr=new FileReader(); fr.onload=function(){ try{ cb(_parseID3(new Uint8Array(fr.result))); }catch(e){ cb(null); } }; fr.onerror=function(){ cb(null); }; fr.readAsArrayBuffer(sl); }catch(e){ cb(null); }
   }
+  /* Import admin : choisir le GROUPE (mode de montage) + extraire la POCHETTE, puis publier via l'app */
+  function _studioAdminPublish(f){ try{
+    var modes=[["cinema","Cin\u00e9ma"],["doux","Doux"],["dynamique","Dynamique"],["voyage","Voyage"]];
+    var o=document.createElement("div"); o.id="pubMode";
+    o.style.cssText="position:fixed;inset:0;z-index:99997;background:rgba(5,6,10,.82);display:flex;align-items:center;justify-content:center;padding:22px";
+    var btns=modes.map(function(m){ return '<button class="pm-b" data-m="'+m[0]+'" style="display:block;width:100%;text-align:left;background:#151413;border:1px solid #282622;color:#f4f7fc;font:700 16px system-ui;padding:15px 16px;border-radius:12px;margin-bottom:8px;cursor:pointer">'+m[1]+'</button>'; }).join("");
+    o.innerHTML='<div style="background:#0f0e0d;border:1px solid #282622;border-radius:18px;padding:18px;width:min(92vw,380px)"><div style="color:#D4AF37;font:700 13px system-ui;letter-spacing:1px;margin-bottom:4px">PUBLIER AU CATALOGUE</div><div style="color:#A8A6A1;font:400 13px system-ui;margin-bottom:14px">Dans quel groupe (mode) ?</div>'+btns+'<button id="pmCancel" style="background:none;color:#8a8782;border:0;font:600 14px system-ui;padding:10px;cursor:pointer;width:100%">Annuler</button></div>';
+    document.body.appendChild(o);
+    o.querySelector("#pmCancel").onclick=function(){ o.remove(); };
+    Array.prototype.forEach.call(o.querySelectorAll(".pm-b"), function(b){ b.onclick=function(){ var mode=b.getAttribute("data-m"); o.remove();
+      var _sent=false, _go=function(cover){ if(_sent)return; _sent=true; try{ window.parent.magotUploadFromStudio(f, mode, cover||null); }catch(e){} };
+      try{ _readID3(f, function(meta){ _go((meta&&meta.cover)||null); }); setTimeout(function(){ _go(null); }, 2500); }catch(e){ _go(null); }
+    }; });
+  }catch(e){ try{ window.parent.magotUploadFromStudio(f, "", null); }catch(_){} } }
   function addImport(file){
     var nm=cleanName(file.name);
     var t={ id:"i"+(++LIB_SEQ), title:nm, artist:"Import", file:file, remote:false };
@@ -9854,7 +9868,7 @@ essentiaReady.then(function(ok){ if(!ok && !A){ /* silencieux : le repli se fait
      +((typeof window!=="undefined"&&window.STUDIO_ADMIN!==false)?'<button class="doexp" id="mImport">\uFF0B '+_st("Importer une musique")+'</button>':'');
     var myMusicIn=document.createElement("input"); myMusicIn.type="file"; myMusicIn.style.display="none"; /* pas d'accept : iOS grise les MP3 avec audio/* — comme le champ du moteur */
     try{ (document.body||document.documentElement).appendChild(myMusicIn); }catch(e){}
-    myMusicIn.onchange=function(){ var f=this.files&&this.files[0]; if(!f) return; this.value=""; addImport(f); try{ if(window.STUDIO_ADMIN && window.parent && window.parent!==window && typeof window.parent.magotUploadFromStudio==="function") window.parent.magotUploadFromStudio(f); }catch(e){} };
+    myMusicIn.onchange=function(){ var f=this.files&&this.files[0]; if(!f) return; this.value=""; addImport(f); try{ if(window.STUDIO_ADMIN && window.parent && window.parent!==window && typeof window.parent.magotUploadFromStudio==="function") _studioAdminPublish(f); }catch(e){} };
     var mi=$("mImport"); if(mi) mi.onclick=function(){ myMusicIn.click(); };
     var msrch=$("mSearch"); if(msrch) msrch.oninput=function(){ _mQuery=this.value||""; renderLib(); };
     renderLib();

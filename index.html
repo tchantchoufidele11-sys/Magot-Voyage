@@ -12969,11 +12969,11 @@ window.magotCaptionSuggest=async function(photoId, current){ try{
   let t=(d&&d.text)||""; t=String(t).trim().replace(/^["\u00ab\u00bb\u2019\s]+|["\u00ab\u00bb\u2019\s]+$/g,"").slice(0,120);
   return t;
 }catch(e){ return ""; } };
-window.magotUploadFromStudio=async function(file){ try{
+window.magotUploadFromStudio=async function(file, mood, cover){ try{
   if(typeof isAdmin!=="function" || !isAdmin() || !file) return;
   toast("Publication au catalogue\u2026");
   const title=String(file.name||"Musique").replace(/\.[^.]+$/,"");
-  const r=await magotUpload(file, title, "");
+  const r=await magotUpload(file, title, mood||"", cover||null);
   if(r===true) toast("\u00ab "+title+" \u00bb publi\u00e9e au catalogue partag\u00e9 \u2713");
   else toast(typeof r==="string"?r:"Publication au catalogue \u00e9chou\u00e9e.");
 }catch(e){ toast("Publication impossible (r\u00e9seau ?)."); } };
@@ -12999,7 +12999,7 @@ async function magotDownload(tr2){
     return true;
   }catch(e){ toast("T\u00e9l\u00e9chargement impossible (r\u00e9seau ?)."); return false; }
 }
-async function magotUpload(file, title, mood){
+async function magotUpload(file, title, mood, cover){
   if(!isAdmin()){ return "R\u00e9serv\u00e9 \u00e0 l'administrateur."; }
   if(!currentUser){ return "Tu n'es pas connect\u00e9."; }
   const tok=await sbAccessToken(); const path=Date.now()+"_"+String(file.name||"track.mp3").replace(/[^\w.\-]/g,"_");
@@ -13009,9 +13009,14 @@ async function magotUpload(file, title, mood){
     const up=await fetch(SB_URL+"/storage/v1/object/musics/"+encodeURIComponent(path),{
       method:"POST", headers:{ apikey:SB_ANON, Authorization:"Bearer "+tok, "Content-Type":(file.type||"audio/mpeg") }, body:file });
     if(!up.ok){ const t2=await up.text().catch(()=>""); toast("Envoi refus\u00e9 ("+up.status+"). V\u00e9rifie le bucket et les droits."); console.warn(t2); return false; }
+    let coverUrl="";
+    try{ if(cover){ let cblob=(typeof cover==="string")?await (await fetch(cover)).blob():cover;
+      if(cblob && cblob.size){ const cpath="covers/"+Date.now()+"_"+(String(file.name||"c").replace(/[^\w.\-]/g,"_").replace(/\.[^.]+$/,""))+".jpg";
+        const cu=await fetch(SB_URL+"/storage/v1/object/musics/"+encodeURIComponent(cpath),{ method:"POST", headers:{ apikey:SB_ANON, Authorization:"Bearer "+tok, "Content-Type":(cblob.type||"image/jpeg") }, body:cblob });
+        if(cu.ok) coverUrl=magotUrl(cpath); } } }catch(e){}
     const ins=await fetch(SB_URL+"/rest/v1/music_catalog",{
       method:"POST", headers:{ apikey:SB_ANON, Authorization:"Bearer "+tok, "Content-Type":"application/json", Prefer:"return=minimal" },
-      body: JSON.stringify({ title:title||String(file.name||"").replace(/\.[^.]+$/,""), path, mood:mood||"", bpm, duration:dur }) });
+      body: JSON.stringify({ title:title||String(file.name||"").replace(/\.[^.]+$/,""), path, mood:mood||"", bpm, duration:dur, cover:(coverUrl||null) }) });
     if(!ins.ok){ const t3=await ins.text().catch(()=>""); let msg=""; try{ const j3=JSON.parse(t3); msg=j3.message||j3.error||j3.hint||""; }catch(e){ msg=t3; }
       return "Fiche non enregistr\u00e9e ("+ins.status+"). "+(ins.status===403?"La table refuse l\u2019\u00e9criture \u2014 ex\u00e9cute le SQL FINAL dans Supabase. ":"")+(msg?("D\u00e9tail : "+String(msg).slice(0,140)):""); }
     return true;
