@@ -833,7 +833,7 @@ input[type=range]::-moz-range-thumb{width:22px;height:22px;border:0;border-radiu
 <main class="app">
   <header class="header">
     <div class="header-left"></div>
-    <div class="brand"><h1>Studio Magot<i>✦</i></h1><p>Montage vidéo · C277</p></div>
+    <div class="brand"><h1>Studio Magot<i>✦</i></h1><p>Montage vidéo · C278</p></div>
     <button class="export" id="expBtn"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 15V3m0 0L7 8m5-5l5 5M5 15v4h14v-4"/></svg> Exporter</button>
   </header>
 
@@ -8233,6 +8233,7 @@ function _parseLRC(txt){ SUBS=[]; if(!txt) return 0; var ls=String(txt).split(/\
 function _subAt(t){ if(!SUBS.length) return ""; var cur=""; for(var i=0;i<SUBS.length;i++){ if(SUBS[i].t<=t+0.02) cur=SUBS[i].text; else break; } return cur; }
 function _musicTimeNow(){ /* temps DANS la musique (pour caler les paroles) */
   try{ if(window.LOOP_ON){ var md=(window.MUSIC_DUR||(A?A.dur:0))||0; var mt=montageNow(); return md>0?(mt%md):mt; } return (audioEl?audioEl.currentTime:montageNow()); }catch(e){ return montageNow(); } }
+try{ window.studioSaveNow=function(){ try{ if(_curFilmId || PHOTOS.length || (typeof clipVidReady!=="undefined"&&clipVidReady)) studioSaveLocal(); }catch(e){} }; }catch(e){}
 try{ window.studioStop=function(){ try{ stopPlay(); if(typeof _hideClipOverlay==="function") _hideClipOverlay(); if(window._refreshPlayUI) window._refreshPlayUI(); if(_subEl) _subEl.style.opacity="0"; }catch(e){} }; }catch(e){}
 /* Sécurité : si l'onglet passe en arrière-plan, on stoppe (évite que ça joue après fermeture) */
 try{ document.addEventListener("visibilitychange", function(){ if(document.hidden){ try{ stopPlay(); }catch(e){} } }); }catch(e){}
@@ -8410,7 +8411,7 @@ function studioAutoMontage(input){
   }
   function _finishAuto(){
     window.USER_ORDER=[]; for(var k=0;k<PHOTOS.length;k++) window.USER_ORDER.push(k);   /* ordre chronologique imposé */
-    if(input.mood) MOOD=input.mood;
+    if(input.mood) MOOD=input.mood; try{ if(window._applyMoodUI) window._applyMoodUI(MOOD); }catch(e){}
     window.DAY_MARKERS=(input.dayMarkers!==false);
     if(typeof SIGN!=="undefined") SIGN.on=(input.sign!==false);
     if(input.signText) window.SIGN_TEXT=input.signText;
@@ -8529,7 +8530,7 @@ function studioOpenFilm(id){ try{ stopPlay(); }catch(e){}
 }
 function _afterOpenFilm(proj){ try{
   window.USER_ORDER=[]; for(var k=0;k<PHOTOS.length;k++) window.USER_ORDER.push(k);
-  if(proj.mood)MOOD=proj.mood; window.DAY_MARKERS=(proj.dayMarkers!==false);
+  if(proj.mood)MOOD=proj.mood; window.DAY_MARKERS=(proj.dayMarkers!==false); try{ if(window._applyMoodUI) window._applyMoodUI(MOOD); }catch(e){}
   if(proj.sign){ if(typeof SIGN!=="undefined")SIGN.on=!!proj.sign.on; if(proj.sign.text)window.SIGN_TEXT=proj.sign.text; }
   try{ updateBadge(); paintStrip(0); }catch(e){}
   var _clipsP=Promise.resolve();
@@ -10419,6 +10420,15 @@ function renderVNav(){
       setTimeout(closeSheets,140);
     };
   });
+  /* Restaure l'AFFICHAGE d'ambiance (curseur + label + description) selon le mode enregistré, sans reconstruire */
+  window._applyMoodUI=function(mood){ try{
+    mood=moodMap[String(mood||"cinema").toLowerCase()]||String(mood||"cinema").toLowerCase();
+    var target=null; qa(".choice").forEach(function(ch){ var md=moodMap[(ch.getAttribute("data-name")||"").toLowerCase()]||"cinema"; if(md===mood) target=ch; });
+    if(!target) return;
+    qa(".choice").forEach(function(x){ x.classList.remove("active"); }); target.classList.add("active");
+    try{ qa(".mood").forEach(function(x){ x.classList.toggle("on", (x.getAttribute("data-mood")===mood)); }); }catch(e){}
+    setInfoTile(target); try{ mirrorSync(); }catch(e){}
+  }catch(e){} };
 
   /* ---------- 9) Sync : slider + valeur = ms reelle du moteur ---------- */
   var kR=$("syncR"), kV=$("syncV"), kRs=$("syncRs");

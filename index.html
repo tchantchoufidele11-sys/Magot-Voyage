@@ -9199,7 +9199,7 @@ function openStudio(tr,version,autoplay){ tr=tr||souvTrip(); if(!tr){ toast(t("m
   ov.classList.add("show"); document.documentElement.classList.add("studio-open"); _studioSync();
   try{ var _fr2=ov.querySelector("#studioFrame"); var _w2=_fr2&&_fr2.contentWindow; if(_w2 && _w2.studioAutoMontage){ studioOpen(_w2, _studioTrip); } }catch(e){}
 }
-function closeStudio(){ try{ var _fr=document.getElementById("studioFrame"); var _w=_fr&&_fr.contentWindow; if(_w&&_w.studioStop) _w.studioStop(); }catch(e){} const ov=document.getElementById("studioOverlay"); if(ov) ov.classList.remove("show"); document.documentElement.classList.remove("studio-open"); }
+function closeStudio(){ try{ var _fr=document.getElementById("studioFrame"); var _w=_fr&&_fr.contentWindow; if(_w&&_w.studioSaveNow) _w.studioSaveNow(); if(_w&&_w.studioStop) _w.studioStop(); }catch(e){} const ov=document.getElementById("studioOverlay"); if(ov) ov.classList.remove("show"); document.documentElement.classList.remove("studio-open"); }
 function openMontage(tr,version,autoplay){ tr=tr||souvTrip(); if(!tr) return; return openStudio(tr,version,autoplay); /* --- ancien moteur inline désactivé : Studio Magot prend le relais --- */ _mvState.style=""; _mvState.pace=1; _mvState.soft=false; _mvState.grade="natural"; _mvState.fx=""; _mvState.overlay=""; _mvState.overlayTr=""; if(_mvState.overlayInt==null) _mvState.overlayInt=0.55; try{ overlayCatalog(); }catch(e){} let _dir=null;
   if(version==="director"){ _dir=mvApplyDirector(tr); } else if(version) mvApplyVersion(version);
   const mems=(tr.memories||[]).slice();
