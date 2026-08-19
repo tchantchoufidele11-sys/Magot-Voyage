@@ -3175,7 +3175,7 @@ const DEFAULT_S={ version:"0.2.0", settings:{ lang:"fr", theme:"system", units:"
 /* Clé Maps JS partagée (restreinte au domaine GitHub Pages). Repli : clé perso de l'utilisateur si fournie. */
 const SHARED_MAP_KEY="AIzaSyCt5iVx8nPr1V067A3daE0X1YA568XJNbU";
 function mapKey(){ return (S.settings.mapKey||"").trim() || SHARED_MAP_KEY; }
-const BUILD="0.3.44 · v630 studio-sign2";
+const BUILD="0.3.45 · v631 caption-ai";
 let S=loadState();
 function normalizeTrip(tr){ if(!tr||typeof tr!=="object") return tr;
   tr.id=tr.id||("t"+Date.now()+Math.random().toString(36).slice(2,7));
@@ -12942,15 +12942,16 @@ function magotUrl(path){ return SB_URL+"/storage/v1/object/public/musics/"+encod
 /* Suggestion IA de texte pour une photo (Mistral via /agent/legendes-photos), ancrée sur le lieu réel. */
 window.magotCaptionSuggest=async function(photoId, current){ try{
   const tr=_studioTrip||currentTrip(); if(!tr) return "";
-  const m=(tr.memories||[]).find(x=>x&&x.id===photoId);
-  let lieu="", ville="", adresse="", jour=null, note=(current||"");
-  if(m){ if(m.day!=null) jour=m.day+1; if(!note) note=m.caption||"";
-    if(m.placeId){ const p=(tr.places||[]).find(x=>x&&x.id===m.placeId); if(p){ lieu=p.name||""; ville=p.city||p.locality||p.town||""; adresse=p.address||p.formattedAddress||p.vicinity||""; } } }
-  const payload={ lang:_studioLang(), photos:[{ i:0, lieu:lieu, ville:ville, adresse:adresse, jour:jour, type:"", tags:[], note:note }] };
-  const r=await fetch(WORKER_URL+"/agent/legendes-photos",{ method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify(payload) });
-  if(!r.ok) return ""; const d=await r.json().catch(()=>null); let raw=(d&&d.text)||"";
-  try{ const j=JSON.parse(String(raw).replace(/```json|```/gi,"").trim()); if(j&&j.photos&&j.photos[0]&&j.photos[0].texte) return String(j.photos[0].texte).trim(); }catch(e){}
-  return "";
+  const dest=(tr.dest&&tr.dest.name)||"";
+  const m=(tr.memories||[]).find(function(x){return x&&x.id===photoId;});
+  let lieu="", ville="", jour=null;
+  if(m){ if(m.day!=null) jour=m.day+1;
+    if(m.placeId){ const p=(tr.places||[]).find(function(x){return x&&x.id===m.placeId;}); if(p){ lieu=p.name||""; ville=p.city||p.locality||p.town||""; } } }
+  const payload={ destination:dest, lieu:lieu, ville:ville, jour:jour, texte:(current||""), lang:_studioLang() };
+  const r=await fetch(WORKER_URL+"/agent/caption-suggest",{ method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify(payload) });
+  if(!r.ok) return ""; const d=await r.json().catch(function(){return null;});
+  let t=(d&&d.text)||""; t=String(t).trim().replace(/^["\u00ab\u00bb\u2019\s]+|["\u00ab\u00bb\u2019\s]+$/g,"").slice(0,120);
+  return t;
 }catch(e){ return ""; } };
 window.magotUploadFromStudio=async function(file){ try{
   if(typeof isAdmin!=="function" || !isAdmin() || !file) return;
