@@ -833,7 +833,7 @@ input[type=range]::-moz-range-thumb{width:22px;height:22px;border:0;border-radiu
 <main class="app">
   <header class="header">
     <div class="header-left"></div>
-    <div class="brand"><h1>Studio Magot<i>✦</i></h1><p>Montage vidéo · C280</p></div>
+    <div class="brand"><h1>Studio Magot<i>✦</i></h1><p>Montage vidéo · C281</p></div>
     <button class="export" id="expBtn"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 15V3m0 0L7 8m5-5l5 5M5 15v4h14v-4"/></svg> Exporter</button>
   </header>
 
@@ -9645,7 +9645,7 @@ essentiaReady.then(function(ok){ if(!ok && !A){ /* silencieux : le repli se fait
       fetch(t.url).then(function(r){ if(!r.ok) throw 0; var total=+(r.headers.get("content-length")||0), ct=r.headers.get("content-type")||"audio/mpeg";
         if(r.body&&r.body.getReader&&total){ var rd=r.body.getReader(),chk=[],rc=0; return (function pump(){ return rd.read().then(function(res){ if(res.done) return new Blob(chk,{type:ct}); chk.push(res.value); rc+=res.value.length; if(prog){ setProgPct(rc/total); showProg(true,"T\u00e9l\u00e9chargement\u2026 "+Math.round(rc/total*100)+"%"); } return pump(); }); })(); }
         return r.blob();
-      }).then(function(blob){ var fn=(t.title||"track").replace(/[^\w.\-]+/g,"_")+".mp3"; decodeFile(new File([blob],fn,{type:blob.type||"audio/mpeg"})); }).catch(function(){ fin(false); });
+      }).then(function(blob){ try{ if(t.remote && t.id && !isDL(t)){ t._dlblob=blob; t.file=blob; if(typeof _pput==="function") _pput("dl:"+t.id, blob); _DL[t.id]=Date.now(); _dlSave(); try{ renderLib(); }catch(e){} } }catch(e){} var fn=(t.title||"track").replace(/[^\w.\-]+/g,"_")+".mp3"; decodeFile(new File([blob],fn,{type:blob.type||"audio/mpeg"})); }).catch(function(){ fin(false); });
     }
     else fin(false);
   }
@@ -9841,15 +9841,15 @@ essentiaReady.then(function(ok){ if(!ok && !A){ /* silencieux : le repli se fait
   var _LASTMUS="magot_lastmus_v1";
   function _lastMusMap(){ try{ return JSON.parse(localStorage.getItem(_LASTMUS)||"{}")||{}; }catch(e){ return {}; } }
   function _autoPickMusic(mode){ try{
-    if(A) return; var md=String(mode||"cinema").toLowerCase(), lm=_lastMusMap();
+    if(A) return; var md=String(mode||"cinema").toLowerCase(), lm=_lastMusMap(); window._autoWantMusic=md;
     (function tryPick(att){
       if(A) return;
       var pool=LIB.filter(function(t){ return t.remote && (String(t.type||"").toLowerCase()===md || String(t.mood||"").toLowerCase()===md); });
-      if(!pool.length){ if(att<8) setTimeout(function(){ tryPick(att+1); }, 350); return; }
+      if(!pool.length){ if(att<16) setTimeout(function(){ tryPick(att+1); }, 400); return; }
       var pick=null; if(lm[md]) pick=pool.filter(function(t){return t.id===lm[md];})[0];
       if(!pick) pick=pool.filter(function(t){return isDL(t);})[0];
       if(!pick) pick=pool[0];
-      if(pick && !A){ try{ useTrack(pick); }catch(e){} }
+      if(pick && !A){ window._autoWantMusic=null; try{ useTrack(pick); }catch(e){} }
     })(0);
   }catch(e){} }
   function useTrack(t){
@@ -9910,7 +9910,7 @@ essentiaReady.then(function(ok){ if(!ok && !A){ /* silencieux : le repli se fait
     var mi=$("mImport"); if(mi) mi.onclick=function(){ myMusicIn.click(); };
     var msrch=$("mSearch"); if(msrch) msrch.oninput=function(){ _mQuery=this.value||""; renderLib(); };
     renderLib();
-    function _addCatalog(arr){ if(!arr||!arr.length) return; arr.forEach(function(m){ var _sid=(m.id!=null&&m.id!=="")?("cat:"+m.id):("r"+(++LIB_SEQ)); var t={ id:_sid, title:m.title||cleanName(m.file||m.url||""), artist:m.artist||"", type:m.type||m.genre||m.style||"", cover:m.cover||"", url:m.file||m.url, lyrics:m.lyrics||"", path:m.path||null, remote:true }; if(typeof m.duration==="string") t.durStr=m.duration; else if(typeof m.duration==="number") t.dur=m.duration; LIB.push(t); probeDur(t); if(isDL(t)){ try{ if(typeof _pget==="function"){ _pget("dl:"+t.id).then(function(b){ if(b){ t._dlblob=b; t.file=b; try{ renderLib(); }catch(e){} } }).catch(function(){}); } }catch(e){} } }); renderLib(); }
+    function _addCatalog(arr){ if(!arr||!arr.length) return; arr.forEach(function(m){ var _sid=(m.id!=null&&m.id!=="")?("cat:"+m.id):("r"+(++LIB_SEQ)); var t={ id:_sid, title:m.title||cleanName(m.file||m.url||""), artist:m.artist||"", type:m.type||m.genre||m.style||"", cover:m.cover||"", url:m.file||m.url, lyrics:m.lyrics||"", path:m.path||null, remote:true }; if(typeof m.duration==="string") t.durStr=m.duration; else if(typeof m.duration==="number") t.dur=m.duration; LIB.push(t); probeDur(t); try{ if(window._autoWantMusic && !A){ setTimeout(function(){ if(window._autoWantMusic && !A) _autoPickMusic(window._autoWantMusic); }, 60); } }catch(e){} if(isDL(t)){ try{ if(typeof _pget==="function"){ _pget("dl:"+t.id).then(function(b){ if(b){ t._dlblob=b; t.file=b; try{ renderLib(); }catch(e){} } }).catch(function(){}); } }catch(e){} } }); renderLib(); }
     function _loadCatalog(){ try{
       var c=(typeof window!=="undefined")?window.STUDIO_CATALOG:null;              /* greffe : MagotVoyage fournit le catalogue depuis Supabase */
       if(typeof c==="function"){ Promise.resolve().then(c).then(function(arr){ _addCatalog(arr); }).catch(function(){}); return; }
