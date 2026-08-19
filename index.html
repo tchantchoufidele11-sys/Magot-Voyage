@@ -9091,7 +9091,7 @@ async function magotSignText(tr){ try{
   if(!r.ok) return null; const d=await r.json().catch(function(){return null;}); let raw=(d&&d.text)||"";
   let o=null; try{ o=JSON.parse(String(raw).replace(/```json|```/gi,"").trim()); }catch(e){}
   if(o && (o.introProverbe||o.introTexte||o.introProverb)){
-    return { introTitre:o.introTitre||o.introTitle||"", introTexte:o.introTexte||o.introText||"", introProverbe:o.introProverbe||o.introProverb||"", outroTexte:o.outroTexte||o.outroText||"", outroProverbe:o.outroProverbe||o.outroProverb||"" };
+    return { introTitre:o.introTitre||o.introTitle||"", introTexte:o.introTexte||o.introText||"", introProverbe:o.introProverbe||o.introProverb||"", outroTexte:o.outroTexte||o.outroText||"", outroProverbe:o.outroProverbe||o.outroProverb||"", mood:(o.mood||"") };
   }
   return null;
 }catch(e){ return null; } }
@@ -9120,7 +9120,7 @@ async function studioCatalog(){ try{
     id:x.id, title:x.title||"Musique", artist:x.artist||"",
     mood:x.mood||"", type:x.type||x.genre||x.mood||"", genre:x.genre||x.mood||"",
     cover:(x.cover&&/^https?:/.test(x.cover))?x.cover:(x.cover_url||""),
-    url:(x.path?magotUrl(x.path):(x.url||"")), path:(x.path||null),
+    url:(x.path?magotUrl(x.path):(x.url||"")),
     duration:+x.duration||0, bpm:+x.bpm||0,
     lyrics:x.lyrics||x.lrc||""
   })).filter(t=>t.url);
@@ -9172,7 +9172,7 @@ async function studioFeed(w, tr){ if(!w||!tr) return;
   let items=[], sig=null;
   try{ const _r=await Promise.all([studioBuildItems(tr), magotSignText(tr).catch(function(){return null;})]); items=_r[0]||[]; sig=_r[1]; }catch(e){ items=[]; }
   if(!items.length) return;   /* rien à monter : le Studio garde son écran d\u2019accueil */
-  try{ w.studioAutoMontage({ items, mood:"voyage", sign:true, signText:(sig||undefined), dayMarkers:true, project:("trip:"+tr.id), autoplay:false }); }catch(e){}
+  var _aimood=(sig&&sig.mood||"").toLowerCase(); var _mood=(_aimood==="cinema"||_aimood==="doux"||_aimood==="dynamique"||_aimood==="voyage")?_aimood:"voyage"; try{ w.studioAutoMontage({ items, mood:_mood, sign:true, signText:(sig||undefined), dayMarkers:true, project:("trip:"+tr.id), autoplay:false }); }catch(e){}
   /* format d\u2019origine par défaut (best-effort) */
   setTimeout(()=>{ try{
     if(typeof w._origFmt==="function" && typeof w._setFormat==="function"){ const f=w._origFmt(); if(f&&f.w&&f.h) w._setFormat(f.w,f.h,"Origine"); }
@@ -9197,9 +9197,8 @@ function openStudio(tr,version,autoplay){ tr=tr||souvTrip(); if(!tr){ toast(t("m
   }
   { const sp=ov.querySelector(".studio-back span"); if(sp) sp.textContent=backLbl; }
   ov.classList.add("show"); document.documentElement.classList.add("studio-open"); _studioSync();
-  try{ var _fr2=ov.querySelector("#studioFrame"); var _w2=_fr2&&_fr2.contentWindow; if(_w2 && _w2.studioAutoMontage){ studioOpen(_w2, _studioTrip); } }catch(e){}
 }
-function closeStudio(){ try{ var _fr=document.getElementById("studioFrame"); var _w=_fr&&_fr.contentWindow; if(_w&&_w.studioSaveNow) _w.studioSaveNow(); if(_w&&_w.studioStop) _w.studioStop(); }catch(e){} const ov=document.getElementById("studioOverlay"); if(ov) ov.classList.remove("show"); document.documentElement.classList.remove("studio-open"); }
+function closeStudio(){ const ov=document.getElementById("studioOverlay"); if(ov) ov.classList.remove("show"); document.documentElement.classList.remove("studio-open"); }
 function openMontage(tr,version,autoplay){ tr=tr||souvTrip(); if(!tr) return; return openStudio(tr,version,autoplay); /* --- ancien moteur inline désactivé : Studio Magot prend le relais --- */ _mvState.style=""; _mvState.pace=1; _mvState.soft=false; _mvState.grade="natural"; _mvState.fx=""; _mvState.overlay=""; _mvState.overlayTr=""; if(_mvState.overlayInt==null) _mvState.overlayInt=0.55; try{ overlayCatalog(); }catch(e){} let _dir=null;
   if(version==="director"){ _dir=mvApplyDirector(tr); } else if(version) mvApplyVersion(version);
   const mems=(tr.memories||[]).slice();
@@ -12969,11 +12968,11 @@ window.magotCaptionSuggest=async function(photoId, current){ try{
   let t=(d&&d.text)||""; t=String(t).trim().replace(/^["\u00ab\u00bb\u2019\s]+|["\u00ab\u00bb\u2019\s]+$/g,"").slice(0,120);
   return t;
 }catch(e){ return ""; } };
-window.magotUploadFromStudio=async function(file, mood, cover){ try{
+window.magotUploadFromStudio=async function(file){ try{
   if(typeof isAdmin!=="function" || !isAdmin() || !file) return;
   toast("Publication au catalogue\u2026");
   const title=String(file.name||"Musique").replace(/\.[^.]+$/,"");
-  const r=await magotUpload(file, title, mood||"", cover||null);
+  const r=await magotUpload(file, title, "");
   if(r===true) toast("\u00ab "+title+" \u00bb publi\u00e9e au catalogue partag\u00e9 \u2713");
   else toast(typeof r==="string"?r:"Publication au catalogue \u00e9chou\u00e9e.");
 }catch(e){ toast("Publication impossible (r\u00e9seau ?)."); } };
@@ -12987,14 +12986,6 @@ async function magotDelete(id, path){
     return true;
   }catch(e){ return "Erreur r\u00e9seau."; }
 }
-window.magotDeleteFromStudio=async function(tr){ try{
-  if(typeof isAdmin!=="function" || !isAdmin() || !tr){ return; }
-  var path=tr.path; if(!path && tr.url){ try{ var m=String(tr.url).match(/\/musics\/(.+)$/); if(m) path=decodeURIComponent(m[1]); }catch(e){} }
-  toast("Suppression\u2026");
-  const r=await magotDelete(tr.id, path);
-  if(r===true) toast("\u00ab "+(tr.title||"Musique")+" \u00bb supprim\u00e9e du catalogue.");
-  else toast(typeof r==="string"?r:"Suppression \u00e9chou\u00e9e.");
-}catch(e){ toast("Suppression impossible (r\u00e9seau ?)."); } };
 async function magotDownload(tr2){
   try{
     toast("T\u00e9l\u00e9chargement\u2026");
@@ -13007,7 +12998,7 @@ async function magotDownload(tr2){
     return true;
   }catch(e){ toast("T\u00e9l\u00e9chargement impossible (r\u00e9seau ?)."); return false; }
 }
-async function magotUpload(file, title, mood, cover){
+async function magotUpload(file, title, mood){
   if(!isAdmin()){ return "R\u00e9serv\u00e9 \u00e0 l'administrateur."; }
   if(!currentUser){ return "Tu n'es pas connect\u00e9."; }
   const tok=await sbAccessToken(); const path=Date.now()+"_"+String(file.name||"track.mp3").replace(/[^\w.\-]/g,"_");
@@ -13017,14 +13008,9 @@ async function magotUpload(file, title, mood, cover){
     const up=await fetch(SB_URL+"/storage/v1/object/musics/"+encodeURIComponent(path),{
       method:"POST", headers:{ apikey:SB_ANON, Authorization:"Bearer "+tok, "Content-Type":(file.type||"audio/mpeg") }, body:file });
     if(!up.ok){ const t2=await up.text().catch(()=>""); toast("Envoi refus\u00e9 ("+up.status+"). V\u00e9rifie le bucket et les droits."); console.warn(t2); return false; }
-    let coverUrl="";
-    try{ if(cover){ let cblob=(typeof cover==="string")?await (await fetch(cover)).blob():cover;
-      if(cblob && cblob.size){ const cpath="covers/"+Date.now()+"_"+(String(file.name||"c").replace(/[^\w.\-]/g,"_").replace(/\.[^.]+$/,""))+".jpg";
-        const cu=await fetch(SB_URL+"/storage/v1/object/musics/"+encodeURIComponent(cpath),{ method:"POST", headers:{ apikey:SB_ANON, Authorization:"Bearer "+tok, "Content-Type":(cblob.type||"image/jpeg") }, body:cblob });
-        if(cu.ok) coverUrl=magotUrl(cpath); } } }catch(e){}
     const ins=await fetch(SB_URL+"/rest/v1/music_catalog",{
       method:"POST", headers:{ apikey:SB_ANON, Authorization:"Bearer "+tok, "Content-Type":"application/json", Prefer:"return=minimal" },
-      body: JSON.stringify({ title:title||String(file.name||"").replace(/\.[^.]+$/,""), path, mood:mood||"", bpm, duration:dur, cover:(coverUrl||null) }) });
+      body: JSON.stringify({ title:title||String(file.name||"").replace(/\.[^.]+$/,""), path, mood:mood||"", bpm, duration:dur }) });
     if(!ins.ok){ const t3=await ins.text().catch(()=>""); let msg=""; try{ const j3=JSON.parse(t3); msg=j3.message||j3.error||j3.hint||""; }catch(e){ msg=t3; }
       return "Fiche non enregistr\u00e9e ("+ins.status+"). "+(ins.status===403?"La table refuse l\u2019\u00e9criture \u2014 ex\u00e9cute le SQL FINAL dans Supabase. ":"")+(msg?("D\u00e9tail : "+String(msg).slice(0,140)):""); }
     return true;

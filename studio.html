@@ -833,7 +833,7 @@ input[type=range]::-moz-range-thumb{width:22px;height:22px;border:0;border-radiu
 <main class="app">
   <header class="header">
     <div class="header-left"></div>
-    <div class="brand"><h1>Studio Magot<i>✦</i></h1><p>Montage vidéo · C283</p></div>
+    <div class="brand"><h1>Studio Magot<i>✦</i></h1><p>Montage vidéo · C284</p></div>
     <button class="export" id="expBtn"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 15V3m0 0L7 8m5-5l5 5M5 15v4h14v-4"/></svg> Exporter</button>
   </header>
 
@@ -9841,18 +9841,23 @@ essentiaReady.then(function(ok){ if(!ok && !A){ /* silencieux : le repli se fait
   var _LASTMUS="magot_lastmus_v1";
   function _lastMusMap(){ try{ return JSON.parse(localStorage.getItem(_LASTMUS)||"{}")||{}; }catch(e){ return {}; } }
   window._autoPickMusic=_autoPickMusic;
-  function _autoPickMusic(mode){ try{
-    if(A) return; var md=String(mode||"cinema").toLowerCase(), lm=_lastMusMap(); window._autoWantMusic=md;
+  function _curTrackType(){ try{ var c=LIB.filter(function(t){return t.id===LIB_ACTIVE;})[0]; return c?String(c.type||c.mood||"").toLowerCase():""; }catch(e){ return ""; } }
+  function _autoPickMusic(mode, force){ try{
+    var md=String(mode||"cinema").toLowerCase(), lm=_lastMusMap();
+    if(A && !force) return;                                  /* déjà une musique et pas de changement de mode */
+    if(A && force && _curTrackType()===md) return;           /* la musique actuelle correspond déjà au mode */
+    window._autoWantMusic=md;
     (function tryPick(att){
-      if(A) return;
+      if(A && !force) return;
       var pool=LIB.filter(function(t){ return t.remote && (String(t.type||"").toLowerCase()===md || String(t.mood||"").toLowerCase()===md); });
-      if(!pool.length){ if(att<16) setTimeout(function(){ tryPick(att+1); }, 400); return; }
+      if(!pool.length){ if(att<16) setTimeout(function(){ tryPick(att+1); }, 400); return; }   /* aucun morceau dans ce groupe : on ne met rien de faux */
       var pick=null; if(lm[md]) pick=pool.filter(function(t){return t.id===lm[md];})[0];
       if(!pick) pick=pool.filter(function(t){return isDL(t);})[0];
       if(!pick) pick=pool[0];
-      if(pick && !A){ window._autoWantMusic=null; try{ useTrack(pick); }catch(e){} }
+      if(pick){ window._autoWantMusic=null; try{ useTrack(pick); }catch(e){} try{ _resetSyncBar(); }catch(e){} }
     })(0);
   }catch(e){} }
+  function _resetSyncBar(){ try{ var eS=document.getElementById("sync"); if(eS){ eS.value=0; eS.dispatchEvent(new Event("input",{bubbles:true})); eS.dispatchEvent(new Event("change",{bubbles:true})); } }catch(e){} }
   function useTrack(t){
     if(_mLoading) return; stopPreview();
     LIB_ACTIVE=t.id; TRACKS=[]; window.MULTI=0;
@@ -10434,6 +10439,7 @@ function renderVNav(){
       var md=moodMap[(ch.getAttribute("data-name")||"").toLowerCase()]||"cinema";
       var mb=q('.mood[data-mood="'+md+'"]'); if(mb) mb.click();
       setInfoTile(ch);
+      try{ _autoPickMusic(md, true); }catch(e){}
       mirrorSync();
       setTimeout(closeSheets,140);
     };

@@ -1,5 +1,5 @@
 /* Magot Voyage — Service Worker */
-const VERSION = "v632";
+const VERSION = "v640";
 const CACHE = "magot-voyage-" + VERSION;
 const SHELL = [
   "./","./index.html","./studio.html","./manifest.json","./icon-192.png","./icon-512.png","./icon-maskable-512.png","./apple-touch-icon.png"
@@ -36,10 +36,11 @@ self.addEventListener("fetch", (e) => {
   }
   if (url.origin !== self.location.origin) return;
   if (req.mode === "navigate") {
+    const key = url.pathname.endsWith("studio.html") ? "./studio.html" : "./index.html";
     e.respondWith(
       fetch(req, { cache: "no-store" })
-        .then((r) => { const copy = r.clone(); caches.open(CACHE).then((c) => c.put("./index.html", copy)).catch(() => {}); return r; })
-        .catch(() => caches.match("./index.html").then((r) => r || caches.match("./")))
+        .then((r) => { const copy = r.clone(); caches.open(CACHE).then((c) => c.put(key, copy)).catch(() => {}); return r; })
+        .catch(() => caches.match(key).then((r) => r || caches.match("./index.html")).then((r) => r || caches.match("./")))
     );
     return;
   }
