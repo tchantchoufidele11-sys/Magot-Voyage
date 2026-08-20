@@ -328,6 +328,13 @@ html.studio-open{overflow:hidden}
 .pt-act:active{transform:scale(.99)}
 .pt-film{background:linear-gradient(135deg,#D4AF37,#b8952f);color:#1a1710;border-color:#D4AF37}
 .folder-title{font-family:"Playfair Display",Georgia,serif;font-weight:800;font-size:26px;color:var(--ink);margin:10px 2px 14px;line-height:1.15}
+.pc-pick{position:fixed;inset:0;z-index:100001;background:rgba(9,12,20,.72);display:flex;align-items:flex-end;justify-content:center;padding:0}
+.pcp-box{background:var(--surface);width:100%;max-width:520px;border-radius:22px 22px 0 0;padding:18px 16px 24px;max-height:82vh;overflow:auto}
+.pcp-h{font:700 18px system-ui;color:var(--ink);text-align:center;margin-bottom:14px}
+.pcp-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.pcp-tile{aspect-ratio:1;border:0;border-radius:12px;background-size:cover;background-position:center;background-color:var(--line);cursor:pointer}
+.pcp-cancel{display:block;width:100%;margin-top:16px;background:none;border:0;color:var(--muted);font:600 15px system-ui;padding:10px;cursor:pointer}
+
 
 
 #memChips{gap:6px}
@@ -7972,10 +7979,14 @@ function _pcTitle(tr){ return (tr.dest&&tr.dest.name)||tr.name||"\u2014"; }
 function _pcWrap(x,text,X,Y,maxW,lh,max){ const words=String(text||"").split(/\s+/); let line="",yy=Y,n=0; for(const w of words){ const tst=line?line+" "+w:w; if(x.measureText(tst).width>maxW&&line){ x.fillText(line,X,yy); line=w; yy+=lh; n++; if(max&&n>=max){ return yy; } } else line=tst; } if(line) x.fillText(line,X,yy); return yy; }
 function _pcSpaced(x,txt,X,Y,sp){ let cx=X; for(const ch of String(txt)){ x.fillText(ch,cx,Y); cx+=x.measureText(ch).width+sp; } return cx; }
 
-async function renderPostcardFront(tr){
+function _pcImgCORS(src){ return new Promise(r=>{ const im=new Image(); im.crossOrigin="anonymous"; im.onload=()=>r(im); im.onerror=()=>r(null); im.src=src; }); }
+async function renderPostcardFront(tr, forced){
   const c=document.createElement("canvas"); c.width=PC_W; c.height=PC_H; const x=c.getContext("2d");
-  const fp=(tr.memories||[])[0]; let bg=fp?await photoData(fp.id):null;
-  if(bg){ const im=await _pcImg(bg.data); if(im){ const r=Math.max(PC_W/bg.w,PC_H/bg.h),iw=bg.w*r,ih=bg.h*r; x.drawImage(im,(PC_W-iw)/2,(PC_H-ih)/2,iw,ih); } }
+  let im=null, iw0=0, ih0=0;
+  if(forced && forced.data){ im=await _pcImg(forced.data); if(im){ iw0=forced.w||im.naturalWidth||im.width; ih0=forced.h||im.naturalHeight||im.height; } }
+  if(!im){ try{ const ref=(typeof coverPhotoName==="function")?coverPhotoName(tr):""; if(ref && typeof gPhoto==="function"){ const url=gPhoto(ref,1600); const gi=await _pcImgCORS(url); if(gi){ im=gi; iw0=gi.naturalWidth||gi.width; ih0=gi.naturalHeight||gi.height; } } }catch(e){} }
+  if(!im){ const fp=(tr.memories||[])[0]; if(fp){ const bg=await photoData(fp.id); if(bg){ const ui=await _pcImg(bg.data); if(ui){ im=ui; iw0=bg.w; ih0=bg.h; } } } }
+  if(im && iw0 && ih0){ const r=Math.max(PC_W/iw0,PC_H/ih0),iw=iw0*r,ih=ih0*r; try{ x.drawImage(im,(PC_W-iw)/2,(PC_H-ih)/2,iw,ih); }catch(e){ const g=x.createLinearGradient(0,0,PC_W,PC_H); g.addColorStop(0,"#0E2148"); g.addColorStop(1,"#1c3a6e"); x.fillStyle=g; x.fillRect(0,0,PC_W,PC_H); } }
   else { const g=x.createLinearGradient(0,0,PC_W,PC_H); g.addColorStop(0,"#0E2148"); g.addColorStop(1,"#1c3a6e"); x.fillStyle=g; x.fillRect(0,0,PC_W,PC_H); }
   /* scrim bas pour lisibilite */
   const g=x.createLinearGradient(0,PC_H*0.42,0,PC_H); g.addColorStop(0,"rgba(9,14,28,0)"); g.addColorStop(1,"rgba(9,14,28,.88)"); x.fillStyle=g; x.fillRect(0,0,PC_W,PC_H);
@@ -8022,9 +8033,23 @@ function renderPostcardBack(tr){
   return c;
 }
 
+function _pcPickPhoto(tr){ return new Promise(resolve=>{ try{
+  const mems=(tr.memories||[]).filter(m=>m&&!m.video); if(!mems.length){ resolve(null); return; }
+  const fr=(typeof lang==="function"&&lang()==="fr");
+  const ov=document.createElement("div"); ov.className="pc-pick";
+  ov.innerHTML=`<div class="pcp-box"><div class="pcp-h">${fr?"Choisis la photo de ta carte":"Choose your postcard photo"}</div><div class="pcp-grid"></div><button class="pcp-cancel">${fr?"Annuler":"Cancel"}</button></div>`;
+  const grid=ov.querySelector(".pcp-grid");
+  mems.slice(0,40).forEach(m=>{ const b=document.createElement("button"); b.className="pcp-tile ph-tile loading"; b.setAttribute("data-media",m.id); b.onclick=async()=>{ try{ov.remove();}catch(e){} const pd=await photoData(m.id); resolve(pd); }; grid.appendChild(b); });
+  ov.querySelector(".pcp-cancel").onclick=()=>{ try{ov.remove();}catch(e){} resolve(null); };
+  document.body.appendChild(ov);
+  try{ if(typeof hydratePhotos==="function") hydratePhotos(ov); }catch(e){}
+}catch(e){ resolve(null); } }); }
 async function exportPostcard(kind){ const tr=currentTrip(); if(!tr){ toast(t("mem.noTrip")); return; } closeExport(); toast(t("mem.exporting"));
   try{
-    const front=await renderPostcardFront(tr);
+    let forced=null;
+    const hasIcon=(typeof coverPhotoName==="function")&&!!coverPhotoName(tr);
+    if(!hasIcon){ forced=await _pcPickPhoto(tr); if(!forced){ toast(t("mem.exportOffline")); return; } }
+    const front=await renderPostcardFront(tr, forced);
     if(kind==="img"){ downloadDataUrl(front.toDataURL("image/jpeg",0.94), safeName(tr.name)+"_carte.jpg"); toast(t("mem.exportDone")); return; }
     /* PDF recto-verso A6 paysage */
     await loadJsPDF();
