@@ -12554,17 +12554,9 @@ function renderMemories(){ const body=document.getElementById("memBody"); if(!bo
        repetait le style, la duree et les scenes, puis renvoyait au bouton
        du haut. Une carte dont la conclusion est « sers-toi de l'autre
        bouton » n'a pas lieu d'etre. */
-    { const withPh=places.filter(p=>(tr.memories||[]).some(m=>m.placeId===p.id));
-      if(withPh.length){
-      h+=`<div class="sv-card">
-        <div class="sv-head"><span class="sv-ic">${ICO_STAR_SV}</span><div class="sv-ht"><h3>${svT("albums")}</h3><p>${svT("albumsSub")}</p></div><button class="sv-big" id="svAllMoments">${svT("seeAll")} \u203A</button></div>
-        <div class="sv-albums">`+withPh.slice(0,8).map(p=>{ const ms=(tr.memories||[]).filter(m=>m.placeId===p.id); const n=ms.length;
-        const cov=ms[0]?"":(p.photo?`background-image:url('${gPhoto(p.photo,700)}')`:`background:${COVERS[hashStr(p.id)%COVERS.length]}`);
-        const dd=(tr.plan||[]).find(x=>x.placeId===p.id);
-        return `<button class="sv-alb" data-album="${escapeHtml(p.id)}"><span class="sv-albc" ${ms[0]?`data-media="${ms[0].id}"`:`style="${cov}"`}>${n?`<span class="sv-albn">${n}</span>`:""}</span><span class="sv-albt">${escapeHtml(p.name)}</span><span class="sv-albd">${dd?(t("plan.day")+" "+(dd.day+1)):""}${n?" \u00b7 "+n+" photo"+(n>1?"s":""):""}</span></button>`; }).join("")+`</div></div>`;
-    } }
+
   }
-  body.innerHTML=h+_pastHtml+_delBtn;
+  body.innerHTML=h+((f==="journal")?_pastHtml:"")+_delBtn;
   body.querySelectorAll(".ph-tile[data-pid]").forEach(el=>el.onclick=()=>openMemViewer(el.dataset.pid));
   body.querySelectorAll("[data-daysel]").forEach(b=>b.onclick=()=>{ const v=b.dataset.daysel; souvState.dayView=(v==="none")?"none":parseInt(v,10); renderMemories(); });
   { const _db=body.querySelector("#memDayBack"); if(_db) _db.onclick=()=>{ souvState.dayView=null; renderMemories(); }; const _da=body.querySelector("#memDaysAdd"); if(_da) _da.onclick=()=>openDayAdd(null); }
