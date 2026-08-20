@@ -8813,7 +8813,7 @@ function byDayHtml(tr,mems){ const days=tripDays(tr); const groups={}; mems.forE
   return out||`<div class="mv-empty"><span class="mv-empty-ic"><svg viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="14" rx="2.6"/><circle cx="8.4" cy="10" r="1.6"/><path d="M3.6 17.2 9 12l3.2 3 2.6-2.4 5.6 4.6"/></svg></span><h4>${t("mem.noPhotos")}</h4><p>${t("mem.noPhotosSub")}</p><button class="btn navy mv-emptyAdd">${t("mem.add")}</button></div>`; }
 const SV_MEDIAS={fr:"M\u00e9dias",en:"Media",es:"Medios",it:"Media",de:"Medien"};
 const SVT={
- fr:{overview:"Aper\u00e7u",photos:"Photos",videos:"Vid\u00e9os",journal:"Journal",montage:"Montage",moments:"Moments",
+ fr:{overview:"Aper\u00e7u",photos:"Photos",videos:"Vid\u00e9os",journal:"Journal",studio:"Studio",montage:"Montage",moments:"Moments",
   mapTitle:"Carte de ton voyage",mapSub:"Revois tout ton itin\u00e9raire et les lieux visit\u00e9s.",big:"Voir en grand",allPlaces:"Voir tous les lieux ({n})",
   storyTitle:"R\u00e9cit de ton voyage",storySub:"{a} \u00e9crit le r\u00e9cit de ton s\u00e9jour \u00e0 partir de ton planning et de tes notes \u2014 rien d\'invent\u00e9.",
   mvTitle:"Montage vid\u00e9o",mvSub:"Tes photos deviennent un film, cal\u00e9 sur le rythme de ta musique.",mvMusic:"Musique",mvMusicS:"Ta biblioth\u00e8que",mvPh:"Photos",mvPhS:"Choisir celles du film",mvAuto:"Montage auto",mvAutoS:"Style et couleurs",mvBtn:"Cr\u00e9er le montage",mvDur:"30 s \u00e0 2 min",mvSoon:"Le moteur de montage arrive \u2014 on le branche juste apr\u00e8s.",
@@ -12192,6 +12192,7 @@ function mvRun(tr,total){
   if(au){ mvAudioResume(); mvOverlayPlayAll(true); au.play().then(()=>{ mvSetPlaying(true); }).catch(()=>{ mvSetPlaying(false); toast("Appuie sur \u25b6 pour lancer le film (iOS bloque le son automatique)."); }); }
   step();
 }
+function _souvStudioTop(){ try{ var lang=(typeof _studioLang==="function"&&_studioLang())||"fr"; var lbl=({fr:"Ouvrir le studio",en:"Open the studio",es:"Abrir el estudio",it:"Apri lo studio",de:"Studio \u00f6ffnen"})[lang]||"Ouvrir le studio"; return '<button onclick="openStudio(souvTrip())" style="display:flex;align-items:center;justify-content:center;gap:8px;width:100%;background:linear-gradient(135deg,#D4AF37,#b8952f);color:#1a1710;border:0;font:700 15px system-ui;padding:14px;border-radius:14px;cursor:pointer;margin:2px 0 14px;box-shadow:0 4px 16px rgba(212,175,55,.3)">\uD83C\uDFAC '+lbl+'</button>'; }catch(e){ return ""; } }
 function souvMontageCard(tr,compact){ const feats=[["\u266A",svT("mvMusic"),svT("mvMusicS")],["\u2751",svT("mvPh"),svT("mvPhS")],["\u2726",svT("mvAuto"),svT("mvAutoS")]];
   const keys=["music","photos","auto"];
   return `<div class="sv-head"><span class="sv-ic">${ICO_FILM_SV}</span><div class="sv-ht"><h3>${svT("mvTitle")} <span class="sv-new">${svT("nw")}</span></h3><p>${svT("mvSub")}</p></div></div>
@@ -12307,9 +12308,9 @@ function souvMiniMapOSM(tr,el){ const pts=souvPoints(tr); if(!pts.length||!el) r
         if(pts.length>1) map.fitBounds([[a,b],[c,d]],{padding:{top:46,bottom:26,left:30,right:30},maxZoom:14,duration:0}); else map.setZoom(13); }); }catch(e){}
   }); }
 function renderMemChips(){ const el=document.getElementById("memChips"); if(!el) return;
-  const F=[["all","overview"],["photos","medias"],["journal","journal"]];
-  el.innerHTML=F.map(([k,lab])=>`<button class="chip ${souvState.filter===k?'on':''}" data-mf="${k}">${svT(lab)}</button>`).join("");
-  el.querySelectorAll("[data-mf]").forEach(b=>b.onclick=()=>{ souvState.filter=b.dataset.mf; renderMemories(); }); }
+  const F=[["all","overview"],["photos","medias"],["journal","journal"],["studio","studio"]];
+  el.innerHTML=F.map(([k,lab])=>`<button class="chip ${souvState.filter===k?'on':''}${k==='studio'?' chip-studio':''}" data-mf="${k}">${k==='studio'?'\uD83C\uDFAC ':''}${svT(lab)}</button>`).join("");
+  el.querySelectorAll("[data-mf]").forEach(b=>b.onclick=()=>{ if(b.dataset.mf==="studio"){ openStudio(souvTrip()); return; } souvState.filter=b.dataset.mf; renderMemories(); }); }
 const SOUV_I18N={
   fr:{ title:"Carnet de l'agent", gen:"Générer le résumé du voyage", regen:"Régénérer", generating:"L'agent écrit ton carnet…", hint:"Un titre et un résumé de ton voyage, écrits à partir de tes vrais lieux." , jTitle:"Ton journal", jEmpty:"Rien d'écrit pour ce voyage. Les étapes, tes notes et tes photos apparaîtront ici, jour par jour." },
   en:{ title:"Agent's journal", gen:"Generate trip summary", regen:"Regenerate", generating:"The agent is writing your journal…", hint:"A title and summary of your trip, written from your real places." , jTitle:"Your journal", jEmpty:"Nothing written for this trip yet. Stops, notes and photos will appear here, day by day." },
@@ -12457,14 +12458,14 @@ function renderMemories(){ const body=document.getElementById("memBody"); if(!bo
   const _bilanBtn=(tr&&tripFinished(tr))?`<button class="mem-bilan" id="memBilan">📊 ${t("bilan.title")}</button>`:"";
   const _delBtn=viewingPast?`<button class="mem-del" id="memDel">${t("mem.deleteTrip")}</button>`:"";
   const _bindExtra=()=>{ body.querySelectorAll("[data-pasttrip]").forEach(b=>b.onclick=()=>{ souvState.tripId=b.dataset.pasttrip; souvState.filter="all"; souvState.dayView=null; renderMemories(); }); const bk=body.querySelector("#memBack"); if(bk) bk.onclick=()=>{ souvState.tripId=null; souvState.dayView=null; renderMemories(); }; const mb=body.querySelector("#memBilan"); if(mb) mb.onclick=()=>openBilan(tr); const md=body.querySelector("#memDel"); if(md) md.onclick=()=>protectedDeleteTrip(tr); };
-  if(!tr){ if(chips) chips.innerHTML=""; var _blankBtn='<div style="text-align:center;margin:6px 0 24px"><button onclick="openStudio(null)" style="background:linear-gradient(135deg,#D4AF37,#b8952f);color:#1a1710;border:0;font:700 15px system-ui;padding:13px 22px;border-radius:14px;cursor:pointer;box-shadow:0 4px 16px rgba(212,175,55,.35)">\uD83C\uDFAC '+( {fr:"Cr\u00e9er un film",en:"Create a film",es:"Crear una pel\u00edcula",it:"Crea un film",de:"Film erstellen"}[_studioLang&&_studioLang()||"fr"]||"Cr\u00e9er un film")+'</button></div>'; body.innerHTML=(_pastHtml||`<div class="empty" style="padding:30px 18px;text-align:center"><p>${t("mem.noTrip")}</p></div>`)+_blankBtn; _bindExtra(); return; }
   renderMemChips();
+  if(!tr){ body.innerHTML=(_pastHtml||`<div class="empty" style="padding:30px 18px;text-align:center"><p>${t("mem.noTrip")}</p></div>`); _bindExtra(); return; }
   const mems=(tr.memories||[]).slice().sort((a,b)=>(b.createdAt||0)-(a.createdAt||0));
   const places=tr.places||[], f=souvState.filter;
   if(!mems.length && !places.length){ body.innerHTML=_backHtml+_bilanBtn+`<div class="empty" style="padding:30px 18px"><span class="medallion"><svg viewBox="0 0 24 24"><rect x="3" y="6.5" width="18" height="13.5" rx="2.6"/><circle cx="12" cy="13.2" r="3.4"/><path d="M8.2 6.5 9.5 4h5l1.3 2.5"/></svg></span><p>${t("mem.empty")}</p><button class="btn navy" id="memEmptyAdd" style="margin-top:14px">${t("mem.add")}</button></div>`+_pastHtml+_delBtn;
     const ba=body.querySelector("#memEmptyAdd"); if(ba) ba.onclick=()=>openDayAdd(souvState.dayView); _bindExtra(); return; }
   let h=_backHtml+_bilanBtn;
-  if(f==="photos"){ if(souvState.dayView==null) souvState.dayView=memDefaultDay(tr,mems); h+= memDayBarHtml(tr,mems)+memDayGridHtml(tr,mems); }
+  if(f==="photos"){ if(souvState.dayView==null) souvState.dayView=memDefaultDay(tr,mems); h+= _souvStudioTop()+memDayBarHtml(tr,mems)+memDayGridHtml(tr,mems); }
   else if(f==="places"){ h+= places.length? `<div class="mem-places">`+places.map(p=>memPlaceCard(tr,p)).join("")+`</div>` : `<div class="empty" style="padding:24px 8px"><p>${t("mem.noPlaces")}</p></div>`; }
   else if(f==="days"){ h+= byDayHtml(tr,mems); }
   else if(f==="videos"){ h+=`<div class="empty" style="padding:34px 14px"><p>${svT("noVideo")}</p></div>`; }
