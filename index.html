@@ -12513,10 +12513,10 @@ function renderMemories(){ const body=document.getElementById("memBody"); if(!bo
   const _delBtn=viewingPast?`<button class="mem-del" id="memDel">${t("mem.deleteTrip")}</button>`:"";
   const _bindExtra=()=>{ body.querySelectorAll("[data-pasttrip]").forEach(b=>b.onclick=()=>{ souvState.tripId=b.dataset.pasttrip; souvState.filter="all"; souvState.dayView=null; renderMemories(); });
     body.querySelectorAll("[data-pasthead]").forEach(b=>b.onclick=()=>{ const a=b.closest(".past-acc"); if(a) a.classList.toggle("open"); });
-    body.querySelectorAll("[data-ptfilm]").forEach(b=>b.onclick=()=>{ const _tp=S.trips.find(x=>x.id===b.dataset.ptfilm); if(_tp){ souvState.tripId=_tp.id; openStudio(_tp); } });
+    body.querySelectorAll("[data-ptfilm]").forEach(b=>b.onclick=()=>{ const _tp=S.trips.find(x=>x.id===b.dataset.ptfilm); if(_tp) openStudio(_tp); });
     body.querySelectorAll("[data-ptcarnet]").forEach(b=>b.onclick=()=>{ souvState.tripId=b.dataset.ptcarnet; souvState.filter="carnet"; souvState.dayView=null; renderMemories(); });
-    body.querySelectorAll("[data-ptdays]").forEach(b=>b.onclick=()=>{ souvState.tripId=b.dataset.ptdays; souvState.filter="photos"; souvState.dayView=null; renderMemories(); }); const bk=body.querySelector("#memBack"); if(bk) bk.onclick=()=>{ souvState.tripId=null; souvState.dayView=null; renderMemories(); }; const mb=body.querySelector("#memBilan"); if(mb) mb.onclick=()=>openBilan(tr); const md=body.querySelector("#memDel"); if(md) md.onclick=()=>protectedDeleteTrip(tr); };
-  renderMemChips();
+    body.querySelectorAll("[data-ptdays]").forEach(b=>b.onclick=()=>{ souvState.tripId=b.dataset.ptdays; souvState.filter="photos"; souvState.dayView=null; renderMemories(); }); const bk=body.querySelector("#memBack"); if(bk) bk.onclick=()=>{ souvState.tripId=null; souvState.dayView=null; souvState.filter="journal"; renderMemories(); }; const mb=body.querySelector("#memBilan"); if(mb) mb.onclick=()=>openBilan(tr); const md=body.querySelector("#memDel"); if(md) md.onclick=()=>protectedDeleteTrip(tr); };
+  if(viewingPast){ const _mc=document.getElementById("memChips"); if(_mc) _mc.innerHTML=""; } else renderMemChips();
   if(!tr){ body.innerHTML=(_pastHtml||`<div class="empty" style="padding:30px 18px;text-align:center"><p>${t("mem.noTrip")}</p></div>`); _bindExtra(); return; }
   const mems=(tr.memories||[]).slice().sort((a,b)=>(b.createdAt||0)-(a.createdAt||0));
   const places=tr.places||[], f=souvState.filter;
