@@ -342,6 +342,12 @@ html.studio-open{overflow:hidden}
 .pcp-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
 .pcp-tile{aspect-ratio:1;border:0;border-radius:12px;background-size:cover;background-position:center;background-color:var(--line);cursor:pointer}
 .souv-styles{display:flex;flex-wrap:wrap;gap:7px;margin-top:14px}
+.souv-days{margin-top:16px;border-top:1px solid var(--line);padding-top:14px}
+.souv-days-h{font:800 16px "Playfair Display",Georgia,serif;color:var(--ink);margin-bottom:10px}
+.souv-day{margin-bottom:12px}
+.souv-day-t{font:700 13px system-ui;color:var(--gold,#b8952f);margin-bottom:3px}
+.souv-day-b{font:500 14px "Inter",sans-serif;color:var(--ink-2);line-height:1.55;white-space:pre-wrap}
+
 .souv-actions{display:flex;gap:8px;margin-top:12px}
 .souv-actions>button{flex:1}
 .souv-edit-ta{width:100%;min-height:220px;box-sizing:border-box;border:1px solid var(--line);border-radius:12px;padding:12px;font:500 14px "Inter",sans-serif;color:var(--ink);background:var(--surface);line-height:1.55;resize:vertical;margin-top:8px}
@@ -7997,6 +8003,12 @@ function _pcTitle(tr){ return (tr.dest&&tr.dest.name)||tr.name||"\u2014"; }
 function _pcWrap(x,text,X,Y,maxW,lh,max){ const words=String(text||"").split(/\s+/); let line="",yy=Y,n=0; for(const w of words){ const tst=line?line+" "+w:w; if(x.measureText(tst).width>maxW&&line){ x.fillText(line,X,yy); line=w; yy+=lh; n++; if(max&&n>=max){ return yy; } } else line=tst; } if(line) x.fillText(line,X,yy); return yy; }
 function _pcSpaced(x,txt,X,Y,sp){ let cx=X; for(const ch of String(txt)){ x.fillText(ch,cx,Y); cx+=x.measureText(ch).width+sp; } return cx; }
 
+function _pcSignature(x, X, Y, scale, col){ col=col||"#E9C46A"; x.textBaseline="alphabetic"; x.textAlign="left";
+  x.fillStyle=col; x.font="700 "+Math.round(30*scale)+"px Georgia, 'Times New Roman', serif"; x.fillText("Magot", X, Y);
+  const w=x.measureText("Magot").width + 10*scale;
+  x.font="italic 400 "+Math.round(32*scale)+"px Georgia, 'Times New Roman', serif"; x.fillText("Voyage", X+w, Y);
+  return X+w+x.measureText("Voyage").width;
+}
 function _pcImgCORS(src){ return new Promise(r=>{ const im=new Image(); im.crossOrigin="anonymous"; im.onload=()=>r(im); im.onerror=()=>r(null); im.src=src; }); }
 async function renderPostcardFront(tr, forced){
   const c=document.createElement("canvas"); c.width=PC_W; c.height=PC_H; const x=c.getContext("2d");
@@ -8011,13 +8023,14 @@ async function renderPostcardFront(tr, forced){
   /* cadre blanc facon carte postale */
   var MG=59; /* 5mm @300dpi : marge de securite */ x.strokeStyle="rgba(255,255,255,.92)"; x.lineWidth=9; x.strokeRect(MG,MG,PC_W-2*MG,PC_H-2*MG);
   /* label "SOUVENIR DE" */
-  x.fillStyle="#E9C46A"; x.font="700 34px Helvetica, Arial, sans-serif"; x.textBaseline="alphabetic"; _pcSpaced(x,"SOUVENIR DE",MG+40,PC_H-268,7);
+  x.fillStyle="#E9C46A"; x.font="700 34px Helvetica, Arial, sans-serif"; x.textBaseline="alphabetic"; const _lblEnd=_pcSpaced(x,"SOUVENIR DE",MG+40,PC_H-268,7);
+  x.fillStyle="#E9C46A"; x.fillRect(MG+40,PC_H-252,Math.min(_lblEnd-(MG+40),340),3);
   /* titre destination */
-  x.fillStyle="#ffffff"; x.font="700 96px Georgia, 'Times New Roman', serif"; _pcWrap(x,_pcTitle(tr),MG+40,PC_H-168,PC_W-2*MG-300,96,2);
+  x.save(); x.shadowColor="rgba(0,0,0,.55)"; x.shadowBlur=14; x.shadowOffsetY=2; x.fillStyle="#ffffff"; x.font="700 96px Georgia, 'Times New Roman', serif"; _pcWrap(x,_pcTitle(tr),MG+40,PC_H-168,PC_W-2*MG-300,96,2); x.restore();
   /* dates */
   const dr=fmtRange(tr.dateStart,tr.dateEnd); if(dr){ x.fillStyle="rgba(255,255,255,.94)"; x.font="400 42px Helvetica, Arial, sans-serif"; x.fillText(dr,MG+40,PC_H-96); }
-  /* branding */
-  x.fillStyle="rgba(255,255,255,.8)"; x.font="600 26px Helvetica, Arial, sans-serif"; _pcSpaced(x,"MAGOT VOYAGE",MG+40,PC_H-62,3);
+  /* signature Magot Voyage */
+  _pcSignature(x, MG+40, PC_H-58, 1.15, "#E9C46A");
   /* timbre decoratif haut-droite */
   const sw=150,sh=182,sx=PC_W-sw-(MG+40),sy=MG+40;
   x.save(); x.setLineDash([9,9]); x.strokeStyle="rgba(255,255,255,.9)"; x.lineWidth=5; x.strokeRect(sx,sy,sw,sh); x.restore();
@@ -8047,7 +8060,7 @@ function renderPostcardBack(tr){
   x.fillStyle="#b7a884"; x.font="700 52px Georgia, serif"; x.textAlign="center"; x.fillText("\u2708",sx+sw/2,sy+sh/2+6);
   x.font="600 18px Helvetica, sans-serif"; x.fillText("MAGOT",sx+sw/2,sy+sh-20); x.textAlign="left";
   x.strokeStyle="#d4c9b0"; x.lineWidth=2; for(let i=0;i<5;i++){ const ly=sy+sh+70+i*54; x.beginPath(); x.moveTo(PC_W*0.6,ly); x.lineTo(PC_W-108,ly); x.stroke(); }
-  x.fillStyle="#b7a884"; x.font="600 22px Helvetica, sans-serif"; _pcSpaced(x,"MAGOT VOYAGE",108,PC_H-70,3);
+  _pcSignature(x, 108, PC_H-66, 1.0, "#b7955a");
   return c;
 }
 
@@ -8104,7 +8117,12 @@ async function previewPostcard(){ const tr=(typeof souvTrip==="function"?souvTri
       +`<div class="pcv-actions"><button class="btn ghostline2" id="pcvImg">\uD83D\uDDBC\uFE0F ${fr?"Image":"Image"}</button><button class="btn navy" id="pcvPdf">\uD83D\uDCEE PDF</button></div>`
       +`<button class="pcv-close" id="pcvClose">${t("common.cancel")}</button></div>`;
     document.body.appendChild(ov);
-    ov.querySelector("#pcvImg").onclick=()=>{ _pcSaveImage(frontUrl, safeName(tr.name)+"_carte.jpg"); };
+    ov.querySelector("#pcvImg").onclick=()=>{ try{
+      const gap=40; const cc=document.createElement("canvas"); cc.width=PC_W; cc.height=PC_H*2+gap; const cx=cc.getContext("2d");
+      cx.fillStyle="#ffffff"; cx.fillRect(0,0,cc.width,cc.height);
+      cx.drawImage(front,0,0); cx.drawImage(back,0,PC_H+gap);
+      _pcSaveImage(cc.toDataURL("image/jpeg",0.94), safeName(tr.name)+"_carte.jpg");
+    }catch(e){ _pcSaveImage(frontUrl, safeName(tr.name)+"_carte.jpg"); } };
     ov.querySelector("#pcvPdf").onclick=async()=>{ try{ await loadJsPDF(); const { jsPDF }=window.jspdf; const doc=new jsPDF({unit:"mm",format:"a6",orientation:"landscape"}); const W=doc.internal.pageSize.getWidth(),H=doc.internal.pageSize.getHeight(); doc.addImage(frontUrl,"JPEG",0,0,W,H,undefined,"FAST"); doc.addPage(); doc.addImage(backUrl,"JPEG",0,0,W,H,undefined,"FAST"); doc.save(safeName(tr.name)+"_carte_postale.pdf"); toast(t("mem.exportDone")); }catch(e){ toast(t("mem.exportOffline")); } };
     ov.querySelector("#pcvClose").onclick=()=>{ try{ov.remove();}catch(e){} };
   }catch(e){ toast(t("mem.exportOffline")); } }
@@ -12543,6 +12561,35 @@ function souvJournalHtml(tr){
   if(!out) return `<div class="souv-card"><div class="souv-hint">${st_("jEmpty")}</div></div>`;
   return `<div class="jr-h2">${st_("jTitle")}</div>`+out;
 }
+function _souvDaysHtml(tr){ const d=tr.souvenirDays; if(!d||!Object.keys(d).length) return "";
+  const days=tripDays(tr); let out="";
+  days.forEach(dd=>{ const txt=d[dd.i]; if(!txt) return;
+    out+=`<div class="souv-day"><div class="souv-day-t">${t("plan.day")} ${dd.i+1}${dd.date?" \u00b7 "+escapeHtml(fmtDayLong(dd.date)):""}</div><div class="souv-day-b">${escapeHtml(txt)}</div></div>`; });
+  if(!out) return "";
+  return `<div class="souv-days"><div class="souv-days-h">${(lang()==="fr")?"R\u00e9cit par jour":"Day by day"}</div>${out}</div>`;
+}
+async function generateDayStories(tr){ if(!tr) return; const btn=document.getElementById("souvDays");
+  const days=tripDays(tr); const pts=(typeof souvPoints==="function")?souvPoints(tr):[];
+  const todo=days.filter(dd=>pts.some(p=>p.day===dd.i)); if(!todo.length){ toast(t("agent.busy")); return; }
+  if(btn){ btn.disabled=true; btn.textContent=(lang()==="fr")?"\u00c9criture en cours\u2026":"Writing\u2026"; }
+  tr.souvenirDays=tr.souvenirDays||{};
+  for(const dd of todo){ const st=pts.filter(p=>p.day===dd.i); if(!st.length) continue;
+    const etapes=st.map(p=>("J"+(dd.i+1)+(p.time?" "+p.time:"")+" \u2014 "+(p.title||"")).trim()).join("\n");
+    const notes=st.filter(p=>p.note).map(p=>(p.title||"")+" : "+String(p.note).slice(0,180)).join("\n");
+    const payload={ lang:lang(), destination:_pcTitle(tr), jours:1, lieux:st.map(p=>p.title).filter(Boolean).join(", "),
+      dates:(dd.date||""), etapes:etapes||"aucune \u00e9tape", notes:notes||"aucune note", legendes:"aucune l\u00e9gende",
+      regles:_souvRegles(tr.souvenirStyle||"poetique")+" \u00c9cris UN SEUL paragraphe court (2 \u00e0 4 phrases) pour cette seule journ\u00e9e. Pas de titre." };
+    try{ const out=await workerFetch("/agent/souvenir",payload); if(out&&out.text){ tr.souvenirDays[dd.i]=out.text.trim().replace(/^[\u00ab"\u2019\u201c]\s*([\s\S]*?)\s*[\u00bb"\u2019\u201d]$/,"$1"); } }catch(e){}
+  }
+  saveState(); paintSouvCard(tr);
+}
+async function _souvShare(tr){ try{
+  const title=(function(){ const p=souvSplit(tr.souvenirText||""); return p.title||tripTitle(tr); })();
+  const txt=(tr.souvenirText||"").trim(); if(!txt){ toast(t("agent.busy")); return; }
+  const full=txt+"\n\n\u2014 Magot Voyage";
+  if(navigator.share){ try{ await navigator.share({title:title, text:full}); return; }catch(err){ if(err && err.name==="AbortError") return; } }
+  try{ await navigator.clipboard.writeText(full); toast((lang()==="fr")?"R\u00e9cit copi\u00e9":"Copied"); }catch(e){ toast(t("agent.busy")); }
+}catch(e){} }
 function _souvEdit(tr){ const el=document.getElementById("souvAgentCard"); if(!el||!tr) return;
   el.innerHTML=`<div class="souv-card"><div class="souv-h"><span class="souv-ic"><svg viewBox="0 0 24 24"><path d="M4 5.2A1.7 1.7 0 0 1 5.7 3.5H19v17H5.7A1.7 1.7 0 0 1 4 18.8z"/><path d="M8 3.5v17M11 8h5M11 11.6h5"/></svg></span><span>${st_("title")}</span></div>`
     +`<textarea id="souvEditTa" class="souv-edit-ta">${escapeHtml(tr.souvenirText||"")}</textarea>`
@@ -12559,10 +12606,12 @@ function paintSouvCard(tr){ const el=document.getElementById("souvAgentCard"); i
       +(_p.title?`<div class="souv-t">${escapeHtml(_p.title)}</div>`:``)
       +`<div class="souv-body">${escapeHtml(_p.body)}</div>`
       +`<div class="souv-styles">`+SOUV_STYLES.map(o=>`<button data-souvstyle="${o.k}" class="${(tr.souvenirStyle||"poetique")===o.k?"on":""}">${o[lang()]||o.fr}</button>`).join("")+`</div>`
-      +`<div class="souv-actions"><button class="btn ghostline2" id="souvEditBtn">\u270F\uFE0F ${(lang()==="fr")?"Modifier":(lang()==="es")?"Editar":(lang()==="it")?"Modifica":(lang()==="de")?"Bearbeiten":"Edit"}</button><button class="btn ghostline2" id="souvRegen">${st_("regen")}</button></div>`
+      +`<div class="souv-actions"><button class="btn ghostline2" id="souvEditBtn">\u270F\uFE0F ${(lang()==="fr")?"Modifier":(lang()==="es")?"Editar":(lang()==="it")?"Modifica":(lang()==="de")?"Bearbeiten":"Edit"}</button><button class="btn ghostline2" id="souvRegen">${st_("regen")}</button></div>`+`<button class="btn ghostline2" id="souvShare" style="margin-top:8px;width:100%">\uD83D\uDCE4 ${(lang()==="fr")?"Partager le r\u00e9cit":(lang()==="es")?"Compartir":(lang()==="it")?"Condividi":(lang()==="de")?"Teilen":"Share"}</button>`+`<button class="btn ghostline2" id="souvDays" style="margin-top:8px;width:100%">\uD83D\uDCC5 ${(lang()==="fr")?"R\u00e9cit par jour":(lang()==="es")?"Relato por d\u00eda":(lang()==="it")?"Racconto giorno per giorno":(lang()==="de")?"Tag f\u00fcr Tag":"Day by day"}</button>`+_souvDaysHtml(tr)
       +`<div class="souv-src">${escapeHtml(souvSourceLine(tr))}</div></div>`;
     const rb=document.getElementById("souvRegen"); if(rb) rb.onclick=()=>generateSouvenir(tr,true);
     const eb=document.getElementById("souvEditBtn"); if(eb) eb.onclick=()=>_souvEdit(tr);
+    const sh=document.getElementById("souvShare"); if(sh) sh.onclick=()=>_souvShare(tr);
+    const db=document.getElementById("souvDays"); if(db) db.onclick=()=>generateDayStories(tr);
     el.querySelectorAll("[data-souvstyle]").forEach(b=>b.onclick=()=>{ tr.souvenirStyle=b.dataset.souvstyle; saveState(); generateSouvenir(tr,true); });
   } else {
     el.innerHTML=`<div class="souv-card"><div class="souv-h"><span class="souv-ic"><svg viewBox="0 0 24 24"><path d="M4 5.2A1.7 1.7 0 0 1 5.7 3.5H19v17H5.7A1.7 1.7 0 0 1 4 18.8z"/><path d="M8 3.5v17M11 8h5M11 11.6h5"/></svg></span><span>${st_("title")}</span></div><div class="souv-hint">${st_("hint")}</div><button class="btn navy" id="souvGen" style="margin-top:12px;width:100%">${st_("gen")}</button></div>`;
