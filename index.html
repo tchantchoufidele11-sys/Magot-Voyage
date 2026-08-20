@@ -333,6 +333,7 @@ html.studio-open{overflow:hidden}
 .pcv-box{background:var(--surface);border-radius:20px;padding:18px;max-width:560px;width:100%;max-height:92vh;overflow:auto}
 .pcv-h{font:700 17px system-ui;color:var(--ink);text-align:center;margin-bottom:14px}
 .pcv-img{width:100%;border-radius:12px;margin-bottom:12px;box-shadow:0 6px 20px rgba(0,0,0,.18);display:block}
+.pcv-change{display:block;width:100%;margin:0 0 10px;background:var(--surface);border:1px solid var(--line);color:var(--ink-2);font:600 14px system-ui;padding:11px;border-radius:12px;cursor:pointer}
 .pcv-actions{display:flex;gap:10px;margin-top:4px}
 .pcv-actions>button{flex:1}
 .pcv-close{display:block;width:100%;margin-top:12px;background:none;border:0;color:var(--muted);font:600 15px system-ui;padding:10px;cursor:pointer}
@@ -342,6 +343,12 @@ html.studio-open{overflow:hidden}
 .pcp-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
 .pcp-tile{aspect-ratio:1;border:0;border-radius:12px;background-size:cover;background-position:center;background-color:var(--line);cursor:pointer}
 .souv-styles{display:flex;flex-wrap:wrap;gap:7px;margin-top:14px}
+.souv-h.souv-toggle{display:flex;align-items:center;gap:8px;width:100%;background:none;border:0;cursor:pointer;text-align:left;padding:0;font:inherit;color:inherit}
+.souv-chev{margin-left:auto;color:var(--muted);font-size:20px;transition:transform .25s ease;flex:0 0 auto}
+.souv-card.open .souv-chev{transform:rotate(90deg)}
+.souv-collapse{max-height:0;overflow:hidden;transition:max-height .35s ease}
+.souv-card.open .souv-collapse{max-height:5000px}
+
 .souv-days{margin-top:16px;border-top:1px solid var(--line);padding-top:14px}
 .souv-days-h{font:800 16px "Playfair Display",Georgia,serif;color:var(--ink);margin-bottom:10px}
 .souv-day{margin-bottom:12px}
@@ -8010,11 +8017,18 @@ function _pcSignature(x, X, Y, scale, col){ col=col||"#E9C46A"; x.textBaseline="
   return X+w+x.measureText("Voyage").width;
 }
 function _pcImgCORS(src){ return new Promise(r=>{ const im=new Image(); im.crossOrigin="anonymous"; im.onload=()=>r(im); im.onerror=()=>r(null); im.src=src; }); }
+async function _pcCityPhoto(tr){ try{
+  const q=((typeof tripCity==="function"?tripCity(tr):"")||_pcTitle(tr)||"").trim(); if(!q||typeof gText!=="function") return "";
+  const opts={}; const la=(tr.dest&&tr.dest.lat), ln=(tr.dest&&tr.dest.lng); if(la!=null&&ln!=null){ opts.lat=la; opts.lng=ln; }
+  const r=await gText(q,opts); const places=(r&&r.places)||[];
+  for(const p of places){ if(p.photos&&p.photos[0]&&p.photos[0].name) return p.photos[0].name; }
+  return "";
+}catch(e){ return ""; } }
 async function renderPostcardFront(tr, forced){
   const c=document.createElement("canvas"); c.width=PC_W; c.height=PC_H; const x=c.getContext("2d");
   let im=null, iw0=0, ih0=0;
   if(forced && forced.data){ im=await _pcImg(forced.data); if(im){ iw0=forced.w||im.naturalWidth||im.width; ih0=forced.h||im.naturalHeight||im.height; } }
-  if(!im){ try{ const ref=(typeof coverPhotoName==="function")?coverPhotoName(tr):""; if(ref && typeof gPhoto==="function"){ const url=gPhoto(ref,1600); const gi=await _pcImgCORS(url); if(gi){ im=gi; iw0=gi.naturalWidth||gi.width; ih0=gi.naturalHeight||gi.height; } } }catch(e){} }
+  if(!im){ try{ let ref=await _pcCityPhoto(tr); if(!ref && typeof coverPhotoName==="function") ref=coverPhotoName(tr); if(ref && typeof gPhoto==="function"){ const url=gPhoto(ref,1600); const gi=await _pcImgCORS(url); if(gi){ im=gi; iw0=gi.naturalWidth||gi.width; ih0=gi.naturalHeight||gi.height; } } }catch(e){} }
   if(!im){ const fp=(tr.memories||[])[0]; if(fp){ const bg=await photoData(fp.id); if(bg){ const ui=await _pcImg(bg.data); if(ui){ im=ui; iw0=bg.w; ih0=bg.h; } } } }
   if(im && iw0 && ih0){ const r=Math.max(PC_W/iw0,PC_H/ih0),iw=iw0*r,ih=ih0*r; try{ x.drawImage(im,(PC_W-iw)/2,(PC_H-ih)/2,iw,ih); }catch(e){ const g=x.createLinearGradient(0,0,PC_W,PC_H); g.addColorStop(0,"#0E2148"); g.addColorStop(1,"#1c3a6e"); x.fillStyle=g; x.fillRect(0,0,PC_W,PC_H); } }
   else { const g=x.createLinearGradient(0,0,PC_W,PC_H); g.addColorStop(0,"#0E2148"); g.addColorStop(1,"#1c3a6e"); x.fillStyle=g; x.fillRect(0,0,PC_W,PC_H); }
@@ -8104,17 +8118,16 @@ async function _pcSaveImage(dataUrl, name){
 }
 async function previewPostcard(){ const tr=(typeof souvTrip==="function"?souvTrip():currentTrip()); if(!tr){ toast(t("mem.noTrip")); return; } closeExport(); toast(t("mem.exporting"));
   try{
-    let forced=null; const hasIcon=(typeof coverPhotoName==="function")&&!!coverPhotoName(tr);
-    if(!hasIcon){ forced=await _pcPickPhoto(tr); if(!forced){ toast(t("mem.exportOffline")); return; } }
-    const front=await renderPostcardFront(tr, forced);
+    let forced=null;
+    let front=await renderPostcardFront(tr, forced);
     const back=renderPostcardBack(tr);
-    const frontUrl=front.toDataURL("image/jpeg",0.94);
+    let frontUrl=front.toDataURL("image/jpeg",0.94);
     const backUrl=back.toDataURL("image/jpeg",0.94);
     const fr=(typeof lang==="function"&&lang()==="fr");
     const ov=document.createElement("div"); ov.className="pc-preview";
     ov.innerHTML=`<div class="pcv-box"><div class="pcv-h">${fr?"Aper\u00e7u de ta carte postale":"Postcard preview"}</div>`
       +`<img class="pcv-img" src="${frontUrl}" alt="recto"/><img class="pcv-img" src="${backUrl}" alt="verso"/>`
-      +`<div class="pcv-actions"><button class="btn ghostline2" id="pcvImg">\uD83D\uDDBC\uFE0F ${fr?"Image":"Image"}</button><button class="btn navy" id="pcvPdf">\uD83D\uDCEE PDF</button></div>`
+      +`<button class="pcv-change" id="pcvChange">\uD83D\uDDBC\uFE0F ${fr?"Changer la photo":"Change photo"}</button>`+`<div class="pcv-actions"><button class="btn ghostline2" id="pcvImg">\uD83D\uDDBC\uFE0F ${fr?"Image":"Image"}</button><button class="btn navy" id="pcvPdf">\uD83D\uDCEE PDF</button></div>`
       +`<button class="pcv-close" id="pcvClose">${t("common.cancel")}</button></div>`;
     document.body.appendChild(ov);
     ov.querySelector("#pcvImg").onclick=()=>{ try{
@@ -8125,6 +8138,7 @@ async function previewPostcard(){ const tr=(typeof souvTrip==="function"?souvTri
     }catch(e){ _pcSaveImage(frontUrl, safeName(tr.name)+"_carte.jpg"); } };
     ov.querySelector("#pcvPdf").onclick=async()=>{ try{ await loadJsPDF(); const { jsPDF }=window.jspdf; const doc=new jsPDF({unit:"mm",format:"a6",orientation:"landscape"}); const W=doc.internal.pageSize.getWidth(),H=doc.internal.pageSize.getHeight(); doc.addImage(frontUrl,"JPEG",0,0,W,H,undefined,"FAST"); doc.addPage(); doc.addImage(backUrl,"JPEG",0,0,W,H,undefined,"FAST"); doc.save(safeName(tr.name)+"_carte_postale.pdf"); toast(t("mem.exportDone")); }catch(e){ toast(t("mem.exportOffline")); } };
     ov.querySelector("#pcvClose").onclick=()=>{ try{ov.remove();}catch(e){} };
+    const chg=ov.querySelector("#pcvChange"); if(chg) chg.onclick=async()=>{ const pd=await _pcPickPhoto(tr); if(!pd) return; toast(t("mem.exporting")); try{ front=await renderPostcardFront(tr, pd); const nu=front.toDataURL("image/jpeg",0.94); const im0=ov.querySelector('img[alt=\"recto\"]'); if(im0) im0.src=nu; frontUrl=nu; }catch(e){ toast(t("mem.exportOffline")); } };
   }catch(e){ toast(t("mem.exportOffline")); } }
 
 function openExport(){ const tr=(typeof souvTrip==="function"?souvTrip():currentTrip()); if(!tr){ toast(t("mem.noTrip")); return; }
@@ -12602,16 +12616,15 @@ function paintSouvCard(tr){ const el=document.getElementById("souvAgentCard"); i
   const saved=tr.souvenirText||"";
   if(saved){
     const _p=souvSplit(saved);
-    el.innerHTML=`<div class="souv-card"><div class="souv-h"><span class="souv-ic"><svg viewBox="0 0 24 24"><path d="M4 5.2A1.7 1.7 0 0 1 5.7 3.5H19v17H5.7A1.7 1.7 0 0 1 4 18.8z"/><path d="M8 3.5v17M11 8h5M11 11.6h5"/></svg></span><span>${st_("title")}</span></div>`
+    el.innerHTML=`<div class="souv-card open"><button type="button" class="souv-h souv-toggle" id="souvToggle"><span class="souv-ic"><svg viewBox="0 0 24 24"><path d="M4 5.2A1.7 1.7 0 0 1 5.7 3.5H19v17H5.7A1.7 1.7 0 0 1 4 18.8z"/><path d="M8 3.5v17M11 8h5M11 11.6h5"/></svg></span><span>${st_("title")}</span><span class="souv-chev">\u203A</span></button><div class="souv-collapse">`
       +(_p.title?`<div class="souv-t">${escapeHtml(_p.title)}</div>`:``)
       +`<div class="souv-body">${escapeHtml(_p.body)}</div>`
       +`<div class="souv-styles">`+SOUV_STYLES.map(o=>`<button data-souvstyle="${o.k}" class="${(tr.souvenirStyle||"poetique")===o.k?"on":""}">${o[lang()]||o.fr}</button>`).join("")+`</div>`
-      +`<div class="souv-actions"><button class="btn ghostline2" id="souvEditBtn">\u270F\uFE0F ${(lang()==="fr")?"Modifier":(lang()==="es")?"Editar":(lang()==="it")?"Modifica":(lang()==="de")?"Bearbeiten":"Edit"}</button><button class="btn ghostline2" id="souvRegen">${st_("regen")}</button></div>`+`<button class="btn ghostline2" id="souvShare" style="margin-top:8px;width:100%">\uD83D\uDCE4 ${(lang()==="fr")?"Partager le r\u00e9cit":(lang()==="es")?"Compartir":(lang()==="it")?"Condividi":(lang()==="de")?"Teilen":"Share"}</button>`+`<button class="btn ghostline2" id="souvDays" style="margin-top:8px;width:100%">\uD83D\uDCC5 ${(lang()==="fr")?"R\u00e9cit par jour":(lang()==="es")?"Relato por d\u00eda":(lang()==="it")?"Racconto giorno per giorno":(lang()==="de")?"Tag f\u00fcr Tag":"Day by day"}</button>`+_souvDaysHtml(tr)
-      +`<div class="souv-src">${escapeHtml(souvSourceLine(tr))}</div></div>`;
+      +`<div class="souv-actions"><button class="btn ghostline2" id="souvEditBtn">\u270F\uFE0F ${(lang()==="fr")?"Modifier":(lang()==="es")?"Editar":(lang()==="it")?"Modifica":(lang()==="de")?"Bearbeiten":"Edit"}</button><button class="btn ghostline2" id="souvRegen">${st_("regen")}</button></div>`+_souvDaysHtml(tr)
+      +`<div class="souv-src">${escapeHtml(souvSourceLine(tr))}</div></div></div>`;
+    const tg=document.getElementById("souvToggle"); if(tg) tg.onclick=()=>{ const c=tg.closest(".souv-card"); if(c) c.classList.toggle("open"); };
     const rb=document.getElementById("souvRegen"); if(rb) rb.onclick=()=>generateSouvenir(tr,true);
     const eb=document.getElementById("souvEditBtn"); if(eb) eb.onclick=()=>_souvEdit(tr);
-    const sh=document.getElementById("souvShare"); if(sh) sh.onclick=()=>_souvShare(tr);
-    const db=document.getElementById("souvDays"); if(db) db.onclick=()=>generateDayStories(tr);
     el.querySelectorAll("[data-souvstyle]").forEach(b=>b.onclick=()=>{ tr.souvenirStyle=b.dataset.souvstyle; saveState(); generateSouvenir(tr,true); });
   } else {
     el.innerHTML=`<div class="souv-card"><div class="souv-h"><span class="souv-ic"><svg viewBox="0 0 24 24"><path d="M4 5.2A1.7 1.7 0 0 1 5.7 3.5H19v17H5.7A1.7 1.7 0 0 1 4 18.8z"/><path d="M8 3.5v17M11 8h5M11 11.6h5"/></svg></span><span>${st_("title")}</span></div><div class="souv-hint">${st_("hint")}</div><button class="btn navy" id="souvGen" style="margin-top:12px;width:100%">${st_("gen")}</button></div>`;
