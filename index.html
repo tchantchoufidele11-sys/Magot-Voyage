@@ -9175,8 +9175,8 @@ async function studioFeed(w, tr){ if(!w||!tr) return;
   var _aimood=(sig&&sig.mood||"").toLowerCase(); var _mood=(_aimood==="cinema"||_aimood==="doux"||_aimood==="dynamique"||_aimood==="voyage")?_aimood:"voyage"; try{ w.studioAutoMontage({ items, mood:_mood, sign:true, signText:(sig||undefined), dayMarkers:true, project:("trip:"+tr.id), autoplay:false }); }catch(e){}
   /* format d\u2019origine par défaut (best-effort) */
   setTimeout(()=>{ try{
-    if(typeof w._origFmt==="function" && typeof w._setFormat==="function"){ const f=w._origFmt(); if(f&&f.w&&f.h) w._setFormat(f.w,f.h,"Origine"); }
-    else { const c=w.document&&w.document.querySelector('.fmc[data-n="orig"]'); if(c) c.click(); }
+    if(typeof w._applyOrigineFormat==="function"){ w._applyOrigineFormat(); }
+    else if(typeof w._origFmt==="function" && typeof w._setFormat==="function"){ const f=w._origFmt(); if(f&&f.w&&f.h) w._setFormat(f.w,f.h,"Origine"); }
   }catch(e){} }, 700);
 }
 function openStudio(tr,version,autoplay){ tr=tr||souvTrip(); if(!tr){ toast(t("mem.noTrip")); return; } _studioTrip=tr;

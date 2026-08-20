@@ -833,7 +833,7 @@ input[type=range]::-moz-range-thumb{width:22px;height:22px;border:0;border-radiu
 <main class="app">
   <header class="header">
     <div class="header-left"></div>
-    <div class="brand"><h1>Studio Magot<i>✦</i></h1><p>Montage vidéo · C288</p></div>
+    <div class="brand"><h1>Studio Magot<i>✦</i></h1><p>Montage vidéo · C290</p></div>
     <button class="export" id="expBtn"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 15V3m0 0L7 8m5-5l5 5M5 15v4h14v-4"/></svg> Exporter</button>
   </header>
 
@@ -1773,7 +1773,7 @@ function _mmtDraw(ctx,opt){
   var GOLD=(opt.band||_GOLD), WHITE=(opt.fill||_WHITE);
   var FF=(opt.font||"-apple-system,'SF Pro Display',system-ui,sans-serif"); var _szM=(+opt.sizeMul>0?+opt.sizeMul:1);
   /* TAILLES basées sur le PETIT COTE -> identiques en 9:16, 16:9, 4:5, 1:1 */
-  var fs=Math.max(13,Math.round(S*(role==="title"?0.058:0.047)*_szM));
+  var fs=Math.max(13,Math.round(S*(role==="title"?0.052:0.045)*_szM));   /* titres et corps harmonisés avec les sous-titres */
   var small=Math.max(11,Math.round(fs*0.52));
   var lh=fs*1.22, _cpos=(opt.pos||"bottom"), bottom=(_cpos==="top"?Math.round(H*0.17):(_cpos==="mid"?Math.round(H*0.5):H-Math.round(H*0.072))), beat=(opt.beat||0);
   var colText=S*0.86, colCard=S*0.76;
@@ -8252,7 +8252,7 @@ function _updateSub(){ try{ if(!_subEl){ var h=document.querySelector(".hero"); 
 try{ window.studioSetLyrics=function(lrc){ var n=_parseLRC(lrc); try{ setState(n?("Karaok\u00e9 : "+n+" lignes charg\u00e9es."):"Paroles vid\u00e9es."); }catch(e){} return n; }; window._SUBS=function(){ return SUBS; }; if(window.STUDIO_SUBS_ON===undefined) window.STUDIO_SUBS_ON=true; window.studioSetSubs=function(on){ window.STUDIO_SUBS_ON=!!on; try{ if(!on && _subEl) _subEl.style.opacity="0"; }catch(e){} return window.STUDIO_SUBS_ON; }; }catch(e){}
 function _subExpTime(t){ try{ if(window.LOOP_ON){ var md=(window.MUSIC_DUR||(A?A.dur:0))||1; return t%md; } return t; }catch(e){ return t; } }
 function _drawSubOnCanvas(cx, W, H, mt){ try{ if(!SUBS.length||!cx) return; var line=_subAt(mt); if(!line) return;
-  cx.save(); var fs=Math.max(14,Math.round(H*0.042)); cx.font="700 "+fs+"px 'Playfair Display',Georgia,serif"; cx.textAlign="center"; cx.textBaseline="bottom";
+  cx.save(); var fs=Math.max(14,Math.round(Math.min(W,H)*0.05));   /* même base que les légendes -> tailles cohérentes */ cx.font="700 "+fs+"px 'Playfair Display',Georgia,serif"; cx.textAlign="center"; cx.textBaseline="bottom";
   var maxW=W*0.86, words=line.split(" "), lns=[], cur=""; for(var i=0;i<words.length;i++){ var tst=cur?(cur+" "+words[i]):words[i]; if(cx.measureText(tst).width>maxW && cur){ lns.push(cur); cur=words[i]; } else cur=tst; } if(cur) lns.push(cur);
   var lh=fs*1.32, base=H*0.76; for(var j=lns.length-1;j>=0;j--){ var ty=base-(lns.length-1-j)*lh; cx.shadowColor="rgba(0,0,0,.85)"; cx.shadowBlur=fs*0.45; cx.shadowOffsetX=0; cx.shadowOffsetY=2; cx.fillStyle="#ffffff"; cx.fillText(lns[j], W/2, ty); }
   cx.restore(); }catch(e){} }
@@ -8340,6 +8340,7 @@ function _paintAllRanges(){ try{ var r=document.querySelectorAll('input[type=ran
 document.addEventListener("input",function(e){ if(e.target&&e.target.type==="range") _paintRange(e.target); },true);
 function _curPlanTrackIdx(){ if(!window.MULTI||!window.MPLAN||!window.MPLAN.length) return -1; var m=(typeof montageNow==="function")?montageNow():0; var plan=window.MPLAN; for(var i=plan.length-1;i>=0;i--){ if(m>=plan[i].mStart-0.001) return plan[i].ti; } return plan[0].ti; }
 /* Applique le format ORIGINE de façon robuste : réessaie jusqu'à ce que les photos aient de vraies dimensions */
+window._applyOrigineFormat=_applyOrigineFormat;
 function _applyOrigineFormat(){ try{
   if(typeof _origFmt!=="function" || !window._setFormat) return;
   var _t=0;
