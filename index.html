@@ -8083,7 +8083,8 @@ function renderPostcardBack(tr){
   x.fillStyle="#2a2a2a"; x.font="700 40px Georgia, serif"; x.fillText(_pcTitle(tr),108,150);
   const dr=fmtRange(tr.dateStart,tr.dateEnd); if(dr){ x.fillStyle="#8a7f66"; x.font="400 26px Helvetica, sans-serif"; x.fillText(dr,108,192); }
   x.fillStyle="#3a3a3a"; x.font="400 30px Georgia, serif";
-  const txt=(tr.souvenirText||"").trim()|| (lang()==="fr"?"Un beau souvenir de voyage, \u00e0 garder pr\u00e9cieusement.":"A beautiful travel memory to cherish.");
+  function _pcShort(t){ t=String(t||"").replace(/\s+/g," ").trim(); if(!t) return ""; const m=t.match(/[^.!?\u2026]+[.!?\u2026]+/g); if(!m) return t; let out=""; for(let i=0;i<m.length && i<4;i++){ out+=m[i]; } return out.trim()||t; }
+  const txt=_pcShort(tr.souvenirText||"")|| (lang()==="fr"?"Un beau souvenir de voyage, \u00e0 garder pr\u00e9cieusement.":"A beautiful travel memory to cherish.");
   _pcWrap(x,txt,108,250,PC_W*0.56-160,44,14);
   /* cote droit : timbre + lignes d'adresse */
   const sx=PC_W-260,sy=120,sw=150,sh=180;
@@ -12636,13 +12637,11 @@ function paintSouvCard(tr){ const el=document.getElementById("souvAgentCard"); i
     el.innerHTML=`<div class="souv-card open"><button type="button" class="souv-h souv-toggle" id="souvToggle"><span class="souv-ic"><svg viewBox="0 0 24 24"><path d="M4 5.2A1.7 1.7 0 0 1 5.7 3.5H19v17H5.7A1.7 1.7 0 0 1 4 18.8z"/><path d="M8 3.5v17M11 8h5M11 11.6h5"/></svg></span><span>${st_("title")}</span><span class="souv-chev">\u203A</span></button><div class="souv-collapse">`
       +(_p.title?`<div class="souv-t">${escapeHtml(_p.title)}</div>`:``)
       +`<div class="souv-body">${escapeHtml(_p.body)}</div>`
-      +`<div class="souv-styles">`+SOUV_STYLES.map(o=>`<button data-souvstyle="${o.k}" class="${(tr.souvenirStyle||"poetique")===o.k?"on":""}">${o[lang()]||o.fr}</button>`).join("")+`</div>`
       +`<div class="souv-actions"><button class="btn ghostline2" id="souvEditBtn">\u270F\uFE0F ${(lang()==="fr")?"Modifier":(lang()==="es")?"Editar":(lang()==="it")?"Modifica":(lang()==="de")?"Bearbeiten":"Edit"}</button><button class="btn ghostline2" id="souvRegen">${st_("regen")}</button></div>`
       +`<div class="souv-src">${escapeHtml(souvSourceLine(tr))}</div></div></div>`;
     const tg=document.getElementById("souvToggle"); if(tg) tg.onclick=()=>{ const c=tg.closest(".souv-card"); if(c) c.classList.toggle("open"); };
     const rb=document.getElementById("souvRegen"); if(rb) rb.onclick=()=>generateSouvenir(tr,true);
     const eb=document.getElementById("souvEditBtn"); if(eb) eb.onclick=()=>_souvEdit(tr);
-    el.querySelectorAll("[data-souvstyle]").forEach(b=>b.onclick=()=>{ tr.souvenirStyle=b.dataset.souvstyle; saveState(); generateSouvenir(tr,true); });
   } else {
     el.innerHTML=`<div class="souv-card"><div class="souv-h"><span class="souv-ic"><svg viewBox="0 0 24 24"><path d="M4 5.2A1.7 1.7 0 0 1 5.7 3.5H19v17H5.7A1.7 1.7 0 0 1 4 18.8z"/><path d="M8 3.5v17M11 8h5M11 11.6h5"/></svg></span><span>${st_("title")}</span></div><div class="souv-hint">${st_("hint")}</div><button class="btn navy" id="souvGen" style="margin-top:12px;width:100%">${st_("gen")}</button></div>`;
     const gb=document.getElementById("souvGen"); if(gb) gb.onclick=()=>generateSouvenir(tr,false);
@@ -12712,7 +12711,7 @@ async function generateSouvenir(tr,regen){ const el=document.getElementById("sou
     etapes:_etapes.length?_etapes.join("\n"):"aucune étape enregistrée",
     notes:_notes.length?_notes.join("\n"):"aucune note écrite par le voyageur",
     legendes:_legendes.length?_legendes.join("\n"):"aucune légende",
-    regles:_souvRegles(tr.souvenirStyle||"poetique") };
+    regles:"\u00c9cris un court r\u00e9sum\u00e9 du voyage \u00e0 la mani\u00e8re d'une belle carte postale : 3 \u00e0 4 phrases maximum, chaleureux et \u00e9vocateur, \u00e0 la premi\u00e8re personne (\u00ab je \u00bb / \u00ab nous \u00bb), comme un petit mot envoy\u00e9 \u00e0 un proche. Commence par une premi\u00e8re ligne courte servant de titre. N'invente aucun fait, aucun lieu, aucune date absent des \u00e9tapes, notes ou l\u00e9gendes ci-dessus. Reste bref : mieux vaut court et vrai que long et invent\u00e9." };
   const out=await workerFetch("/agent/souvenir",payload);
   if(out&&out.text){ tr.souvenirText=out.text.trim().replace(/^[«"'"]\s*([\s\S]*?)\s*[»"'"]$/,"$1"); saveState(); paintSouvCard(tr); }
   else { paintSouvCard(tr); toast(t("agent.busy")); }
