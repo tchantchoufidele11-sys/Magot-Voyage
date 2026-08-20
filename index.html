@@ -8062,7 +8062,7 @@ function _pcPickPhoto(tr){ return new Promise(resolve=>{ try{
   document.body.appendChild(ov);
   try{ if(typeof hydratePhotos==="function") hydratePhotos(ov); }catch(e){}
 }catch(e){ resolve(null); } }); }
-async function exportPostcard(kind){ const tr=currentTrip(); if(!tr){ toast(t("mem.noTrip")); return; } closeExport(); toast(t("mem.exporting"));
+async function exportPostcard(kind){ const tr=(typeof souvTrip==="function"?souvTrip():currentTrip()); if(!tr){ toast(t("mem.noTrip")); return; } closeExport(); toast(t("mem.exporting"));
   try{
     let forced=null;
     const hasIcon=(typeof coverPhotoName==="function")&&!!coverPhotoName(tr);
@@ -8079,7 +8079,17 @@ async function exportPostcard(kind){ const tr=currentTrip(); if(!tr){ toast(t("m
     doc.save(safeName(tr.name)+"_carte_postale.pdf"); toast(t("mem.exportDone"));
   }catch(e){ toast(t("mem.exportOffline")); } }
 
-async function previewPostcard(){ const tr=currentTrip(); if(!tr){ toast(t("mem.noTrip")); return; } closeExport(); toast(t("mem.exporting"));
+async function _pcSaveImage(dataUrl, name){
+  try{
+    const res=await fetch(dataUrl); const blob=await res.blob();
+    try{ const file=new File([blob], name, {type:"image/jpeg"});
+      if(navigator.canShare && navigator.canShare({files:[file]})){ try{ await navigator.share({files:[file], title:name}); return; }catch(err){ if(err && err.name==="AbortError") return; } }
+    }catch(e){}
+    const url=URL.createObjectURL(blob); const a=document.createElement("a"); a.href=url; a.download=name; document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(()=>{ try{ URL.revokeObjectURL(url); }catch(e){} }, 5000);
+  }catch(e){ try{ window.open(dataUrl,"_blank"); }catch(_){} }
+}
+async function previewPostcard(){ const tr=(typeof souvTrip==="function"?souvTrip():currentTrip()); if(!tr){ toast(t("mem.noTrip")); return; } closeExport(); toast(t("mem.exporting"));
   try{
     let forced=null; const hasIcon=(typeof coverPhotoName==="function")&&!!coverPhotoName(tr);
     if(!hasIcon){ forced=await _pcPickPhoto(tr); if(!forced){ toast(t("mem.exportOffline")); return; } }
@@ -8094,12 +8104,12 @@ async function previewPostcard(){ const tr=currentTrip(); if(!tr){ toast(t("mem.
       +`<div class="pcv-actions"><button class="btn ghostline2" id="pcvImg">\uD83D\uDDBC\uFE0F ${fr?"Image":"Image"}</button><button class="btn navy" id="pcvPdf">\uD83D\uDCEE PDF</button></div>`
       +`<button class="pcv-close" id="pcvClose">${t("common.cancel")}</button></div>`;
     document.body.appendChild(ov);
-    ov.querySelector("#pcvImg").onclick=()=>{ downloadDataUrl(frontUrl, safeName(tr.name)+"_carte.jpg"); toast(t("mem.exportDone")); };
+    ov.querySelector("#pcvImg").onclick=()=>{ _pcSaveImage(frontUrl, safeName(tr.name)+"_carte.jpg"); };
     ov.querySelector("#pcvPdf").onclick=async()=>{ try{ await loadJsPDF(); const { jsPDF }=window.jspdf; const doc=new jsPDF({unit:"mm",format:"a6",orientation:"landscape"}); const W=doc.internal.pageSize.getWidth(),H=doc.internal.pageSize.getHeight(); doc.addImage(frontUrl,"JPEG",0,0,W,H,undefined,"FAST"); doc.addPage(); doc.addImage(backUrl,"JPEG",0,0,W,H,undefined,"FAST"); doc.save(safeName(tr.name)+"_carte_postale.pdf"); toast(t("mem.exportDone")); }catch(e){ toast(t("mem.exportOffline")); } };
     ov.querySelector("#pcvClose").onclick=()=>{ try{ov.remove();}catch(e){} };
   }catch(e){ toast(t("mem.exportOffline")); } }
 
-function openExport(){ const tr=currentTrip(); if(!tr){ toast(t("mem.noTrip")); return; }
+function openExport(){ const tr=(typeof souvTrip==="function"?souvTrip():currentTrip()); if(!tr){ toast(t("mem.noTrip")); return; }
   document.getElementById("exportHd").textContent=t("mem.export");
   const b=document.getElementById("exportBody");
   const _L=(typeof lang==="function"&&lang())||"fr"; const _t2=(o)=>o[_L]||o.fr;
@@ -8113,7 +8123,7 @@ function openExport(){ const tr=currentTrip(); if(!tr){ toast(t("mem.noTrip")); 
   b.querySelector("#exPdf").onclick=exportPDF; b.querySelector("#exImg").onclick=exportImage;
   document.getElementById("exportSheet").classList.add("show"); }
 function closeExport(){ document.getElementById("exportSheet").classList.remove("show"); }
-async function exportPDF(){ const tr=currentTrip(); if(!tr) return; closeExport(); toast(t("mem.exporting"));
+async function exportPDF(){ const tr=(typeof souvTrip==="function"?souvTrip():currentTrip()); if(!tr) return; closeExport(); toast(t("mem.exporting"));
   try{ await loadJsPDF(); }catch(e){ toast(t("mem.exportOffline")); return; }
   try{ const { jsPDF }=window.jspdf; const doc=new jsPDF({unit:"pt",format:"a4"});
     const W=doc.internal.pageSize.getWidth(), H=doc.internal.pageSize.getHeight(), M=44;
@@ -8147,7 +8157,7 @@ async function exportPDF(){ const tr=currentTrip(); if(!tr) return; closeExport(
     doc.save(safeName(tr.name)+".pdf"); toast(t("mem.exportDone"));
   }catch(e){ toast(t("mem.exportOffline")); } }
 function wrapCanvas(x,text,X,Y,maxW,lh){ const words=String(text||"").split(/\s+/); let line="",yy=Y; for(const w of words){ const tst=line?line+" "+w:w; if(x.measureText(tst).width>maxW&&line){ x.fillText(line,X,yy); line=w; yy+=lh; } else line=tst; } if(line){ x.fillText(line,X,yy); } return yy; }
-async function exportImage(){ const tr=currentTrip(); if(!tr) return; closeExport(); toast(t("mem.exporting"));
+async function exportImage(){ const tr=(typeof souvTrip==="function"?souvTrip():currentTrip()); if(!tr) return; closeExport(); toast(t("mem.exporting"));
   try{ const Wd=1080,Hd=1350; const c=document.createElement("canvas"); c.width=Wd; c.height=Hd; const x=c.getContext("2d");
     let bg=null; const fp=(tr.memories||[])[0]; if(fp){ bg=await photoData(fp.id); }
     if(bg){ const im=new Image(); await new Promise(res=>{ im.onload=res; im.onerror=res; im.src=bg.data; }); const r=Math.max(Wd/bg.w,Hd/bg.h),iw=bg.w*r,ih=bg.h*r; x.drawImage(im,(Wd-iw)/2,(Hd-ih)/2,iw,ih); const g=x.createLinearGradient(0,0,0,Hd); g.addColorStop(0,"rgba(8,16,38,.34)"); g.addColorStop(1,"rgba(8,16,38,.93)"); x.fillStyle=g; x.fillRect(0,0,Wd,Hd); }
