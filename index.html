@@ -327,6 +327,7 @@ html.studio-open{overflow:hidden}
 .pt-act{display:flex;align-items:center;gap:8px;width:100%;background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:13px 14px;font:600 15px system-ui;color:var(--ink);cursor:pointer;text-align:left}
 .pt-act:active{transform:scale(.99)}
 .pt-film{background:linear-gradient(135deg,#D4AF37,#b8952f);color:#1a1710;border-color:#D4AF37}
+.folder-title{font-family:"Playfair Display",Georgia,serif;font-weight:800;font-size:26px;color:var(--ink);margin:10px 2px 14px;line-height:1.15}
 
 
 #memChips{gap:6px}
@@ -7963,10 +7964,90 @@ function loadJsPDF(){ if(window.jspdf&&window.jspdf.jsPDF) return Promise.resolv
 function photoData(id){ return new Promise(resolve=>{ loadMedia(id).then(d=>{ if(!d){ resolve(null); return; } const im=new Image(); im.onload=()=>resolve({data:d,w:im.naturalWidth||im.width||1,h:im.naturalHeight||im.height||1}); im.onerror=()=>resolve(null); im.src=d; }).catch(()=>resolve(null)); }); }
 function safeName(s){ return String(s||"voyage").replace(/[^\w\-]+/g,"_").slice(0,60)||"voyage"; }
 function downloadDataUrl(url,name){ const a=document.createElement("a"); a.href=url; a.download=name; document.body.appendChild(a); a.click(); a.remove(); }
+
+/* ===== CARTE POSTALE (recto photo + verso message) — A6 148x105mm ===== */
+const PC_W=1748, PC_H=1240; /* A6 paysage @ 300dpi */
+function _pcImg(src){ return new Promise(r=>{ const im=new Image(); im.onload=()=>r(im); im.onerror=()=>r(null); im.src=src; }); }
+function _pcTitle(tr){ return (tr.dest&&tr.dest.name)||tr.name||"\u2014"; }
+function _pcWrap(x,text,X,Y,maxW,lh,max){ const words=String(text||"").split(/\s+/); let line="",yy=Y,n=0; for(const w of words){ const tst=line?line+" "+w:w; if(x.measureText(tst).width>maxW&&line){ x.fillText(line,X,yy); line=w; yy+=lh; n++; if(max&&n>=max){ return yy; } } else line=tst; } if(line) x.fillText(line,X,yy); return yy; }
+function _pcSpaced(x,txt,X,Y,sp){ let cx=X; for(const ch of String(txt)){ x.fillText(ch,cx,Y); cx+=x.measureText(ch).width+sp; } return cx; }
+
+async function renderPostcardFront(tr){
+  const c=document.createElement("canvas"); c.width=PC_W; c.height=PC_H; const x=c.getContext("2d");
+  const fp=(tr.memories||[])[0]; let bg=fp?await photoData(fp.id):null;
+  if(bg){ const im=await _pcImg(bg.data); if(im){ const r=Math.max(PC_W/bg.w,PC_H/bg.h),iw=bg.w*r,ih=bg.h*r; x.drawImage(im,(PC_W-iw)/2,(PC_H-ih)/2,iw,ih); } }
+  else { const g=x.createLinearGradient(0,0,PC_W,PC_H); g.addColorStop(0,"#0E2148"); g.addColorStop(1,"#1c3a6e"); x.fillStyle=g; x.fillRect(0,0,PC_W,PC_H); }
+  /* scrim bas pour lisibilite */
+  const g=x.createLinearGradient(0,PC_H*0.42,0,PC_H); g.addColorStop(0,"rgba(9,14,28,0)"); g.addColorStop(1,"rgba(9,14,28,.88)"); x.fillStyle=g; x.fillRect(0,0,PC_W,PC_H);
+  /* cadre blanc facon carte postale */
+  x.strokeStyle="rgba(255,255,255,.92)"; x.lineWidth=9; x.strokeRect(46,46,PC_W-92,PC_H-92);
+  /* label "SOUVENIR DE" */
+  x.fillStyle="#E9C46A"; x.font="700 34px Helvetica, Arial, sans-serif"; x.textBaseline="alphabetic"; _pcSpaced(x,"SOUVENIR DE",108,PC_H-268,7);
+  /* titre destination */
+  x.fillStyle="#ffffff"; x.font="700 96px Georgia, 'Times New Roman', serif"; _pcWrap(x,_pcTitle(tr),108,PC_H-168,PC_W-360,96,2);
+  /* dates */
+  const dr=fmtRange(tr.dateStart,tr.dateEnd); if(dr){ x.fillStyle="rgba(255,255,255,.94)"; x.font="400 42px Helvetica, Arial, sans-serif"; x.fillText(dr,108,PC_H-96); }
+  /* branding */
+  x.fillStyle="rgba(255,255,255,.8)"; x.font="600 26px Helvetica, Arial, sans-serif"; _pcSpaced(x,"MAGOT VOYAGE",108,PC_H-58,3);
+  /* timbre decoratif haut-droite */
+  const sw=150,sh=182,sx=PC_W-sw-96,sy=96;
+  x.save(); x.setLineDash([9,9]); x.strokeStyle="rgba(255,255,255,.9)"; x.lineWidth=5; x.strokeRect(sx,sy,sw,sh); x.restore();
+  x.fillStyle="rgba(255,255,255,.16)"; x.fillRect(sx+14,sy+14,sw-28,sh-28);
+  x.fillStyle="rgba(255,255,255,.92)"; x.font="700 60px Georgia, serif"; x.textAlign="center"; x.fillText("\u2708",sx+sw/2,sy+sh/2+8);
+  x.font="600 20px Helvetica, sans-serif"; x.fillText(String((tr.dateEnd||"").slice(0,4)||""),sx+sw/2,sy+sh-24); x.textAlign="left";
+  return c;
+}
+
+function renderPostcardBack(tr){
+  const c=document.createElement("canvas"); c.width=PC_W; c.height=PC_H; const x=c.getContext("2d");
+  /* fond papier creme */
+  x.fillStyle="#faf7ef"; x.fillRect(0,0,PC_W,PC_H);
+  x.strokeStyle="#d9cfb8"; x.lineWidth=6; x.strokeRect(46,46,PC_W-92,PC_H-92);
+  /* ligne verticale de separation */
+  x.strokeStyle="#d4c9b0"; x.lineWidth=3; x.beginPath(); x.moveTo(PC_W*0.56,120); x.lineTo(PC_W*0.56,PC_H-120); x.stroke();
+  /* cote gauche : le recit (message) */
+  x.fillStyle="#2a2a2a"; x.font="700 40px Georgia, serif"; x.fillText(_pcTitle(tr),108,150);
+  const dr=fmtRange(tr.dateStart,tr.dateEnd); if(dr){ x.fillStyle="#8a7f66"; x.font="400 26px Helvetica, sans-serif"; x.fillText(dr,108,192); }
+  x.fillStyle="#3a3a3a"; x.font="400 30px Georgia, serif";
+  const txt=(tr.souvenirText||"").trim()|| (lang()==="fr"?"Un beau souvenir de voyage, \u00e0 garder pr\u00e9cieusement.":"A beautiful travel memory to cherish.");
+  _pcWrap(x,txt,108,250,PC_W*0.56-160,44,14);
+  /* cote droit : timbre + lignes d'adresse */
+  const sx=PC_W-260,sy=120,sw=150,sh=180;
+  x.save(); x.setLineDash([8,8]); x.strokeStyle="#c9bfa6"; x.lineWidth=4; x.strokeRect(sx,sy,sw,sh); x.restore();
+  x.fillStyle="#efe7d4"; x.fillRect(sx+12,sy+12,sw-24,sh-24);
+  x.fillStyle="#b7a884"; x.font="700 52px Georgia, serif"; x.textAlign="center"; x.fillText("\u2708",sx+sw/2,sy+sh/2+6);
+  x.font="600 18px Helvetica, sans-serif"; x.fillText("MAGOT",sx+sw/2,sy+sh-20); x.textAlign="left";
+  x.strokeStyle="#d4c9b0"; x.lineWidth=2; for(let i=0;i<5;i++){ const ly=sy+sh+70+i*54; x.beginPath(); x.moveTo(PC_W*0.6,ly); x.lineTo(PC_W-108,ly); x.stroke(); }
+  x.fillStyle="#b7a884"; x.font="600 22px Helvetica, sans-serif"; _pcSpaced(x,"MAGOT VOYAGE",108,PC_H-70,3);
+  return c;
+}
+
+async function exportPostcard(kind){ const tr=currentTrip(); if(!tr){ toast(t("mem.noTrip")); return; } closeExport(); toast(t("mem.exporting"));
+  try{
+    const front=await renderPostcardFront(tr);
+    if(kind==="img"){ downloadDataUrl(front.toDataURL("image/jpeg",0.94), safeName(tr.name)+"_carte.jpg"); toast(t("mem.exportDone")); return; }
+    /* PDF recto-verso A6 paysage */
+    await loadJsPDF();
+    const { jsPDF }=window.jspdf; const doc=new jsPDF({unit:"mm",format:"a6",orientation:"landscape"});
+    const W=doc.internal.pageSize.getWidth(), H=doc.internal.pageSize.getHeight();
+    doc.addImage(front.toDataURL("image/jpeg",0.94),"JPEG",0,0,W,H,undefined,"FAST");
+    const back=renderPostcardBack(tr);
+    doc.addPage(); doc.addImage(back.toDataURL("image/jpeg",0.94),"JPEG",0,0,W,H,undefined,"FAST");
+    doc.save(safeName(tr.name)+"_carte_postale.pdf"); toast(t("mem.exportDone"));
+  }catch(e){ toast(t("mem.exportOffline")); } }
+
 function openExport(){ const tr=currentTrip(); if(!tr){ toast(t("mem.noTrip")); return; }
   document.getElementById("exportHd").textContent=t("mem.export");
   const b=document.getElementById("exportBody");
-  b.innerHTML=`<button class="btn navy block" id="exPdf">📄 ${t("mem.exportPdf")}</button><button class="btn ghostline2 block" id="exImg" style="margin-top:10px">🖼️ ${t("mem.exportImg")}</button><p class="est-disc">${t("mem.exportHint")}</p><div style="height:6px"></div>`;
+  const _L=(typeof lang==="function"&&lang())||"fr"; const _t2=(o)=>o[_L]||o.fr;
+  b.innerHTML=`<div style="font:700 13px system-ui;letter-spacing:1px;color:#8a93a5;margin:2px 0 8px">${_t2({fr:"CARTE POSTALE",en:"POSTCARD",es:"POSTAL",it:"CARTOLINA",de:"POSTKARTE"})}</div>`
+    +`<button class="btn navy block" id="exPcImg">🖼️ ${_t2({fr:"Carte postale (image)",en:"Postcard (image)",es:"Postal (imagen)",it:"Cartolina (immagine)",de:"Postkarte (Bild)"})}</button>`
+    +`<button class="btn navy block" id="exPcPdf" style="margin-top:10px">📮 ${_t2({fr:"Carte postale (PDF à imprimer)",en:"Postcard (printable PDF)",es:"Postal (PDF)",it:"Cartolina (PDF)",de:"Postkarte (PDF)"})}</button>`
+    +`<div style="font:700 13px system-ui;letter-spacing:1px;color:#8a93a5;margin:18px 0 8px">${_t2({fr:"CARNET COMPLET",en:"FULL JOURNAL",es:"CUADERNO",it:"DIARIO",de:"REISEBUCH"})}</div>`
+    +`<button class="btn ghostline2 block" id="exPdf">📄 ${t("mem.exportPdf")}</button>`
+    +`<button class="btn ghostline2 block" id="exImg" style="margin-top:10px">🖼️ ${t("mem.exportImg")}</button>`
+    +`<p class="est-disc">${t("mem.exportHint")}</p><div style="height:6px"></div>`;
+  b.querySelector("#exPcImg").onclick=()=>exportPostcard("img"); b.querySelector("#exPcPdf").onclick=()=>exportPostcard("pdf");
   b.querySelector("#exPdf").onclick=exportPDF; b.querySelector("#exImg").onclick=exportImage;
   document.getElementById("exportSheet").classList.add("show"); }
 function closeExport(){ document.getElementById("exportSheet").classList.remove("show"); }
@@ -12508,7 +12589,7 @@ function openDayAdd(dayVal){ const tr=souvTrip(); if(!tr){ toast(t("mem.noTrip")
 function renderMemories(){ const body=document.getElementById("memBody"); if(!body) return; const chips=document.getElementById("memChips"); const tr=souvTrip();
   const viewingPast=!!souvState.tripId; const _past=S.trips.filter(x=>tripArchived(x)).sort((a,b)=>(b.dateEnd||"").localeCompare(a.dateEnd||""));
   const _pastHtml=(!viewingPast&&_past.length)?_pastTripsHtml(_past):"";
-  const _backHtml=viewingPast?`<button class="mem-back" id="memBack">← ${t("mem.pastTrips")}</button>`:"";
+  const _backHtml=viewingPast?`<button class="mem-back" id="memBack">← ${t("mem.pastTrips")}</button><div class="folder-title">${escapeHtml(tripTitle(tr))}</div>`:"";
   const _bilanBtn=(tr&&tripFinished(tr))?`<button class="mem-bilan" id="memBilan">📊 ${t("bilan.title")}</button>`:"";
   const _delBtn=viewingPast?`<button class="mem-del" id="memDel">${t("mem.deleteTrip")}</button>`:"";
   const _bindExtra=()=>{ body.querySelectorAll("[data-pasttrip]").forEach(b=>b.onclick=()=>{ souvState.tripId=b.dataset.pasttrip; souvState.filter="all"; souvState.dayView=null; renderMemories(); });
