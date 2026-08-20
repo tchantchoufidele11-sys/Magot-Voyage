@@ -9199,7 +9199,7 @@ function openStudio(tr,version,autoplay){ tr=tr||souvTrip()||null; _studioTrip=t
   ov.classList.add("show"); document.documentElement.classList.add("studio-open"); _studioSync();
 }
 function closeStudio(){ const ov=document.getElementById("studioOverlay"); if(ov) ov.classList.remove("show"); document.documentElement.classList.remove("studio-open"); }
-function openMontage(tr,version,autoplay){ tr=tr||souvTrip(); if(!tr) return; return openStudio(tr,version,autoplay); /* --- ancien moteur inline désactivé : Studio Magot prend le relais --- */ _mvState.style=""; _mvState.pace=1; _mvState.soft=false; _mvState.grade="natural"; _mvState.fx=""; _mvState.overlay=""; _mvState.overlayTr=""; if(_mvState.overlayInt==null) _mvState.overlayInt=0.55; try{ overlayCatalog(); }catch(e){} let _dir=null;
+function openMontage(tr,version,autoplay){ tr=tr||souvTrip()||null; return openStudio(tr,version,autoplay); /* --- ancien moteur inline désactivé : Studio Magot prend le relais --- */ _mvState.style=""; _mvState.pace=1; _mvState.soft=false; _mvState.grade="natural"; _mvState.fx=""; _mvState.overlay=""; _mvState.overlayTr=""; if(_mvState.overlayInt==null) _mvState.overlayInt=0.55; try{ overlayCatalog(); }catch(e){} let _dir=null;
   if(version==="director"){ _dir=mvApplyDirector(tr); } else if(version) mvApplyVersion(version);
   const mems=(tr.memories||[]).slice();
   let ov=document.getElementById("mvOv"); if(ov) ov.remove();
@@ -12457,7 +12457,7 @@ function renderMemories(){ const body=document.getElementById("memBody"); if(!bo
   const _bilanBtn=(tr&&tripFinished(tr))?`<button class="mem-bilan" id="memBilan">📊 ${t("bilan.title")}</button>`:"";
   const _delBtn=viewingPast?`<button class="mem-del" id="memDel">${t("mem.deleteTrip")}</button>`:"";
   const _bindExtra=()=>{ body.querySelectorAll("[data-pasttrip]").forEach(b=>b.onclick=()=>{ souvState.tripId=b.dataset.pasttrip; souvState.filter="all"; souvState.dayView=null; renderMemories(); }); const bk=body.querySelector("#memBack"); if(bk) bk.onclick=()=>{ souvState.tripId=null; souvState.dayView=null; renderMemories(); }; const mb=body.querySelector("#memBilan"); if(mb) mb.onclick=()=>openBilan(tr); const md=body.querySelector("#memDel"); if(md) md.onclick=()=>protectedDeleteTrip(tr); };
-  if(!tr){ if(chips) chips.innerHTML=""; body.innerHTML=_pastHtml||`<div class="empty" style="padding:30px 18px"><p>${t("mem.noTrip")}</p></div>`; _bindExtra(); return; }
+  if(!tr){ if(chips) chips.innerHTML=""; var _blankBtn='<div style="text-align:center;margin:6px 0 24px"><button onclick="openStudio(null)" style="background:linear-gradient(135deg,#D4AF37,#b8952f);color:#1a1710;border:0;font:700 15px system-ui;padding:13px 22px;border-radius:14px;cursor:pointer;box-shadow:0 4px 16px rgba(212,175,55,.35)">\uD83C\uDFAC '+( {fr:"Cr\u00e9er un film",en:"Create a film",es:"Crear una pel\u00edcula",it:"Crea un film",de:"Film erstellen"}[_studioLang&&_studioLang()||"fr"]||"Cr\u00e9er un film")+'</button></div>'; body.innerHTML=(_pastHtml||`<div class="empty" style="padding:30px 18px;text-align:center"><p>${t("mem.noTrip")}</p></div>`)+_blankBtn; _bindExtra(); return; }
   renderMemChips();
   const mems=(tr.memories||[]).slice().sort((a,b)=>(b.createdAt||0)-(a.createdAt||0));
   const places=tr.places||[], f=souvState.filter;
