@@ -333,6 +333,10 @@ html.studio-open{overflow:hidden}
 .pcp-h{font:700 18px system-ui;color:var(--ink);text-align:center;margin-bottom:14px}
 .pcp-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
 .pcp-tile{aspect-ratio:1;border:0;border-radius:12px;background-size:cover;background-position:center;background-color:var(--line);cursor:pointer}
+.souv-styles{display:flex;flex-wrap:wrap;gap:7px;margin-top:14px}
+.souv-styles>button{flex:0 0 auto;background:var(--surface);border:1px solid var(--line);color:var(--ink-2);border-radius:999px;padding:7px 13px;font:600 12.5px system-ui;cursor:pointer}
+.souv-styles>button.on{background:var(--navy);color:#fff;border-color:var(--navy)}
+
 .pcp-cancel{display:block;width:100%;margin-top:16px;background:none;border:0;color:var(--muted);font:600 15px system-ui;padding:10px;cursor:pointer}
 
 
@@ -12503,9 +12507,11 @@ function paintSouvCard(tr){ const el=document.getElementById("souvAgentCard"); i
     el.innerHTML=`<div class="souv-card"><div class="souv-h"><span class="souv-ic"><svg viewBox="0 0 24 24"><path d="M4 5.2A1.7 1.7 0 0 1 5.7 3.5H19v17H5.7A1.7 1.7 0 0 1 4 18.8z"/><path d="M8 3.5v17M11 8h5M11 11.6h5"/></svg></span><span>${st_("title")}</span></div>`
       +(_p.title?`<div class="souv-t">${escapeHtml(_p.title)}</div>`:``)
       +`<div class="souv-body">${escapeHtml(_p.body)}</div>`
-      +`<button class="btn ghostline2" id="souvRegen" style="margin-top:12px;width:100%">${st_("regen")}</button>`
+      +`<div class="souv-styles">`+SOUV_STYLES.map(o=>`<button data-souvstyle="${o.k}" class="${(tr.souvenirStyle||"poetique")===o.k?"on":""}">${o[lang()]||o.fr}</button>`).join("")+`</div>`
+      +`<button class="btn ghostline2" id="souvRegen" style="margin-top:10px;width:100%">${st_("regen")}</button>`
       +`<div class="souv-src">${escapeHtml(souvSourceLine(tr))}</div></div>`;
     const rb=document.getElementById("souvRegen"); if(rb) rb.onclick=()=>generateSouvenir(tr,true);
+    el.querySelectorAll("[data-souvstyle]").forEach(b=>b.onclick=()=>{ tr.souvenirStyle=b.dataset.souvstyle; saveState(); generateSouvenir(tr,true); });
   } else {
     el.innerHTML=`<div class="souv-card"><div class="souv-h"><span class="souv-ic"><svg viewBox="0 0 24 24"><path d="M4 5.2A1.7 1.7 0 0 1 5.7 3.5H19v17H5.7A1.7 1.7 0 0 1 4 18.8z"/><path d="M8 3.5v17M11 8h5M11 11.6h5"/></svg></span><span>${st_("title")}</span></div><div class="souv-hint">${st_("hint")}</div><button class="btn navy" id="souvGen" style="margin-top:12px;width:100%">${st_("gen")}</button></div>`;
     const gb=document.getElementById("souvGen"); if(gb) gb.onclick=()=>generateSouvenir(tr,false);
@@ -12537,6 +12543,23 @@ function souvSourceLine(tr){ const L=lang();
   if(nP) parts.push(nP+" "+(nP>1?W[6]:W[5]));
   return parts.length? (W[0]+" "+parts.join(" \u00b7 "))+"." : ""; }
 
+const SOUV_STYLES=[
+  {k:"poetique",fr:"Po\u00e9tique",en:"Poetic",es:"Po\u00e9tico",it:"Poetico",de:"Poetisch"},
+  {k:"factuel",fr:"Factuel",en:"Factual",es:"Factual",it:"Fattuale",de:"Sachlich"},
+  {k:"fun",fr:"Fun",en:"Fun",es:"Divertido",it:"Divertente",de:"Locker"},
+  {k:"cartepostale",fr:"Carte postale",en:"Postcard",es:"Postal",it:"Cartolina",de:"Postkarte"}
+];
+function _souvStyleLabel(st){ const o=SOUV_STYLES.find(x=>x.k===st)||SOUV_STYLES[0]; return o[lang()]||o.fr; }
+function _souvRegles(style){
+  const base="N'invente aucun fait, aucun lieu, aucune date, aucune anecdote qui ne figure pas dans les \u00e9tapes, les notes ou les l\u00e9gendes ci-dessus. N'ajoute aucun lieu absent de la liste. Si les donn\u00e9es sont maigres, \u00e9cris court plut\u00f4t que d'\u00e9toffer.";
+  const tone={
+    poetique:" \u00c9cris dans un style litt\u00e9raire et \u00e9vocateur, avec de jolies tournures \u2014 mais embellis UNIQUEMENT la formulation des faits r\u00e9els, sans inventer d'ambiance ni d'\u00e9motion.",
+    factuel:" \u00c9cris dans un style sobre, factuel et direct, sans fioritures ni ambiance invent\u00e9e.",
+    fun:" \u00c9cris dans un style l\u00e9ger, enjou\u00e9 et d\u00e9contract\u00e9, avec une pointe d'humour bienveillant \u2014 joue seulement sur le TON, jamais sur le contenu.",
+    cartepostale:" \u00c9cris comme une carte postale : court, chaleureux, \u00e0 la premi\u00e8re personne (\u00ab je \u00bb / \u00ab nous \u00bb), comme un petit mot envoy\u00e9 \u00e0 un proche."
+  };
+  return base+(tone[style]||tone.poetique);
+}
 async function generateSouvenir(tr,regen){ const el=document.getElementById("souvAgentCard"); if(!el||!tr) return;
   el.innerHTML=`<div class="souv-card"><div class="souv-h"><span class="souv-ic"><svg viewBox="0 0 24 24"><path d="M4 5.2A1.7 1.7 0 0 1 5.7 3.5H19v17H5.7A1.7 1.7 0 0 1 4 18.8z"/><path d="M8 3.5v17M11 8h5M11 11.6h5"/></svg></span><span>${st_("title")}</span></div><div class="agent-thinking">${st_("generating")}</div></div>`;
   const places=(tr.places||[]).map(p=>p.name).filter(Boolean).slice(0,10);
@@ -12558,7 +12581,7 @@ async function generateSouvenir(tr,regen){ const el=document.getElementById("sou
     etapes:_etapes.length?_etapes.join("\n"):"aucune étape enregistrée",
     notes:_notes.length?_notes.join("\n"):"aucune note écrite par le voyageur",
     legendes:_legendes.length?_legendes.join("\n"):"aucune légende",
-    regles:"N'invente aucun détail sensoriel, aucune ambiance, aucune météo, aucune émotion, aucune anecdote qui ne figure pas dans les étapes, les notes ou les légendes ci-dessus. N'ajoute aucun lieu absent de la liste. Si les données sont maigres, écris court plutôt que d'étoffer. Mieux vaut sobre et vrai que joli et inventé." };
+    regles:_souvRegles(tr.souvenirStyle||"poetique") };
   const out=await workerFetch("/agent/souvenir",payload);
   if(out&&out.text){ tr.souvenirText=out.text.trim().replace(/^[«"'"]\s*([\s\S]*?)\s*[»"'"]$/,"$1"); saveState(); paintSouvCard(tr); }
   else { paintSouvCard(tr); toast(t("agent.busy")); }
