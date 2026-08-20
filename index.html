@@ -7991,17 +7991,17 @@ async function renderPostcardFront(tr, forced){
   /* scrim bas pour lisibilite */
   const g=x.createLinearGradient(0,PC_H*0.42,0,PC_H); g.addColorStop(0,"rgba(9,14,28,0)"); g.addColorStop(1,"rgba(9,14,28,.88)"); x.fillStyle=g; x.fillRect(0,0,PC_W,PC_H);
   /* cadre blanc facon carte postale */
-  x.strokeStyle="rgba(255,255,255,.92)"; x.lineWidth=9; x.strokeRect(46,46,PC_W-92,PC_H-92);
+  var MG=59; /* 5mm @300dpi : marge de securite */ x.strokeStyle="rgba(255,255,255,.92)"; x.lineWidth=9; x.strokeRect(MG,MG,PC_W-2*MG,PC_H-2*MG);
   /* label "SOUVENIR DE" */
-  x.fillStyle="#E9C46A"; x.font="700 34px Helvetica, Arial, sans-serif"; x.textBaseline="alphabetic"; _pcSpaced(x,"SOUVENIR DE",108,PC_H-268,7);
+  x.fillStyle="#E9C46A"; x.font="700 34px Helvetica, Arial, sans-serif"; x.textBaseline="alphabetic"; _pcSpaced(x,"SOUVENIR DE",MG+40,PC_H-268,7);
   /* titre destination */
-  x.fillStyle="#ffffff"; x.font="700 96px Georgia, 'Times New Roman', serif"; _pcWrap(x,_pcTitle(tr),108,PC_H-168,PC_W-360,96,2);
+  x.fillStyle="#ffffff"; x.font="700 96px Georgia, 'Times New Roman', serif"; _pcWrap(x,_pcTitle(tr),MG+40,PC_H-168,PC_W-2*MG-300,96,2);
   /* dates */
-  const dr=fmtRange(tr.dateStart,tr.dateEnd); if(dr){ x.fillStyle="rgba(255,255,255,.94)"; x.font="400 42px Helvetica, Arial, sans-serif"; x.fillText(dr,108,PC_H-96); }
+  const dr=fmtRange(tr.dateStart,tr.dateEnd); if(dr){ x.fillStyle="rgba(255,255,255,.94)"; x.font="400 42px Helvetica, Arial, sans-serif"; x.fillText(dr,MG+40,PC_H-96); }
   /* branding */
-  x.fillStyle="rgba(255,255,255,.8)"; x.font="600 26px Helvetica, Arial, sans-serif"; _pcSpaced(x,"MAGOT VOYAGE",108,PC_H-58,3);
+  x.fillStyle="rgba(255,255,255,.8)"; x.font="600 26px Helvetica, Arial, sans-serif"; _pcSpaced(x,"MAGOT VOYAGE",MG+40,PC_H-62,3);
   /* timbre decoratif haut-droite */
-  const sw=150,sh=182,sx=PC_W-sw-96,sy=96;
+  const sw=150,sh=182,sx=PC_W-sw-(MG+40),sy=MG+40;
   x.save(); x.setLineDash([9,9]); x.strokeStyle="rgba(255,255,255,.9)"; x.lineWidth=5; x.strokeRect(sx,sy,sw,sh); x.restore();
   x.fillStyle="rgba(255,255,255,.16)"; x.fillRect(sx+14,sy+14,sw-28,sh-28);
   x.fillStyle="rgba(255,255,255,.92)"; x.font="700 60px Georgia, serif"; x.textAlign="center"; x.fillText("\u2708",sx+sw/2,sy+sh/2+8);
@@ -8013,7 +8013,7 @@ function renderPostcardBack(tr){
   const c=document.createElement("canvas"); c.width=PC_W; c.height=PC_H; const x=c.getContext("2d");
   /* fond papier creme */
   x.fillStyle="#faf7ef"; x.fillRect(0,0,PC_W,PC_H);
-  x.strokeStyle="#d9cfb8"; x.lineWidth=6; x.strokeRect(46,46,PC_W-92,PC_H-92);
+  var BM=59; x.strokeStyle="#d9cfb8"; x.lineWidth=6; x.strokeRect(BM,BM,PC_W-2*BM,PC_H-2*BM);
   /* ligne verticale de separation */
   x.strokeStyle="#d4c9b0"; x.lineWidth=3; x.beginPath(); x.moveTo(PC_W*0.56,120); x.lineTo(PC_W*0.56,PC_H-120); x.stroke();
   /* cote gauche : le recit (message) */
