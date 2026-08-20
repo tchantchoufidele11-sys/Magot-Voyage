@@ -1065,6 +1065,14 @@ body.dragging-on{-webkit-user-select:none;user-select:none}
 .mem-sec-head{display:flex;align-items:baseline;justify-content:space-between;margin:18px 0 10px}
 .mem-sec-head h2{font-family:var(--font-serif);font-weight:700;font-size:clamp(16.2px,4.615vw,18px);color:var(--ink)}
 .mem-sec-head .cnt{font:600 12px "Inter",sans-serif;font-size:clamp(11.3px,3.077vw,12px);color:var(--muted)}
+.md-list{display:flex;flex-direction:column;gap:10px;padding:2px 0 4px}
+.md-card{display:flex;align-items:center;gap:13px;width:100%;background:var(--surface);border:1px solid var(--line);border-radius:16px;padding:10px;cursor:pointer;text-align:left;box-shadow:var(--shadow-sm)}
+.md-card:active{transform:scale(.99)}
+.md-cover{flex:0 0 auto;width:60px;height:60px;border-radius:12px;background-size:cover;background-position:center;background-color:var(--line)}
+.md-meta{flex:1;display:flex;flex-direction:column;gap:3px;min-width:0}
+.md-meta b{font:700 16px system-ui;color:var(--ink)}
+.md-meta small{font:500 13px system-ui;color:var(--muted)}
+.md-chev{color:var(--muted);font-size:22px;font-weight:700;flex:0 0 auto}
 .photo-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:6px}
 .mem-daybar{display:flex;gap:7px;overflow-x:auto;-webkit-overflow-scrolling:touch;padding:2px 2px 12px;margin:0 0 4px}
 .mem-daybar::-webkit-scrollbar{display:none}
@@ -12422,6 +12430,17 @@ function memDefaultDay(tr, mems){ const days=tripDays(tr); const N=days.length; 
   const c={}; (mems||[]).forEach(m=>{ if(m&&m.day!=null) c[m.day]=(c[m.day]||0)+1; });
   for(let i=0;i<N;i++){ if(c[i]) return i; }
   return "all"; }
+function memDaysListHtml(tr, mems){
+  const days=tripDays(tr); const byDay={}; const none=[];
+  (mems||[]).forEach(m=>{ if(!m) return; if(m.day==null) none.push(m); else (byDay[m.day]=byDay[m.day]||[]).push(m); });
+  let cards="";
+  days.forEach(dd=>{ const g=byDay[dd.i]; if(!g||!g.length) return; const cover=g[0]; const dstr=dd.date?(dayWk(dd)+" "+dayNum(dd)):"";
+    cards+=`<button class="md-card" data-daysel="${dd.i}"><span class="md-cover ph-tile loading" data-media="${cover.id}"></span><span class="md-meta"><b>${t("plan.day")} ${dd.i+1}</b><small>${g.length} ${g.length>1?"photos":"photo"}${dstr?" \u00b7 "+dstr:""}</small></span><span class="md-chev">\u203a</span></button>`; });
+  if(none.length){ const cover=none[0];
+    cards+=`<button class="md-card" data-daysel="none"><span class="md-cover ph-tile loading" data-media="${cover.id}"></span><span class="md-meta"><b>${t("mem.noDay")}</b><small>${none.length} ${none.length>1?"photos":"photo"}</small></span><span class="md-chev">\u203a</span></button>`; }
+  if(!cards) return `<div class="empty" style="padding:26px 10px;text-align:center"><p>${t("mem.noPhotos")}</p><button class="btn navy" id="memDaysAdd" style="margin-top:12px">${t("mem.add")}</button></div>`;
+  return `<div class="md-list">${cards}</div>`;
+}
 function memDayBarHtml(tr, mems){ const days=tripDays(tr); const sel=souvState.dayView; const ti=memTodayDayIdx(tr); const st=tripStatus(tr);
   const c={}; let nNone=0; const nAll=(mems||[]).length;
   (mems||[]).forEach(m=>{ if(!m) return; if(m.day==null) nNone++; else c[m.day]=(c[m.day]||0)+1; });
@@ -12465,7 +12484,7 @@ function renderMemories(){ const body=document.getElementById("memBody"); if(!bo
   if(!mems.length && !places.length){ body.innerHTML=_backHtml+_bilanBtn+`<div class="empty" style="padding:30px 18px"><span class="medallion"><svg viewBox="0 0 24 24"><rect x="3" y="6.5" width="18" height="13.5" rx="2.6"/><circle cx="12" cy="13.2" r="3.4"/><path d="M8.2 6.5 9.5 4h5l1.3 2.5"/></svg></span><p>${t("mem.empty")}</p><button class="btn navy" id="memEmptyAdd" style="margin-top:14px">${t("mem.add")}</button></div>`+_pastHtml+_delBtn;
     const ba=body.querySelector("#memEmptyAdd"); if(ba) ba.onclick=()=>openDayAdd(souvState.dayView); _bindExtra(); return; }
   let h=_backHtml+_bilanBtn;
-  if(f==="photos"){ if(souvState.dayView==null) souvState.dayView=memDefaultDay(tr,mems); h+= _souvStudioTop()+memDayBarHtml(tr,mems)+memDayGridHtml(tr,mems); }
+  if(f==="photos"){ if(souvState.dayView==null){ h+= _souvStudioTop()+memDaysListHtml(tr,mems); } else { const _dl=(lang()==="fr")?"Jours":t("mem.byDay"); h+= `<button class="mem-back" id="memDayBack">\u2190 ${_dl}</button>`+memDayGridHtml(tr,mems); } }
   else if(f==="places"){ h+= places.length? `<div class="mem-places">`+places.map(p=>memPlaceCard(tr,p)).join("")+`</div>` : `<div class="empty" style="padding:24px 8px"><p>${t("mem.noPlaces")}</p></div>`; }
   else if(f==="days"){ h+= byDayHtml(tr,mems); }
   else if(f==="videos"){ h+=`<div class="empty" style="padding:34px 14px"><p>${svT("noVideo")}</p></div>`; }
@@ -12547,6 +12566,8 @@ function renderMemories(){ const body=document.getElementById("memBody"); if(!bo
   }
   body.innerHTML=h+_pastHtml+_delBtn;
   body.querySelectorAll(".ph-tile[data-pid]").forEach(el=>el.onclick=()=>openMemViewer(el.dataset.pid));
+  body.querySelectorAll("[data-daysel]").forEach(b=>b.onclick=()=>{ const v=b.dataset.daysel; souvState.dayView=(v==="none")?"none":parseInt(v,10); renderMemories(); });
+  { const _db=body.querySelector("#memDayBack"); if(_db) _db.onclick=()=>{ souvState.dayView=null; renderMemories(); }; const _da=body.querySelector("#memDaysAdd"); if(_da) _da.onclick=()=>openDayAdd(null); }
   body.querySelectorAll("[data-md]").forEach(b=>b.onclick=()=>{ const v=b.dataset.md; souvState.dayView=(v==="all"||v==="none")?v:parseInt(v,10); renderMemories(); });
   body.querySelectorAll("[data-dayadd]").forEach(b=>b.onclick=()=>openDayAdd(souvState.dayView));
   body.querySelectorAll("[data-fav]").forEach(b=>b.onclick=e=>{ e.stopPropagation(); toggleFav(b.dataset.fav); });
