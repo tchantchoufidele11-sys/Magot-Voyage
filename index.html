@@ -12338,8 +12338,7 @@ function souvJournalHtml(tr){
   let out="";
   days.forEach(dd=>{
     const st=pts.filter(p=>p.day===dd.i);
-    const ph=mems.filter(m=>m.day===dd.i);
-    if(!st.length && !ph.length) return;
+    if(!st.length) return;
     out+=`<div class="jr-day"><div class="db-h"><span class="db-n">${dd.i+1}</span><div>`
        + `<div class="db-t">${t("plan.day")} ${dd.i+1}</div>`
        + (dd.date?`<div class="db-d">${escapeHtml(fmtDayLong(dd.date))}</div>`:``)
@@ -12349,7 +12348,6 @@ function souvJournalHtml(tr){
         + `<span class="jr-t">${escapeHtml(p.title||"")}</span>`
         + (p.note?`<span class="jr-n">${escapeHtml(String(p.note))}</span>`:``)
         + `</span></li>`).join("")+`</ul>`; }
-    if(ph.length){ out+=`<div class="photo-grid jr-ph">`+ph.map(phTile).join("")+`</div>`; }
     out+=`</div>`;
   });
   if(!out) return `<div class="souv-card"><div class="souv-hint">${st_("jEmpty")}</div></div>`;
