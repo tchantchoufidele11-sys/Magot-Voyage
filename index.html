@@ -12318,7 +12318,7 @@ function souvMiniMapOSM(tr,el){ const pts=souvPoints(tr); if(!pts.length||!el) r
         if(pts.length>1) map.fitBounds([[a,b],[c,d]],{padding:{top:46,bottom:26,left:30,right:30},maxZoom:14,duration:0}); else map.setZoom(13); }); }catch(e){}
   }); }
 function renderMemChips(){ const el=document.getElementById("memChips"); if(!el) return;
-  const F=[["all","overview"],["photos","medias"],["carnet","carnet"],["journal","journal"],["studio","studio"]];
+  const F=[["all","overview"],["photos","medias"],["journal","journal"],["carnet","carnet"],["studio","studio"]];
   el.innerHTML=F.map(([k,lab])=>`<button class="chip ${souvState.filter===k?'on':''}${k==='studio'?' chip-studio':''}" data-mf="${k}">${k==='studio'?'\uD83C\uDFAC ':''}${svT(lab)}</button>`).join("");
   el.querySelectorAll("[data-mf]").forEach(b=>b.onclick=()=>{ if(b.dataset.mf==="studio"){ openStudio(souvTrip()); return; } souvState.filter=b.dataset.mf; renderMemories(); }); }
 const SOUV_I18N={
