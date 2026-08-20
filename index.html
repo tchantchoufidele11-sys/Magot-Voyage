@@ -12629,7 +12629,7 @@ function _souvEdit(tr){ const el=document.getElementById("souvAgentCard"); if(!e
   const sv=document.getElementById("souvEditSave"); if(sv) sv.onclick=()=>{ const v=(ta&&ta.value||"").trim(); if(v){ tr.souvenirText=v; saveState(); } paintSouvCard(tr); };
   const cx=document.getElementById("souvEditCancel"); if(cx) cx.onclick=()=>paintSouvCard(tr);
 }
-function paintSouvCard(tr){ const el=document.getElementById("souvAgentCard"); if(!el||!tr) return;
+function paintSouvCard(tr){ const el=document.getElementById("souvAgentCard"); if(!el||!tr) return; if(tr.souvenirDays){ try{ delete tr.souvenirDays; saveState(); }catch(e){} }
   const saved=tr.souvenirText||"";
   if(saved){
     const _p=souvSplit(saved);
@@ -12637,7 +12637,7 @@ function paintSouvCard(tr){ const el=document.getElementById("souvAgentCard"); i
       +(_p.title?`<div class="souv-t">${escapeHtml(_p.title)}</div>`:``)
       +`<div class="souv-body">${escapeHtml(_p.body)}</div>`
       +`<div class="souv-styles">`+SOUV_STYLES.map(o=>`<button data-souvstyle="${o.k}" class="${(tr.souvenirStyle||"poetique")===o.k?"on":""}">${o[lang()]||o.fr}</button>`).join("")+`</div>`
-      +`<div class="souv-actions"><button class="btn ghostline2" id="souvEditBtn">\u270F\uFE0F ${(lang()==="fr")?"Modifier":(lang()==="es")?"Editar":(lang()==="it")?"Modifica":(lang()==="de")?"Bearbeiten":"Edit"}</button><button class="btn ghostline2" id="souvRegen">${st_("regen")}</button></div>`+_souvDaysHtml(tr)
+      +`<div class="souv-actions"><button class="btn ghostline2" id="souvEditBtn">\u270F\uFE0F ${(lang()==="fr")?"Modifier":(lang()==="es")?"Editar":(lang()==="it")?"Modifica":(lang()==="de")?"Bearbeiten":"Edit"}</button><button class="btn ghostline2" id="souvRegen">${st_("regen")}</button></div>`
       +`<div class="souv-src">${escapeHtml(souvSourceLine(tr))}</div></div></div>`;
     const tg=document.getElementById("souvToggle"); if(tg) tg.onclick=()=>{ const c=tg.closest(".souv-card"); if(c) c.classList.toggle("open"); };
     const rb=document.getElementById("souvRegen"); if(rb) rb.onclick=()=>generateSouvenir(tr,true);
