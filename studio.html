@@ -677,7 +677,15 @@ input[type=range]::-moz-range-thumb{width:22px;height:22px;border:0;border-radiu
   /* Aperçu vide -> palette maquette */
   #empty{ background:radial-gradient(120% 85% at 50% 38%, rgba(35,33,32,.7), rgba(5,5,5,.3) 60%, transparent) !important; }
   .empty-ic{ background:#151413 !important; border:1px solid rgba(212,175,55,.3) !important; color:#D4AF37 !important; }
-  .empty-t{ font-family:"Cormorant Garamond",Georgia,serif !important; color:#F5F2EB !important; }
+  
+.empty-btns{display:flex;gap:10px;justify-content:center;margin-top:18px;flex-wrap:wrap}
+.eb-btn{background:#151413;border:1px solid #2a2825;color:#f4f7fc;font:700 14px system-ui;padding:12px 18px;border-radius:12px;cursor:pointer;display:inline-flex;align-items:center;gap:7px}
+.eb-gold{background:linear-gradient(135deg,#D4AF37,#b8952f);color:#1a1710;border-color:#D4AF37}
+#studioReadyBanner{position:fixed;left:50%;top:14px;transform:translateX(-50%) translateY(-8px);z-index:99998;background:linear-gradient(135deg,#D4AF37,#b8952f);color:#1a1710;font:700 15px system-ui;padding:12px 20px;border-radius:14px;box-shadow:0 10px 34px rgba(0,0,0,.5);opacity:0;pointer-events:none;transition:opacity .3s,transform .3s;max-width:92vw;text-align:center}
+#studioReadyBanner.show{opacity:1;transform:translateX(-50%) translateY(0)}
+@keyframes _mplay{0%,100%{box-shadow:0 0 0 0 rgba(212,175,55,.55)}50%{box-shadow:0 0 0 12px rgba(212,175,55,0)}}
+._pulse{animation:_mplay 1.25s ease-out 3}
+.empty-t{ font-family:"Cormorant Garamond",Georgia,serif !important; color:#F5F2EB !important; }
   .empty-s{ color:#A8A6A1 !important; }
   /* Aperçu (hero) façon maquette */
   .hero{ border-radius:20px !important; overflow:hidden; }
@@ -833,7 +841,7 @@ input[type=range]::-moz-range-thumb{width:22px;height:22px;border:0;border-radiu
 <main class="app">
   <header class="header">
     <div class="header-left"></div>
-    <div class="brand"><h1>Studio Magot<i>✦</i></h1><p>Montage vidéo · C291</p></div>
+    <div class="brand"><h1>Studio Magot<i>✦</i></h1><p>Montage vidéo · C292</p></div>
     <button class="export" id="expBtn"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 15V3m0 0L7 8m5-5l5 5M5 15v4h14v-4"/></svg> Exporter</button>
   </header>
 
@@ -994,7 +1002,7 @@ input[type=range]::-moz-range-thumb{width:22px;height:22px;border:0;border-radiu
     <canvas id="base" width="720" height="1280"></canvas>
     <canvas id="gl" width="720" height="1280"></canvas>
     <div class="badge" id="badge">—</div>
-    <div class="empty" id="empty"><div class="empty-in"><div class="empty-ic"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round" stroke-linecap="round"><rect x="2" y="4" width="20" height="16" rx="2.5"/><path d="M2 8h20M7 4v4M17 4v4M2 12h20M2 16h20"/></svg></div><div class="empty-t" data-i18n="Crée ton film souvenir">Crée ton film souvenir</div><div class="empty-s" data-i18n-html="Ajoute une musique et des photos,<br>puis appuie sur « Lire le film ».">Ajoute une musique et des photos,<br>puis appuie sur « Lire le film ».</div></div></div>
+    <div class="empty" id="empty"><div class="empty-in"><div class="empty-ic"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round" stroke-linecap="round"><rect x="2" y="4" width="20" height="16" rx="2.5"/><path d="M2 8h20M7 4v4M17 4v4M2 12h20M2 16h20"/></svg></div><div class="empty-t" data-i18n="Crée ton film souvenir">Crée ton film souvenir</div><div class="empty-s" data-i18n-html="Ajoute une musique et des photos,<br>puis appuie sur « Lire le film ».">Ajoute une musique et des photos,<br>puis appuie sur « Lire le film ».</div><div class="empty-btns"><button class="eb-btn eb-gold" id="emptyAddPho">🖼️ <span data-i18n="Ajouter des photos">Ajouter des photos</span></button><button class="eb-btn" id="emptyAddMus">🎵 <span data-i18n="Musique">Musique</span></button></div></div></div>
   </div>
 
   <canvas class="strip" id="strip" width="800" height="92"></canvas>
@@ -8358,6 +8366,19 @@ function _updateSourceLabels(){ try{
   var sp=document.getElementById("srcPho"); if(sp){ sp.textContent = PHOTOS.length ? (PHOTOS.length+" "+(PHOTOS.length>1?"photos":"photo")) : _st("Ajouter"); }
   var sv=document.getElementById("srcVid"); if(sv){ var nc=(typeof CLIPS!=="undefined")?CLIPS.filter(function(c){return c&&c.ready;}).length:0; sv.textContent = nc ? (nc+" "+(nc>1?"clips":"clip")) : _st("Optionnel"); }
 }catch(e){} }
+try{ if(document.readyState!=="loading") setTimeout(function(){_wireEmptyButtons();},300); else document.addEventListener("DOMContentLoaded",function(){ setTimeout(function(){_wireEmptyButtons();},300); }); }catch(e){}
+function _studioReady(){ try{
+  var b=document.getElementById("studioReadyBanner");
+  if(!b){ b=document.createElement("div"); b.id="studioReadyBanner"; document.body.appendChild(b); }
+  b.textContent="✓ "+_st("Ton montage est prêt")+" — "+_st("appuie sur Lire le film");
+  b.classList.add("show");
+  try{ var p=document.getElementById("play")||document.getElementById("watchBtn"); if(p){ p.classList.remove("_pulse"); void p.offsetWidth; p.classList.add("_pulse"); } }catch(e){}
+  clearTimeout(window._srT); window._srT=setTimeout(function(){ try{ b.classList.remove("show"); }catch(e){} }, 5000);
+}catch(e){} }
+function _wireEmptyButtons(){ try{
+  var ap=document.getElementById("emptyAddPho"); if(ap && !ap._w){ ap._w=1; ap.onclick=function(){ var p=document.getElementById("pickPhotos"); if(p) p.click(); }; }
+  var am=document.getElementById("emptyAddMus"); if(am && !am._w){ am._w=1; am.onclick=function(){ var m=document.getElementById("pickMusic"); if(m) m.click(); }; }
+}catch(e){} }
 function updateBadge(){ try{ _updateSourceLabels(); }catch(e){}
   var parts=[], _A=A, _nm=null;
   if(window.MULTI && typeof TRACKS!=="undefined" && TRACKS.length){ var _pi=_curPlanTrackIdx(); if(_pi>=0 && TRACKS[_pi]){ _A=TRACKS[_pi].A||A; _nm=TRACKS[_pi].name; } }
@@ -8439,7 +8460,7 @@ function studioAutoMontage(input){
     if(input.music && input.music.url && window.__useTrack){ try{ window.__useTrack({ id:input.music.id||"auto", title:input.music.title||"Musique", url:input.music.url, type:input.music.type||"", cover:input.music.cover||"" }); }catch(e){} }
     else { try{ _autoPickMusic(MOOD); }catch(e){} }
     var n=0, _iv=setInterval(function(){ n++;
-      if(A && (PHOTOS.length||clipVidReady)){ clearInterval(_iv); try{ buildPartition(); paintStrip(0); try{ if(input.format===undefined||input.format==="orig") _applyOrigineFormat(); }catch(_fe){} try{ updateBadge(); for(var _pd2=0;_pd2<Math.min(PHOTOS.length,14);_pd2++) ensurePhotoDecoded(_pd2); renderMontageAt(0); }catch(_e2){} setState((PHOTOS.length+(clipVidReady?CLIPS.filter(function(c){return c.ready;}).length:0))+" éléments · montage prêt"); if(input.autoplay) startPlay(); }catch(e){} }
+      if(A && (PHOTOS.length||clipVidReady)){ clearInterval(_iv); try{ buildPartition(); paintStrip(0); try{ if(input.format===undefined||input.format==="orig") _applyOrigineFormat(); }catch(_fe){} try{ updateBadge(); for(var _pd2=0;_pd2<Math.min(PHOTOS.length,14);_pd2++) ensurePhotoDecoded(_pd2); renderMontageAt(0); }catch(_e2){} setState((PHOTOS.length+(clipVidReady?CLIPS.filter(function(c){return c.ready;}).length:0))+" éléments · montage prêt"); try{ _studioReady(); }catch(_r){} if(input.autoplay) startPlay(); }catch(e){} }
       else if(n>80){ clearInterval(_iv); try{ setState(_st("Choisis une musique pour lancer le montage.")); }catch(e){} }
     }, 200);
   }

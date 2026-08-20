@@ -9179,7 +9179,7 @@ async function studioFeed(w, tr){ if(!w||!tr) return;
     else if(typeof w._origFmt==="function" && typeof w._setFormat==="function"){ const f=w._origFmt(); if(f&&f.w&&f.h) w._setFormat(f.w,f.h,"Origine"); }
   }catch(e){} }, 700);
 }
-function openStudio(tr,version,autoplay){ tr=tr||souvTrip(); if(!tr){ toast(t("mem.noTrip")); return; } _studioTrip=tr;
+function openStudio(tr,version,autoplay){ tr=tr||souvTrip()||null; _studioTrip=tr;   /* studio ouvrable sans voyage : écran d’accueil + import manuel */
   let ov=document.getElementById("studioOverlay");
   const backLbl=({fr:"Retour",en:"Back",es:"Volver",it:"Indietro",de:"Zur\u00fcck"})[_studioLang()]||"Retour";
   if(!ov){ ov=document.createElement("div"); ov.id="studioOverlay"; ov.className="studio-ov";
