@@ -328,6 +328,14 @@ html.studio-open{overflow:hidden}
 .pt-act:active{transform:scale(.99)}
 .pt-film{background:linear-gradient(135deg,#D4AF37,#b8952f);color:#1a1710;border-color:#D4AF37}
 .folder-title{font-family:"Playfair Display",Georgia,serif;font-weight:800;font-size:26px;color:var(--ink);margin:10px 2px 14px;line-height:1.15}
+
+.pc-preview{position:fixed;inset:0;z-index:100001;background:rgba(9,12,20,.82);display:flex;align-items:center;justify-content:center;padding:16px;overflow:auto}
+.pcv-box{background:var(--surface);border-radius:20px;padding:18px;max-width:560px;width:100%;max-height:92vh;overflow:auto}
+.pcv-h{font:700 17px system-ui;color:var(--ink);text-align:center;margin-bottom:14px}
+.pcv-img{width:100%;border-radius:12px;margin-bottom:12px;box-shadow:0 6px 20px rgba(0,0,0,.18);display:block}
+.pcv-actions{display:flex;gap:10px;margin-top:4px}
+.pcv-actions>button{flex:1}
+.pcv-close{display:block;width:100%;margin-top:12px;background:none;border:0;color:var(--muted);font:600 15px system-ui;padding:10px;cursor:pointer}
 .pc-pick{position:fixed;inset:0;z-index:100001;background:rgba(9,12,20,.72);display:flex;align-items:flex-end;justify-content:center;padding:0}
 .pcp-box{background:var(--surface);width:100%;max-width:520px;border-radius:22px 22px 0 0;padding:18px 16px 24px;max-height:82vh;overflow:auto}
 .pcp-h{font:700 18px system-ui;color:var(--ink);text-align:center;margin-bottom:14px}
@@ -8071,18 +8079,37 @@ async function exportPostcard(kind){ const tr=currentTrip(); if(!tr){ toast(t("m
     doc.save(safeName(tr.name)+"_carte_postale.pdf"); toast(t("mem.exportDone"));
   }catch(e){ toast(t("mem.exportOffline")); } }
 
+async function previewPostcard(){ const tr=currentTrip(); if(!tr){ toast(t("mem.noTrip")); return; } closeExport(); toast(t("mem.exporting"));
+  try{
+    let forced=null; const hasIcon=(typeof coverPhotoName==="function")&&!!coverPhotoName(tr);
+    if(!hasIcon){ forced=await _pcPickPhoto(tr); if(!forced){ toast(t("mem.exportOffline")); return; } }
+    const front=await renderPostcardFront(tr, forced);
+    const back=renderPostcardBack(tr);
+    const frontUrl=front.toDataURL("image/jpeg",0.94);
+    const backUrl=back.toDataURL("image/jpeg",0.94);
+    const fr=(typeof lang==="function"&&lang()==="fr");
+    const ov=document.createElement("div"); ov.className="pc-preview";
+    ov.innerHTML=`<div class="pcv-box"><div class="pcv-h">${fr?"Aper\u00e7u de ta carte postale":"Postcard preview"}</div>`
+      +`<img class="pcv-img" src="${frontUrl}" alt="recto"/><img class="pcv-img" src="${backUrl}" alt="verso"/>`
+      +`<div class="pcv-actions"><button class="btn ghostline2" id="pcvImg">\uD83D\uDDBC\uFE0F ${fr?"Image":"Image"}</button><button class="btn navy" id="pcvPdf">\uD83D\uDCEE PDF</button></div>`
+      +`<button class="pcv-close" id="pcvClose">${t("common.cancel")}</button></div>`;
+    document.body.appendChild(ov);
+    ov.querySelector("#pcvImg").onclick=()=>{ downloadDataUrl(frontUrl, safeName(tr.name)+"_carte.jpg"); toast(t("mem.exportDone")); };
+    ov.querySelector("#pcvPdf").onclick=async()=>{ try{ await loadJsPDF(); const { jsPDF }=window.jspdf; const doc=new jsPDF({unit:"mm",format:"a6",orientation:"landscape"}); const W=doc.internal.pageSize.getWidth(),H=doc.internal.pageSize.getHeight(); doc.addImage(frontUrl,"JPEG",0,0,W,H,undefined,"FAST"); doc.addPage(); doc.addImage(backUrl,"JPEG",0,0,W,H,undefined,"FAST"); doc.save(safeName(tr.name)+"_carte_postale.pdf"); toast(t("mem.exportDone")); }catch(e){ toast(t("mem.exportOffline")); } };
+    ov.querySelector("#pcvClose").onclick=()=>{ try{ov.remove();}catch(e){} };
+  }catch(e){ toast(t("mem.exportOffline")); } }
+
 function openExport(){ const tr=currentTrip(); if(!tr){ toast(t("mem.noTrip")); return; }
   document.getElementById("exportHd").textContent=t("mem.export");
   const b=document.getElementById("exportBody");
   const _L=(typeof lang==="function"&&lang())||"fr"; const _t2=(o)=>o[_L]||o.fr;
   b.innerHTML=`<div style="font:700 13px system-ui;letter-spacing:1px;color:#8a93a5;margin:2px 0 8px">${_t2({fr:"CARTE POSTALE",en:"POSTCARD",es:"POSTAL",it:"CARTOLINA",de:"POSTKARTE"})}</div>`
-    +`<button class="btn navy block" id="exPcImg">🖼️ ${_t2({fr:"Carte postale (image)",en:"Postcard (image)",es:"Postal (imagen)",it:"Cartolina (immagine)",de:"Postkarte (Bild)"})}</button>`
-    +`<button class="btn navy block" id="exPcPdf" style="margin-top:10px">📮 ${_t2({fr:"Carte postale (PDF à imprimer)",en:"Postcard (printable PDF)",es:"Postal (PDF)",it:"Cartolina (PDF)",de:"Postkarte (PDF)"})}</button>`
+    +`<button class="btn navy block" id="exPcPrev">👁️ ${_t2({fr:"Voir la carte postale",en:"View the postcard",es:"Ver la postal",it:"Vedi la cartolina",de:"Postkarte ansehen"})}</button>`
     +`<div style="font:700 13px system-ui;letter-spacing:1px;color:#8a93a5;margin:18px 0 8px">${_t2({fr:"CARNET COMPLET",en:"FULL JOURNAL",es:"CUADERNO",it:"DIARIO",de:"REISEBUCH"})}</div>`
     +`<button class="btn ghostline2 block" id="exPdf">📄 ${t("mem.exportPdf")}</button>`
     +`<button class="btn ghostline2 block" id="exImg" style="margin-top:10px">🖼️ ${t("mem.exportImg")}</button>`
     +`<p class="est-disc">${t("mem.exportHint")}</p><div style="height:6px"></div>`;
-  b.querySelector("#exPcImg").onclick=()=>exportPostcard("img"); b.querySelector("#exPcPdf").onclick=()=>exportPostcard("pdf");
+  b.querySelector("#exPcPrev").onclick=()=>previewPostcard();
   b.querySelector("#exPdf").onclick=exportPDF; b.querySelector("#exImg").onclick=exportImage;
   document.getElementById("exportSheet").classList.add("show"); }
 function closeExport(){ document.getElementById("exportSheet").classList.remove("show"); }
