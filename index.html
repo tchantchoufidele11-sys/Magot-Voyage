@@ -8023,14 +8023,14 @@ async function renderPostcardFront(tr, forced){
   /* cadre blanc facon carte postale */
   var MG=59; /* 5mm @300dpi : marge de securite */ x.strokeStyle="rgba(255,255,255,.92)"; x.lineWidth=9; x.strokeRect(MG,MG,PC_W-2*MG,PC_H-2*MG);
   /* label "SOUVENIR DE" */
-  x.fillStyle="#E9C46A"; x.font="700 34px Helvetica, Arial, sans-serif"; x.textBaseline="alphabetic"; const _lblEnd=_pcSpaced(x,"SOUVENIR DE",MG+40,PC_H-268,7);
-  x.fillStyle="#E9C46A"; x.fillRect(MG+40,PC_H-252,Math.min(_lblEnd-(MG+40),340),3);
+  x.fillStyle="#E9C46A"; x.font="700 34px Helvetica, Arial, sans-serif"; x.textBaseline="alphabetic"; const _lblEnd=_pcSpaced(x,"SOUVENIR DE",MG+40,PC_H-300,7);
+  x.fillStyle="#E9C46A"; x.fillRect(MG+40,PC_H-284,Math.min(_lblEnd-(MG+40),340),3);
   /* titre destination */
-  x.save(); x.shadowColor="rgba(0,0,0,.55)"; x.shadowBlur=14; x.shadowOffsetY=2; x.fillStyle="#ffffff"; x.font="700 96px Georgia, 'Times New Roman', serif"; _pcWrap(x,_pcTitle(tr),MG+40,PC_H-168,PC_W-2*MG-300,96,2); x.restore();
+  x.save(); x.shadowColor="rgba(0,0,0,.55)"; x.shadowBlur=14; x.shadowOffsetY=2; x.fillStyle="#ffffff"; x.font="700 96px Georgia, 'Times New Roman', serif"; _pcWrap(x,_pcTitle(tr),MG+40,PC_H-196,PC_W-2*MG-300,92,2); x.restore();
   /* dates */
-  const dr=fmtRange(tr.dateStart,tr.dateEnd); if(dr){ x.fillStyle="rgba(255,255,255,.94)"; x.font="400 42px Helvetica, Arial, sans-serif"; x.fillText(dr,MG+40,PC_H-96); }
+  const dr=fmtRange(tr.dateStart,tr.dateEnd); if(dr){ x.fillStyle="rgba(255,255,255,.94)"; x.font="400 42px Helvetica, Arial, sans-serif"; x.fillText(dr,MG+40,PC_H-124); }
   /* signature Magot Voyage */
-  _pcSignature(x, MG+40, PC_H-58, 1.15, "#E9C46A");
+  _pcSignature(x, MG+40, PC_H-78, 1.1, "#E9C46A");
   /* timbre decoratif haut-droite */
   const sw=150,sh=182,sx=PC_W-sw-(MG+40),sy=MG+40;
   x.save(); x.setLineDash([9,9]); x.strokeStyle="rgba(255,255,255,.9)"; x.lineWidth=5; x.strokeRect(sx,sy,sw,sh); x.restore();
