@@ -3241,7 +3241,7 @@ const DEFAULT_S={ version:"0.2.0", settings:{ lang:"fr", theme:"system", units:"
 /* Clé Maps JS partagée (restreinte au domaine GitHub Pages). Repli : clé perso de l'utilisateur si fournie. */
 const SHARED_MAP_KEY="AIzaSyCt5iVx8nPr1V067A3daE0X1YA568XJNbU";
 function mapKey(){ return (S.settings.mapKey||"").trim() || SHARED_MAP_KEY; }
-const BUILD="0.3.46 · v632 studio-projects";
+const BUILD="0.3.47 · v633 carnet-jour";
 let S=loadState();
 function normalizeTrip(tr){ if(!tr||typeof tr!=="object") return tr;
   tr.id=tr.id||("t"+Date.now()+Math.random().toString(36).slice(2,7));
@@ -8246,6 +8246,14 @@ async function exportCarnetComplet(){
 
     /* ---------- JOUR PAR JOUR (une page par jour) ---------- */
     async function _cropImg(dataURL, tw, th){ return new Promise(res=>{ const im=new Image(); im.onload=()=>{ try{ const c=document.createElement("canvas"); c.width=tw; c.height=th; const x=c.getContext("2d"); const r=Math.max(tw/im.width,th/im.height), iw=im.width*r, ih=im.height*r; x.drawImage(im,(tw-iw)/2,(th-ih)/2,iw,ih); res(c.toDataURL("image/jpeg",0.9)); }catch(e){ res(dataURL); } }; im.onerror=()=>res(null); im.src=dataURL; }); }
+    function _polaroid(px,py,pw,cropData,cap){
+      var ph=pw+9;
+      doc.setFillColor(255,255,255); doc.setDrawColor(208,200,184); doc.setLineWidth(0.3); doc.roundedRect(px,py,pw,ph,1.5,1.5,"FD");
+      var inner=pw-5, ix=px+2.5, iy=py+2.5;
+      if(cropData){ try{ doc.addImage(cropData,"JPEG",ix,iy,inner,inner,undefined,"FAST"); }catch(e){} }
+      else { doc.setFillColor(244,241,233); doc.rect(ix,iy,inner,inner,"F"); doc.setDrawColor(206,198,182); doc.setLineWidth(0.25); doc.rect(ix,iy,inner,inner); doc.setTextColor(184,178,164); doc.setFont("helvetica","normal"); doc.setFontSize(7); doc.text(L({fr:"photo",en:"photo",es:"foto",it:"foto",de:"Foto"}),ix+inner/2,iy+inner/2+1,{align:"center"}); }
+      if(cap){ doc.setTextColor(96,90,78); doc.setFont("times","italic"); doc.setFontSize(7.5); var cl=doc.splitTextToSize(cap,pw-3); doc.text(cl[0]||"",px+pw/2,py+ph-2.6,{align:"center"}); }
+    }
     for(const dd of days){
       const st=pts.filter(p=>p.day===dd.i);
       const dayExps=exps.filter(e=>e.date===dd.date);
@@ -8260,39 +8268,47 @@ async function exportCarnetComplet(){
       y+=18;
       /* carte du jour */
       if(st.length>=1){ try{ const _sh=await souvOffscreenMap(st); if(_sh&&_sh.url){ const iw=W-2*MG, ih=Math.min(iw*(_sh.h/_sh.w),58); doc.addImage(_sh.url,"PNG",MG,y,iw,ih,undefined,"FAST"); doc.setDrawColor(LINE[0],LINE[1],LINE[2]); doc.setLineWidth(0.3); doc.rect(MG,y,iw,ih); y+=ih+6; } }catch(e){} }
-      /* timeline */
-      st.forEach(p=>{
-        const noteLines=p.note?doc.splitTextToSize(String(p.note),W-2*MG-26):[];
-        const blockH=7+(noteLines.length*4.6);
-        ensure(blockH);
-        doc.setTextColor(GOLD[0],GOLD[1],GOLD[2]); doc.setFont("helvetica","bold"); doc.setFontSize(9);
-        doc.text(p.time||"·",MG+2,y+1);
-        doc.setTextColor(INK[0],INK[1],INK[2]); doc.setFont("helvetica","bold"); doc.setFontSize(10.5);
-        const tt=doc.splitTextToSize(p.title||"",W-2*MG-24); doc.text(tt,MG+22,y+1);
-        let yy=y+1+tt.length*4.8;
-        const kl=kindLabel(p.kind); if(kl){ doc.setFont("helvetica","normal"); doc.setFontSize(8); doc.setTextColor(MUT[0],MUT[1],MUT[2]); doc.text(kl,MG+22,yy); yy+=3.6; }
-        if(noteLines.length){ doc.setFont("times","italic"); doc.setFontSize(9.5); doc.setTextColor(70,74,84); doc.text(noteLines,MG+22,yy+1); yy+=noteLines.length*4.6; }
-        y=yy+3;
-        doc.setDrawColor(LINE[0],LINE[1],LINE[2]); doc.setLineWidth(0.2); doc.line(MG+22,y-1,W-MG,y-1);
-      });
-      /* dépenses du jour */
+      /* ---- Lieux du jour : chaque lieu = photo (polaroid) + commentaire ---- */
+      var _usedPh={};
+      for(var _pi=0; _pi<st.length; _pi++){ var p=st[_pi];
+        var _pw=42, _cardH=_pw+9;
+        var _noteLines=p.note?doc.splitTextToSize(String(p.note),W-2*MG-_pw-9):[];
+        var _txtH=13+(_noteLines.length*4.4);
+        var _blockH=Math.max(_cardH,_txtH)+5;
+        ensure(_blockH);
+        var _ph=null; for(var _mi=0;_mi<(tr.memories||[]).length;_mi++){ var _m=tr.memories[_mi]; if(_m&&!_m.video&&_m.placeId===p.id&&!_usedPh[_m.id]){ _ph=_m; break; } }
+        var _crop=null; if(_ph){ try{ var _pd=await photoData(_ph.id); if(_pd&&_pd.data){ _crop=await _cropImg(_pd.data,Math.round(_pw*8),Math.round(_pw*8)); _usedPh[_ph.id]=1; } }catch(e){} }
+        _polaroid(MG,y,_pw,_crop,p.title||"");
+        var _tx=MG+_pw+7, _tw=W-MG-_tx;
+        doc.setTextColor(GOLD[0],GOLD[1],GOLD[2]); doc.setFont("helvetica","bold"); doc.setFontSize(8.5); doc.text(p.time||"\u00b7",_tx,y+3.5);
+        var _kl=kindLabel(p.kind); if(_kl){ doc.setTextColor(MUT[0],MUT[1],MUT[2]); doc.setFont("helvetica","normal"); doc.setFontSize(7.5); doc.text(_kl,W-MG,y+3.5,{align:"right"}); }
+        doc.setTextColor(INK[0],INK[1],INK[2]); doc.setFont("times","bold"); doc.setFontSize(11.5); var _tl=doc.splitTextToSize(p.title||"",_tw); doc.text(_tl,_tx,y+9);
+        var _yy=y+9+_tl.length*5;
+        if(_noteLines.length){ doc.setFont("times","italic"); doc.setFontSize(9); doc.setTextColor(70,74,84); doc.text(_noteLines,_tx,_yy+1); }
+        else { doc.setDrawColor(214,204,180); doc.setLineWidth(0.25); doc.line(_tx,_yy+2,W-MG,_yy+2); }
+        y+=_blockH;
+      }
+      /* depenses du jour + total du jour */
       if(dayExps.length){
         ensure(8);
         doc.setFont("helvetica","bold"); doc.setFontSize(8.5); doc.setTextColor(GOLD[0],GOLD[1],GOLD[2]);
-        doc.text(L({fr:"Dépenses du jour",en:"Day expenses",es:"Gastos del día",it:"Spese del giorno",de:"Ausgaben"}).toUpperCase(),MG+2,y+2,{charSpace:0.5}); y+=5;
-        dayExps.forEach(e=>{ ensure(6); doc.setFont("helvetica","normal"); doc.setFontSize(9.5); doc.setTextColor(60,64,74);
-          const lbl=(e.label||e.establishment||catLabel(e.category)||""); doc.text(doc.splitTextToSize(lbl,W-2*MG-28),MG+4,y+2);
-          doc.setFont("helvetica","bold"); doc.setTextColor(INK[0],INK[1],INK[2]); doc.text(money((e.type==="refund"?-1:1)*(+e.amount||0)),W-MG-2,y+2,{align:"right"}); y+=5.4; });
-        y+=2;
+        doc.text(L({fr:"D\u00e9penses du jour",en:"Day expenses",es:"Gastos del d\u00eda",it:"Spese del giorno",de:"Ausgaben"}).toUpperCase(),MG+2,y+2,{charSpace:0.5}); y+=5;
+        var _dayTot=0;
+        dayExps.forEach(function(e){ ensure(6); doc.setFont("helvetica","normal"); doc.setFontSize(9.5); doc.setTextColor(60,64,74);
+          var lbl=(e.label||e.establishment||catLabel(e.category)||""); doc.text(doc.splitTextToSize(lbl,W-2*MG-28),MG+4,y+2);
+          var _v=(e.type==="refund"?-1:1)*(+e.amount||0); _dayTot+=_v;
+          doc.setFont("helvetica","bold"); doc.setTextColor(INK[0],INK[1],INK[2]); doc.text(money(_v),W-MG-2,y+2,{align:"right"}); y+=5.4; });
+        y+=1; ensure(11);
+        doc.setFillColor(NAVY[0],NAVY[1],NAVY[2]); doc.roundedRect(MG,y,W-2*MG,10,2,2,'F');
+        doc.setTextColor(255,255,255); doc.setFont("helvetica","normal"); doc.setFontSize(9); doc.text(L({fr:"Total du jour",en:"Day total",es:"Total del d\u00eda",it:"Totale del giorno",de:"Tagessumme"}),MG+5,y+6.4);
+        doc.setFont("times","bold"); doc.setFontSize(12); doc.setTextColor(GOLDL[0],GOLDL[1],GOLDL[2]); doc.text(money(_dayTot),W-MG-5,y+6.6,{align:"right"}); y+=14;
       }
-      /* photos du jour recadrées */
-      if(dayPhotos.length){
-        const gap=4, pw=(W-2*MG-gap*(dayPhotos.length-1))/dayPhotos.length, ph=pw*0.8;
-        ensure(ph+6);
-        let px=MG;
-        for(const m of dayPhotos){ try{ const pd=await photoData(m.id); if(pd&&pd.data){ const cr=await _cropImg(pd.data,Math.round(pw*8),Math.round(ph*8)); if(cr){ doc.addImage(cr,"JPEG",px,y,pw,ph,undefined,"FAST"); doc.setDrawColor(LINE[0],LINE[1],LINE[2]); doc.setLineWidth(0.3); doc.rect(px,y,pw,ph); } } }catch(e){} px+=pw+gap; }
-        y+=ph+4;
-      }
+      /* resume du jour : lignes a ecrire a la main */
+      ensure(28);
+      doc.setFont("helvetica","bold"); doc.setFontSize(8.5); doc.setTextColor(GOLD[0],GOLD[1],GOLD[2]);
+      doc.text(L({fr:"MON R\u00c9SUM\u00c9 DU JOUR",en:"MY DAY NOTES",es:"MI RESUMEN DEL D\u00cdA",it:"IL MIO DIARIO",de:"MEIN TAGEBUCH"}),MG,y+2,{charSpace:0.5}); y+=6;
+      doc.setDrawColor(214,204,180); doc.setLineWidth(0.3);
+      for(var _ri=0;_ri<3;_ri++){ doc.line(MG,y,W-MG,y); y+=7; }
     }
 
     /* ---------- BILAN ---------- */
