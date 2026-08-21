@@ -3241,7 +3241,7 @@ const DEFAULT_S={ version:"0.2.0", settings:{ lang:"fr", theme:"system", units:"
 /* Clé Maps JS partagée (restreinte au domaine GitHub Pages). Repli : clé perso de l'utilisateur si fournie. */
 const SHARED_MAP_KEY="AIzaSyCt5iVx8nPr1V067A3daE0X1YA568XJNbU";
 function mapKey(){ return (S.settings.mapKey||"").trim() || SHARED_MAP_KEY; }
-const BUILD="0.3.62 · v648 carnet-recit";
+const BUILD="0.3.63 · v649 recit-layout";
 let S=loadState();
 function normalizeTrip(tr){ if(!tr||typeof tr!=="object") return tr;
   tr.id=tr.id||("t"+Date.now()+Math.random().toString(36).slice(2,7));
@@ -8210,19 +8210,19 @@ async function exportCarnetComplet(){
     doc.setTextColor(INK[0],INK[1],INK[2]); doc.setFont("times","bold"); doc.setFontSize(20);
     doc.text(L({fr:"Le récit",en:"The story",es:"El relato",it:"Il racconto",de:"Die Geschichte"}),MG,y); y+=9;
     const recit=(tr.carnetText||tr.souvenirText||"").trim();
-    if(recit){ doc.setFont("times","normal"); doc.setFontSize(11.5); doc.setTextColor(50,55,66); const rl=doc.splitTextToSize(recit,W-2*MG); doc.text(rl,MG,y); y+=rl.length*5.6+6; }
+    if(recit){ doc.setFont("times","normal"); doc.setFontSize(11.5); doc.setTextColor(50,55,66); const rl=doc.splitTextToSize(recit,W-2*MG); const _lh=5.8; for(let _i=0;_i<rl.length;_i++){ ensure(_lh, ()=>{ doc.setFont("times","normal"); doc.setFontSize(11.5); doc.setTextColor(50,55,66); }); doc.text(rl[_i],MG,y); y+=_lh; } y+=6; }
     else { doc.setFont("helvetica","italic"); doc.setFontSize(10); doc.setTextColor(MUT[0],MUT[1],MUT[2]); doc.text(L({fr:"(Génère le récit dans le Carnet)",en:"(Generate the story in the Journal)"}),MG,y); y+=8; }
     /* chiffres clés */
     const nDays=days.length||1;
     const nPlaces=pts.filter(p=>p.kind!=="transport").length;
     const nPhotos=(tr.memories||[]).length;
     let total=0; exps.forEach(e=>{ if(!e.currency||e.currency===cur) total+=(+e.amount||0)*(e.type==="refund"?-1:1); });
-    y+=2; doc.setDrawColor(LINE[0],LINE[1],LINE[2]); doc.setLineWidth(0.3); doc.line(MG,y,W-MG,y); y+=8;
+    ensure(38); y+=2; doc.setDrawColor(LINE[0],LINE[1],LINE[2]); doc.setLineWidth(0.3); doc.line(MG,y,W-MG,y); y+=8;
     const stats=[[String(nDays),L({fr:"jours",en:"days",es:"días",it:"giorni",de:"Tage"})],[String(nPlaces),L({fr:"lieux",en:"places",es:"lugares",it:"luoghi",de:"Orte"})],[String(nPhotos),L({fr:"photos",en:"photos",es:"fotos",it:"foto",de:"Fotos"})]];
     const cw=(W-2*MG)/stats.length;
     stats.forEach((st,i)=>{ const cx=MG+cw*i+cw/2; doc.setTextColor(GOLD[0],GOLD[1],GOLD[2]); doc.setFont("times","bold"); doc.setFontSize(22); doc.text(st[0],cx,y+2,{align:"center"}); doc.setTextColor(MUT[0],MUT[1],MUT[2]); doc.setFont("helvetica","normal"); doc.setFontSize(9); doc.text(st[1],cx,y+9,{align:"center"}); });
     y+=20;
-    if(total>0){ doc.setFillColor(NAVY[0],NAVY[1],NAVY[2]); doc.roundedRect(MG,y,W-2*MG,16,3,3,'F'); doc.setTextColor(255,255,255); doc.setFont("helvetica","normal"); doc.setFontSize(10); doc.text(L({fr:"Total dépensé",en:"Total spent",es:"Total gastado",it:"Totale speso",de:"Ausgegeben"}),MG+6,y+10); doc.setFont("times","bold"); doc.setFontSize(15); doc.setTextColor(GOLDL[0],GOLDL[1],GOLDL[2]); doc.text(money(total),W-MG-6,y+10.5,{align:"right"}); y+=22; }
+    if(total>0){ ensure(20); doc.setFillColor(NAVY[0],NAVY[1],NAVY[2]); doc.roundedRect(MG,y,W-2*MG,16,3,3,'F'); doc.setTextColor(255,255,255); doc.setFont("helvetica","normal"); doc.setFontSize(10); doc.text(L({fr:"Total dépensé",en:"Total spent",es:"Total gastado",it:"Totale speso",de:"Ausgegeben"}),MG+6,y+10); doc.setFont("times","bold"); doc.setFontSize(15); doc.setTextColor(GOLDL[0],GOLDL[1],GOLDL[2]); doc.text(money(total),W-MG-6,y+10.5,{align:"right"}); y+=22; }
 
     /* ---------- CARTE DU VOYAGE ---------- */
     try{
