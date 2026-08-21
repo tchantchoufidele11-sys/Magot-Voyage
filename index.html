@@ -8264,11 +8264,9 @@ async function exportCarnetComplet(){
       var _pl=((_res&&_res.places)||[]).find(function(x){ return x&&x.photo; });
       return (_pl&&_pl.photo)||null;
     }catch(e){ return null; } }
-    async function _gPhotoData(ref, size){ try{ if(typeof gPhoto!=="function") return null; var _u=gPhoto(ref, size||700);
-      /* 1) fiable : base64 renvoyé par le worker (CORS ouvert) */
-      try{ var r=await fetch(_u+"&b64=1"); if(r&&r.ok){ var j=await r.json().catch(function(){return null;}); if(j&&j.data) return j.data; } }catch(e){}
-      /* 2) secours : méthode de la carte postale (image -> canvas) — marche si CORS ok */
-      try{ if(typeof _pcImg==="function"){ var im=await _pcImg(_u); if(im){ var c=document.createElement("canvas"); c.width=im.naturalWidth||size||700; c.height=im.naturalHeight||size||700; c.getContext("2d").drawImage(im,0,0); return c.toDataURL("image/jpeg",0.9); } } }catch(e){}
+    async function _gPhotoData(ref, size){ try{ if(typeof gPhoto!=="function") return null; var _u=gPhoto(ref, size||900);
+      /* même méthode que la carte postale : image CORS -> canvas (fiable) */
+      try{ var im=(typeof _pcImgCORS==="function")?await _pcImgCORS(_u):null; if(im){ var c=document.createElement("canvas"); c.width=im.naturalWidth||size||900; c.height=im.naturalHeight||size||900; c.getContext("2d").drawImage(im,0,0); return c.toDataURL("image/jpeg",0.9); } }catch(e){}
       return null;
     }catch(e){ return null; } }
     for(const dd of days){
