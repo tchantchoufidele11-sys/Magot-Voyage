@@ -8180,6 +8180,7 @@ async function exportCarnetComplet(){
     const title=(tr.dest&&tr.dest.name)||tr.name||"Voyage";
     const dr=(typeof fmtRange==="function")?fmtRange(tr.dateStart,tr.dateEnd):"";
     const money=(n)=>(typeof window.money==="function")?window.money(n,cur):((Math.round((+n||0)*100)/100)+" "+cur);
+    try{ _souvTr=tr; for(const _dd of days){ const _st=pts.filter(p=>p.day===_dd.i); if(_st.length>=2 && typeof ensureRoute==="function"){ const _stops=_st.map(p=>({lat:p.lat,lng:p.lng,name:p.title,title:p.title})); try{ await ensureRoute(tr,_dd.i,_stops); }catch(e){} } } }catch(e){}
 
     function sig(x,y,scale,col){ col=col||GOLDL; doc.setTextColor(col[0],col[1],col[2]); doc.setFont("times","bold"); doc.setFontSize(13*scale); doc.text("Magot",x,y); const w=doc.getTextWidth("Magot")+1.5*scale; doc.setFont("times","italic"); doc.setFontSize(14*scale); doc.text("Voyage",x+w,y); }
     function catLabel(c){ try{ return t("bcat."+c); }catch(e){ return c; } }
@@ -8233,10 +8234,10 @@ async function exportCarnetComplet(){
           doc.addPage(); pageBg(); y=26;
           doc.setTextColor(INK[0],INK[1],INK[2]); doc.setFont("times","bold"); doc.setFontSize(20);
           doc.text(L({fr:"Carte du voyage",en:"Trip map",es:"Mapa del viaje",it:"Mappa del viaggio",de:"Reisekarte"}),MG,y); y+=8;
-          const iw=W-2*MG; const ih=Math.min(iw*(shot.h/shot.w), H-y-16);
-          doc.addImage(shot.url,"PNG",MG,y,iw,ih,undefined,"FAST");
-          doc.setDrawColor(GOLDL[0],GOLDL[1],GOLDL[2]); doc.setLineWidth(0.4); doc.rect(MG,y,iw,ih);
-          y+=ih+6;
+          const iw=W-2*MG; const availH=H-y-16; let ih=iw*(shot.h/shot.w); if(ih>availH) ih=availH; const yTop=y+Math.max(0,(availH-ih)/2);
+          doc.addImage(shot.url,"PNG",MG,yTop,iw,ih,undefined,"FAST");
+          doc.setDrawColor(GOLDL[0],GOLDL[1],GOLDL[2]); doc.setLineWidth(0.4); doc.rect(MG,yTop,iw,ih);
+          y=yTop+ih+6;
           doc.setFont("helvetica","normal"); doc.setFontSize(8.5); doc.setTextColor(MUT[0],MUT[1],MUT[2]);
           doc.text(L({fr:"Itinéraire et lieux visités — © OpenStreetMap",en:"Route and places visited — © OpenStreetMap"}),MG,y);
         }
