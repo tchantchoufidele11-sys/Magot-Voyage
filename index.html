@@ -3241,7 +3241,7 @@ const DEFAULT_S={ version:"0.2.0", settings:{ lang:"fr", theme:"system", units:"
 /* Clé Maps JS partagée (restreinte au domaine GitHub Pages). Repli : clé perso de l'utilisateur si fournie. */
 const SHARED_MAP_KEY="AIzaSyCt5iVx8nPr1V067A3daE0X1YA568XJNbU";
 function mapKey(){ return (S.settings.mapKey||"").trim() || SHARED_MAP_KEY; }
-const BUILD="0.3.69 · v655 carte-legende";
+const BUILD="0.3.70 · v656 carte-byday";
 let S=loadState();
 function normalizeTrip(tr){ if(!tr||typeof tr!=="object") return tr;
   tr.id=tr.id||("t"+Date.now()+Math.random().toString(36).slice(2,7));
@@ -7823,7 +7823,7 @@ function _souvAddLayers(map,pts){ if(!map||!pts||!pts.length) return; const L=DA
   const pfeats=pts.map((pp,i)=>{ let _sc=0; for(let _j=0;_j<i;_j++){ if(Math.abs(pts[_j].lat-pp.lat)<0.0045 && Math.abs(pts[_j].lng-pp.lng)<0.0075) _sc++; } return {type:"Feature",properties:{idx:i,off:[((_sc%2)?1:-1)*Math.ceil(_sc/2)*24,-Math.ceil(_sc/2)*8]},geometry:{type:"Point",coordinates:[pp.lng,pp.lat]}}; });
   const pdata={type:"FeatureCollection",features:pfeats};
   if(map.getSource("smp")) map.getSource("smp").setData(pdata); else map.addSource("smp",{type:"geojson",data:pdata});
-  Promise.all(pts.map((pp,i)=>{ const key="smpin"+i; if(map.hasImage(key)) return Promise.resolve(); const col=(pp&&pp._dayColor)||((typeof catColor==="function"&&catColor(pp))||DAY_COLORS[pp.day%L]); const emo=(typeof catEmoji==="function"?catEmoji(pp):"📍"); return _addPinImg(map,key,_souvSvgPin(emo,i+1,col),i+1,col); })).then(()=>{ if(map.getLayer("smp-pin")) return; try{ map.addLayer({id:"smp-pin",type:"symbol",source:"smp",layout:{"icon-image":["concat","smpin",["to-string",["get","idx"]]],"icon-size":1.35,"icon-anchor":"bottom","icon-offset":["get","off"],"icon-allow-overlap":true,"icon-ignore-placement":true}}); }catch(e){} }).catch(()=>{});
+  Promise.all(pts.map((pp,i)=>{ const key="smpin"+i; if(map.hasImage(key)) return Promise.resolve(); const col=(window._souvByDay)?DAY_COLORS[(((pp&&pp.day!=null)?pp.day:0))%DAY_COLORS.length]:((pp&&pp._dayColor)||((typeof catColor==="function"&&catColor(pp))||DAY_COLORS[pp.day%L])); const emo=(typeof catEmoji==="function"?catEmoji(pp):"📍"); return _addPinImg(map,key,_souvSvgPin(emo,i+1,col),i+1,col); })).then(()=>{ if(map.getLayer("smp-pin")) return; try{ map.addLayer({id:"smp-pin",type:"symbol",source:"smp",layout:{"icon-image":["concat","smpin",["to-string",["get","idx"]]],"icon-size":1.35,"icon-anchor":"bottom","icon-offset":["get","off"],"icon-allow-overlap":true,"icon-ignore-placement":true}}); }catch(e){} }).catch(()=>{});
   if(_souvTr && typeof ensureRoute==="function"){ const _tr=_souvTr; const _keys=Object.keys(byDay).sort((a,b)=>(+a)-(+b)); let _bx=0; const _base={};
     _keys.forEach(d=>{ _base[d]=_bx; _bx+=Math.max(0,byDay[d].length-1); });
     Promise.all(_keys.map(async d=>{ const arr=byDay[d]; if(arr.length<2) return [];
@@ -8174,7 +8174,7 @@ async function exportCarnetComplet(){
     const cur=tr.currency||"EUR";
     const fr=(typeof lang==="function"&&lang()==="fr");
     const L=(o)=>o[(typeof lang==="function"&&lang())||"fr"]||o.fr;
-    const days=(typeof tripDays==="function")?tripDays(tr):[];
+    const days=(typeof tripDays==="function")?tripDays(tr):[]; window._souvByDay=true;
     const pts=(typeof souvPoints==="function")?souvPoints(tr):[];
     const exps=(tr.expenses||[]);
     const title=(tr.dest&&tr.dest.name)||tr.name||"Voyage";
@@ -8241,7 +8241,7 @@ async function exportCarnetComplet(){
           y=yTop+ih+6;
           doc.setFont("helvetica","normal"); doc.setFontSize(8.5); doc.setTextColor(MUT[0],MUT[1],MUT[2]);
           doc.text(L({fr:"Itinéraire et lieux visités — © OpenStreetMap",en:"Route and places visited — © OpenStreetMap"}),MG,y);
-          var _dset={}; mapPts.forEach(function(mp){ if(mp&&mp.day!=null) _dset[mp.day]=1; });
+          var _dset={}; mapPts.forEach(function(mp){ var _dd2=(mp&&mp.day!=null)?mp.day:0; _dset[_dd2]=1; });
           var _dl=Object.keys(_dset).map(Number).sort(function(a,b){return a-b;});
           if(_dl.length){ y+=7; var _lx=MG, _ly=y;
           for(var _k=0;_k<_dl.length;_k++){ var _di=_dl[_k]; var _cc=DAY_COLORS[_di%DAY_COLORS.length]; var _lbl=L({fr:"Jour ",en:"Day ",es:"Día ",it:"Giorno ",de:"Tag "})+(_di+1);
@@ -8358,9 +8358,9 @@ async function exportCarnetComplet(){
     doc.text(doc.splitTextToSize(L({fr:"Merci d'avoir voyagé avec nous.",en:"Thank you for travelling with us.",es:"Gracias por viajar con nosotros.",it:"Grazie per aver viaggiato con noi.",de:"Danke, dass Sie mit uns gereist sind."}),W-2*MG-6),W/2,H/2-6,{align:"center"});
     sig(W/2-16,H/2+12,1.3);
 
-    doc.save((typeof safeName==="function"?safeName(tr.name):"voyage")+"_carnet.pdf");
+    window._souvByDay=false; doc.save((typeof safeName==="function"?safeName(tr.name):"voyage")+"_carnet.pdf");
     toast(t("mem.exportDone"));
-  }catch(e){ toast(t("mem.exportOffline")); }
+  }catch(e){ window._souvByDay=false; toast(t("mem.exportOffline")); }
 }
 function _carnetRerender(){ try{ var h=window._carnetInlineHost; if(h&&document.body.contains(h)) openExport(h); }catch(e){} }
 async function _carnetGenCn(tr){ try{ if(!tr) return;
