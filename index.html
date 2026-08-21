@@ -3241,7 +3241,7 @@ const DEFAULT_S={ version:"0.2.0", settings:{ lang:"fr", theme:"system", units:"
 /* Clé Maps JS partagée (restreinte au domaine GitHub Pages). Repli : clé perso de l'utilisateur si fournie. */
 const SHARED_MAP_KEY="AIzaSyCt5iVx8nPr1V067A3daE0X1YA568XJNbU";
 function mapKey(){ return (S.settings.mapKey||"").trim() || SHARED_MAP_KEY; }
-const BUILD="0.3.59 · v645 carnet-inline";
+const BUILD="0.3.60 · v646 carnet-fusion";
 let S=loadState();
 function normalizeTrip(tr){ if(!tr||typeof tr!=="object") return tr;
   tr.id=tr.id||("t"+Date.now()+Math.random().toString(36).slice(2,7));
@@ -8367,32 +8367,56 @@ async function exportCarnetComplet(){
     toast(t("mem.exportDone"));
   }catch(e){ toast(t("mem.exportOffline")); }
 }
+function _carnetRerender(){ try{ var h=window._carnetInlineHost; if(h&&document.body.contains(h)) openExport(h); }catch(e){} }
+async function _carnetGenCn(tr){ try{ if(!tr) return;
+  var places=(tr.places||[]).map(function(p){return p&&p.name;}).filter(Boolean).slice(0,14);
+  var notes=[]; (tr.plan||[]).forEach(function(s){ if(s&&s.note) notes.push((s.title||"")+": "+s.note); });
+  (tr.memories||[]).forEach(function(m){ if(m&&m.caption) notes.push(m.caption); });
+  var payload={ destination:(tr.dest&&tr.dest.name)||tr.name||"", jours:tripDays(tr).length, lieux:places, notes:notes.slice(0,30), lang:(typeof lang==="function"&&lang())||"fr", format:"long" };
+  var out=await workerFetch("/agent/souvenir", payload);
+  if(out&&out.text){ tr.carnetText=String(out.text).trim().replace(/^[\u00ab"\u2019\u201c]\s*([\s\S]*?)\s*[\u00bb"\u2019\u201d]$/,"$1"); try{ saveState(); }catch(e){} }
+}catch(e){} }
+function _carnetEditInline(key){ try{ var b=window._carnetInlineHost; if(!b) return; var c=b.querySelector('.ex-comment[data-c="'+key+'"]'); if(!c) return; var tr=(typeof souvTrip==="function"?souvTrip():currentTrip()); if(!tr) return;
+  var cur=key==="pc"?(tr.souvenirText||""):((tr.carnetText||tr.souvenirText||""));
+  var ta=document.createElement("textarea"); ta.value=cur; ta.style.cssText="width:100%;min-height:130px;font:14px/1.5 Georgia,serif;padding:10px;border:1px solid #d8cba8;border-radius:10px;box-sizing:border-box";
+  c.style.display="none"; c.parentNode.insertBefore(ta,c.nextSibling);
+  var sv=document.createElement("button"); sv.className="btn navy block"; sv.style.marginTop="8px"; sv.textContent=((typeof lang==="function"&&lang()==="en")?"Save":"Enregistrer");
+  ta.parentNode.insertBefore(sv,ta.nextSibling); ta.focus();
+  sv.onclick=function(){ var v=ta.value.trim(); if(key==="pc"){ tr.souvenirText=v; } else { tr.carnetText=v; } try{ saveState(); }catch(e){} _carnetRerender(); };
+}catch(e){} }
 function openExport(inlineHost){ const tr=(typeof souvTrip==="function"?souvTrip():currentTrip()); if(!tr){ toast(t("mem.noTrip")); return; }
   if(!inlineHost){ document.getElementById("exportHd").textContent=t("mem.export"); }
   const b=inlineHost||document.getElementById("exportBody");
   const _L=(typeof lang==="function"&&lang())||"fr"; const _t2=(o)=>o[_L]||o.fr;
+  if(inlineHost) window._carnetInlineHost=inlineHost;
   var _full=(tr.souvenirText||"").trim();
   var _shorten=function(x){ x=String(x||"").replace(/\s+/g," ").trim(); if(!x) return ""; var m=x.match(/[^.!?\u2026]+[.!?\u2026]+/g); if(!m) return x; var o=""; for(var i=0;i<m.length&&i<3;i++) o+=m[i]; return o.trim()||x; };
   var _short=_shorten(_full);
   var _pcTxt=_short||(_L==="fr"?"Un beau souvenir de voyage, \u00e0 garder pr\u00e9cieusement.":"A beautiful travel memory to cherish.");
-  var _cnTxt=_full||_pcTxt;
+  var _cnTxt=(tr.carnetText||"").trim()||_full||_pcTxt;
   var _more=_t2({fr:"Lire la suite",en:"Read more",es:"Leer m\u00e1s",it:"Leggi tutto",de:"Mehr lesen"});
-  var _less=_t2({fr:"R\u00e9duire",en:"Show less",es:"Menos",it:"Riduci",de:"Weniger"});
+  var _gen=_t2({fr:"Fid\u00e8le",en:"Fid\u00e8le",es:"Fid\u00e8le",it:"Fid\u00e8le",de:"Fid\u00e8le"});
+  var _ed=_t2({fr:"Modifier",en:"Edit",es:"Editar",it:"Modifica",de:"Bearbeiten"});
+  function _row(tag){ return `<div style="display:flex;gap:8px;margin:2px 0 12px">`    +`<button class="ex-gen" data-g="${tag}" style="flex:1;background:#faf6ec;border:1px solid #e6dcc0;color:#8a6d1e;font:600 12px system-ui;padding:8px;border-radius:10px">\u2728 ${_gen}</button>`    +`<button class="ex-edit" data-e="${tag}" style="flex:1;background:#f4f5f7;border:1px solid #dfe2e8;color:#3a3f4a;font:600 12px system-ui;padding:8px;border-radius:10px">\u270e ${_ed}</button>`    +`</div>`; }
   b.innerHTML=`<div style="padding:2px 0 4px">`
     +`<div style="font:700 12px system-ui;letter-spacing:1.5px;color:#8a93a5;margin:0 0 8px">${_t2({fr:"CARTE POSTALE",en:"POSTCARD",es:"POSTAL",it:"CARTOLINA",de:"POSTKARTE"})}</div>`
     +`<div class="ex-comment" data-c="pc" style="font:italic 14px/1.5 Georgia,serif;color:#3a3f4a;max-height:64px;overflow:hidden;transition:max-height .35s ease">${escapeHtml(_pcTxt)}</div>`
-    +`<button class="ex-toggle" data-t="pc" style="background:none;border:0;color:#b8860b;font:600 12px system-ui;padding:5px 0 10px;cursor:pointer">${_more} \u25be</button>`
+    +`<button class="ex-toggle" data-t="pc" style="background:none;border:0;color:#b8860b;font:600 12px system-ui;padding:5px 0 8px;cursor:pointer">${_more} \u25be</button>`
+    +_row("pc")
     +`<button class="btn navy block" id="exPcPrev">\ud83d\udc41\ufe0f ${_t2({fr:"Voir la carte postale",en:"View the postcard",es:"Ver la postal",it:"Vedi la cartolina",de:"Postkarte ansehen"})}</button>`
     +`</div>`
     +`<div style="height:1px;background:linear-gradient(90deg,transparent,#d8cba8 30%,#d8cba8 70%,transparent);margin:20px 0"></div>`
     +`<div style="padding:2px 0 4px">`
     +`<div style="font:700 12px system-ui;letter-spacing:1.5px;color:#8a93a5;margin:0 0 8px">${_t2({fr:"CARNET COMPLET",en:"FULL JOURNAL",es:"CUADERNO",it:"DIARIO",de:"REISEBUCH"})}</div>`
     +`<div class="ex-comment" data-c="cn" style="font:italic 14px/1.5 Georgia,serif;color:#3a3f4a;max-height:64px;overflow:hidden;transition:max-height .35s ease">${escapeHtml(_cnTxt)}</div>`
-    +`<button class="ex-toggle" data-t="cn" style="background:none;border:0;color:#b8860b;font:600 12px system-ui;padding:5px 0 10px;cursor:pointer">${_more} \u25be</button>`
+    +`<button class="ex-toggle" data-t="cn" style="background:none;border:0;color:#b8860b;font:600 12px system-ui;padding:5px 0 8px;cursor:pointer">${_more} \u25be</button>`
+    +_row("cn")
     +`<button class="btn navy block" id="exCarnetFull">\ud83d\udcd4 ${_t2({fr:"Voir le carnet",en:"View the journal",es:"Ver el cuaderno",it:"Vedi il diario",de:"Reisebuch ansehen"})}</button>`
     +`</div>`
     +`<p class="est-disc">${t("mem.exportHint")}</p><div style="height:6px"></div>`;
-  Array.prototype.forEach.call(b.querySelectorAll(".ex-toggle"),function(btn){ btn.onclick=function(){ var key=btn.getAttribute("data-t"); var c=b.querySelector('.ex-comment[data-c="'+key+'"]'); if(!c) return; var open=c.getAttribute("data-open")==="1"; if(open){ c.style.maxHeight="64px"; c.setAttribute("data-open","0"); btn.innerHTML=_more+" \u25be"; } else { c.style.maxHeight=c.scrollHeight+"px"; c.setAttribute("data-open","1"); btn.innerHTML=_less+" \u25b4"; } }; });
+  Array.prototype.forEach.call(b.querySelectorAll(".ex-toggle"),function(btn){ btn.onclick=function(){ var key=btn.getAttribute("data-t"); var c=b.querySelector('.ex-comment[data-c="'+key+'"]'); if(!c) return; var open=c.getAttribute("data-open")==="1"; if(open){ c.style.maxHeight="64px"; c.setAttribute("data-open","0"); } else { c.style.maxHeight=c.scrollHeight+"px"; c.setAttribute("data-open","1"); } }; });
+  Array.prototype.forEach.call(b.querySelectorAll(".ex-gen"),function(btn){ btn.onclick=async function(){ var k=btn.getAttribute("data-g"); var _o=btn.innerHTML; btn.disabled=true; btn.innerHTML="\u2026"; try{ if(k==="pc"){ await generateSouvenir(tr,true); } else { await _carnetGenCn(tr); } }catch(e){} try{ btn.innerHTML=_o; btn.disabled=false; }catch(e){} _carnetRerender(); }; });
+  Array.prototype.forEach.call(b.querySelectorAll(".ex-edit"),function(btn){ btn.onclick=function(){ _carnetEditInline(btn.getAttribute("data-e")); }; });
   b.querySelector("#exPcPrev").onclick=()=>previewPostcard();
   b.querySelector("#exCarnetFull").onclick=()=>exportCarnetComplet();
   if(!inlineHost){ document.getElementById("exportSheet").classList.add("show"); } }
@@ -13119,7 +13143,7 @@ function renderMemories(){ const body=document.getElementById("memBody"); if(!bo
       if(kEl) mvStats(tr).then(st=>{ const km=+(st.km||0);
         if(km>0) kEl.textContent="  \u00b7  "+km+" km parcourus"; }).catch(()=>{}); }
     const _mini=body.querySelector("#svMapMini"); if(_mini) souvMiniMap(tr,_mini); }
-  { const _me=body.querySelector("#memExport2"); if(_me){ var _host=document.createElement("div"); _host.className="carnet-inline"; _me.parentNode.replaceChild(_host,_me); try{ openExport(_host); }catch(e){} } }
+  { const _me=body.querySelector("#memExport2"); if(_me){ var _host=document.createElement("div"); _host.className="carnet-inline"; _me.parentNode.replaceChild(_host,_me); try{ openExport(_host); }catch(e){} try{ var _ag=body.querySelector("#souvAgentCard"); if(_ag){ var _agc=(_ag.closest&&_ag.closest(".card"))||_ag.parentElement; if(_agc) _agc.style.display="none"; } }catch(e){} } }
   body.querySelectorAll(".jr-dayhead").forEach(b=>b.onclick=()=>{ const d=b.closest(".jr-day"); if(d) d.classList.toggle("open"); });
   _bindExtra();
   if(document.getElementById("souvAgentCard")) paintSouvCard(tr);
