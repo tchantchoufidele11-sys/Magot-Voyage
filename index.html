@@ -8159,16 +8159,154 @@ async function previewPostcard(){ const tr=(typeof souvTrip==="function"?souvTri
     ov.querySelector("#pcvClose").onclick=()=>{ try{ov.remove();}catch(e){} };
   }catch(e){ toast(t("mem.exportOffline")); } }
 
+
+/* ===== CARNET DE VOYAGE COMPLET — PDF A5 multi-pages ===== */
+async function exportCarnetComplet(){
+  const tr=(typeof souvTrip==="function"?souvTrip():currentTrip()); if(!tr){ toast(t("mem.noTrip")); return; }
+  closeExport(); toast(t("mem.exporting"));
+  try{
+    await loadJsPDF();
+    const { jsPDF }=window.jspdf;
+    const doc=new jsPDF({unit:"mm",format:"a5",orientation:"portrait"});
+    const W=doc.internal.pageSize.getWidth(), H=doc.internal.pageSize.getHeight();
+    const MG=14;
+    const NAVY=[14,33,72], GOLD=[176,149,47], GOLDL=[212,175,55], INK=[24,34,54], MUT=[130,138,150], LINE=[224,220,208];
+    const cur=tr.currency||"EUR";
+    const fr=(typeof lang==="function"&&lang()==="fr");
+    const L=(o)=>o[(typeof lang==="function"&&lang())||"fr"]||o.fr;
+    const days=(typeof tripDays==="function")?tripDays(tr):[];
+    const pts=(typeof souvPoints==="function")?souvPoints(tr):[];
+    const exps=(tr.expenses||[]);
+    const title=(tr.dest&&tr.dest.name)||tr.name||"Voyage";
+    const dr=(typeof fmtRange==="function")?fmtRange(tr.dateStart,tr.dateEnd):"";
+    const money=(n)=>(typeof window.money==="function")?window.money(n,cur):((Math.round((+n||0)*100)/100)+" "+cur);
+
+    function sig(x,y,scale,col){ col=col||GOLDL; doc.setTextColor(col[0],col[1],col[2]); doc.setFont("times","bold"); doc.setFontSize(13*scale); doc.text("Magot",x,y); const w=doc.getTextWidth("Magot")+1.5*scale; doc.setFont("times","italic"); doc.setFontSize(14*scale); doc.text("Voyage",x+w,y); }
+    function catLabel(c){ try{ return t("bcat."+c); }catch(e){ return c; } }
+    function kindLabel(k){ try{ return t("kind."+k); }catch(e){ return ""; } }
+
+    /* ---------- COUVERTURE ---------- */
+    doc.setFillColor(NAVY[0],NAVY[1],NAVY[2]); doc.rect(0,0,W,H,'F');
+    doc.setDrawColor(GOLDL[0],GOLDL[1],GOLDL[2]); doc.setLineWidth(0.6); doc.rect(MG-5,MG-5,W-2*(MG-5),H-2*(MG-5));
+    doc.setTextColor(GOLDL[0],GOLDL[1],GOLDL[2]); doc.setFont("helvetica","bold"); doc.setFontSize(10);
+    doc.text(L({fr:"CARNET DE VOYAGE",en:"TRAVEL JOURNAL",es:"CUADERNO DE VIAJE",it:"DIARIO DI VIAGGIO",de:"REISETAGEBUCH"}),W/2,54,{align:"center",charSpace:1.4});
+    doc.setTextColor(255,255,255); doc.setFont("times","bold"); doc.setFontSize(30);
+    const tl=doc.splitTextToSize(title,W-2*MG-4); doc.text(tl,W/2,74,{align:"center"});
+    let yc=74+tl.length*11;
+    if(dr){ doc.setFont("helvetica","normal"); doc.setFontSize(12); doc.setTextColor(222,222,228); doc.text(dr,W/2,yc+2,{align:"center"}); yc+=2; }
+    doc.setDrawColor(GOLDL[0],GOLDL[1],GOLDL[2]); doc.setLineWidth(0.4); doc.line(W/2-16,yc+9,W/2+16,yc+9);
+    doc.setFont("times","italic"); doc.setFontSize(11); doc.setTextColor(210,190,140);
+    const cl=doc.splitTextToSize((typeof tripCity==="function"?tripCity(tr):title)||title,W-2*MG); doc.text(cl,W/2,yc+18,{align:"center"});
+    sig(W/2-16,H-26,1.25);
+
+    /* ---------- helpers pages intérieures ---------- */
+    function pageBg(){ doc.setFillColor(252,250,244); doc.rect(0,0,W,H,'F'); doc.setDrawColor(GOLDL[0],GOLDL[1],GOLDL[2]); doc.setLineWidth(0.5); doc.line(MG,12,W-MG,12); doc.setTextColor(GOLD[0],GOLD[1],GOLD[2]); doc.setFont("times","italic"); doc.setFontSize(9); doc.text("Magot Voyage",W-MG,10,{align:"right"}); }
+    let y=0;
+    function ensure(nh,cont){ if(y+nh>H-16){ doc.addPage(); pageBg(); y=22; if(cont) cont(); } }
+
+    /* ---------- RÉCIT + CHIFFRES ---------- */
+    doc.addPage(); pageBg(); y=26;
+    doc.setTextColor(INK[0],INK[1],INK[2]); doc.setFont("times","bold"); doc.setFontSize(20);
+    doc.text(L({fr:"Le récit",en:"The story",es:"El relato",it:"Il racconto",de:"Die Geschichte"}),MG,y); y+=9;
+    const recit=(tr.souvenirText||"").trim();
+    if(recit){ doc.setFont("times","normal"); doc.setFontSize(11.5); doc.setTextColor(50,55,66); const rl=doc.splitTextToSize(recit,W-2*MG); doc.text(rl,MG,y); y+=rl.length*5.6+6; }
+    else { doc.setFont("helvetica","italic"); doc.setFontSize(10); doc.setTextColor(MUT[0],MUT[1],MUT[2]); doc.text(L({fr:"(Génère le récit dans le Carnet)",en:"(Generate the story in the Journal)"}),MG,y); y+=8; }
+    /* chiffres clés */
+    const nDays=days.length||1;
+    const nPlaces=pts.filter(p=>p.kind!=="transport").length;
+    const nPhotos=(tr.memories||[]).length;
+    let total=0; exps.forEach(e=>{ if(!e.currency||e.currency===cur) total+=(+e.amount||0)*(e.type==="refund"?-1:1); });
+    y+=2; doc.setDrawColor(LINE[0],LINE[1],LINE[2]); doc.setLineWidth(0.3); doc.line(MG,y,W-MG,y); y+=8;
+    const stats=[[String(nDays),L({fr:"jours",en:"days",es:"días",it:"giorni",de:"Tage"})],[String(nPlaces),L({fr:"lieux",en:"places",es:"lugares",it:"luoghi",de:"Orte"})],[String(nPhotos),L({fr:"photos",en:"photos",es:"fotos",it:"foto",de:"Fotos"})]];
+    const cw=(W-2*MG)/stats.length;
+    stats.forEach((st,i)=>{ const cx=MG+cw*i+cw/2; doc.setTextColor(GOLD[0],GOLD[1],GOLD[2]); doc.setFont("times","bold"); doc.setFontSize(22); doc.text(st[0],cx,y+2,{align:"center"}); doc.setTextColor(MUT[0],MUT[1],MUT[2]); doc.setFont("helvetica","normal"); doc.setFontSize(9); doc.text(st[1],cx,y+9,{align:"center"}); });
+    y+=20;
+    if(total>0){ doc.setFillColor(NAVY[0],NAVY[1],NAVY[2]); doc.roundedRect(MG,y,W-2*MG,16,3,3,'F'); doc.setTextColor(255,255,255); doc.setFont("helvetica","normal"); doc.setFontSize(10); doc.text(L({fr:"Total dépensé",en:"Total spent",es:"Total gastado",it:"Totale speso",de:"Ausgegeben"}),MG+6,y+10); doc.setFont("times","bold"); doc.setFontSize(15); doc.setTextColor(GOLDL[0],GOLDL[1],GOLDL[2]); doc.text(money(total),W-MG-6,y+10.5,{align:"right"}); y+=22; }
+
+    /* ---------- JOUR PAR JOUR ---------- */
+    doc.addPage(); pageBg(); y=26;
+    doc.setTextColor(INK[0],INK[1],INK[2]); doc.setFont("times","bold"); doc.setFontSize(20);
+    doc.text(L({fr:"Jour par jour",en:"Day by day",es:"Día a día",it:"Giorno per giorno",de:"Tag für Tag"}),MG,y); y+=10;
+
+    days.forEach(dd=>{
+      const st=pts.filter(p=>p.day===dd.i);
+      const dayExps=exps.filter(e=>e.date===dd.date);
+      if(!st.length && !dayExps.length) return;
+      ensure(24);
+      /* bandeau jour */
+      doc.setFillColor(NAVY[0],NAVY[1],NAVY[2]); doc.roundedRect(MG,y,W-2*MG,11,2,2,'F');
+      doc.setTextColor(255,255,255); doc.setFont("times","bold"); doc.setFontSize(12);
+      doc.text(t("plan.day")+" "+(dd.i+1),MG+5,y+7.3);
+      if(dd.date){ doc.setFont("helvetica","normal"); doc.setFontSize(9); doc.setTextColor(210,200,170); doc.text((typeof fmtDayLong==="function"?fmtDayLong(dd.date):""),W-MG-5,y+7.2,{align:"right"}); }
+      y+=15;
+      /* timeline */
+      st.forEach(p=>{
+        const noteLines=p.note?doc.splitTextToSize(String(p.note),W-2*MG-26):[];
+        const blockH=7+(noteLines.length*4.6);
+        ensure(blockH);
+        doc.setTextColor(GOLD[0],GOLD[1],GOLD[2]); doc.setFont("helvetica","bold"); doc.setFontSize(9);
+        doc.text(p.time||"·",MG+2,y+1);
+        doc.setTextColor(INK[0],INK[1],INK[2]); doc.setFont("helvetica","bold"); doc.setFontSize(10.5);
+        const tt=doc.splitTextToSize(p.title||"",W-2*MG-24); doc.text(tt,MG+22,y+1);
+        let yy=y+1+tt.length*4.8;
+        const kl=kindLabel(p.kind); if(kl){ doc.setFont("helvetica","normal"); doc.setFontSize(8); doc.setTextColor(MUT[0],MUT[1],MUT[2]); doc.text(kl,MG+22,yy); yy+=3.6; }
+        if(noteLines.length){ doc.setFont("times","italic"); doc.setFontSize(9.5); doc.setTextColor(70,74,84); doc.text(noteLines,MG+22,yy+1); yy+=noteLines.length*4.6; }
+        y=yy+3;
+        doc.setDrawColor(LINE[0],LINE[1],LINE[2]); doc.setLineWidth(0.2); doc.line(MG+22,y-1,W-MG,y-1);
+      });
+      /* dépenses du jour */
+      if(dayExps.length){
+        ensure(8);
+        doc.setFont("helvetica","bold"); doc.setFontSize(8.5); doc.setTextColor(GOLD[0],GOLD[1],GOLD[2]);
+        doc.text(L({fr:"Dépenses du jour",en:"Day expenses",es:"Gastos del día",it:"Spese del giorno",de:"Ausgaben"}).toUpperCase(),MG+2,y+2,{charSpace:0.5}); y+=5;
+        dayExps.forEach(e=>{ ensure(6); doc.setFont("helvetica","normal"); doc.setFontSize(9.5); doc.setTextColor(60,64,74);
+          const lbl=(e.label||e.establishment||catLabel(e.category)||""); doc.text(doc.splitTextToSize(lbl,W-2*MG-28),MG+4,y+2);
+          doc.setFont("helvetica","bold"); doc.setTextColor(INK[0],INK[1],INK[2]); doc.text(money((e.type==="refund"?-1:1)*(+e.amount||0)),W-MG-2,y+2,{align:"right"}); y+=5.4; });
+        y+=2;
+      }
+      y+=4;
+    });
+
+    /* ---------- BILAN ---------- */
+    const byCat={}; exps.forEach(e=>{ if(e.currency&&e.currency!==cur) return; const c=e.category||"misc"; byCat[c]=(byCat[c]||0)+(+e.amount||0)*(e.type==="refund"?-1:1); });
+    const cats=Object.keys(byCat).filter(c=>byCat[c]>0).sort((a,b)=>byCat[b]-byCat[a]);
+    if(cats.length){
+      doc.addPage(); pageBg(); y=26;
+      doc.setTextColor(INK[0],INK[1],INK[2]); doc.setFont("times","bold"); doc.setFontSize(20);
+      doc.text(L({fr:"Bilan du séjour",en:"Trip summary",es:"Balance del viaje",it:"Bilancio",de:"Bilanz"}),MG,y); y+=12;
+      const maxV=Math.max.apply(null,cats.map(c=>byCat[c]))||1;
+      cats.forEach(c=>{ ensure(13); doc.setFont("helvetica","bold"); doc.setFontSize(10); doc.setTextColor(INK[0],INK[1],INK[2]); doc.text(catLabel(c),MG,y);
+        doc.setTextColor(GOLD[0],GOLD[1],GOLD[2]); doc.text(money(byCat[c]),W-MG,y,{align:"right"}); y+=3;
+        const bw=(W-2*MG)*(byCat[c]/maxV); doc.setFillColor(238,232,216); doc.roundedRect(MG,y,W-2*MG,3,1.5,1.5,'F'); doc.setFillColor(GOLDL[0],GOLDL[1],GOLDL[2]); doc.roundedRect(MG,y,Math.max(bw,2),3,1.5,1.5,'F'); y+=10; });
+      y+=2; doc.setDrawColor(NAVY[0],NAVY[1],NAVY[2]); doc.setLineWidth(0.5); doc.line(MG,y,W-MG,y); y+=8;
+      doc.setFont("times","bold"); doc.setFontSize(14); doc.setTextColor(INK[0],INK[1],INK[2]); doc.text(L({fr:"Total",en:"Total",es:"Total",it:"Totale",de:"Gesamt"}),MG,y); doc.setTextColor(NAVY[0],NAVY[1],NAVY[2]); doc.text(money(total),W-MG,y,{align:"right"}); y+=12;
+      if(tr.lodging&&tr.lodging.name){ ensure(10); doc.setFont("helvetica","bold"); doc.setFontSize(9); doc.setTextColor(GOLD[0],GOLD[1],GOLD[2]); doc.text(L({fr:"HÉBERGEMENT",en:"ACCOMMODATION",es:"ALOJAMIENTO",it:"ALLOGGIO",de:"UNTERKUNFT"}),MG,y,{charSpace:0.5}); y+=5; doc.setFont("helvetica","normal"); doc.setFontSize(10.5); doc.setTextColor(INK[0],INK[1],INK[2]); doc.text(doc.splitTextToSize(tr.lodging.name,W-2*MG),MG,y); y+=8; }
+    }
+
+    /* ---------- CLÔTURE ---------- */
+    doc.addPage(); doc.setFillColor(NAVY[0],NAVY[1],NAVY[2]); doc.rect(0,0,W,H,'F');
+    doc.setDrawColor(GOLDL[0],GOLDL[1],GOLDL[2]); doc.setLineWidth(0.5); doc.rect(MG-5,MG-5,W-2*(MG-5),H-2*(MG-5));
+    doc.setTextColor(235,235,240); doc.setFont("times","italic"); doc.setFontSize(15);
+    doc.text(doc.splitTextToSize(L({fr:"Merci d'avoir voyagé avec nous.",en:"Thank you for travelling with us.",es:"Gracias por viajar con nosotros.",it:"Grazie per aver viaggiato con noi.",de:"Danke, dass Sie mit uns gereist sind."}),W-2*MG-6),W/2,H/2-6,{align:"center"});
+    sig(W/2-16,H/2+12,1.3);
+
+    doc.save((typeof safeName==="function"?safeName(tr.name):"voyage")+"_carnet.pdf");
+    toast(t("mem.exportDone"));
+  }catch(e){ toast(t("mem.exportOffline")); }
+}
 function openExport(){ const tr=(typeof souvTrip==="function"?souvTrip():currentTrip()); if(!tr){ toast(t("mem.noTrip")); return; }
   document.getElementById("exportHd").textContent=t("mem.export");
   const b=document.getElementById("exportBody");
   const _L=(typeof lang==="function"&&lang())||"fr"; const _t2=(o)=>o[_L]||o.fr;
-  b.innerHTML=`<div style="font:700 13px system-ui;letter-spacing:1px;color:#8a93a5;margin:2px 0 8px">${_t2({fr:"CARTE POSTALE",en:"POSTCARD",es:"POSTAL",it:"CARTOLINA",de:"POSTKARTE"})}</div>`
+  b.innerHTML=`<div style="font:700 13px system-ui;letter-spacing:1px;color:#8a93a5;margin:2px 0 8px">${_t2({fr:"CARNET DE VOYAGE",en:"TRAVEL JOURNAL",es:"CUADERNO",it:"DIARIO",de:"REISETAGEBUCH"})}</div>`
+    +`<button class="btn navy block" id="exCarnetFull">📔 ${_t2({fr:"Carnet complet (PDF)",en:"Full journal (PDF)",es:"Cuaderno completo (PDF)",it:"Diario completo (PDF)",de:"Reisetagebuch (PDF)"})}</button>`
+    +`<div style="font:700 13px system-ui;letter-spacing:1px;color:#8a93a5;margin:18px 0 8px">${_t2({fr:"CARTE POSTALE",en:"POSTCARD",es:"POSTAL",it:"CARTOLINA",de:"POSTKARTE"})}</div>`
     +`<button class="btn navy block" id="exPcPrev">👁️ ${_t2({fr:"Voir la carte postale",en:"View the postcard",es:"Ver la postal",it:"Vedi la cartolina",de:"Postkarte ansehen"})}</button>`
     +`<div style="font:700 13px system-ui;letter-spacing:1px;color:#8a93a5;margin:18px 0 8px">${_t2({fr:"CARNET COMPLET",en:"FULL JOURNAL",es:"CUADERNO",it:"DIARIO",de:"REISEBUCH"})}</div>`
     +`<button class="btn ghostline2 block" id="exPdf">📄 ${t("mem.exportPdf")}</button>`
     +`<button class="btn ghostline2 block" id="exImg" style="margin-top:10px">🖼️ ${t("mem.exportImg")}</button>`
     +`<p class="est-disc">${t("mem.exportHint")}</p><div style="height:6px"></div>`;
+  b.querySelector("#exCarnetFull").onclick=()=>exportCarnetComplet();
   b.querySelector("#exPcPrev").onclick=()=>previewPostcard();
   b.querySelector("#exPdf").onclick=exportPDF; b.querySelector("#exImg").onclick=exportImage;
   document.getElementById("exportSheet").classList.add("show"); }
