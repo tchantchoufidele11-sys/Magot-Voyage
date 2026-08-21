@@ -3241,7 +3241,7 @@ const DEFAULT_S={ version:"0.2.0", settings:{ lang:"fr", theme:"system", units:"
 /* Clé Maps JS partagée (restreinte au domaine GitHub Pages). Repli : clé perso de l'utilisateur si fournie. */
 const SHARED_MAP_KEY="AIzaSyCt5iVx8nPr1V067A3daE0X1YA568XJNbU";
 function mapKey(){ return (S.settings.mapKey||"").trim() || SHARED_MAP_KEY; }
-const BUILD="0.3.78 · v664 page-gift";
+const BUILD="0.3.79 · v665 day-data";
 let S=loadState();
 function normalizeTrip(tr){ if(!tr||typeof tr!=="object") return tr;
   tr.id=tr.id||("t"+Date.now()+Math.random().toString(36).slice(2,7));
@@ -8316,6 +8316,12 @@ async function exportCarnetComplet(){
       doc.text(t("plan.day")+" "+(dd.i+1),MG+6,y+8.6);
       if(dd.date){ doc.setFont("helvetica","normal"); doc.setFontSize(9.5); doc.setTextColor(214,204,176); doc.text((typeof fmtDayLong==="function"?fmtDayLong(dd.date):""),W-MG-6,y+8.4,{align:"right"}); }
       y+=18;
+      try{ var _wx=(tr._wx&&dd.date)?tr._wx[dd.date]:null; var _rc=(tr._routes&&tr._routes[dd.i])?tr._routes[dd.i]:null; var _dp=[];
+        if(_wx&&_wx.temp!=null) _dp.push(String(Math.round(_wx.temp))+"\u00b0C");
+        if(_rc&&_rc.distanceMeters>0) _dp.push((typeof fmtDist==="function")?fmtDist(_rc.distanceMeters):(Math.round(_rc.distanceMeters/1000)+" km"));
+        _dp.push(st.length+" "+(st.length>1?L({fr:"lieux",en:"places",es:"lugares",it:"luoghi",de:"Orte"}):L({fr:"lieu",en:"place",es:"lugar",it:"luogo",de:"Ort"})));
+        if(_dp.length){ doc.setFont("helvetica","normal"); doc.setFontSize(9); doc.setTextColor(150,140,120); doc.text(_dp.join("   \u00b7   "),MG+1,y); y+=7; }
+      }catch(e){}
       /* carte du jour */
       if(stAll.length>=1){ try{ const _sh=await souvOffscreenMap(stAll); if(_sh&&_sh.url){ const _ratio=(_sh.h/_sh.w)||0.62; var iw=W-2*MG, ih=iw*_ratio; var _maxH=72; if(ih>_maxH){ ih=_maxH; iw=ih/_ratio; } var _ix=MG+((W-2*MG)-iw)/2; doc.addImage(_sh.url,"PNG",_ix,y,iw,ih,undefined,"FAST"); doc.setDrawColor(NAVY[0],NAVY[1],NAVY[2]); doc.setLineWidth(0.7); doc.rect(_ix,y,iw,ih); doc.setDrawColor(GOLDL[0],GOLDL[1],GOLDL[2]); doc.setLineWidth(0.3); doc.rect(_ix+1,y+1,iw-2,ih-2); y+=ih+6; } }catch(e){} }
       /* ---- Lieux du jour : chaque lieu = photo (polaroid) + commentaire ---- */
