@@ -3241,7 +3241,7 @@ const DEFAULT_S={ version:"0.2.0", settings:{ lang:"fr", theme:"system", units:"
 /* Clé Maps JS partagée (restreinte au domaine GitHub Pages). Repli : clé perso de l'utilisateur si fournie. */
 const SHARED_MAP_KEY="AIzaSyCt5iVx8nPr1V067A3daE0X1YA568XJNbU";
 function mapKey(){ return (S.settings.mapKey||"").trim() || SHARED_MAP_KEY; }
-const BUILD="0.3.63 · v649 recit-layout";
+const BUILD="0.3.64 · v650 recit-max";
 let S=loadState();
 function normalizeTrip(tr){ if(!tr||typeof tr!=="object") return tr;
   tr.id=tr.id||("t"+Date.now()+Math.random().toString(36).slice(2,7));
@@ -8210,7 +8210,7 @@ async function exportCarnetComplet(){
     doc.setTextColor(INK[0],INK[1],INK[2]); doc.setFont("times","bold"); doc.setFontSize(20);
     doc.text(L({fr:"Le récit",en:"The story",es:"El relato",it:"Il racconto",de:"Die Geschichte"}),MG,y); y+=9;
     const recit=(tr.carnetText||tr.souvenirText||"").trim();
-    if(recit){ doc.setFont("times","normal"); doc.setFontSize(11.5); doc.setTextColor(50,55,66); const rl=doc.splitTextToSize(recit,W-2*MG); const _lh=5.8; for(let _i=0;_i<rl.length;_i++){ ensure(_lh, ()=>{ doc.setFont("times","normal"); doc.setFontSize(11.5); doc.setTextColor(50,55,66); }); doc.text(rl[_i],MG,y); y+=_lh; } y+=6; }
+    if(recit){ doc.setFont("times","normal"); doc.setFontSize(11.5); doc.setTextColor(50,55,66); var _paras=recit.split(/\n\s*\n/).map(function(x){return x.trim();}).filter(Boolean).slice(0,4); var _recit=_paras.join("\n\n"); const rl=doc.splitTextToSize(_recit,W-2*MG); const _lh=5.8; for(let _i=0;_i<rl.length;_i++){ ensure(_lh, ()=>{ doc.setFont("times","normal"); doc.setFontSize(11.5); doc.setTextColor(50,55,66); }); doc.text(rl[_i],MG,y); y+=_lh; } y+=6; }
     else { doc.setFont("helvetica","italic"); doc.setFontSize(10); doc.setTextColor(MUT[0],MUT[1],MUT[2]); doc.text(L({fr:"(Génère le récit dans le Carnet)",en:"(Generate the story in the Journal)"}),MG,y); y+=8; }
     /* chiffres clés */
     const nDays=days.length||1;
