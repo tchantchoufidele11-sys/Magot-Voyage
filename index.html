@@ -3241,7 +3241,7 @@ const DEFAULT_S={ version:"0.2.0", settings:{ lang:"fr", theme:"system", units:"
 /* Clé Maps JS partagée (restreinte au domaine GitHub Pages). Repli : clé perso de l'utilisateur si fournie. */
 const SHARED_MAP_KEY="AIzaSyCt5iVx8nPr1V067A3daE0X1YA568XJNbU";
 function mapKey(){ return (S.settings.mapKey||"").trim() || SHARED_MAP_KEY; }
-const BUILD="0.3.57 · v643 carte-eventail";
+const BUILD="0.3.58 · v644 carnet-2blocs";
 let S=loadState();
 function normalizeTrip(tr){ if(!tr||typeof tr!=="object") return tr;
   tr.id=tr.id||("t"+Date.now()+Math.random().toString(36).slice(2,7));
@@ -8371,17 +8371,30 @@ function openExport(){ const tr=(typeof souvTrip==="function"?souvTrip():current
   document.getElementById("exportHd").textContent=t("mem.export");
   const b=document.getElementById("exportBody");
   const _L=(typeof lang==="function"&&lang())||"fr"; const _t2=(o)=>o[_L]||o.fr;
-  b.innerHTML=`<div style="font:700 13px system-ui;letter-spacing:1px;color:#8a93a5;margin:2px 0 8px">${_t2({fr:"CARNET DE VOYAGE",en:"TRAVEL JOURNAL",es:"CUADERNO",it:"DIARIO",de:"REISETAGEBUCH"})}</div>`
-    +`<button class="btn navy block" id="exCarnetFull">📔 ${_t2({fr:"Carnet complet (PDF)",en:"Full journal (PDF)",es:"Cuaderno completo (PDF)",it:"Diario completo (PDF)",de:"Reisetagebuch (PDF)"})}</button>`
-    +`<div style="font:700 13px system-ui;letter-spacing:1px;color:#8a93a5;margin:18px 0 8px">${_t2({fr:"CARTE POSTALE",en:"POSTCARD",es:"POSTAL",it:"CARTOLINA",de:"POSTKARTE"})}</div>`
-    +`<button class="btn navy block" id="exPcPrev">👁️ ${_t2({fr:"Voir la carte postale",en:"View the postcard",es:"Ver la postal",it:"Vedi la cartolina",de:"Postkarte ansehen"})}</button>`
-    +`<div style="font:700 13px system-ui;letter-spacing:1px;color:#8a93a5;margin:18px 0 8px">${_t2({fr:"CARNET COMPLET",en:"FULL JOURNAL",es:"CUADERNO",it:"DIARIO",de:"REISEBUCH"})}</div>`
-    +`<button class="btn ghostline2 block" id="exPdf">📄 ${t("mem.exportPdf")}</button>`
-    +`<button class="btn ghostline2 block" id="exImg" style="margin-top:10px">🖼️ ${t("mem.exportImg")}</button>`
+  var _full=(tr.souvenirText||"").trim();
+  var _shorten=function(x){ x=String(x||"").replace(/\s+/g," ").trim(); if(!x) return ""; var m=x.match(/[^.!?\u2026]+[.!?\u2026]+/g); if(!m) return x; var o=""; for(var i=0;i<m.length&&i<3;i++) o+=m[i]; return o.trim()||x; };
+  var _short=_shorten(_full);
+  var _pcTxt=_short||(_L==="fr"?"Un beau souvenir de voyage, \u00e0 garder pr\u00e9cieusement.":"A beautiful travel memory to cherish.");
+  var _cnTxt=_full||_pcTxt;
+  var _more=_t2({fr:"Lire la suite",en:"Read more",es:"Leer m\u00e1s",it:"Leggi tutto",de:"Mehr lesen"});
+  var _less=_t2({fr:"R\u00e9duire",en:"Show less",es:"Menos",it:"Riduci",de:"Weniger"});
+  b.innerHTML=`<div style="padding:2px 0 4px">`
+    +`<div style="font:700 12px system-ui;letter-spacing:1.5px;color:#8a93a5;margin:0 0 8px">${_t2({fr:"CARTE POSTALE",en:"POSTCARD",es:"POSTAL",it:"CARTOLINA",de:"POSTKARTE"})}</div>`
+    +`<div class="ex-comment" data-c="pc" style="font:italic 14px/1.5 Georgia,serif;color:#3a3f4a;max-height:64px;overflow:hidden;transition:max-height .35s ease">${escapeHtml(_pcTxt)}</div>`
+    +`<button class="ex-toggle" data-t="pc" style="background:none;border:0;color:#b8860b;font:600 12px system-ui;padding:5px 0 10px;cursor:pointer">${_more} \u25be</button>`
+    +`<button class="btn navy block" id="exPcPrev">\ud83d\udc41\ufe0f ${_t2({fr:"Voir la carte postale",en:"View the postcard",es:"Ver la postal",it:"Vedi la cartolina",de:"Postkarte ansehen"})}</button>`
+    +`</div>`
+    +`<div style="height:1px;background:linear-gradient(90deg,transparent,#d8cba8 30%,#d8cba8 70%,transparent);margin:20px 0"></div>`
+    +`<div style="padding:2px 0 4px">`
+    +`<div style="font:700 12px system-ui;letter-spacing:1.5px;color:#8a93a5;margin:0 0 8px">${_t2({fr:"CARNET COMPLET",en:"FULL JOURNAL",es:"CUADERNO",it:"DIARIO",de:"REISEBUCH"})}</div>`
+    +`<div class="ex-comment" data-c="cn" style="font:italic 14px/1.5 Georgia,serif;color:#3a3f4a;max-height:64px;overflow:hidden;transition:max-height .35s ease">${escapeHtml(_cnTxt)}</div>`
+    +`<button class="ex-toggle" data-t="cn" style="background:none;border:0;color:#b8860b;font:600 12px system-ui;padding:5px 0 10px;cursor:pointer">${_more} \u25be</button>`
+    +`<button class="btn navy block" id="exCarnetFull">\ud83d\udcd4 ${_t2({fr:"Voir le carnet",en:"View the journal",es:"Ver el cuaderno",it:"Vedi il diario",de:"Reisebuch ansehen"})}</button>`
+    +`</div>`
     +`<p class="est-disc">${t("mem.exportHint")}</p><div style="height:6px"></div>`;
-  b.querySelector("#exCarnetFull").onclick=()=>exportCarnetComplet();
+  Array.prototype.forEach.call(b.querySelectorAll(".ex-toggle"),function(btn){ btn.onclick=function(){ var key=btn.getAttribute("data-t"); var c=b.querySelector('.ex-comment[data-c="'+key+'"]'); if(!c) return; var open=c.getAttribute("data-open")==="1"; if(open){ c.style.maxHeight="64px"; c.setAttribute("data-open","0"); btn.innerHTML=_more+" \u25be"; } else { c.style.maxHeight=c.scrollHeight+"px"; c.setAttribute("data-open","1"); btn.innerHTML=_less+" \u25b4"; } }; });
   b.querySelector("#exPcPrev").onclick=()=>previewPostcard();
-  b.querySelector("#exPdf").onclick=exportPDF; b.querySelector("#exImg").onclick=exportImage;
+  b.querySelector("#exCarnetFull").onclick=()=>exportCarnetComplet();
   document.getElementById("exportSheet").classList.add("show"); }
 function closeExport(){ document.getElementById("exportSheet").classList.remove("show"); }
 async function exportPDF(){ const tr=(typeof souvTrip==="function"?souvTrip():currentTrip()); if(!tr) return; closeExport(); toast(t("mem.exporting"));
