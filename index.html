@@ -3241,7 +3241,7 @@ const DEFAULT_S={ version:"0.2.0", settings:{ lang:"fr", theme:"system", units:"
 /* Clé Maps JS partagée (restreinte au domaine GitHub Pages). Repli : clé perso de l'utilisateur si fournie. */
 const SHARED_MAP_KEY="AIzaSyCt5iVx8nPr1V067A3daE0X1YA568XJNbU";
 function mapKey(){ return (S.settings.mapKey||"").trim() || SHARED_MAP_KEY; }
-const BUILD="0.3.77 · v663 page-decor";
+const BUILD="0.3.78 · v664 page-gift";
 let S=loadState();
 function normalizeTrip(tr){ if(!tr||typeof tr!=="object") return tr;
   tr.id=tr.id||("t"+Date.now()+Math.random().toString(36).slice(2,7));
@@ -8201,17 +8201,20 @@ async function exportCarnetComplet(){
     sig(W/2-16,H-26,1.25);
 
     /* ---------- helpers pages intérieures ---------- */
-    function pageBg(){ doc.setFillColor(252,250,244); doc.rect(0,0,W,H,'F');
-      var _m1=7;
-      doc.setDrawColor(NAVY[0],NAVY[1],NAVY[2]); doc.setLineWidth(0.6); doc.rect(_m1,_m1,W-2*_m1,H-2*_m1);
-      doc.setDrawColor(GOLDL[0],GOLDL[1],GOLDL[2]); doc.setLineWidth(0.3); doc.rect(_m1+1.4,_m1+1.4,W-2*(_m1+1.4),H-2*(_m1+1.4));
-      var _crs=[[_m1,_m1,1,1],[W-_m1,_m1,-1,1],[_m1,H-_m1,1,-1],[W-_m1,H-_m1,-1,-1]];
-      doc.setDrawColor(GOLD[0],GOLD[1],GOLD[2]); doc.setLineWidth(0.7);
-      _crs.forEach(function(c){ var L=4.2; doc.line(c[0],c[1],c[0]+c[2]*L,c[1]); doc.line(c[0],c[1],c[0],c[1]+c[3]*L); });
-      doc.setFillColor(GOLD[0],GOLD[1],GOLD[2]); _crs.forEach(function(c){ doc.circle(c[0]+c[2]*2.4,c[1]+c[3]*2.4,0.85,'F'); });
-      doc.setDrawColor(GOLDL[0],GOLDL[1],GOLDL[2]); doc.setLineWidth(0.4); doc.line(MG,15.5,W-MG,15.5);
-      doc.setTextColor(GOLD[0],GOLD[1],GOLD[2]); doc.setFont("times","italic"); doc.setFontSize(9); doc.text("Magot Voyage",W-MG,13.5,{align:"right"});
-      doc.setFillColor(GOLDL[0],GOLDL[1],GOLDL[2]); doc.circle(MG+0.6,14.4,0.7,'F'); doc.circle(MG+3,14.4,0.7,'F'); doc.circle(MG+5.4,14.4,0.7,'F'); }
+    function pageBg(){ doc.setFillColor(250,246,235); doc.rect(0,0,W,H,'F');
+      var _m=8.6;
+      /* fine bordure or, discrète */
+      doc.setDrawColor(GOLDL[0],GOLDL[1],GOLDL[2]); doc.setLineWidth(0.25); doc.rect(_m,_m,W-2*_m,H-2*_m);
+      /* perforations façon carte cadeau (petits trous réguliers) */
+      doc.setFillColor(233,227,213); var _pp=_m+2.5, _st=6.4, _x, _yv;
+      for(_x=_pp+2.5; _x<=W-_pp-2.5; _x+=_st){ doc.circle(_x,_pp,0.52,'F'); doc.circle(_x,H-_pp,0.52,'F'); }
+      for(_yv=_pp+2.5; _yv<=H-_pp-2.5; _yv+=_st){ doc.circle(_pp,_yv,0.52,'F'); doc.circle(W-_pp,_yv,0.52,'F'); }
+      /* petits points d'angle dorés, très discrets */
+      doc.setFillColor(GOLD[0],GOLD[1],GOLD[2]);
+      [[_m,_m],[W-_m,_m],[_m,H-_m],[W-_m,H-_m]].forEach(function(c){ doc.circle(c[0],c[1],0.7,'F'); });
+      /* en-tête */
+      doc.setDrawColor(GOLDL[0],GOLDL[1],GOLDL[2]); doc.setLineWidth(0.3); doc.line(MG,16,W-MG,16);
+      doc.setTextColor(GOLD[0],GOLD[1],GOLD[2]); doc.setFont("times","italic"); doc.setFontSize(9); doc.text("Magot Voyage",W-MG,14,{align:"right"}); }
     let y=0;
     function ensure(nh,cont){ if(y+nh>H-16){ doc.addPage(); pageBg(); y=22; if(cont) cont(); } }
 
