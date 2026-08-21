@@ -3241,7 +3241,7 @@ const DEFAULT_S={ version:"0.2.0", settings:{ lang:"fr", theme:"system", units:"
 /* Clé Maps JS partagée (restreinte au domaine GitHub Pages). Repli : clé perso de l'utilisateur si fournie. */
 const SHARED_MAP_KEY="AIzaSyCt5iVx8nPr1V067A3daE0X1YA568XJNbU";
 function mapKey(){ return (S.settings.mapKey||"").trim() || SHARED_MAP_KEY; }
-const BUILD="0.3.58 · v644 carnet-2blocs";
+const BUILD="0.3.59 · v645 carnet-inline";
 let S=loadState();
 function normalizeTrip(tr){ if(!tr||typeof tr!=="object") return tr;
   tr.id=tr.id||("t"+Date.now()+Math.random().toString(36).slice(2,7));
@@ -8367,9 +8367,9 @@ async function exportCarnetComplet(){
     toast(t("mem.exportDone"));
   }catch(e){ toast(t("mem.exportOffline")); }
 }
-function openExport(){ const tr=(typeof souvTrip==="function"?souvTrip():currentTrip()); if(!tr){ toast(t("mem.noTrip")); return; }
-  document.getElementById("exportHd").textContent=t("mem.export");
-  const b=document.getElementById("exportBody");
+function openExport(inlineHost){ const tr=(typeof souvTrip==="function"?souvTrip():currentTrip()); if(!tr){ toast(t("mem.noTrip")); return; }
+  if(!inlineHost){ document.getElementById("exportHd").textContent=t("mem.export"); }
+  const b=inlineHost||document.getElementById("exportBody");
   const _L=(typeof lang==="function"&&lang())||"fr"; const _t2=(o)=>o[_L]||o.fr;
   var _full=(tr.souvenirText||"").trim();
   var _shorten=function(x){ x=String(x||"").replace(/\s+/g," ").trim(); if(!x) return ""; var m=x.match(/[^.!?\u2026]+[.!?\u2026]+/g); if(!m) return x; var o=""; for(var i=0;i<m.length&&i<3;i++) o+=m[i]; return o.trim()||x; };
@@ -8395,7 +8395,7 @@ function openExport(){ const tr=(typeof souvTrip==="function"?souvTrip():current
   Array.prototype.forEach.call(b.querySelectorAll(".ex-toggle"),function(btn){ btn.onclick=function(){ var key=btn.getAttribute("data-t"); var c=b.querySelector('.ex-comment[data-c="'+key+'"]'); if(!c) return; var open=c.getAttribute("data-open")==="1"; if(open){ c.style.maxHeight="64px"; c.setAttribute("data-open","0"); btn.innerHTML=_more+" \u25be"; } else { c.style.maxHeight=c.scrollHeight+"px"; c.setAttribute("data-open","1"); btn.innerHTML=_less+" \u25b4"; } }; });
   b.querySelector("#exPcPrev").onclick=()=>previewPostcard();
   b.querySelector("#exCarnetFull").onclick=()=>exportCarnetComplet();
-  document.getElementById("exportSheet").classList.add("show"); }
+  if(!inlineHost){ document.getElementById("exportSheet").classList.add("show"); } }
 function closeExport(){ document.getElementById("exportSheet").classList.remove("show"); }
 async function exportPDF(){ const tr=(typeof souvTrip==="function"?souvTrip():currentTrip()); if(!tr) return; closeExport(); toast(t("mem.exporting"));
   try{ await loadJsPDF(); }catch(e){ toast(t("mem.exportOffline")); return; }
@@ -13119,7 +13119,7 @@ function renderMemories(){ const body=document.getElementById("memBody"); if(!bo
       if(kEl) mvStats(tr).then(st=>{ const km=+(st.km||0);
         if(km>0) kEl.textContent="  \u00b7  "+km+" km parcourus"; }).catch(()=>{}); }
     const _mini=body.querySelector("#svMapMini"); if(_mini) souvMiniMap(tr,_mini); }
-  { const _me=body.querySelector("#memExport2"); if(_me) _me.onclick=()=>openExport(); }
+  { const _me=body.querySelector("#memExport2"); if(_me){ var _host=document.createElement("div"); _host.className="carnet-inline"; _me.parentNode.replaceChild(_host,_me); try{ openExport(_host); }catch(e){} } }
   body.querySelectorAll(".jr-dayhead").forEach(b=>b.onclick=()=>{ const d=b.closest(".jr-day"); if(d) d.classList.toggle("open"); });
   _bindExtra();
   if(document.getElementById("souvAgentCard")) paintSouvCard(tr);
