@@ -3241,7 +3241,7 @@ const DEFAULT_S={ version:"0.2.0", settings:{ lang:"fr", theme:"system", units:"
 /* Clé Maps JS partagée (restreinte au domaine GitHub Pages). Repli : clé perso de l'utilisateur si fournie. */
 const SHARED_MAP_KEY="AIzaSyCt5iVx8nPr1V067A3daE0X1YA568XJNbU";
 function mapKey(){ return (S.settings.mapKey||"").trim() || SHARED_MAP_KEY; }
-const BUILD="0.3.54 · v640 photo-dual";
+const BUILD="0.3.55 · v641 photo-ref";
 let S=loadState();
 function normalizeTrip(tr){ if(!tr||typeof tr!=="object") return tr;
   tr.id=tr.id||("t"+Date.now()+Math.random().toString(36).slice(2,7));
@@ -8260,16 +8260,19 @@ async function exportCarnetComplet(){
       return await new Promise(function(res){ try{ var fr=new FileReader(); fr.onload=function(){ res(fr.result); }; fr.onerror=function(){ res(null); }; fr.readAsDataURL(b); }catch(e){ res(null); } });
     }catch(e){ return null; } }
     async function _photoByName(name, lat, lng){ try{ if(typeof gText!=="function"||!name) return null;
-      var _res=await gText(String(name), (lat!=null?{lat:lat,lng:lng,pages:1}:{pages:1}));
-      var _pl=((_res&&_res.places)||[]).find(function(x){ return x&&x.photo; });
-      return (_pl&&_pl.photo)||null;
+      var _res=await gText(String(name), (lat!=null?{lat:lat,lng:lng}:{}));
+      var _places=(_res&&_res.places)||[];
+      for(var _i=0;_i<_places.length;_i++){ var _pp=_places[_i];
+        if(_pp && _pp.photos && _pp.photos[0] && _pp.photos[0].name) return _pp.photos[0].name;
+        if(_pp && typeof _pp.photo==="string" && _pp.photo) return _pp.photo;
+      }
+      return null;
     }catch(e){ return null; } }
-    async function _gPhotoData(ref, size){ try{ if(typeof gPhoto!=="function"||!ref) return null; var _u=gPhoto(ref, size||900);
-      /* Voie A (fiable) : fetch CORS -> blob -> dataURL. Le worker renvoie les en-têtes CORS.
-         cache:"reload" évite de réutiliser une version mise en cache SANS CORS (vignettes <img>). */
-      try{ var r=await fetch(_u,{mode:"cors",cache:"reload"}); if(r&&r.ok){ var b=await r.blob(); if(b&&b.size>256 && /^image\//.test(b.type||"image/")){ var d=await new Promise(function(res){ try{ var fr=new FileReader(); fr.onload=function(){res(fr.result);}; fr.onerror=function(){res(null);}; fr.readAsDataURL(b); }catch(e){ res(null); } }); if(d) return d; } } }catch(e){}
-      /* Voie B (secours) : image crossOrigin -> canvas */
-      try{ var im=(typeof _pcImgCORS==="function")?await _pcImgCORS(_u):null; if(im){ var c=document.createElement("canvas"); c.width=im.naturalWidth||size||900; c.height=im.naturalHeight||size||900; c.getContext("2d").drawImage(im,0,0); return c.toDataURL("image/jpeg",0.9); } }catch(e){}
+    async function _gPhotoData(ref, size){ try{ if(typeof gPhoto!=="function") return null; var _u=gPhoto(ref, size||700);
+      /* 1) fiable : base64 renvoyé par le worker (CORS ouvert) */
+      try{ var r=await fetch(_u+"&b64=1"); if(r&&r.ok){ var j=await r.json().catch(function(){return null;}); if(j&&j.data) return j.data; } }catch(e){}
+      /* 2) secours : méthode de la carte postale (image -> canvas) — marche si CORS ok */
+      try{ if(typeof _pcImg==="function"){ var im=await _pcImg(_u); if(im){ var c=document.createElement("canvas"); c.width=im.naturalWidth||size||700; c.height=im.naturalHeight||size||700; c.getContext("2d").drawImage(im,0,0); return c.toDataURL("image/jpeg",0.9); } } }catch(e){}
       return null;
     }catch(e){ return null; } }
     for(const dd of days){
