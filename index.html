@@ -3241,7 +3241,7 @@ const DEFAULT_S={ version:"0.2.0", settings:{ lang:"fr", theme:"system", units:"
 /* Clé Maps JS partagée (restreinte au domaine GitHub Pages). Repli : clé perso de l'utilisateur si fournie. */
 const SHARED_MAP_KEY="AIzaSyCt5iVx8nPr1V067A3daE0X1YA568XJNbU";
 function mapKey(){ return (S.settings.mapKey||"").trim() || SHARED_MAP_KEY; }
-const BUILD="0.3.61 · v647 carnet-fix2";
+const BUILD="0.3.62 · v648 carnet-recit";
 let S=loadState();
 function normalizeTrip(tr){ if(!tr||typeof tr!=="object") return tr;
   tr.id=tr.id||("t"+Date.now()+Math.random().toString(36).slice(2,7));
@@ -8209,7 +8209,7 @@ async function exportCarnetComplet(){
     doc.addPage(); pageBg(); y=26;
     doc.setTextColor(INK[0],INK[1],INK[2]); doc.setFont("times","bold"); doc.setFontSize(20);
     doc.text(L({fr:"Le récit",en:"The story",es:"El relato",it:"Il racconto",de:"Die Geschichte"}),MG,y); y+=9;
-    const recit=(tr.souvenirText||"").trim();
+    const recit=(tr.carnetText||tr.souvenirText||"").trim();
     if(recit){ doc.setFont("times","normal"); doc.setFontSize(11.5); doc.setTextColor(50,55,66); const rl=doc.splitTextToSize(recit,W-2*MG); doc.text(rl,MG,y); y+=rl.length*5.6+6; }
     else { doc.setFont("helvetica","italic"); doc.setFontSize(10); doc.setTextColor(MUT[0],MUT[1],MUT[2]); doc.text(L({fr:"(Génère le récit dans le Carnet)",en:"(Generate the story in the Journal)"}),MG,y); y+=8; }
     /* chiffres clés */
@@ -8373,7 +8373,7 @@ async function _carnetGenCn(tr){ try{ if(!tr) return;
   var notes=[]; (tr.plan||[]).forEach(function(s){ if(s&&s.note) notes.push((s.title||"")+": "+s.note); });
   (tr.memories||[]).forEach(function(m){ if(m&&m.caption) notes.push(m.caption); });
   var payload={ destination:(tr.dest&&tr.dest.name)||tr.name||"", jours:tripDays(tr).length, lieux:places, notes:notes.slice(0,30), lang:(typeof lang==="function"&&lang())||"fr", format:"long" };
-  var out=await workerFetch("/agent/souvenir", payload);
+  var out=await workerFetch("/agent/carnet", payload);
   if(out&&out.text){ tr.carnetText=String(out.text).trim().replace(/^[\u00ab"\u2019\u201c]\s*([\s\S]*?)\s*[\u00bb"\u2019\u201d]$/,"$1"); try{ saveState(); }catch(e){} }
 }catch(e){} }
 function _carnetEditInline(key){ try{ var b=window._carnetInlineHost; if(!b) return; var c=b.querySelector('.ex-comment[data-c="'+key+'"]'); if(!c) return; var tr=(typeof souvTrip==="function"?souvTrip():currentTrip()); if(!tr) return;
