@@ -3241,7 +3241,7 @@ const DEFAULT_S={ version:"0.2.0", settings:{ lang:"fr", theme:"system", units:"
 /* Clé Maps JS partagée (restreinte au domaine GitHub Pages). Repli : clé perso de l'utilisateur si fournie. */
 const SHARED_MAP_KEY="AIzaSyCt5iVx8nPr1V067A3daE0X1YA568XJNbU";
 function mapKey(){ return (S.settings.mapKey||"").trim() || SHARED_MAP_KEY; }
-const BUILD="0.3.47 · v633 carnet-jour";
+const BUILD="0.3.48 · v634 carnet-points";
 let S=loadState();
 function normalizeTrip(tr){ if(!tr||typeof tr!=="object") return tr;
   tr.id=tr.id||("t"+Date.now()+Math.random().toString(36).slice(2,7));
@@ -8246,16 +8246,28 @@ async function exportCarnetComplet(){
 
     /* ---------- JOUR PAR JOUR (une page par jour) ---------- */
     async function _cropImg(dataURL, tw, th){ return new Promise(res=>{ const im=new Image(); im.onload=()=>{ try{ const c=document.createElement("canvas"); c.width=tw; c.height=th; const x=c.getContext("2d"); const r=Math.max(tw/im.width,th/im.height), iw=im.width*r, ih=im.height*r; x.drawImage(im,(tw-iw)/2,(th-ih)/2,iw,ih); res(c.toDataURL("image/jpeg",0.9)); }catch(e){ res(dataURL); } }; im.onerror=()=>res(null); im.src=dataURL; }); }
-    function _polaroid(px,py,pw,cropData,cap){
+    function _polaroid(px,py,pw,cropData,cap,num){
       var ph=pw+9;
       doc.setFillColor(255,255,255); doc.setDrawColor(208,200,184); doc.setLineWidth(0.3); doc.roundedRect(px,py,pw,ph,1.5,1.5,"FD");
       var inner=pw-5, ix=px+2.5, iy=py+2.5;
       if(cropData){ try{ doc.addImage(cropData,"JPEG",ix,iy,inner,inner,undefined,"FAST"); }catch(e){} }
       else { doc.setFillColor(244,241,233); doc.rect(ix,iy,inner,inner,"F"); doc.setDrawColor(206,198,182); doc.setLineWidth(0.25); doc.rect(ix,iy,inner,inner); doc.setTextColor(184,178,164); doc.setFont("helvetica","normal"); doc.setFontSize(7); doc.text(L({fr:"photo",en:"photo",es:"foto",it:"foto",de:"Foto"}),ix+inner/2,iy+inner/2+1,{align:"center"}); }
+      if(num){ doc.setFillColor(NAVY[0],NAVY[1],NAVY[2]); doc.circle(ix+3.8,iy+3.8,3.5,"F"); doc.setTextColor(GOLDL[0],GOLDL[1],GOLDL[2]); doc.setFont("helvetica","bold"); doc.setFontSize(8); doc.text(String(num),ix+3.8,iy+5.4,{align:"center"}); }
       if(cap){ doc.setTextColor(96,90,78); doc.setFont("times","italic"); doc.setFontSize(7.5); var cl=doc.splitTextToSize(cap,pw-3); doc.text(cl[0]||"",px+pw/2,py+ph-2.6,{align:"center"}); }
     }
+    function _gPhotoData(ref, size){ return new Promise(function(resolve){
+      try{ if(typeof gPhoto!=="function"){ resolve(null); return; } var url=gPhoto(ref, size||600);
+        var im=new Image(); im.crossOrigin="anonymous";
+        var to=setTimeout(function(){ resolve(null); }, 7000);
+        im.onload=function(){ clearTimeout(to); try{ var c=document.createElement("canvas"); c.width=im.naturalWidth||size; c.height=im.naturalHeight||size; c.getContext("2d").drawImage(im,0,0); resolve(c.toDataURL("image/jpeg",0.9)); }catch(e){ resolve(null); } };
+        im.onerror=function(){ clearTimeout(to); resolve(null); };
+        im.src=url;
+      }catch(e){ resolve(null); }
+    }); }
     for(const dd of days){
       const st=pts.filter(p=>p.day===dd.i);
+      const _lodgPt=(tr.lodging&&tr.lodging.lat!=null)?{ id:"__lodging_"+dd.i, title:(tr.lodging.name||L({fr:"Hébergement",en:"Accommodation",es:"Alojamiento",it:"Alloggio",de:"Unterkunft"})), lat:tr.lodging.lat, lng:tr.lodging.lng, kind:"lodging", time:"", photo:((tr.lodging.suggest&&tr.lodging.suggest.photo)||null), _lodging:true }:null;
+      const stAll=_lodgPt?[_lodgPt].concat(st):st;
       const dayExps=exps.filter(e=>e.date===dd.date);
       const dayPhotos=(tr.memories||[]).filter(m=>m&&m.day===dd.i&&!m.video).slice(0,3);
       if(!st.length && !dayExps.length && !dayPhotos.length){ continue; }
@@ -8267,25 +8279,29 @@ async function exportCarnetComplet(){
       if(dd.date){ doc.setFont("helvetica","normal"); doc.setFontSize(9.5); doc.setTextColor(214,204,176); doc.text((typeof fmtDayLong==="function"?fmtDayLong(dd.date):""),W-MG-6,y+8.4,{align:"right"}); }
       y+=18;
       /* carte du jour */
-      if(st.length>=1){ try{ const _sh=await souvOffscreenMap(st); if(_sh&&_sh.url){ const iw=W-2*MG, ih=Math.min(iw*(_sh.h/_sh.w),58); doc.addImage(_sh.url,"PNG",MG,y,iw,ih,undefined,"FAST"); doc.setDrawColor(LINE[0],LINE[1],LINE[2]); doc.setLineWidth(0.3); doc.rect(MG,y,iw,ih); y+=ih+6; } }catch(e){} }
+      if(stAll.length>=1){ try{ const _sh=await souvOffscreenMap(stAll); if(_sh&&_sh.url){ const iw=W-2*MG, ih=Math.min(iw*(_sh.h/_sh.w),58); doc.addImage(_sh.url,"PNG",MG,y,iw,ih,undefined,"FAST"); doc.setDrawColor(LINE[0],LINE[1],LINE[2]); doc.setLineWidth(0.3); doc.rect(MG,y,iw,ih); y+=ih+6; } }catch(e){} }
       /* ---- Lieux du jour : chaque lieu = photo (polaroid) + commentaire ---- */
       var _usedPh={};
-      for(var _pi=0; _pi<st.length; _pi++){ var p=st[_pi];
+      for(var _pi=0; _pi<stAll.length; _pi++){ var p=stAll[_pi]; var _num=_pi+1;
         var _pw=42, _cardH=_pw+9;
-        var _noteLines=p.note?doc.splitTextToSize(String(p.note),W-2*MG-_pw-9):[];
-        var _txtH=13+(_noteLines.length*4.4);
-        var _blockH=Math.max(_cardH,_txtH)+5;
+        var _hasNote=!!(p.note&&String(p.note).trim());
+        var _noteLines=_hasNote?doc.splitTextToSize(String(p.note),W-2*MG-_pw-9):[];
+        var _commentH=_hasNote?(_noteLines.length*4.4):14;
+        var _txtH=14+_commentH;
+        var _blockH=Math.max(_cardH,_txtH)+6;
         ensure(_blockH);
+        var _crop=null;
         var _ph=null; for(var _mi=0;_mi<(tr.memories||[]).length;_mi++){ var _m=tr.memories[_mi]; if(_m&&!_m.video&&_m.placeId===p.id&&!_usedPh[_m.id]){ _ph=_m; break; } }
-        var _crop=null; if(_ph){ try{ var _pd=await photoData(_ph.id); if(_pd&&_pd.data){ _crop=await _cropImg(_pd.data,Math.round(_pw*8),Math.round(_pw*8)); _usedPh[_ph.id]=1; } }catch(e){} }
-        _polaroid(MG,y,_pw,_crop,p.title||"");
+        if(_ph){ try{ var _pd=await photoData(_ph.id); if(_pd&&_pd.data){ _crop=await _cropImg(_pd.data,Math.round(_pw*8),Math.round(_pw*8)); _usedPh[_ph.id]=1; } }catch(e){} }
+        if(!_crop && p.photo){ try{ var _gd=await _gPhotoData(p.photo,Math.round(_pw*8)); if(_gd){ _crop=await _cropImg(_gd,Math.round(_pw*8),Math.round(_pw*8)); } }catch(e){} }
+        _polaroid(MG,y,_pw,_crop,p.title||"",_num);
         var _tx=MG+_pw+7, _tw=W-MG-_tx;
-        doc.setTextColor(GOLD[0],GOLD[1],GOLD[2]); doc.setFont("helvetica","bold"); doc.setFontSize(8.5); doc.text(p.time||"\u00b7",_tx,y+3.5);
-        var _kl=kindLabel(p.kind); if(_kl){ doc.setTextColor(MUT[0],MUT[1],MUT[2]); doc.setFont("helvetica","normal"); doc.setFontSize(7.5); doc.text(_kl,W-MG,y+3.5,{align:"right"}); }
-        doc.setTextColor(INK[0],INK[1],INK[2]); doc.setFont("times","bold"); doc.setFontSize(11.5); var _tl=doc.splitTextToSize(p.title||"",_tw); doc.text(_tl,_tx,y+9);
+        doc.setTextColor(GOLD[0],GOLD[1],GOLD[2]); doc.setFont("helvetica","bold"); doc.setFontSize(8.5); if(p.time) doc.text(String(p.time),_tx,y+3.5);
+        var _kl=p._lodging?L({fr:"H\u00e9bergement",en:"Stay",es:"Alojamiento",it:"Alloggio",de:"Unterkunft"}):kindLabel(p.kind); if(_kl){ doc.setTextColor(MUT[0],MUT[1],MUT[2]); doc.setFont("helvetica","normal"); doc.setFontSize(7.5); doc.text(_kl,W-MG,y+3.5,{align:"right"}); }
+        doc.setTextColor(INK[0],INK[1],INK[2]); doc.setFont("times","bold"); doc.setFontSize(11.5); var _tl=doc.splitTextToSize(_num+". "+(p.title||""),_tw); doc.text(_tl,_tx,y+9);
         var _yy=y+9+_tl.length*5;
-        if(_noteLines.length){ doc.setFont("times","italic"); doc.setFontSize(9); doc.setTextColor(70,74,84); doc.text(_noteLines,_tx,_yy+1); }
-        else { doc.setDrawColor(214,204,180); doc.setLineWidth(0.25); doc.line(_tx,_yy+2,W-MG,_yy+2); }
+        if(_hasNote){ doc.setFont("times","italic"); doc.setFontSize(9); doc.setTextColor(70,74,84); doc.text(_noteLines,_tx,_yy+1); }
+        else { doc.setTextColor(MUT[0],MUT[1],MUT[2]); doc.setFont("helvetica","italic"); doc.setFontSize(7); doc.text(L({fr:"Mon commentaire",en:"My note",es:"Mi nota",it:"La mia nota",de:"Meine Notiz"}),_tx,_yy+1); doc.setDrawColor(214,204,180); doc.setLineWidth(0.25); doc.line(_tx,_yy+6,W-MG,_yy+6); doc.line(_tx,_yy+12,W-MG,_yy+12); }
         y+=_blockH;
       }
       /* depenses du jour + total du jour */
