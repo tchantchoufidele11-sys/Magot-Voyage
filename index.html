@@ -3241,7 +3241,7 @@ const DEFAULT_S={ version:"0.2.0", settings:{ lang:"fr", theme:"system", units:"
 /* Clé Maps JS partagée (restreinte au domaine GitHub Pages). Repli : clé perso de l'utilisateur si fournie. */
 const SHARED_MAP_KEY="AIzaSyCt5iVx8nPr1V067A3daE0X1YA568XJNbU";
 function mapKey(){ return (S.settings.mapKey||"").trim() || SHARED_MAP_KEY; }
-const BUILD="0.3.51 · v637 carnet-fix";
+const BUILD="0.3.52 · v638 photo-map";
 let S=loadState();
 function normalizeTrip(tr){ if(!tr||typeof tr!=="object") return tr;
   tr.id=tr.id||("t"+Date.now()+Math.random().toString(36).slice(2,7));
@@ -7820,10 +7820,10 @@ function _souvAddLayers(map,pts){ if(!map||!pts||!pts.length) return; const L=DA
   if(map.getSource("smr")) map.getSource("smr").setData(rdata); else map.addSource("smr",{type:"geojson",data:rdata});
   if(!map.getLayer("smr-casing")) map.addLayer({id:"smr-casing",type:"line",source:"smr",layout:{"line-cap":"round","line-join":"round"},paint:{"line-color":"#ffffff","line-width":7.5,"line-opacity":0.92}});
   if(!map.getLayer("smr-l")) map.addLayer({id:"smr-l",type:"line",source:"smr",layout:{"line-cap":"round","line-join":"round"},paint:{"line-color":["get","color"],"line-width":4,"line-opacity":1}});
-  const pfeats=pts.map((pp,i)=>({type:"Feature",properties:{idx:i},geometry:{type:"Point",coordinates:[pp.lng,pp.lat]}}));
+  const pfeats=pts.map((pp,i)=>{ let _sc=0; for(let _j=0;_j<i;_j++){ if(Math.abs(pts[_j].lat-pp.lat)<0.0045 && Math.abs(pts[_j].lng-pp.lng)<0.0075) _sc++; } return {type:"Feature",properties:{idx:i,off:[0,-_sc*20]},geometry:{type:"Point",coordinates:[pp.lng,pp.lat]}}; });
   const pdata={type:"FeatureCollection",features:pfeats};
   if(map.getSource("smp")) map.getSource("smp").setData(pdata); else map.addSource("smp",{type:"geojson",data:pdata});
-  Promise.all(pts.map((pp,i)=>{ const key="smpin"+i; if(map.hasImage(key)) return Promise.resolve(); const col=((typeof catColor==="function"&&catColor(pp))||DAY_COLORS[pp.day%L]); const emo=(typeof catEmoji==="function"?catEmoji(pp):"📍"); return _addPinImg(map,key,_souvSvgPin(emo,i+1,col),i+1,col); })).then(()=>{ if(map.getLayer("smp-pin")) return; try{ map.addLayer({id:"smp-pin",type:"symbol",source:"smp",layout:{"icon-image":["concat","smpin",["to-string",["get","idx"]]],"icon-size":1.35,"icon-anchor":"bottom","icon-allow-overlap":true,"icon-ignore-placement":true}}); }catch(e){} }).catch(()=>{});
+  Promise.all(pts.map((pp,i)=>{ const key="smpin"+i; if(map.hasImage(key)) return Promise.resolve(); const col=((typeof catColor==="function"&&catColor(pp))||DAY_COLORS[pp.day%L]); const emo=(typeof catEmoji==="function"?catEmoji(pp):"📍"); return _addPinImg(map,key,_souvSvgPin(emo,i+1,col),i+1,col); })).then(()=>{ if(map.getLayer("smp-pin")) return; try{ map.addLayer({id:"smp-pin",type:"symbol",source:"smp",layout:{"icon-image":["concat","smpin",["to-string",["get","idx"]]],"icon-size":1.35,"icon-anchor":"bottom","icon-offset":["get","off"],"icon-allow-overlap":true,"icon-ignore-placement":true}}); }catch(e){} }).catch(()=>{});
   if(_souvTr && typeof ensureRoute==="function"){ const _tr=_souvTr; const _keys=Object.keys(byDay).sort((a,b)=>(+a)-(+b)); let _bx=0; const _base={};
     _keys.forEach(d=>{ _base[d]=_bx; _bx+=Math.max(0,byDay[d].length-1); });
     Promise.all(_keys.map(async d=>{ const arr=byDay[d]; if(arr.length<2) return [];
@@ -8255,28 +8255,16 @@ async function exportCarnetComplet(){
       if(num){ var _bx=px+5, _by=py+5; doc.setFillColor(255,255,255); doc.circle(_bx,_by,4.6,"F"); doc.setDrawColor(GOLDL[0],GOLDL[1],GOLDL[2]); doc.setLineWidth(0.5); doc.circle(_bx,_by,4.6,"S"); doc.setFillColor(NAVY[0],NAVY[1],NAVY[2]); doc.circle(_bx,_by,3.7,"F"); doc.setTextColor(GOLDL[0],GOLDL[1],GOLDL[2]); doc.setFont("helvetica","bold"); doc.setFontSize(8.5); doc.text(String(num),_bx,_by+1.7,{align:"center"}); }
       if(cap){ doc.setTextColor(96,90,78); doc.setFont("times","italic"); doc.setFontSize(7.5); var cl=doc.splitTextToSize(cap,pw-3); doc.text(cl[0]||"",px+pw/2,py+ph-2.6,{align:"center"}); }
     }
-    function _urlToData(url){ return new Promise(function(resolve){
-      try{ if(!url){ resolve(null); return; } var im=new Image(); im.crossOrigin="anonymous";
-        var to=setTimeout(function(){ resolve(null); }, 7000);
-        im.onload=function(){ clearTimeout(to); try{ var c=document.createElement("canvas"); c.width=im.naturalWidth||600; c.height=im.naturalHeight||600; c.getContext("2d").drawImage(im,0,0); resolve(c.toDataURL("image/jpeg",0.9)); }catch(e){ resolve(null); } };
-        im.onerror=function(){ clearTimeout(to); resolve(null); };
-        im.src=url;
-      }catch(e){ resolve(null); }
-    }); }
+    async function _urlToData(url){ try{ if(!url) return null;
+      var r=await fetch(url); if(!r||!r.ok) return null; var b=await r.blob(); if(!b||b.size<64) return null;
+      return await new Promise(function(res){ try{ var fr=new FileReader(); fr.onload=function(){ res(fr.result); }; fr.onerror=function(){ res(null); }; fr.readAsDataURL(b); }catch(e){ res(null); } });
+    }catch(e){ return null; } }
     async function _photoByName(name, lat, lng){ try{ if(typeof gText!=="function"||!name) return null;
       var _res=await gText(String(name), (lat!=null?{lat:lat,lng:lng,pages:1}:{pages:1}));
       var _pl=((_res&&_res.places)||[]).find(function(x){ return x&&x.photo; });
       return (_pl&&_pl.photo)||null;
     }catch(e){ return null; } }
-    function _gPhotoData(ref, size){ return new Promise(function(resolve){
-      try{ if(typeof gPhoto!=="function"){ resolve(null); return; } var url=gPhoto(ref, size||600);
-        var im=new Image(); im.crossOrigin="anonymous";
-        var to=setTimeout(function(){ resolve(null); }, 7000);
-        im.onload=function(){ clearTimeout(to); try{ var c=document.createElement("canvas"); c.width=im.naturalWidth||size; c.height=im.naturalHeight||size; c.getContext("2d").drawImage(im,0,0); resolve(c.toDataURL("image/jpeg",0.9)); }catch(e){ resolve(null); } };
-        im.onerror=function(){ clearTimeout(to); resolve(null); };
-        im.src=url;
-      }catch(e){ resolve(null); }
-    }); }
+    async function _gPhotoData(ref, size){ try{ if(typeof gPhoto!=="function") return null; return await _urlToData(gPhoto(ref, size||600)); }catch(e){ return null; } }
     for(const dd of days){
       const st=pts.filter(p=>p.day===dd.i);
       const _lodgPt=(tr.lodging&&tr.lodging.lat!=null)?{ id:"__lodging_"+dd.i, title:(tr.lodging.name||L({fr:"Hébergement",en:"Accommodation",es:"Alojamiento",it:"Alloggio",de:"Unterkunft"})), lat:tr.lodging.lat, lng:tr.lodging.lng, kind:"lodging", time:"", photo:((tr.lodging.suggest&&tr.lodging.suggest.photo)||null), _lodging:true }:null;
