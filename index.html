@@ -3241,7 +3241,7 @@ const DEFAULT_S={ version:"0.2.0", settings:{ lang:"fr", theme:"system", units:"
 /* Clé Maps JS partagée (restreinte au domaine GitHub Pages). Repli : clé perso de l'utilisateur si fournie. */
 const SHARED_MAP_KEY="AIzaSyCt5iVx8nPr1V067A3daE0X1YA568XJNbU";
 function mapKey(){ return (S.settings.mapKey||"").trim() || SHARED_MAP_KEY; }
-const BUILD="0.3.49 · v635 carnet-photos";
+const BUILD="0.3.50 · v636 carte-pins";
 let S=loadState();
 function normalizeTrip(tr){ if(!tr||typeof tr!=="object") return tr;
   tr.id=tr.id||("t"+Date.now()+Math.random().toString(36).slice(2,7));
@@ -7823,7 +7823,7 @@ function _souvAddLayers(map,pts){ if(!map||!pts||!pts.length) return; const L=DA
   const pfeats=pts.map((pp,i)=>({type:"Feature",properties:{idx:i},geometry:{type:"Point",coordinates:[pp.lng,pp.lat]}}));
   const pdata={type:"FeatureCollection",features:pfeats};
   if(map.getSource("smp")) map.getSource("smp").setData(pdata); else map.addSource("smp",{type:"geojson",data:pdata});
-  Promise.all(pts.map((pp,i)=>{ const key="smpin"+i; if(map.hasImage(key)) return Promise.resolve(); const col=((typeof catColor==="function"&&catColor(pp))||DAY_COLORS[pp.day%L]); const emo=(typeof catEmoji==="function"?catEmoji(pp):"📍"); return _addPinImg(map,key,_souvSvgPin(emo,i+1,col),i+1,col); })).then(()=>{ if(map.getLayer("smp-pin")) return; try{ map.addLayer({id:"smp-pin",type:"symbol",source:"smp",layout:{"icon-image":["concat","smpin",["to-string",["get","idx"]]],"icon-size":1,"icon-anchor":"bottom","icon-allow-overlap":true,"icon-ignore-placement":true}}); }catch(e){} }).catch(()=>{});
+  Promise.all(pts.map((pp,i)=>{ const key="smpin"+i; if(map.hasImage(key)) return Promise.resolve(); const col=((typeof catColor==="function"&&catColor(pp))||DAY_COLORS[pp.day%L]); const emo=(typeof catEmoji==="function"?catEmoji(pp):"📍"); return _addPinImg(map,key,_souvSvgPin(emo,i+1,col),i+1,col); })).then(()=>{ if(map.getLayer("smp-pin")) return; try{ map.addLayer({id:"smp-pin",type:"symbol",source:"smp",layout:{"icon-image":["concat","smpin",["to-string",["get","idx"]]],"icon-size":1.35,"icon-anchor":"bottom","icon-allow-overlap":true,"icon-ignore-placement":true}}); }catch(e){} }).catch(()=>{});
   if(_souvTr && typeof ensureRoute==="function"){ const _tr=_souvTr; const _keys=Object.keys(byDay).sort((a,b)=>(+a)-(+b)); let _bx=0; const _base={};
     _keys.forEach(d=>{ _base[d]=_bx; _bx+=Math.max(0,byDay[d].length-1); });
     Promise.all(_keys.map(async d=>{ const arr=byDay[d]; if(arr.length<2) return [];
