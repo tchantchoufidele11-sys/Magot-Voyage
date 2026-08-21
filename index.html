@@ -3241,7 +3241,7 @@ const DEFAULT_S={ version:"0.2.0", settings:{ lang:"fr", theme:"system", units:"
 /* Clé Maps JS partagée (restreinte au domaine GitHub Pages). Repli : clé perso de l'utilisateur si fournie. */
 const SHARED_MAP_KEY="AIzaSyCt5iVx8nPr1V067A3daE0X1YA568XJNbU";
 function mapKey(){ return (S.settings.mapKey||"").trim() || SHARED_MAP_KEY; }
-const BUILD="0.3.48 · v634 carnet-points";
+const BUILD="0.3.49 · v635 carnet-photos";
 let S=loadState();
 function normalizeTrip(tr){ if(!tr||typeof tr!=="object") return tr;
   tr.id=tr.id||("t"+Date.now()+Math.random().toString(36).slice(2,7));
@@ -8252,9 +8252,17 @@ async function exportCarnetComplet(){
       var inner=pw-5, ix=px+2.5, iy=py+2.5;
       if(cropData){ try{ doc.addImage(cropData,"JPEG",ix,iy,inner,inner,undefined,"FAST"); }catch(e){} }
       else { doc.setFillColor(244,241,233); doc.rect(ix,iy,inner,inner,"F"); doc.setDrawColor(206,198,182); doc.setLineWidth(0.25); doc.rect(ix,iy,inner,inner); doc.setTextColor(184,178,164); doc.setFont("helvetica","normal"); doc.setFontSize(7); doc.text(L({fr:"photo",en:"photo",es:"foto",it:"foto",de:"Foto"}),ix+inner/2,iy+inner/2+1,{align:"center"}); }
-      if(num){ doc.setFillColor(NAVY[0],NAVY[1],NAVY[2]); doc.circle(ix+3.8,iy+3.8,3.5,"F"); doc.setTextColor(GOLDL[0],GOLDL[1],GOLDL[2]); doc.setFont("helvetica","bold"); doc.setFontSize(8); doc.text(String(num),ix+3.8,iy+5.4,{align:"center"}); }
+      if(num){ var _bx=px+5, _by=py+5; doc.setFillColor(255,255,255); doc.circle(_bx,_by,4.6,"F"); doc.setDrawColor(GOLDL[0],GOLDL[1],GOLDL[2]); doc.setLineWidth(0.5); doc.circle(_bx,_by,4.6,"S"); doc.setFillColor(NAVY[0],NAVY[1],NAVY[2]); doc.circle(_bx,_by,3.7,"F"); doc.setTextColor(GOLDL[0],GOLDL[1],GOLDL[2]); doc.setFont("helvetica","bold"); doc.setFontSize(8.5); doc.text(String(num),_bx,_by+1.7,{align:"center"}); }
       if(cap){ doc.setTextColor(96,90,78); doc.setFont("times","italic"); doc.setFontSize(7.5); var cl=doc.splitTextToSize(cap,pw-3); doc.text(cl[0]||"",px+pw/2,py+ph-2.6,{align:"center"}); }
     }
+    function _urlToData(url){ return new Promise(function(resolve){
+      try{ if(!url){ resolve(null); return; } var im=new Image(); im.crossOrigin="anonymous";
+        var to=setTimeout(function(){ resolve(null); }, 7000);
+        im.onload=function(){ clearTimeout(to); try{ var c=document.createElement("canvas"); c.width=im.naturalWidth||600; c.height=im.naturalHeight||600; c.getContext("2d").drawImage(im,0,0); resolve(c.toDataURL("image/jpeg",0.9)); }catch(e){ resolve(null); } };
+        im.onerror=function(){ clearTimeout(to); resolve(null); };
+        im.src=url;
+      }catch(e){ resolve(null); }
+    }); }
     function _gPhotoData(ref, size){ return new Promise(function(resolve){
       try{ if(typeof gPhoto!=="function"){ resolve(null); return; } var url=gPhoto(ref, size||600);
         var im=new Image(); im.crossOrigin="anonymous";
@@ -8281,6 +8289,7 @@ async function exportCarnetComplet(){
       /* carte du jour */
       if(stAll.length>=1){ try{ const _sh=await souvOffscreenMap(stAll); if(_sh&&_sh.url){ const iw=W-2*MG, ih=Math.min(iw*(_sh.h/_sh.w),58); doc.addImage(_sh.url,"PNG",MG,y,iw,ih,undefined,"FAST"); doc.setDrawColor(LINE[0],LINE[1],LINE[2]); doc.setLineWidth(0.3); doc.rect(MG,y,iw,ih); y+=ih+6; } }catch(e){} }
       /* ---- Lieux du jour : chaque lieu = photo (polaroid) + commentaire ---- */
+      var _pays=""; try{ if(typeof _exploreCC==="function") _pays=_exploreCC()||""; }catch(e){}
       var _usedPh={};
       for(var _pi=0; _pi<stAll.length; _pi++){ var p=stAll[_pi]; var _num=_pi+1;
         var _pw=42, _cardH=_pw+9;
@@ -8293,6 +8302,7 @@ async function exportCarnetComplet(){
         var _crop=null;
         var _ph=null; for(var _mi=0;_mi<(tr.memories||[]).length;_mi++){ var _m=tr.memories[_mi]; if(_m&&!_m.video&&_m.placeId===p.id&&!_usedPh[_m.id]){ _ph=_m; break; } }
         if(_ph){ try{ var _pd=await photoData(_ph.id); if(_pd&&_pd.data){ _crop=await _cropImg(_pd.data,Math.round(_pw*8),Math.round(_pw*8)); _usedPh[_ph.id]=1; } }catch(e){} }
+        if(!_crop){ try{ if(!p._freePhoto && typeof freePhotoOf==="function" && p.lat!=null){ var _fp=await freePhotoOf({lat:p.lat,lng:p.lng,name:(p.title||p.name||"")}, _pays); if(_fp&&_fp.photo){ p._freePhoto={url:_fp.photo}; } } var _furl=p._freePhoto&&p._freePhoto.url; if(_furl){ var _fd=await _urlToData(_furl); if(_fd){ _crop=await _cropImg(_fd,Math.round(_pw*8),Math.round(_pw*8)); } } }catch(e){} }
         if(!_crop && p.photo){ try{ var _gd=await _gPhotoData(p.photo,Math.round(_pw*8)); if(_gd){ _crop=await _cropImg(_gd,Math.round(_pw*8),Math.round(_pw*8)); } }catch(e){} }
         _polaroid(MG,y,_pw,_crop,p.title||"",_num);
         var _tx=MG+_pw+7, _tw=W-MG-_tx;
