@@ -3241,7 +3241,7 @@ const DEFAULT_S={ version:"0.2.0", settings:{ lang:"fr", theme:"system", units:"
 /* Clé Maps JS partagée (restreinte au domaine GitHub Pages). Repli : clé perso de l'utilisateur si fournie. */
 const SHARED_MAP_KEY="AIzaSyCt5iVx8nPr1V067A3daE0X1YA568XJNbU";
 function mapKey(){ return (S.settings.mapKey||"").trim() || SHARED_MAP_KEY; }
-const BUILD="0.3.60 · v646 carnet-fusion";
+const BUILD="0.3.61 · v647 carnet-fix2";
 let S=loadState();
 function normalizeTrip(tr){ if(!tr||typeof tr!=="object") return tr;
   tr.id=tr.id||("t"+Date.now()+Math.random().toString(36).slice(2,7));
@@ -13143,7 +13143,7 @@ function renderMemories(){ const body=document.getElementById("memBody"); if(!bo
       if(kEl) mvStats(tr).then(st=>{ const km=+(st.km||0);
         if(km>0) kEl.textContent="  \u00b7  "+km+" km parcourus"; }).catch(()=>{}); }
     const _mini=body.querySelector("#svMapMini"); if(_mini) souvMiniMap(tr,_mini); }
-  { const _me=body.querySelector("#memExport2"); if(_me){ var _host=document.createElement("div"); _host.className="carnet-inline"; _me.parentNode.replaceChild(_host,_me); try{ openExport(_host); }catch(e){} try{ var _ag=body.querySelector("#souvAgentCard"); if(_ag){ var _agc=(_ag.closest&&_ag.closest(".card"))||_ag.parentElement; if(_agc) _agc.style.display="none"; } }catch(e){} } }
+  { const _me=body.querySelector("#memExport2"); if(_me){ var _host=document.createElement("div"); _host.className="carnet-inline"; _me.parentNode.replaceChild(_host,_me); try{ openExport(_host); }catch(e){} try{ var _ag=body.querySelector("#souvAgentCard"); if(_ag){ var _p=_ag.parentElement; if(_p && !_p.contains(_host)) _p.style.display="none"; else _ag.style.display="none"; } }catch(e){} } }
   body.querySelectorAll(".jr-dayhead").forEach(b=>b.onclick=()=>{ const d=b.closest(".jr-day"); if(d) d.classList.toggle("open"); });
   _bindExtra();
   if(document.getElementById("souvAgentCard")) paintSouvCard(tr);
