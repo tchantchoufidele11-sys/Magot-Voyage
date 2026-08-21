@@ -8243,22 +8243,22 @@ async function exportCarnetComplet(){
       }
     }catch(e){}
 
-    /* ---------- JOUR PAR JOUR ---------- */
-    doc.addPage(); pageBg(); y=26;
-    doc.setTextColor(INK[0],INK[1],INK[2]); doc.setFont("times","bold"); doc.setFontSize(20);
-    doc.text(L({fr:"Jour par jour",en:"Day by day",es:"Día a día",it:"Giorno per giorno",de:"Tag für Tag"}),MG,y); y+=10;
-
+    /* ---------- JOUR PAR JOUR (une page par jour) ---------- */
+    async function _cropImg(dataURL, tw, th){ return new Promise(res=>{ const im=new Image(); im.onload=()=>{ try{ const c=document.createElement("canvas"); c.width=tw; c.height=th; const x=c.getContext("2d"); const r=Math.max(tw/im.width,th/im.height), iw=im.width*r, ih=im.height*r; x.drawImage(im,(tw-iw)/2,(th-ih)/2,iw,ih); res(c.toDataURL("image/jpeg",0.9)); }catch(e){ res(dataURL); } }; im.onerror=()=>res(null); im.src=dataURL; }); }
     for(const dd of days){
       const st=pts.filter(p=>p.day===dd.i);
       const dayExps=exps.filter(e=>e.date===dd.date);
-      if(!st.length && !dayExps.length){ continue; }
-      ensure(24);
+      const dayPhotos=(tr.memories||[]).filter(m=>m&&m.day===dd.i&&!m.video).slice(0,3);
+      if(!st.length && !dayExps.length && !dayPhotos.length){ continue; }
+      doc.addPage(); pageBg(); y=22;
       /* bandeau jour */
-      doc.setFillColor(NAVY[0],NAVY[1],NAVY[2]); doc.roundedRect(MG,y,W-2*MG,11,2,2,'F');
-      doc.setTextColor(255,255,255); doc.setFont("times","bold"); doc.setFontSize(12);
-      doc.text(t("plan.day")+" "+(dd.i+1),MG+5,y+7.3);
-      if(dd.date){ doc.setFont("helvetica","normal"); doc.setFontSize(9); doc.setTextColor(210,200,170); doc.text((typeof fmtDayLong==="function"?fmtDayLong(dd.date):""),W-MG-5,y+7.2,{align:"right"}); }
-      y+=15;
+      doc.setFillColor(NAVY[0],NAVY[1],NAVY[2]); doc.roundedRect(MG,y,W-2*MG,13,2.5,2.5,'F');
+      doc.setTextColor(255,255,255); doc.setFont("times","bold"); doc.setFontSize(14);
+      doc.text(t("plan.day")+" "+(dd.i+1),MG+6,y+8.6);
+      if(dd.date){ doc.setFont("helvetica","normal"); doc.setFontSize(9.5); doc.setTextColor(214,204,176); doc.text((typeof fmtDayLong==="function"?fmtDayLong(dd.date):""),W-MG-6,y+8.4,{align:"right"}); }
+      y+=18;
+      /* carte du jour */
+      if(st.length>=1){ try{ const _sh=await souvOffscreenMap(st); if(_sh&&_sh.url){ const iw=W-2*MG, ih=Math.min(iw*(_sh.h/_sh.w),58); doc.addImage(_sh.url,"PNG",MG,y,iw,ih,undefined,"FAST"); doc.setDrawColor(LINE[0],LINE[1],LINE[2]); doc.setLineWidth(0.3); doc.rect(MG,y,iw,ih); y+=ih+6; } }catch(e){} }
       /* timeline */
       st.forEach(p=>{
         const noteLines=p.note?doc.splitTextToSize(String(p.note),W-2*MG-26):[];
@@ -8284,16 +8284,14 @@ async function exportCarnetComplet(){
           doc.setFont("helvetica","bold"); doc.setTextColor(INK[0],INK[1],INK[2]); doc.text(money((e.type==="refund"?-1:1)*(+e.amount||0)),W-MG-2,y+2,{align:"right"}); y+=5.4; });
         y+=2;
       }
-      /* photos du jour (2-3) */
-      const dayPhotos=(tr.memories||[]).filter(m=>m&&m.day===dd.i&&!m.video).slice(0,3);
+      /* photos du jour recadrées */
       if(dayPhotos.length){
-        const gap=3, pw=(W-2*MG-gap*(dayPhotos.length-1))/dayPhotos.length, ph=pw*0.72;
-        ensure(ph+4);
+        const gap=4, pw=(W-2*MG-gap*(dayPhotos.length-1))/dayPhotos.length, ph=pw*0.8;
+        ensure(ph+6);
         let px=MG;
-        for(const m of dayPhotos){ try{ const pd=await photoData(m.id); if(pd&&pd.data){ doc.addImage(pd.data,"JPEG",px,y,pw,ph,undefined,"FAST"); doc.setDrawColor(LINE[0],LINE[1],LINE[2]); doc.setLineWidth(0.2); doc.rect(px,y,pw,ph); } }catch(e){} px+=pw+gap; }
+        for(const m of dayPhotos){ try{ const pd=await photoData(m.id); if(pd&&pd.data){ const cr=await _cropImg(pd.data,Math.round(pw*8),Math.round(ph*8)); if(cr){ doc.addImage(cr,"JPEG",px,y,pw,ph,undefined,"FAST"); doc.setDrawColor(LINE[0],LINE[1],LINE[2]); doc.setLineWidth(0.3); doc.rect(px,y,pw,ph); } } }catch(e){} px+=pw+gap; }
         y+=ph+4;
       }
-      y+=4;
     }
 
     /* ---------- BILAN ---------- */
