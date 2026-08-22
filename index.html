@@ -3241,7 +3241,7 @@ const DEFAULT_S={ version:"0.2.0", settings:{ lang:"fr", theme:"system", units:"
 /* Clé Maps JS partagée (restreinte au domaine GitHub Pages). Repli : clé perso de l'utilisateur si fournie. */
 const SHARED_MAP_KEY="AIzaSyCt5iVx8nPr1V067A3daE0X1YA568XJNbU";
 function mapKey(){ return (S.settings.mapKey||"").trim() || SHARED_MAP_KEY; }
-const BUILD="0.3.87 · v673 sea-fix";
+const BUILD="0.3.88 · v674 flora-real";
 let S=loadState();
 function normalizeTrip(tr){ if(!tr||typeof tr!=="object") return tr;
   tr.id=tr.id||("t"+Date.now()+Math.random().toString(36).slice(2,7));
@@ -8175,6 +8175,9 @@ async function exportCarnetComplet(){
     const fr=(typeof lang==="function"&&lang()==="fr");
     const L=(o)=>o[(typeof lang==="function"&&lang())||"fr"]||o.fr;
     const days=(typeof tripDays==="function")?tripDays(tr):[]; window._souvByDay=true;
+    var _floraCache={};
+    async function _loadFlora(n){ if(n in _floraCache) return _floraCache[n]; try{ var r=await fetch(n+".png"); if(r&&r.ok){ var b=await r.blob(); _floraCache[n]=await new Promise(function(res){ var fr=new FileReader(); fr.onload=function(){res(fr.result);}; fr.onerror=function(){res(null);}; fr.readAsDataURL(b); }); } else { _floraCache[n]=null; } }catch(e){ _floraCache[n]=null; } return _floraCache[n]; }
+    try{ await Promise.all(["p3_branche_gauche","p3_branche_droite","p3_voilier","p2_phare","p3_eucalyptus","p1_pivoine_rose","p2_hortensia"].map(_loadFlora)); }catch(e){}
     const pts=(typeof souvPoints==="function")?souvPoints(tr):[];
     const exps=(tr.expenses||[]);
     const title=(tr.dest&&tr.dest.name)||tr.name||"Voyage";
@@ -8222,12 +8225,10 @@ async function exportCarnetComplet(){
     function pageBg(){ _pgN++;
       if(_paperTex){ try{ doc.addImage(_paperTex,"JPEG",0,0,W,H); }catch(e){ doc.setFillColor(251,247,238); doc.rect(0,0,W,H,'F'); } } else { doc.setFillColor(251,247,238); doc.rect(0,0,W,H,'F'); }
       var _m=8; doc.setDrawColor(GOLDL[0],GOLDL[1],GOLDL[2]); doc.setLineWidth(0.3); doc.rect(_m,_m,W-2*_m,H-2*_m);
-      var _fp=[[_m,_m,0],[W-_m,_m,1],[_m,H-_m,2],[W-_m,H-_m,3],[W/2,_m,4],[W/2,H-_m,0],[_m,H/2,1],[W-_m,H/2,2]];
-      _fp.forEach(function(c){ _drawFlower(c[2],c[0],c[1],1.5); });
-      _sprig(_m+3,H-_m-4,1);
-      if(_theme==="sea") _seascape(W-_m-11,H-_m-4); else if(_theme==="mtn") _mountain(W-_m-11,H-_m-4); else _bloom(W-_m-6,H-_m-7);
-      _bloom(_m+4,H*0.5);
-      _bloom(W-_m-4,H*0.5+3);
+      try{ var _bl=_floraCache["p3_branche_gauche"]; if(_bl) doc.addImage(_bl,"PNG",0.5,15,20,20*3.57); }catch(e){}
+      try{ var _br=_floraCache["p3_branche_droite"]; if(_br) doc.addImage(_br,"PNG",W-0.5-19,H-14-19*2.47,19,19*2.47); }catch(e){}
+      try{ var _se=(_theme==="sea")?_floraCache["p3_voilier"]:(_theme==="nature"?_floraCache["p1_pivoine_rose"]:null); if(_se) doc.addImage(_se,"PNG",W-0.5-23,14,23,23*1.25); }catch(e){}
+      try{ if(_theme==="sea" && _floraCache["p3_eucalyptus"]) doc.addImage(_floraCache["p3_eucalyptus"],"PNG",1,H-14-24*2.6,18,24*2.6); }catch(e){}
       doc.setDrawColor(GOLDL[0],GOLDL[1],GOLDL[2]); doc.setLineWidth(0.4); doc.line(MG,15,W-MG,15);
       doc.setTextColor(GOLD[0],GOLD[1],GOLD[2]); doc.setFont("times","italic"); doc.setFontSize(9); doc.text("Magot Voyage",W-MG,13,{align:"right"}); }
     let y=0;
