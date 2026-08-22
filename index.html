@@ -3241,7 +3241,7 @@ const DEFAULT_S={ version:"0.2.0", settings:{ lang:"fr", theme:"system", units:"
 /* Clé Maps JS partagée (restreinte au domaine GitHub Pages). Repli : clé perso de l'utilisateur si fournie. */
 const SHARED_MAP_KEY="AIzaSyCt5iVx8nPr1V067A3daE0X1YA568XJNbU";
 function mapKey(){ return (S.settings.mapKey||"").trim() || SHARED_MAP_KEY; }
-const BUILD="0.3.95 · v681 sober-page";
+const BUILD="0.3.96 · v682 watermark";
 let S=loadState();
 function normalizeTrip(tr){ if(!tr||typeof tr!=="object") return tr;
   tr.id=tr.id||("t"+Date.now()+Math.random().toString(36).slice(2,7));
@@ -8228,6 +8228,8 @@ async function exportCarnetComplet(){
     function pageBg(){ _pgN++; var _sobre=_nextSobre; _nextSobre=false;
       if(_paperTex){ try{ doc.addImage(_paperTex,"JPEG",0,0,W,H); }catch(e){ doc.setFillColor(251,247,238); doc.rect(0,0,W,H,'F'); } } else { doc.setFillColor(251,247,238); doc.rect(0,0,W,H,'F'); }
       var _m=8; doc.setDrawColor(GOLDL[0],GOLDL[1],GOLDL[2]); doc.setLineWidth(0.35); try{ doc.setLineDashPattern([1.4,1.1],0); }catch(e){} doc.rect(_m,_m,W-2*_m,H-2*_m); try{ doc.setLineDashPattern([],0); }catch(e){}
+      /* filigrane botanique très pâle (remplit les grands vides sans gêner le texte) */
+      if(!_sobre){ try{ if(doc.GState){ var _wm=(_pgN%2)?(_floraCache["p2_hortensia"]||_floraCache["p1_pivoine_rose"]):(_floraCache["p1_pivoine_rose"]||_floraCache["p2_hortensia"]); if(_wm){ doc.setGState(new doc.GState({opacity:0.09})); var _ww=54,_wh=_ww*1.2; var _wx=(_pgN%2)?(W-4-_ww):4; doc.addImage(_wm,"PNG",_wx,H-3-_wh,_ww,_wh); doc.setGState(new doc.GState({opacity:1})); } } }catch(e){ try{ doc.setGState(new doc.GState({opacity:1})); }catch(_e){} } }
       var _branchesLeft=(_pgN % 2 === 0);
       if(_sobre){ try{ var _sb=_branchesLeft?_floraCache["p3_branche_gauche"]:(_floraFlip["p3_branche_gauche"]||_floraCache["p3_branche_gauche"]); if(_sb){ var _sx=_branchesLeft?1.2:(W-1.2-13); doc.addImage(_sb,"PNG",_sx,H*0.5-22,13,13*3.57); } var _so=_branchesLeft?(W-1.2-11):1.2; var _soi=(_theme==="sea")?_floraCache["p1_coquillage"]:_floraCache["p2_hortensia"]; if(_soi) doc.addImage(_soi,"PNG",_so,12,11,11*1.1); }catch(e){} }
       else {
