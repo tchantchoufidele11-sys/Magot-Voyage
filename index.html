@@ -3241,7 +3241,7 @@ const DEFAULT_S={ version:"0.2.0", settings:{ lang:"fr", theme:"system", units:"
 /* Clé Maps JS partagée (restreinte au domaine GitHub Pages). Repli : clé perso de l'utilisateur si fournie. */
 const SHARED_MAP_KEY="AIzaSyCt5iVx8nPr1V067A3daE0X1YA568XJNbU";
 function mapKey(){ return (S.settings.mapKey||"").trim() || SHARED_MAP_KEY; }
-const BUILD="0.3.86 · v672 theme-auto";
+const BUILD="0.3.87 · v673 sea-fix";
 let S=loadState();
 function normalizeTrip(tr){ if(!tr||typeof tr!=="object") return tr;
   tr.id=tr.id||("t"+Date.now()+Math.random().toString(36).slice(2,7));
@@ -8202,8 +8202,10 @@ async function exportCarnetComplet(){
 
     /* ---------- helpers pages intérieures ---------- */
     var _theme=(function(){ try{ var txt=(((tr.dest&&tr.dest.name)||"")+" "+(tr.name||"")+" "+((tr.places||[]).map(function(p){return p&&p.name||"";}).join(" "))).toLowerCase();
-      if(/plage|mer|c\u00f4te|cote|oc\u00e9an|ocean|littoral|baie|\bport|\bile|\u00eele|beach|\bsea\b|coast|baln\u00e9|falaise/.test(txt)) return "sea";
-      if(/montagne|mont |sommet|\bcol\b|\bpic\b|alpe|\bski|station|refuge|massif|mountain|peak|glacier|vall\u00e9e/.test(txt)) return "mtn";
+      var _sea=(txt.match(/plage|\bmer\b|c\u00f4te|\bcote|oc\u00e9an|ocean|littoral|\bbaie|\bport|\bile\b|\u00eele|beach|\bsea\b|coast|baln|falaise|\bquai|phare/g)||[]).length;
+      var _mtn=(txt.match(/montagne|sommet|\balpe|\bski\b|refuge|massif|mountain|\bpeak|glacier|t\u00e9l\u00e9ph\u00e9rique|randonn/g)||[]).length;
+      if(_sea>0 && _sea>=_mtn) return "sea";
+      if(_mtn>0 && _mtn>_sea) return "mtn";
       return "nature"; }catch(e){ return "nature"; } })();
     var _paperTex=(function(){ try{ var c=document.createElement("canvas"); c.width=430; c.height=610; var x=c.getContext("2d"); x.fillStyle="#fbf7ee"; x.fillRect(0,0,c.width,c.height); var im=x.getImageData(0,0,c.width,c.height), d=im.data; for(var i=0;i<d.length;i+=4){ var n=Math.random()*7-3.5; d[i]+=n; d[i+1]+=n; d[i+2]+=n; } x.putImageData(im,0,0); return c.toDataURL("image/jpeg",0.7); }catch(e){ return null; } })();
     var _pgN=0;
@@ -8214,7 +8216,7 @@ async function exportCarnetComplet(){
       else if(v===3){ doc.setDrawColor(GD[0],GD[1],GD[2]); doc.setLineWidth(0.3); doc.line(cx,cy-r*1.1,cx,cy+r*1.1); doc.setFillColor(GL[0],GL[1],GL[2]); for(a=-2;a<=2;a++){ doc.circle(cx-r*0.45,cy+a*r*0.5,r*0.26,'F'); doc.circle(cx+r*0.45,cy+a*r*0.5,r*0.26,'F'); } }
       else { doc.setFillColor(GL[0],GL[1],GL[2]); for(a=0;a<8;a++){ an=a*Math.PI/4; doc.circle(cx+Math.cos(an)*r,cy+Math.sin(an)*r,r*0.34,'F'); } doc.setFillColor(GD[0],GD[1],GD[2]); doc.circle(cx,cy,r*0.55,'F'); } }
     function _sprig(cx,cy,dir){ doc.setDrawColor(150,176,142); doc.setLineWidth(0.5); doc.line(cx,cy,cx+dir*9,cy-13); doc.setFillColor(199,217,190); var pts=[[3,-4],[5.5,-8],[8,-12]]; pts.forEach(function(p){ doc.ellipse(cx+dir*p[0],cy+p[1],2.1,1.1,'F'); doc.ellipse(cx+dir*(p[0]-1.4),cy+p[1]+1.6,2.1,1.1,'F'); }); doc.setFillColor(232,196,206); doc.circle(cx+dir*8.4,cy-12.6,1.3,'F'); }
-    function _seascape(cx,cy){ doc.setFillColor(223,216,201); doc.triangle(cx-9,cy,cx-1,cy,cx-5,cy-8,"F"); doc.setFillColor(212,204,188); doc.triangle(cx-2,cy,cx+8,cy,cx+3,cy-6,"F"); doc.setFillColor(238,235,228); doc.triangle(cx-5.4,cy-8,cx-4.2,cy-8,cx-5,cy-9.2,"F"); doc.setDrawColor(150,186,206); doc.setLineWidth(0.45); doc.line(cx-10,cy+1.6,cx+9,cy+1.6); doc.setDrawColor(176,203,219); doc.setLineWidth(0.3); doc.line(cx-8,cy+3.4,cx+7,cy+3.4); doc.setFillColor(232,196,206); doc.circle(cx+6,cy-2,1,"F"); doc.setFillColor(214,224,190); doc.circle(cx+4,cy-1.2,0.9,"F"); }
+    function _seascape(cx,cy){ doc.setFillColor(223,216,201); doc.triangle(cx-9,cy,cx-1,cy,cx-5,cy-8,"F"); doc.setFillColor(212,204,188); doc.triangle(cx-2,cy,cx+8,cy,cx+3,cy-6,"F"); doc.setFillColor(238,235,228); doc.triangle(cx-5.4,cy-8,cx-4.2,cy-8,cx-5,cy-9.2,"F"); doc.setDrawColor(150,186,206); doc.setLineWidth(0.45); doc.line(cx-10,cy+1.6,cx+9,cy+1.6); doc.setDrawColor(176,203,219); doc.setLineWidth(0.3); doc.line(cx-8,cy+3.4,cx+7,cy+3.4); doc.setFillColor(232,196,206); doc.circle(cx+6,cy-2,1,"F"); doc.setDrawColor(70,92,112); doc.setLineWidth(0.35); doc.line(cx-1.5,cy+0.4,cx-1.5,cy-4.2); doc.setFillColor(245,243,236); doc.triangle(cx-1.5,cy-4.2,cx-1.5,cy-0.6,cx+1.6,cy-0.6,"F"); doc.setFillColor(255,255,255); doc.triangle(cx-1.5,cy-4,cx-1.5,cy-1,cx-3.3,cy-1,"F"); doc.setFillColor(110,80,64); doc.triangle(cx-3.2,cy+0.3,cx+0.4,cy+0.3,cx-1.4,cy+1.8,"F"); }
     function _bloom(cx,cy){ doc.setFillColor(236,201,210); for(var a=0;a<5;a++){ var an=a*72*Math.PI/180-Math.PI/2; doc.circle(cx+Math.cos(an)*1.5,cy+Math.sin(an)*1.5,0.85,"F"); } doc.setFillColor(228,196,120); doc.circle(cx,cy,0.9,"F"); doc.setDrawColor(150,176,142); doc.setLineWidth(0.4); doc.line(cx,cy+1.6,cx,cy+6); doc.setFillColor(199,217,190); doc.ellipse(cx-1.6,cy+3.4,1.6,0.8,"F"); doc.ellipse(cx+1.6,cy+4.4,1.6,0.8,"F"); }
     function _mountain(cx,cy){ doc.setFillColor(172,182,197); doc.triangle(cx-10,cy,cx-1,cy,cx-6,cy-9,"F"); doc.setFillColor(150,162,180); doc.triangle(cx-3,cy,cx+9,cy,cx+2,cy-11,"F"); doc.setFillColor(240,242,246); doc.triangle(cx+2,cy-11,cx+0.6,cy-8.6,cx+3.6,cy-8.6,"F"); doc.setFillColor(240,242,246); doc.triangle(cx-6,cy-9,cx-7,cy-7,cx-5,cy-7,"F"); doc.setFillColor(120,150,120); doc.triangle(cx+6.5,cy,cx+10,cy,cx+8.2,cy-5.5,"F"); doc.setDrawColor(120,150,120); doc.setLineWidth(0.3); doc.line(cx+8.2,cy,cx+8.2,cy-5.5); }
     function pageBg(){ _pgN++;
