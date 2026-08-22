@@ -3241,7 +3241,7 @@ const DEFAULT_S={ version:"0.2.0", settings:{ lang:"fr", theme:"system", units:"
 /* Clé Maps JS partagée (restreinte au domaine GitHub Pages). Repli : clé perso de l'utilisateur si fournie. */
 const SHARED_MAP_KEY="AIzaSyCt5iVx8nPr1V067A3daE0X1YA568XJNbU";
 function mapKey(){ return (S.settings.mapKey||"").trim() || SHARED_MAP_KEY; }
-const BUILD="0.3.89 · v675 flora-layout";
+const BUILD="0.3.90 · v676 margin-bottom";
 let S=loadState();
 function normalizeTrip(tr){ if(!tr||typeof tr!=="object") return tr;
   tr.id=tr.id||("t"+Date.now()+Math.random().toString(36).slice(2,7));
@@ -8169,7 +8169,7 @@ async function exportCarnetComplet(){
     const { jsPDF }=window.jspdf;
     const doc=new jsPDF({unit:"mm",format:"a5",orientation:"portrait"});
     const W=doc.internal.pageSize.getWidth(), H=doc.internal.pageSize.getHeight();
-    const MG=14;
+    const MG=18;
     const NAVY=[14,33,72], GOLD=[176,149,47], GOLDL=[212,175,55], INK=[24,34,54], MUT=[130,138,150], LINE=[224,220,208];
     const cur=tr.currency||"EUR";
     const fr=(typeof lang==="function"&&lang()==="fr");
@@ -8177,7 +8177,7 @@ async function exportCarnetComplet(){
     const days=(typeof tripDays==="function")?tripDays(tr):[]; window._souvByDay=true;
     var _floraCache={};
     async function _loadFlora(n){ if(n in _floraCache) return _floraCache[n]; try{ var r=await fetch(n+".png"); if(r&&r.ok){ var b=await r.blob(); _floraCache[n]=await new Promise(function(res){ var fr=new FileReader(); fr.onload=function(){res(fr.result);}; fr.onerror=function(){res(null);}; fr.readAsDataURL(b); }); } else { _floraCache[n]=null; } }catch(e){ _floraCache[n]=null; } return _floraCache[n]; }
-    try{ await Promise.all(["p3_branche_gauche","p3_branche_droite","p3_eucalyptus","p3_lavande","p3_gypsophile","p1_pivoine_rose","p2_hortensia","p1_marguerite","p2_cosmos_rose","p1_anemone","p1_eglantine","p2_coin_fleuri","p3_voilier","p2_phare","p1_hortensia_bleu"].map(_loadFlora)); }catch(e){}
+    try{ await Promise.all(["p3_branche_gauche","p3_branche_droite","p3_eucalyptus","p3_lavande","p3_gypsophile","p1_pivoine_rose","p2_hortensia","p1_marguerite","p2_cosmos_rose","p1_anemone","p1_eglantine","p2_coin_fleuri","p3_voilier","p2_phare","p1_hortensia_bleu","p1_coquillage","p1_etoile_mer","p1_mouette","p1_voilier"].map(_loadFlora)); }catch(e){}
     const pts=(typeof souvPoints==="function")?souvPoints(tr):[];
     const exps=(tr.expenses||[]);
     const title=(tr.dest&&tr.dest.name)||tr.name||"Voyage";
@@ -8237,7 +8237,7 @@ async function exportCarnetComplet(){
       try{ var _f1=_floraCache[_fls[_pgN % _fls.length]]; if(_f1){ doc.addImage(_f1,"PNG",_fx,11,13,13*1.25); } }catch(e){}
       try{ var _f2=_floraCache[_fls[(_pgN+3) % _fls.length]]; if(_f2){ var h2=12*1.25; doc.addImage(_f2,"PNG",_fx,H-10-h2,12,h2); } }catch(e){}
       /* BAS CENTRÉ : petit motif selon le thème */
-      try{ var _bc=(_theme==="sea")?_floraCache["p3_voilier"]:(_theme==="mtn"?null:_floraCache["p2_coin_fleuri"]); if(_bc){ var bw=(_theme==="sea")?17:26, bh=(_theme==="sea")?bw*1.25:bw*0.52; doc.addImage(_bc,"PNG",W/2-bw/2,H-8-bh,bw,bh); } }catch(e){}
+      try{ var _bots=(_theme==="sea")?["p3_voilier","p1_coquillage","p2_phare","p1_etoile_mer","p1_mouette"]:["p2_coin_fleuri","p1_pivoine_rose","p2_hortensia","p1_marguerite"]; var _bn=_bots[_pgN % _bots.length]; var _bc=_floraCache[_bn]; if(_bc){ var _isW=(_bn.indexOf("voilier")>=0||_bn.indexOf("phare")>=0||_bn.indexOf("mouette")>=0); var bw=_isW?19:18, bh=_isW?bw*1.05:bw*0.95; doc.addImage(_bc,"PNG",W/2-bw/2,H-7-bh,bw,bh); } }catch(e){}
       doc.setDrawColor(GOLDL[0],GOLDL[1],GOLDL[2]); doc.setLineWidth(0.4); doc.line(MG,15,W-MG,15);
       doc.setTextColor(GOLD[0],GOLD[1],GOLD[2]); doc.setFont("times","italic"); doc.setFontSize(9); doc.text("Magot Voyage",W-MG,13,{align:"right"}); }
     let y=0;
