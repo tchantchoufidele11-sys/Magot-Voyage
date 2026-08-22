@@ -3241,7 +3241,7 @@ const DEFAULT_S={ version:"0.2.0", settings:{ lang:"fr", theme:"system", units:"
 /* Clé Maps JS partagée (restreinte au domaine GitHub Pages). Repli : clé perso de l'utilisateur si fournie. */
 const SHARED_MAP_KEY="AIzaSyCt5iVx8nPr1V067A3daE0X1YA568XJNbU";
 function mapKey(){ return (S.settings.mapKey||"").trim() || SHARED_MAP_KEY; }
-const BUILD="0.3.98 · v684 flora-rich";
+const BUILD="0.4.00 · v686 cover-photo";
 let S=loadState();
 function normalizeTrip(tr){ if(!tr||typeof tr!=="object") return tr;
   tr.id=tr.id||("t"+Date.now()+Math.random().toString(36).slice(2,7));
@@ -8192,19 +8192,27 @@ async function exportCarnetComplet(){
     function catLabel(c){ try{ return t("bcat."+c); }catch(e){ return c; } }
     function kindLabel(k){ try{ return t("kind."+k); }catch(e){ return ""; } }
 
-    /* ---------- COUVERTURE ---------- */
-    doc.setFillColor(NAVY[0],NAVY[1],NAVY[2]); doc.rect(0,0,W,H,'F');
-    doc.setDrawColor(GOLDL[0],GOLDL[1],GOLDL[2]); doc.setLineWidth(0.6); doc.rect(MG-5,MG-5,W-2*(MG-5),H-2*(MG-5));
-    doc.setTextColor(GOLDL[0],GOLDL[1],GOLDL[2]); doc.setFont("helvetica","bold"); doc.setFontSize(10);
-    doc.text(L({fr:"CARNET DE VOYAGE",en:"TRAVEL JOURNAL",es:"CUADERNO DE VIAJE",it:"DIARIO DI VIAGGIO",de:"REISETAGEBUCH"}),W/2,54,{align:"center",charSpace:1.4});
-    doc.setTextColor(255,255,255); doc.setFont("times","bold"); doc.setFontSize(30);
-    const tl=doc.splitTextToSize(title,W-2*MG-4); doc.text(tl,W/2,74,{align:"center"});
-    let yc=74+tl.length*11;
-    if(dr){ doc.setFont("helvetica","normal"); doc.setFontSize(12); doc.setTextColor(222,222,228); doc.text(dr,W/2,yc+2,{align:"center"}); yc+=2; }
-    doc.setDrawColor(GOLDL[0],GOLDL[1],GOLDL[2]); doc.setLineWidth(0.4); doc.line(W/2-16,yc+9,W/2+16,yc+9);
-    doc.setFont("times","italic"); doc.setFontSize(11); doc.setTextColor(210,190,140);
-    const cl=doc.splitTextToSize((typeof tripCity==="function"?tripCity(tr):title)||title,W-2*MG); doc.text(cl,W/2,yc+18,{align:"center"});
-    sig(W/2-16,H-26,1.25);
+    /* ---------- COUVERTURE (photo en fond + bandeau) ---------- */
+    var _covMem=(tr.memories||[]).find(function(m){ return m&&!m.video; });
+    var _covData=null; if(_covMem){ try{ _covData=await loadMedia(_covMem.id); }catch(e){} }
+    var _covOk=false;
+    if(_covData){ try{ var _cc=await _cropImg(_covData,900,Math.round(900*(H/W)),0.5); if(_cc){ doc.addImage(_cc,"PNG",0,0,W,H,undefined,"FAST"); _covOk=true; } }catch(e){} }
+    if(!_covOk){ doc.setFillColor(NAVY[0],NAVY[1],NAVY[2]); doc.rect(0,0,W,H,'F'); }
+    else { try{ if(doc.GState){ doc.setGState(new doc.GState({opacity:0.30})); doc.setFillColor(20,26,52); doc.rect(0,0,W,H,'F'); doc.setGState(new doc.GState({opacity:1})); } }catch(e){} }
+    doc.setDrawColor(GOLDL[0],GOLDL[1],GOLDL[2]); doc.setLineWidth(0.5); doc.rect(6,6,W-12,H-12);
+    try{ var _cf=_floraCache["p3_branche_gauche"]; if(_cf){ doc.addImage(_cf,"PNG",4,8,19,19*3.57); } }catch(e){}
+    var _bh=52, _by=H-_bh-16;
+    try{ if(doc.GState){ doc.setGState(new doc.GState({opacity:0.86})); } }catch(e){}
+    doc.setFillColor(NAVY[0],NAVY[1],NAVY[2]); doc.roundedRect(12,_by,W-24,_bh,3,3,'F');
+    try{ if(doc.GState){ doc.setGState(new doc.GState({opacity:1})); } }catch(e){}
+    doc.setDrawColor(GOLDL[0],GOLDL[1],GOLDL[2]); doc.setLineWidth(0.3); doc.roundedRect(13.3,_by+1.3,W-26.6,_bh-2.6,2.4,2.4);
+    doc.setTextColor(GOLDL[0],GOLDL[1],GOLDL[2]); doc.setFont("helvetica","bold"); doc.setFontSize(8.5);
+    doc.text(L({fr:"CARNET DE VOYAGE",en:"TRAVEL JOURNAL",es:"CUADERNO DE VIAJE",it:"DIARIO DI VIAGGIO",de:"REISETAGEBUCH"}),W/2,_by+10.5,{align:"center",charSpace:1.4});
+    doc.setTextColor(255,255,255); doc.setFont("times","bold"); doc.setFontSize(20);
+    var _tl=doc.splitTextToSize(title,W-42); doc.text(_tl.slice(0,2),W/2,_by+21,{align:"center"});
+    doc.setDrawColor(GOLDL[0],GOLDL[1],GOLDL[2]); doc.setLineWidth(0.3); doc.line(W/2-14,_by+27,W/2+14,_by+27);
+    if(dr){ doc.setFont("helvetica","normal"); doc.setFontSize(9.5); doc.setTextColor(224,224,230); doc.text(dr,W/2,_by+34,{align:"center"}); }
+    doc.setTextColor(210,190,140); sig(W/2-15,_by+_bh-5.5,1.0);
 
     /* ---------- helpers pages intérieures ---------- */
     var _theme=(function(){ try{ var txt=(((tr.dest&&tr.dest.name)||"")+" "+(tr.name||"")+" "+((tr.places||[]).map(function(p){return p&&p.name||"";}).join(" "))).toLowerCase();
@@ -8372,7 +8380,7 @@ async function exportCarnetComplet(){
         if(_dp.length){ doc.setFont("helvetica","normal"); doc.setFontSize(9); doc.setTextColor(150,140,120); doc.text(_dp.join("   \u00b7   "),MG+1,y); y+=7; }
       }catch(e){}
       /* carte du jour */
-      if(stAll.length>=1){ try{ const _sh=await souvOffscreenMap(stAll); if(_sh&&_sh.url){ const _ratio=(_sh.h/_sh.w)||0.62; var iw=W-2*MG, ih=iw*_ratio; var _maxH=72; if(ih>_maxH){ ih=_maxH; iw=ih/_ratio; } var _ix=MG+((W-2*MG)-iw)/2; doc.addImage(_sh.url,"PNG",_ix,y,iw,ih,undefined,"FAST"); doc.setDrawColor(NAVY[0],NAVY[1],NAVY[2]); doc.setLineWidth(0.7); doc.rect(_ix,y,iw,ih); doc.setDrawColor(GOLDL[0],GOLDL[1],GOLDL[2]); doc.setLineWidth(0.3); doc.rect(_ix+1,y+1,iw-2,ih-2); y+=ih+6; } }catch(e){} }
+      if(stAll.length>=1){ try{ const _sh=await souvOffscreenMap(stAll); if(_sh&&_sh.url){ const _ratio=(_sh.h/_sh.w)||0.62; var iw=W-2*MG, ih=iw*_ratio; var _maxH=72; if(ih>_maxH){ ih=_maxH; iw=ih/_ratio; } var _ix=MG+((W-2*MG)-iw)/2; doc.addImage(_sh.url,"PNG",_ix,y,iw,ih,undefined,"FAST"); doc.setDrawColor(GOLDL[0],GOLDL[1],GOLDL[2]); doc.setLineWidth(0.4); doc.rect(_ix,y,iw,ih); y+=ih+6; } }catch(e){} }
       /* ---- Lieux du jour : chaque lieu = photo (polaroid) + commentaire ---- */
       var _pays=""; try{ if(typeof _exploreCC==="function") _pays=_exploreCC()||""; }catch(e){}
       var _usedPh={};
