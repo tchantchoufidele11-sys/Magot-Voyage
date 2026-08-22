@@ -3241,7 +3241,7 @@ const DEFAULT_S={ version:"0.2.0", settings:{ lang:"fr", theme:"system", units:"
 /* Clé Maps JS partagée (restreinte au domaine GitHub Pages). Repli : clé perso de l'utilisateur si fournie. */
 const SHARED_MAP_KEY="AIzaSyCt5iVx8nPr1V067A3daE0X1YA568XJNbU";
 function mapKey(){ return (S.settings.mapKey||"").trim() || SHARED_MAP_KEY; }
-const BUILD="0.3.83 · v669 paper-floral";
+const BUILD="0.3.84 · v670 flora-vary";
 let S=loadState();
 function normalizeTrip(tr){ if(!tr||typeof tr!=="object") return tr;
   tr.id=tr.id||("t"+Date.now()+Math.random().toString(36).slice(2,7));
@@ -8201,14 +8201,22 @@ async function exportCarnetComplet(){
     sig(W/2-16,H-26,1.25);
 
     /* ---------- helpers pages intérieures ---------- */
-    var _paperTex=(function(){ try{ var c=document.createElement("canvas"); c.width=430; c.height=610; var x=c.getContext("2d"); x.fillStyle="#f7f2e6"; x.fillRect(0,0,c.width,c.height); var im=x.getImageData(0,0,c.width,c.height), d=im.data; for(var i=0;i<d.length;i+=4){ var n=Math.random()*13-6.5; d[i]+=n; d[i+1]+=n; d[i+2]+=n; } x.putImageData(im,0,0); return c.toDataURL("image/jpeg",0.72); }catch(e){ return null; } })();
-    function pageBg(){
-      if(_paperTex){ try{ doc.addImage(_paperTex,"JPEG",0,0,W,H); }catch(e){ doc.setFillColor(247,242,230); doc.rect(0,0,W,H,'F'); } } else { doc.setFillColor(247,242,230); doc.rect(0,0,W,H,'F'); }
-      var _m=8;
-      doc.setDrawColor(GOLDL[0],GOLDL[1],GOLDL[2]); doc.setLineWidth(0.3); doc.rect(_m,_m,W-2*_m,H-2*_m);
-      function _flower(cx,cy,r){ doc.setFillColor(GOLDL[0],GOLDL[1],GOLDL[2]); for(var a=0;a<5;a++){ var an=a*72*Math.PI/180 - Math.PI/2; doc.circle(cx+Math.cos(an)*r,cy+Math.sin(an)*r,r*0.6,'F'); } doc.setFillColor(GOLD[0],GOLD[1],GOLD[2]); doc.circle(cx,cy,r*0.5,'F'); }
+    var _paperTex=(function(){ try{ var c=document.createElement("canvas"); c.width=430; c.height=610; var x=c.getContext("2d"); x.fillStyle="#fbf7ee"; x.fillRect(0,0,c.width,c.height); var im=x.getImageData(0,0,c.width,c.height), d=im.data; for(var i=0;i<d.length;i+=4){ var n=Math.random()*7-3.5; d[i]+=n; d[i+1]+=n; d[i+2]+=n; } x.putImageData(im,0,0); return c.toDataURL("image/jpeg",0.7); }catch(e){ return null; } })();
+    var _pgN=0;
+    function _drawFlower(v,cx,cy,r){ var GL=GOLDL, GD=GOLD, a, an;
+      if(v===0){ doc.setFillColor(GL[0],GL[1],GL[2]); for(a=0;a<6;a++){ an=a*Math.PI/3; doc.circle(cx+Math.cos(an)*r,cy+Math.sin(an)*r,r*0.5,'F'); } doc.setFillColor(GD[0],GD[1],GD[2]); doc.circle(cx,cy,r*0.5,'F'); }
+      else if(v===1){ doc.setFillColor(GL[0],GL[1],GL[2]); doc.circle(cx,cy,r*1.15,'F'); doc.setFillColor(251,247,238); doc.circle(cx,cy,r*0.72,'F'); doc.setFillColor(GD[0],GD[1],GD[2]); doc.circle(cx,cy,r*0.4,'F'); }
+      else if(v===2){ doc.setFillColor(GL[0],GL[1],GL[2]); [[-r*0.6,-r*0.35],[r*0.6,-r*0.35],[0,r*0.65]].forEach(function(p){ doc.circle(cx+p[0],cy+p[1],r*0.6,'F'); }); doc.setDrawColor(GD[0],GD[1],GD[2]); doc.setLineWidth(0.3); doc.line(cx,cy+r*0.5,cx,cy+r*1.3); }
+      else if(v===3){ doc.setDrawColor(GD[0],GD[1],GD[2]); doc.setLineWidth(0.3); doc.line(cx,cy-r*1.1,cx,cy+r*1.1); doc.setFillColor(GL[0],GL[1],GL[2]); for(a=-2;a<=2;a++){ doc.circle(cx-r*0.45,cy+a*r*0.5,r*0.26,'F'); doc.circle(cx+r*0.45,cy+a*r*0.5,r*0.26,'F'); } }
+      else { doc.setFillColor(GL[0],GL[1],GL[2]); for(a=0;a<8;a++){ an=a*Math.PI/4; doc.circle(cx+Math.cos(an)*r,cy+Math.sin(an)*r,r*0.34,'F'); } doc.setFillColor(GD[0],GD[1],GD[2]); doc.circle(cx,cy,r*0.55,'F'); } }
+    function _sprig(cx,cy,dir){ doc.setDrawColor(150,176,142); doc.setLineWidth(0.5); doc.line(cx,cy,cx+dir*9,cy-13); doc.setFillColor(199,217,190); var pts=[[3,-4],[5.5,-8],[8,-12]]; pts.forEach(function(p){ doc.ellipse(cx+dir*p[0],cy+p[1],2.1,1.1,'F'); doc.ellipse(cx+dir*(p[0]-1.4),cy+p[1]+1.6,2.1,1.1,'F'); }); doc.setFillColor(232,196,206); doc.circle(cx+dir*8.4,cy-12.6,1.3,'F'); }
+    function pageBg(){ _pgN++;
+      if(_paperTex){ try{ doc.addImage(_paperTex,"JPEG",0,0,W,H); }catch(e){ doc.setFillColor(251,247,238); doc.rect(0,0,W,H,'F'); } } else { doc.setFillColor(251,247,238); doc.rect(0,0,W,H,'F'); }
+      var _m=8; doc.setDrawColor(GOLDL[0],GOLDL[1],GOLDL[2]); doc.setLineWidth(0.3); doc.rect(_m,_m,W-2*_m,H-2*_m);
+      var _fv=_pgN % 5;
       var _fp=[[_m,_m],[W-_m,_m],[_m,H-_m],[W-_m,H-_m],[W/2,_m],[W/2,H-_m],[_m,H/2],[W-_m,H/2]];
-      _fp.forEach(function(c){ _flower(c[0],c[1],1.5); });
+      _fp.forEach(function(c){ _drawFlower(_fv,c[0],c[1],1.5); });
+      _sprig(_m+2.5,H-_m-2.5,1);
       doc.setDrawColor(GOLDL[0],GOLDL[1],GOLDL[2]); doc.setLineWidth(0.4); doc.line(MG,15,W-MG,15);
       doc.setTextColor(GOLD[0],GOLD[1],GOLD[2]); doc.setFont("times","italic"); doc.setFontSize(9); doc.text("Magot Voyage",W-MG,13,{align:"right"}); }
     let y=0;
