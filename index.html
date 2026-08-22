@@ -3241,7 +3241,7 @@ const DEFAULT_S={ version:"0.2.0", settings:{ lang:"fr", theme:"system", units:"
 /* Clé Maps JS partagée (restreinte au domaine GitHub Pages). Repli : clé perso de l'utilisateur si fournie. */
 const SHARED_MAP_KEY="AIzaSyCt5iVx8nPr1V067A3daE0X1YA568XJNbU";
 function mapKey(){ return (S.settings.mapKey||"").trim() || SHARED_MAP_KEY; }
-const BUILD="0.3.93 · v679 flora-compo";
+const BUILD="0.3.95 · v681 sober-page";
 let S=loadState();
 function normalizeTrip(tr){ if(!tr||typeof tr!=="object") return tr;
   tr.id=tr.id||("t"+Date.now()+Math.random().toString(36).slice(2,7));
@@ -8180,7 +8180,7 @@ async function exportCarnetComplet(){
     async function _loadFlora(n){ if(n in _floraCache) return _floraCache[n]; try{ var r=await fetch(n+".png"); if(r&&r.ok){ var b=await r.blob(); var _du=await new Promise(function(res){ var fr=new FileReader(); fr.onload=function(){res(fr.result);}; fr.onerror=function(){res(null);}; fr.readAsDataURL(b); }); _floraCache[n]=_du;
         _floraFlip[n]=await new Promise(function(res){ try{ var im=new Image(); im.onload=function(){ try{ var c=document.createElement("canvas"); c.width=im.width; c.height=im.height; var x=c.getContext("2d"); x.translate(im.width,0); x.scale(-1,1); x.drawImage(im,0,0); res(c.toDataURL("image/png")); }catch(e){ res(_du); } }; im.onerror=function(){ res(_du); }; im.src=_du; }catch(e){ res(_du); } });
       } else { _floraCache[n]=null; } }catch(e){ _floraCache[n]=null; } return _floraCache[n]; }
-    try{ await Promise.all(["p3_branche_gauche","p3_branche_droite","p3_eucalyptus","p3_lavande","p3_gypsophile","p1_pivoine_rose","p2_hortensia","p1_marguerite","p2_cosmos_rose","p1_anemone","p1_eglantine","p2_coin_fleuri","p3_voilier","p2_phare","p1_hortensia_bleu","p1_coquillage","p1_etoile_mer","p1_voilier","p1_cosmos_rose","p2_eglantine_rose","p2_cosmos_rose","p1_anemone","p3_lavande","p3_gypsophile","p1_marguerite","p2_coin_fleuri"].map(_loadFlora)); }catch(e){}
+    try{ await Promise.all(["p3_branche_gauche","p3_branche_droite","p3_eucalyptus","p3_lavande","p3_gypsophile","p1_pivoine_rose","p2_hortensia","p1_marguerite","p2_cosmos_rose","p1_anemone","p1_eglantine","p2_coin_fleuri","p3_voilier","p2_phare","p1_hortensia_bleu","p1_coquillage","p1_etoile_mer","p1_voilier","p1_cosmos_rose","p2_eglantine_rose","p2_cosmos_rose","p1_anemone","p3_lavande","p1_marguerite","p2_coin_fleuri"].map(_loadFlora)); }catch(e){}
     const pts=(typeof souvPoints==="function")?souvPoints(tr):[];
     const exps=(tr.expenses||[]);
     const title=(tr.dest&&tr.dest.name)||tr.name||"Voyage";
@@ -8214,7 +8214,7 @@ async function exportCarnetComplet(){
       if(_mtn>0 && _mtn>_sea) return "mtn";
       return "nature"; }catch(e){ return "nature"; } })();
     var _paperTex=(function(){ try{ var c=document.createElement("canvas"); c.width=430; c.height=610; var x=c.getContext("2d"); x.fillStyle="#fbf7ee"; x.fillRect(0,0,c.width,c.height); var im=x.getImageData(0,0,c.width,c.height), d=im.data; for(var i=0;i<d.length;i+=4){ var n=Math.random()*7-3.5; d[i]+=n; d[i+1]+=n; d[i+2]+=n; } x.putImageData(im,0,0); return c.toDataURL("image/jpeg",0.7); }catch(e){ return null; } })();
-    var _pgN=0;
+    var _pgN=0; var _nextSobre=false;
     function _drawFlower(v,cx,cy,r){ var GL=GOLDL, GD=GOLD, a, an;
       if(v===0){ doc.setFillColor(GL[0],GL[1],GL[2]); for(a=0;a<6;a++){ an=a*Math.PI/3; doc.circle(cx+Math.cos(an)*r,cy+Math.sin(an)*r,r*0.5,'F'); } doc.setFillColor(GD[0],GD[1],GD[2]); doc.circle(cx,cy,r*0.5,'F'); }
       else if(v===1){ doc.setFillColor(GL[0],GL[1],GL[2]); doc.circle(cx,cy,r*1.15,'F'); doc.setFillColor(251,247,238); doc.circle(cx,cy,r*0.72,'F'); doc.setFillColor(GD[0],GD[1],GD[2]); doc.circle(cx,cy,r*0.4,'F'); }
@@ -8225,10 +8225,12 @@ async function exportCarnetComplet(){
     function _seascape(cx,cy){ doc.setFillColor(223,216,201); doc.triangle(cx-9,cy,cx-1,cy,cx-5,cy-8,"F"); doc.setFillColor(212,204,188); doc.triangle(cx-2,cy,cx+8,cy,cx+3,cy-6,"F"); doc.setFillColor(238,235,228); doc.triangle(cx-5.4,cy-8,cx-4.2,cy-8,cx-5,cy-9.2,"F"); doc.setDrawColor(150,186,206); doc.setLineWidth(0.45); doc.line(cx-10,cy+1.6,cx+9,cy+1.6); doc.setDrawColor(176,203,219); doc.setLineWidth(0.3); doc.line(cx-8,cy+3.4,cx+7,cy+3.4); doc.setFillColor(232,196,206); doc.circle(cx+6,cy-2,1,"F"); doc.setDrawColor(70,92,112); doc.setLineWidth(0.35); doc.line(cx-1.5,cy+0.4,cx-1.5,cy-4.2); doc.setFillColor(245,243,236); doc.triangle(cx-1.5,cy-4.2,cx-1.5,cy-0.6,cx+1.6,cy-0.6,"F"); doc.setFillColor(255,255,255); doc.triangle(cx-1.5,cy-4,cx-1.5,cy-1,cx-3.3,cy-1,"F"); doc.setFillColor(110,80,64); doc.triangle(cx-3.2,cy+0.3,cx+0.4,cy+0.3,cx-1.4,cy+1.8,"F"); }
     function _bloom(cx,cy){ doc.setFillColor(236,201,210); for(var a=0;a<5;a++){ var an=a*72*Math.PI/180-Math.PI/2; doc.circle(cx+Math.cos(an)*1.5,cy+Math.sin(an)*1.5,0.85,"F"); } doc.setFillColor(228,196,120); doc.circle(cx,cy,0.9,"F"); doc.setDrawColor(150,176,142); doc.setLineWidth(0.4); doc.line(cx,cy+1.6,cx,cy+6); doc.setFillColor(199,217,190); doc.ellipse(cx-1.6,cy+3.4,1.6,0.8,"F"); doc.ellipse(cx+1.6,cy+4.4,1.6,0.8,"F"); }
     function _mountain(cx,cy){ doc.setFillColor(172,182,197); doc.triangle(cx-10,cy,cx-1,cy,cx-6,cy-9,"F"); doc.setFillColor(150,162,180); doc.triangle(cx-3,cy,cx+9,cy,cx+2,cy-11,"F"); doc.setFillColor(240,242,246); doc.triangle(cx+2,cy-11,cx+0.6,cy-8.6,cx+3.6,cy-8.6,"F"); doc.setFillColor(240,242,246); doc.triangle(cx-6,cy-9,cx-7,cy-7,cx-5,cy-7,"F"); doc.setFillColor(120,150,120); doc.triangle(cx+6.5,cy,cx+10,cy,cx+8.2,cy-5.5,"F"); doc.setDrawColor(120,150,120); doc.setLineWidth(0.3); doc.line(cx+8.2,cy,cx+8.2,cy-5.5); }
-    function pageBg(){ _pgN++;
+    function pageBg(){ _pgN++; var _sobre=_nextSobre; _nextSobre=false;
       if(_paperTex){ try{ doc.addImage(_paperTex,"JPEG",0,0,W,H); }catch(e){ doc.setFillColor(251,247,238); doc.rect(0,0,W,H,'F'); } } else { doc.setFillColor(251,247,238); doc.rect(0,0,W,H,'F'); }
       var _m=8; doc.setDrawColor(GOLDL[0],GOLDL[1],GOLDL[2]); doc.setLineWidth(0.35); try{ doc.setLineDashPattern([1.4,1.1],0); }catch(e){} doc.rect(_m,_m,W-2*_m,H-2*_m); try{ doc.setLineDashPattern([],0); }catch(e){}
       var _branchesLeft=(_pgN % 2 === 0);
+      if(_sobre){ try{ var _sb=_branchesLeft?_floraCache["p3_branche_gauche"]:(_floraFlip["p3_branche_gauche"]||_floraCache["p3_branche_gauche"]); if(_sb){ var _sx=_branchesLeft?1.2:(W-1.2-13); doc.addImage(_sb,"PNG",_sx,H*0.5-22,13,13*3.57); } var _so=_branchesLeft?(W-1.2-11):1.2; var _soi=(_theme==="sea")?_floraCache["p1_coquillage"]:_floraCache["p2_hortensia"]; if(_soi) doc.addImage(_soi,"PNG",_so,12,11,11*1.1); }catch(e){} }
+      else {
       var _mainX=_branchesLeft?1.2:(W-1.2-15);
       var _oppX =_branchesLeft?(W-1.2-13):1.2;
       var _sea=(_theme==="sea");
@@ -8252,8 +8254,9 @@ async function exportCarnetComplet(){
         _put("p3_branche_droite",_oppX,H-8.5-15*2.47,15,2.47,true);
         _put(_sea?"p1_etoile_mer":"p1_marguerite",W/2-8,H-8-14.4,16,0.9,false);
       } else {
-        _put("p3_gypsophile",_mainX,10,12,4,true);
+        _put("p3_lavande",_mainX,10,13,3.9,true);
         _putOpp(_sea?"p1_coquillage":"p2_eglantine_rose",_oppX,H-10-13,12,1.05);
+      }
       }
       doc.setDrawColor(GOLDL[0],GOLDL[1],GOLDL[2]); doc.setLineWidth(0.4); doc.line(MG,15,W-MG,15);
       doc.setTextColor(GOLD[0],GOLD[1],GOLD[2]); doc.setFont("times","italic"); doc.setFontSize(9); doc.text("Magot Voyage",W-MG,13,{align:"right"}); }
@@ -8410,7 +8413,7 @@ async function exportCarnetComplet(){
     const byCat={}; exps.forEach(e=>{ if(e.currency&&e.currency!==cur) return; const c=e.category||"misc"; byCat[c]=(byCat[c]||0)+(+e.amount||0)*(e.type==="refund"?-1:1); });
     const cats=Object.keys(byCat).filter(c=>byCat[c]>0).sort((a,b)=>byCat[b]-byCat[a]);
     if(cats.length){
-      doc.addPage(); pageBg(); y=26;
+      _nextSobre=true; doc.addPage(); pageBg(); y=26;
       doc.setTextColor(INK[0],INK[1],INK[2]); doc.setFont("times","bold"); doc.setFontSize(20);
       doc.text(L({fr:"Bilan du séjour",en:"Trip summary",es:"Balance del viaje",it:"Bilancio",de:"Bilanz"}),MG,y); y+=12;
       const maxV=Math.max.apply(null,cats.map(c=>byCat[c]))||1;
