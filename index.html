@@ -3241,7 +3241,7 @@ const DEFAULT_S={ version:"0.2.0", settings:{ lang:"fr", theme:"system", units:"
 /* Clé Maps JS partagée (restreinte au domaine GitHub Pages). Repli : clé perso de l'utilisateur si fournie. */
 const SHARED_MAP_KEY="AIzaSyCt5iVx8nPr1V067A3daE0X1YA568XJNbU";
 function mapKey(){ return (S.settings.mapKey||"").trim() || SHARED_MAP_KEY; }
-const BUILD="0.4.11 · v746 carnet-meteo";
+const BUILD="0.4.13 · v748 bilan-compact";
 let S=loadState();
 function normalizeTrip(tr){ if(!tr||typeof tr!=="object") return tr;
   tr.id=tr.id||("t"+Date.now()+Math.random().toString(36).slice(2,7));
@@ -8820,42 +8820,127 @@ function money(n,cur){ const v=Math.round((+n||0)*100)/100; const hasC=Math.abs(
 function fmtDate(iso){ if(!iso) return ""; try{ return new Intl.DateTimeFormat(LOCALE[lang()]||'fr-FR',{day:'numeric',month:'short'}).format(new Date(iso+"T00:00:00")); }catch(e){ return iso; } }
 function budgetRing(pct){ const r=34,c=2*Math.PI*r,off=c*(1-Math.min(100,Math.max(0,pct))/100);
  return `<svg viewBox="0 0 84 84" width="82" height="82"><circle cx="42" cy="42" r="${r}" fill="none" stroke="rgba(255,255,255,.28)" stroke-width="7"/><circle cx="42" cy="42" r="${r}" fill="none" stroke="#fff" stroke-width="7" stroke-linecap="round" stroke-dasharray="${c.toFixed(1)}" stroke-dashoffset="${off.toFixed(1)}" transform="rotate(-90 42 42)"/><text x="42" y="48" text-anchor="middle" font-size="19" font-weight="800" fill="#fff">${Math.round(pct)}%</text></svg>`; }
-function bilanContentHtml(tr){
-  const cur=tr.currency||"EUR"; const bl=tr.bilan||{estTotal:0,budget:Math.round(+tr.budget||0)};
-  const sp=Math.round(tripSpent(tr)), est=bl.estTotal||0, bg=bl.budget||0;
-  const box=(lab,val)=>`<div style="flex:1;border:1px solid #e5e5e5;border-radius:10px;padding:10px;min-width:0"><div style="font-size:10px;text-transform:uppercase;letter-spacing:.3px;color:#999">${lab}</div><div style="font-size:16px;font-weight:800;color:#1a1a1a">${val}</div></div>`;
-  let h=`<div style="font-family:Inter,system-ui,sans-serif;color:#1a1a1a">`;
-  h+=`<div style="font-size:20px;font-weight:800">${escapeHtml(tripTitle(tr))}</div>`;
-  h+=`<div style="color:#777;font-size:12.5px;margin-bottom:14px">${fmtRange(tr.dateStart,tr.dateEnd)} · ${t("trips.travelers",{n:tr.travelers||1})}</div>`;
-  h+=`<div style="display:flex;gap:8px;margin-bottom:12px">${box(t("bilan.budget"),bg>0?money(bg,cur):"\u2014")}${box(t("bilan.est"),money(est,cur))}${box(t("bilan.spent"),money(sp,cur))}</div>`;
-  const vB = bg>0 ? (sp<=bg? t("bilan.under",{x:money(bg-sp,cur)}) : t("bilan.over",{x:money(sp-bg,cur)})) : t("bilan.noBudget");
-  const dEst=sp-est, tol=Math.max(5,est*0.03);
-  const vE = Math.abs(dEst)<=tol? t("bilan.vsEqual") : (dEst<0? t("bilan.vsLess",{x:money(-dEst,cur)}) : t("bilan.vsMore",{x:money(dEst,cur)}));
-  let top=null,topv=0; BUDCATS.forEach(c=>{ const v=catSpent(tr,c.k); if(v>topv){topv=v;top=c;} });
-  const topTxt = top? t("bilan.topCat",{c:t("bcat."+top.k),x:money(topv,cur)}) : "";
-  h+=`<div style="font-size:13.5px;line-height:1.5;color:#333;margin-bottom:14px">${vB}. ${vE}.${topTxt?` ${topTxt}.`:""}</div>`;
-  const rows=BUDCATS.map(c=>({c,v:catSpent(tr,c.k)})).filter(x=>x.v>0).sort((a,b)=>b.v-a.v);
-  if(rows.length){ h+=`<div style="font-size:12px;text-transform:uppercase;letter-spacing:.3px;color:#999;margin:0 0 6px">${t("bilan.byCatTitle")}</div><table style="width:100%;border-collapse:collapse;font-size:13px;margin-bottom:14px">`;
-    rows.forEach(r=>{ h+=`<tr><td style="padding:5px 0;border-bottom:1px solid #eee">${t("bcat."+r.c.k)}</td><td style="padding:5px 0;border-bottom:1px solid #eee;text-align:right;font-weight:700">${money(r.v,cur)}</td></tr>`; });
-    h+=`</table>`; }
-  const exps=(tr.expenses||[]).slice().sort((a,b)=>(a.date||"").localeCompare(b.date||""));
-  if(exps.length){ h+=`<div style="font-size:12px;text-transform:uppercase;letter-spacing:.3px;color:#999;margin:0 0 6px">${t("bilan.expenses",{n:exps.length})}</div><table style="width:100%;border-collapse:collapse;font-size:12.5px;margin-bottom:14px">`;
-    exps.forEach(e=>{ h+=`<tr><td style="padding:4px 0;border-bottom:1px solid #f0f0f0;color:#777;white-space:nowrap">${escapeHtml(fmtDate(e.date))}</td><td style="padding:4px 6px;border-bottom:1px solid #f0f0f0">${escapeHtml(e.label||t("bcat."+e.category))}</td><td style="padding:4px 0;border-bottom:1px solid #f0f0f0;text-align:right;font-weight:700;white-space:nowrap">${money(e.amount,e.currency||cur)}</td></tr>`; });
-    h+=`</table>`; }
-  h+=`<div style="font-size:11px;color:#aaa;margin-top:8px">${t("bilan.generated")} · ${t("bilan.aiSoon")}</div></div>`;
+function _L5(fr,en,es,it,de){ var L=(typeof lang==="function"&&lang())||"fr"; return ({fr:fr,en:en,es:es,it:it,de:de})[L]||fr; }
+function bilanContentHtml(tr,forPrint){
+  var cur=tr.currency||"EUR"; var bl=tr.bilan||{estTotal:0,budget:Math.round(+tr.budget||0)};
+  var sp=Math.round(tripSpent(tr)), est=bl.estTotal||0, bg=bl.budget||0;
+  var PC="-webkit-print-color-adjust:exact;print-color-adjust:exact";
+  var over = bg>0 && sp>bg;
+  var accent = over?"#B45309":(bg>0?"#166534":"#1a1a1a");
+  var h='<div style="font-family:Inter,system-ui,-apple-system,sans-serif;color:#1a1a1a;max-width:640px;margin:0 auto">';
+  h+='<div style="background:#0E2148;border-radius:11px;padding:12px 16px;'+PC+'">'
+    +'<div style="font:700 9.5px/1 system-ui;letter-spacing:2px;color:#E9C46A;'+PC+'">MAGOT VOYAGE</div>'
+    +'<div style="font-size:19px;font-weight:800;color:#fff;margin-top:4px;'+PC+'">'+escapeHtml(tripTitle(tr))+'</div>'
+    +'<div style="font-size:12px;color:#c9d2e4;margin-top:2px;'+PC+'">'+fmtRange(tr.dateStart,tr.dateEnd)+' \u00b7 '+t("trips.travelers",{n:tr.travelers||1})+'</div>'
+    +'</div>';
+  var card=function(lab,val,col){ return '<div style="flex:1;border:1px solid #e6e6e6;border-radius:9px;padding:8px 11px;min-width:0">'
+    +'<div style="font-size:9px;text-transform:uppercase;letter-spacing:.4px;color:#999">'+lab+'</div>'
+    +'<div style="font-size:16px;font-weight:800;color:'+(col||"#1a1a1a")+';margin-top:2px;'+PC+'">'+val+'</div></div>'; };
+  h+='<div style="display:flex;gap:7px;margin:12px 0 2px">'
+    +card(t("bilan.budget"),bg>0?money(bg,cur):"\u2014")
+    +card(t("bilan.est"),money(est,cur))
+    +card(t("bilan.spent"),money(sp,cur),accent)
+    +'</div>';
+  var dEst=sp-est, tol=Math.max(5,est*0.03), estAbs=Math.abs(dEst);
+  var estPart = estAbs<=tol ? _L5("conforme \u00e0 l\u2019estimation","in line with estimate","acorde con la estimaci\u00f3n","in linea con la stima","entspricht der Sch\u00e4tzung")
+    : ((dEst>0?"+":"\u2212")+money(estAbs,cur)+" "+_L5("vs estimation","vs estimate","vs estimaci\u00f3n","vs stima","vs Sch\u00e4tzung"));
+  var budgetPart = bg>0 ? (sp<=bg ? _L5("reste","left","queda","restano","\u00fcbrig")+" "+money(bg-sp,cur)
+                                  : "+"+money(sp-bg,cur)+" / "+_L5("budget","budget","presupuesto","budget","Budget"))
+                        : _L5("Sans budget fix\u00e9","No budget set","Sin presupuesto fijado","Nessun budget fissato","Kein Budget festgelegt");
+  var badge = budgetPart+" \u00b7 "+estPart;
+  var badgeBg = over?"#FEF3E2":(bg>0?"#EAF6EE":"#F4F5F7");
+  var badgeCol = over?"#B45309":(bg>0?"#166534":"#555");
+  h+='<div style="background:'+badgeBg+';color:'+badgeCol+';border-radius:8px;padding:8px 11px;font-size:12.5px;font-weight:600;line-height:1.4;margin:8px 0 12px;'+PC+'">'+badge+'</div>';
+  var refV = bg>0?bg:est; var refLab = bg>0?t("bilan.budget"):t("bilan.est");
+  if(refV>0){ var pctReal=Math.round(sp/refV*100); var barW=Math.max(0,Math.min(100,pctReal));
+    var barCol = pctReal>100?"#B45309":"#B0952F";
+    h+='<div style="margin:0 0 12px">'
+      +'<div style="display:flex;justify-content:space-between;font-size:11px;color:#888;margin-bottom:4px"><span>'+t("bilan.spent")+' / '+refLab+'</span><span style="font-weight:700;color:'+barCol+';'+PC+'">'+pctReal+'%</span></div>'
+      +'<div style="height:8px;background:#EEE9DD;border-radius:6px;overflow:hidden;'+PC+'"><div style="height:100%;width:'+barW+'%;background:'+barCol+';border-radius:6px;'+PC+'"></div></div>'
+      +'</div>'; }
+  var rows=BUDCATS.map(function(c){ return {c:c,v:catSpent(tr,c.k)}; }).filter(function(x){ return x.v>0; }).sort(function(a,b){ return b.v-a.v; });
+  if(rows.length){ var maxV=rows[0].v||1;
+    h+='<div style="font-size:11px;text-transform:uppercase;letter-spacing:.4px;color:#999;margin:0 0 7px">'+t("bilan.byCatTitle")+'</div>';
+    rows.forEach(function(r){ var w=Math.max(4,Math.round(r.v/maxV*100)); var pc2=sp>0?Math.round(r.v/sp*100):0;
+      h+='<div style="margin-bottom:8px">'
+        +'<div style="display:flex;justify-content:space-between;font-size:12.5px;margin-bottom:3px"><span style="color:#333">'+t("bcat."+r.c.k)+'</span><span style="font-weight:700">'+money(r.v,cur)+' <span style="color:#aaa;font-weight:400">\u00b7 '+pc2+'%</span></span></div>'
+        +'<div style="height:6px;background:#F0ECE1;border-radius:4px;overflow:hidden;'+PC+'"><div style="height:100%;width:'+w+'%;background:#B0952F;border-radius:4px;'+PC+'"></div></div>'
+        +'</div>'; });
+    h+='<div style="height:6px"></div>'; }
+  var exps=(tr.expenses||[]).slice().sort(function(a,b){ return (a.date||"").localeCompare(b.date||""); });
+  if(exps.length){ h+='<div style="font-size:11px;text-transform:uppercase;letter-spacing:.4px;color:#999;margin:4px 0 6px">'+t("bilan.expenses",{n:exps.length})+'</div><table style="width:100%;border-collapse:collapse;font-size:12.5px;margin-bottom:12px">';
+    exps.forEach(function(e){ h+='<tr><td style="padding:5px 0;border-bottom:1px solid #f0f0f0;color:#888;white-space:nowrap">'+escapeHtml(fmtDate(e.date))+'</td><td style="padding:5px 8px;border-bottom:1px solid #f0f0f0">'+escapeHtml(e.label||t("bcat."+e.category))+'</td><td style="padding:5px 0;border-bottom:1px solid #f0f0f0;text-align:right;font-weight:700;white-space:nowrap">'+money(e.amount,e.currency||cur)+'</td></tr>'; });
+    h+='</table>'; }
+  var aiTitle=_L5("Analyse de Fid\u00e8le","Fid\u00e8le\u2019s analysis","An\u00e1lisis de Fid\u00e8le","Analisi di Fid\u00e8le","Analyse von Fid\u00e8le");
+  var ai=(tr.bilanAI||"").trim();
+  if(ai){ var full = forPrint || ai.length<=160;
+    h+='<div style="background:#FBF7EE;border:1px solid #E6DCC0;border-left:3px solid #B0952F;border-radius:10px;padding:11px 13px;margin:2px 0 12px;'+PC+'">'
+      +'<div style="font:700 11px/1 system-ui;letter-spacing:.5px;color:#8a6d1e;margin-bottom:5px;'+PC+'">\ud83e\udded '+aiTitle+'</div>'
+      +'<div id="bilanAITxt" style="font-size:12.5px;line-height:1.5;color:#3a3a3a'+(full?'':';max-height:76px;overflow:hidden')+'">'+escapeHtml(ai)+'</div>'
+      +(full?'':'<button id="bilanAIMore" style="margin-top:6px;background:none;border:0;color:#b8860b;font:600 12px system-ui;padding:2px 0;cursor:pointer">'+_L5("Voir l\u2019analyse compl\u00e8te","Read full analysis","Ver el an\u00e1lisis completo","Vedi l\u2019analisi completa","Vollst\u00e4ndige Analyse")+' \u25be</button>')
+      +'</div>'; }
+  else if(tr.bilanAIPending){ h+='<div style="background:#FBF7EE;border:1px solid #E6DCC0;border-radius:10px;padding:11px 13px;margin:2px 0 12px;color:#8a7f66;font-size:12.5px;'+PC+'">\ud83e\udded '+t("agent.thinking")+'</div>'; }
+  h+='<div style="font-size:10.5px;color:#aaa;margin-top:6px;border-top:1px solid #eee;padding-top:7px">'+t("bilan.generated")+' \u00b7 '+fmtDateLong(todayISO())+'</div>';
+  h+='</div>';
   return h;
 }
+function _bilanStatusLabel(tr){
+  var _st=tripStatus(tr), _el=tripDaysElapsed(tr), _lf=tripDaysLeft(tr);
+  if(_st==="ongoing") return "voyage en cours (jour "+_el+", "+_lf+" jour(s) restant(s))";
+  if(_st==="upcoming") return "avant le d\u00e9part";
+  if(_st==="done") return "voyage termin\u00e9";
+  return "dates non d\u00e9finies";
+}
+function _bilanAIPayload(tr){
+  var cur=tr.currency||"EUR", budget=Math.round(+tr.budget||0);
+  var est=Math.round((_estCache[tr.id]||{}).total||(tr.bilan||{}).estTotal||0);
+  var spent=Math.round(tripSpent(tr));
+  var byCat={}; (tr.expenses||[]).forEach(function(e){ var k=e.category||"misc"; byCat[k]=(byCat[k]||0)+expToTripCur(e,tr); });
+  var catTxt=Object.keys(byCat).length? Object.keys(byCat).map(function(k){ return (t("bcat."+k)||k)+": "+money(Math.round(byCat[k]),cur); }).join(", ") : "aucune d\u00e9pense enregistr\u00e9e";
+  var _pj=projectEnd(tr);
+  var projTxt=(_pj&&_pj.enough)?money(_pj.projection,cur)+" (rythme des d\u00e9penses variables \u2248 "+money(_pj.rhythm,cur)+"/jour ; h\u00e9bergement d\u00e9j\u00e0 pay\u00e9 non extrapol\u00e9)":null;
+  var _byCur={}; (tr.expenses||[]).forEach(function(e){ var c2=(e.currency||cur).toUpperCase(); _byCur[c2]=(_byCur[c2]||0)+(+e.amount||0); });
+  var devTxt=Object.keys(_byCur).length>1?Object.keys(_byCur).map(function(c2){ return money(Math.round(_byCur[c2]),c2); }).join(" + ")+" (consolid\u00e9 : "+money(spent,cur)+")":null;
+  var _refs=(tr.expenses||[]).filter(function(e){ return (+e.amount)<0; });
+  var refTxt=_refs.length?_refs.length+" remboursement(s) totalisant "+money(Math.round(_refs.reduce(function(a,e){ return a+expToTripCur(e,tr); },0)),cur)+" (d\u00e9j\u00e0 d\u00e9duits du d\u00e9pens\u00e9)":null;
+  var fxMissTxt=(typeof _fxMiss!=="undefined"&&_fxMiss&&_fxMiss.size)?Array.from(_fxMiss).join(", "):null;
+  var payload={ lang:lang(), statut:_bilanStatusLabel(tr), voyageurs:(tr.travelers||1),
+    budgetPrevu:(budget>0?money(budget,cur):"non d\u00e9fini"),
+    estimation:(est>0?money(est,cur):"non calcul\u00e9e"),
+    depense:money(spent,cur),
+    reste:(budget>0?money(Math.round(budget-spent),cur):"budget non d\u00e9fini"),
+    parCategorie:catTxt };
+  if(projTxt) payload.projection=projTxt;
+  if(devTxt) payload.parDevise=devTxt;
+  if(refTxt) payload.remboursements=refTxt;
+  if(fxMissTxt) payload.tauxManquant=fxMissTxt;
+  var sig=(tr.id||"")+"_"+budget+"_"+est+"_"+spent+"_"+tripStatus(tr)+"_"+tripDaysLeft(tr)+"_"+((_pj&&_pj.enough)?_pj.projection:0);
+  return { payload:payload, sig:sig };
+}
 async function openBilan(tr){ if(!tr) return;
-  if(!tr.bilan){ const est=await estimateBudget(tr); if(est){ tr.bilan={estTotal:Math.round(est.total||0),budget:Math.round(+tr.budget||0),currency:tr.currency||"EUR",savedAt:Date.now()}; saveState(); } }
+  if(!tr.bilan){ var est=await estimateBudget(tr); if(est){ tr.bilan={estTotal:Math.round(est.total||0),budget:Math.round(+tr.budget||0),currency:tr.currency||"EUR",savedAt:Date.now()}; saveState(); } }
   document.getElementById("bilanHd").textContent=t("bilan.title");
-  const b=document.getElementById("bilanBody");
-  b.innerHTML=bilanContentHtml(tr)+`<button class="btn navy block" id="bilanPrint" style="margin-top:14px">${t("bilan.print")}</button><div style="height:18px"></div>`;
-  b.querySelector("#bilanPrint").onclick=()=>printBilan(tr);
+  var b=document.getElementById("bilanBody");
+  var render=function(){ b.innerHTML=bilanContentHtml(tr)+'<button class="btn navy block" id="bilanPrint" style="margin-top:14px">'+t("bilan.print")+'</button><div style="height:18px"></div>';
+    var pb=b.querySelector("#bilanPrint"); if(pb) pb.onclick=function(){ printBilan(tr); };
+    var mb=b.querySelector("#bilanAIMore"); if(mb) mb.onclick=function(){ var tx=b.querySelector("#bilanAITxt"); if(tx){ tx.style.maxHeight="none"; tx.style.overflow="visible"; } mb.style.display="none"; }; };
+  render();
   document.getElementById("bilanSheet").classList.add("show");
+  try{
+    var _p=_bilanAIPayload(tr);
+    if(tr.bilanAI && tr.bilanAISig===_p.sig){ /* cache valide */ }
+    else if(navigator.onLine!==false){
+      tr.bilanAIPending=true; render();
+      var out=await workerFetch("/agent/conseil-budget",_p.payload);
+      tr.bilanAIPending=false;
+      if(out&&out.text){ tr.bilanAI=String(out.text).trim().replace(/^[\s"'\u00ab\u00bb\u201c\u201d\u2018\u2019]+/,"").replace(/[\s"'\u00ab\u00bb\u201c\u201d\u2018\u2019]+$/,""); tr.bilanAISig=_p.sig; try{ saveState(); }catch(e){} }
+      render();
+    }
+  }catch(e){ tr.bilanAIPending=false; render(); }
 }
 function closeBilan(){ document.getElementById("bilanSheet").classList.remove("show"); }
 function printBilan(tr){ const pa=document.getElementById("printArea"); if(!pa) return;
-  pa.innerHTML=bilanContentHtml(tr);
+  pa.innerHTML=bilanContentHtml(tr,true);
   const done=()=>{ pa.innerHTML=""; window.removeEventListener("afterprint",done); };
   window.addEventListener("afterprint",done);
   setTimeout(()=>{ try{ window.print(); }catch(e){ toast(t("bilan.printErr")); } }, 80);
