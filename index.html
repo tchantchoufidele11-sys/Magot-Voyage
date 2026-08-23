@@ -3241,7 +3241,7 @@ const DEFAULT_S={ version:"0.2.0", settings:{ lang:"fr", theme:"system", units:"
 /* Clé Maps JS partagée (restreinte au domaine GitHub Pages). Repli : clé perso de l'utilisateur si fournie. */
 const SHARED_MAP_KEY="AIzaSyCt5iVx8nPr1V067A3daE0X1YA568XJNbU";
 function mapKey(){ return (S.settings.mapKey||"").trim() || SHARED_MAP_KEY; }
-const BUILD="0.4.06 · v692 pc-cover-pick";
+const BUILD="0.4.07 · v693 cover-navy-bg";
 let S=loadState();
 function normalizeTrip(tr){ if(!tr||typeof tr!=="object") return tr;
   tr.id=tr.id||("t"+Date.now()+Math.random().toString(36).slice(2,7));
@@ -8203,7 +8203,7 @@ async function exportCarnetComplet(){
     }catch(e){} }
     if(!_covData){ var _covMem=(tr.memories||[]).find(function(m){ return m&&!m.video; }); if(_covMem){ try{ _covData=await loadMedia(_covMem.id); }catch(e){} } }
     var _covOk=false;
-    doc.setFillColor(250,246,235); doc.rect(0,0,W,H,'F');
+    doc.setFillColor(NAVY[0],NAVY[1],NAVY[2]); doc.rect(0,0,W,H,'F');
     var _iX=6,_iY=6,_iW=W-12,_iH=H-12;
     if(_covData){ try{ var _cc=await _cropImg(_covData,900,Math.round(900*(_iH/_iW)),0.5); if(_cc){ doc.addImage(_cc,"PNG",_iX,_iY,_iW,_iH,undefined,"FAST"); _covOk=true; } }catch(e){} }
     if(!_covOk){ doc.setFillColor(NAVY[0],NAVY[1],NAVY[2]); doc.rect(_iX,_iY,_iW,_iH,'F'); }
