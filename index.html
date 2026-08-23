@@ -3241,7 +3241,7 @@ const DEFAULT_S={ version:"0.2.0", settings:{ lang:"fr", theme:"system", units:"
 /* Clé Maps JS partagée (restreinte au domaine GitHub Pages). Repli : clé perso de l'utilisateur si fournie. */
 const SHARED_MAP_KEY="AIzaSyCt5iVx8nPr1V067A3daE0X1YA568XJNbU";
 function mapKey(){ return (S.settings.mapKey||"").trim() || SHARED_MAP_KEY; }
-const BUILD="0.4.15 · v750 print-isolate";
+const BUILD="0.4.16 · v751 print-iframe";
 let S=loadState();
 function normalizeTrip(tr){ if(!tr||typeof tr!=="object") return tr;
   tr.id=tr.id||("t"+Date.now()+Math.random().toString(36).slice(2,7));
@@ -8880,7 +8880,7 @@ function bilanContentHtml(tr,forPrint){
       +(full?'':'<button id="bilanAIMore" style="margin-top:6px;background:none;border:0;color:#b8860b;font:600 12px system-ui;padding:2px 0;cursor:pointer">'+_L5("Voir l\u2019analyse compl\u00e8te","Read full analysis","Ver el an\u00e1lisis completo","Vedi l\u2019analisi completa","Vollst\u00e4ndige Analyse")+' \u25be</button>')
       +'</div>'; }
   else if(tr.bilanAIPending){ h+='<div style="background:#FBF7EE;border:1px solid #E6DCC0;border-radius:10px;padding:11px 13px;margin:2px 0 12px;color:#8a7f66;font-size:12.5px;'+PC+'">\ud83e\udded '+t("agent.thinking")+'</div>'; }
-  h+='<div style="font-size:10.5px;color:#aaa;margin-top:6px;border-top:1px solid #eee;padding-top:7px">'+t("bilan.generated")+' \u00b7 '+fmtDateLong(todayISO())+((typeof BUILD!=="undefined")?' \u00b7 '+BUILD:'')+'</div>';
+  h+='<div style="font-size:10.5px;color:#aaa;margin-top:6px;border-top:1px solid #eee;padding-top:7px">'+t("bilan.generated")+' \u00b7 '+fmtDateLong(todayISO())+'</div>';
   h+='</div>';
   return h;
 }
@@ -8939,11 +8939,34 @@ async function openBilan(tr){ if(!tr) return;
   }catch(e){ tr.bilanAIPending=false; render(); }
 }
 function closeBilan(){ document.getElementById("bilanSheet").classList.remove("show"); }
-function printBilan(tr){ const pa=document.getElementById("printArea"); if(!pa) return;
-  pa.innerHTML=bilanContentHtml(tr,true);
-  const done=()=>{ pa.innerHTML=""; window.removeEventListener("afterprint",done); };
-  window.addEventListener("afterprint",done);
-  setTimeout(()=>{ try{ window.print(); }catch(e){ toast(t("bilan.printErr")); } }, 80);
+function printBilan(tr){
+  /* Impression dans une iframe isolée : le HTML du bilan est autonome (styles inline),
+     donc aucun canvas WebGL n'y figure -> plus de rectangle noir composité par Safari iOS. */
+  try{
+    var html=bilanContentHtml(tr,true);
+    var ifr=document.createElement("iframe");
+    ifr.setAttribute("aria-hidden","true");
+    ifr.style.cssText="position:fixed;right:0;bottom:0;width:0;height:0;border:0;opacity:0;pointer-events:none";
+    document.body.appendChild(ifr);
+    var cleaned=false, cleanup=function(){ if(cleaned) return; cleaned=true; try{ document.body.removeChild(ifr); }catch(e){} };
+    var doc=ifr.contentWindow.document;
+    var page='<!doctype html><html lang="'+(document.documentElement.lang||"fr")+'"><head><meta charset="utf-8">'
+      +'<meta name="viewport" content="width=device-width,initial-scale=1">'
+      +'<style>@page{margin:14mm}*{-webkit-print-color-adjust:exact;print-color-adjust:exact;box-sizing:border-box}html,body{margin:0;padding:0;background:#fff}body{padding:6px;font-family:Inter,system-ui,-apple-system,sans-serif}</style>'
+      +'</head><body>'+html+'</body></html>';
+    doc.open(); doc.write(page); doc.close();
+    var go=function(){
+      try{
+        var w=ifr.contentWindow; w.focus();
+        var done=function(){ try{ w.removeEventListener("afterprint",done); }catch(e){} setTimeout(cleanup,300); };
+        try{ w.addEventListener("afterprint",done); }catch(e){}
+        w.print();
+        setTimeout(cleanup,60000);
+      }catch(e){ cleanup(); toast(t("bilan.printErr")); }
+    };
+    ifr.onload=function(){ setTimeout(go,120); };
+    setTimeout(go,400); /* filet si onload ne se déclenche pas après document.write */
+  }catch(e){ try{ toast(t("bilan.printErr")); }catch(_){} }
 }
 const _estCache={};
 /* Signature des paramètres qui influencent estimateBudget : dès qu'elle change,
