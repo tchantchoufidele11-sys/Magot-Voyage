@@ -915,7 +915,7 @@ a.btn{text-decoration:none}
 .exsug-row{display:flex;align-items:center;justify-content:space-between;gap:8px;width:100%;padding:9px 11px;border:1px solid var(--line);border-radius:11px;background:var(--surface);margin-top:6px;font:600 13px "Inter",sans-serif;font-size:clamp(12.2px,3.333vw,13px);color:var(--ink);cursor:pointer;text-align:left}
 .exsug-loc{font:500 11.5px "Inter",sans-serif;font-size:clamp(10.8px,2.949vw,11.5px);color:var(--muted);white-space:nowrap}
 #printArea{display:none}
-@media print{ body *{visibility:hidden !important;} #printArea,#printArea *{visibility:visible !important;} #printArea{display:block !important;position:absolute;left:0;top:0;width:100%;padding:24px;background:#fff} }
+@media print{ body *{visibility:hidden !important;} canvas,video,iframe,.planmap,.osm-map,.map-wrap,.maplibregl-map{display:none !important;} #printArea,#printArea *{visibility:visible !important;} #printArea{display:block !important;position:absolute;left:0;top:0;width:100%;padding:24px;background:#fff} }
 .mem-back{display:inline-flex;align-items:center;gap:6px;margin:0 0 12px;padding:8px 13px;border-radius:20px;border:1px solid var(--line);background:var(--surface);font:600 13px "Inter",sans-serif;font-size:clamp(12.2px,3.333vw,13px);color:var(--ink);cursor:pointer}
 .past-trips{display:flex;flex-direction:column;gap:10px}
 .past-year{font:700 13px "Inter",sans-serif;font-size:clamp(12.2px,3.333vw,13px);color:var(--muted);margin:8px 2px 2px}
@@ -3241,7 +3241,7 @@ const DEFAULT_S={ version:"0.2.0", settings:{ lang:"fr", theme:"system", units:"
 /* Clé Maps JS partagée (restreinte au domaine GitHub Pages). Repli : clé perso de l'utilisateur si fournie. */
 const SHARED_MAP_KEY="AIzaSyCt5iVx8nPr1V067A3daE0X1YA568XJNbU";
 function mapKey(){ return (S.settings.mapKey||"").trim() || SHARED_MAP_KEY; }
-const BUILD="0.4.13 · v748 bilan-compact";
+const BUILD="0.4.14 · v749 print-canvas-fix";
 let S=loadState();
 function normalizeTrip(tr){ if(!tr||typeof tr!=="object") return tr;
   tr.id=tr.id||("t"+Date.now()+Math.random().toString(36).slice(2,7));
