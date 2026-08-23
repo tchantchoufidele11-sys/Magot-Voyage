@@ -915,7 +915,7 @@ a.btn{text-decoration:none}
 .exsug-row{display:flex;align-items:center;justify-content:space-between;gap:8px;width:100%;padding:9px 11px;border:1px solid var(--line);border-radius:11px;background:var(--surface);margin-top:6px;font:600 13px "Inter",sans-serif;font-size:clamp(12.2px,3.333vw,13px);color:var(--ink);cursor:pointer;text-align:left}
 .exsug-loc{font:500 11.5px "Inter",sans-serif;font-size:clamp(10.8px,2.949vw,11.5px);color:var(--muted);white-space:nowrap}
 #printArea{display:none}
-@media print{ body *{visibility:hidden !important;} canvas,video,iframe,.planmap,.osm-map,.map-wrap,.maplibregl-map{display:none !important;} #printArea,#printArea *{visibility:visible !important;} #printArea{display:block !important;position:absolute;left:0;top:0;width:100%;padding:24px;background:#fff} }
+@media print{ body > *:not(#printArea){display:none !important;} canvas,video,iframe{display:none !important;} #printArea{display:block !important;position:static !important;left:auto;top:auto;width:auto;padding:24px;background:#fff;-webkit-print-color-adjust:exact;print-color-adjust:exact} }
 .mem-back{display:inline-flex;align-items:center;gap:6px;margin:0 0 12px;padding:8px 13px;border-radius:20px;border:1px solid var(--line);background:var(--surface);font:600 13px "Inter",sans-serif;font-size:clamp(12.2px,3.333vw,13px);color:var(--ink);cursor:pointer}
 .past-trips{display:flex;flex-direction:column;gap:10px}
 .past-year{font:700 13px "Inter",sans-serif;font-size:clamp(12.2px,3.333vw,13px);color:var(--muted);margin:8px 2px 2px}
@@ -3241,7 +3241,7 @@ const DEFAULT_S={ version:"0.2.0", settings:{ lang:"fr", theme:"system", units:"
 /* Clé Maps JS partagée (restreinte au domaine GitHub Pages). Repli : clé perso de l'utilisateur si fournie. */
 const SHARED_MAP_KEY="AIzaSyCt5iVx8nPr1V067A3daE0X1YA568XJNbU";
 function mapKey(){ return (S.settings.mapKey||"").trim() || SHARED_MAP_KEY; }
-const BUILD="0.4.14 · v749 print-canvas-fix";
+const BUILD="0.4.15 · v750 print-isolate";
 let S=loadState();
 function normalizeTrip(tr){ if(!tr||typeof tr!=="object") return tr;
   tr.id=tr.id||("t"+Date.now()+Math.random().toString(36).slice(2,7));
@@ -8880,7 +8880,7 @@ function bilanContentHtml(tr,forPrint){
       +(full?'':'<button id="bilanAIMore" style="margin-top:6px;background:none;border:0;color:#b8860b;font:600 12px system-ui;padding:2px 0;cursor:pointer">'+_L5("Voir l\u2019analyse compl\u00e8te","Read full analysis","Ver el an\u00e1lisis completo","Vedi l\u2019analisi completa","Vollst\u00e4ndige Analyse")+' \u25be</button>')
       +'</div>'; }
   else if(tr.bilanAIPending){ h+='<div style="background:#FBF7EE;border:1px solid #E6DCC0;border-radius:10px;padding:11px 13px;margin:2px 0 12px;color:#8a7f66;font-size:12.5px;'+PC+'">\ud83e\udded '+t("agent.thinking")+'</div>'; }
-  h+='<div style="font-size:10.5px;color:#aaa;margin-top:6px;border-top:1px solid #eee;padding-top:7px">'+t("bilan.generated")+' \u00b7 '+fmtDateLong(todayISO())+'</div>';
+  h+='<div style="font-size:10.5px;color:#aaa;margin-top:6px;border-top:1px solid #eee;padding-top:7px">'+t("bilan.generated")+' \u00b7 '+fmtDateLong(todayISO())+((typeof BUILD!=="undefined")?' \u00b7 '+BUILD:'')+'</div>';
   h+='</div>';
   return h;
 }
