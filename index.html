@@ -3241,7 +3241,7 @@ const DEFAULT_S={ version:"0.2.0", settings:{ lang:"fr", theme:"system", units:"
 /* Clé Maps JS partagée (restreinte au domaine GitHub Pages). Repli : clé perso de l'utilisateur si fournie. */
 const SHARED_MAP_KEY="AIzaSyCt5iVx8nPr1V067A3daE0X1YA568XJNbU";
 function mapKey(){ return (S.settings.mapKey||"").trim() || SHARED_MAP_KEY; }
-const BUILD="0.4.16 · v751 print-iframe";
+const BUILD="0.4.17 · v752 postcard-title";
 let S=loadState();
 function normalizeTrip(tr){ if(!tr||typeof tr!=="object") return tr;
   tr.id=tr.id||("t"+Date.now()+Math.random().toString(36).slice(2,7));
@@ -8059,7 +8059,12 @@ async function renderPostcardFront(tr, forced){
   x.fillStyle="#E9C46A"; x.font="700 34px Helvetica, Arial, sans-serif"; x.textBaseline="alphabetic"; const _lblEnd=_pcSpaced(x,"SOUVENIR DE",MG+40,PC_H-300,7);
   x.fillStyle="#E9C46A"; x.fillRect(MG+40,PC_H-284,Math.min(_lblEnd-(MG+40),340),3);
   /* titre destination */
-  x.save(); x.shadowColor="rgba(0,0,0,.55)"; x.shadowBlur=14; x.shadowOffsetY=2; x.fillStyle="#ffffff"; x.font="700 96px Georgia, 'Times New Roman', serif"; _pcWrap(x,_pcTitle(tr),MG+40,PC_H-196,PC_W-2*MG-300,92,2); x.restore();
+  x.save(); x.shadowColor="rgba(0,0,0,.55)"; x.shadowBlur=14; x.shadowOffsetY=2; x.fillStyle="#ffffff";
+  /* Titre sur UNE ligne, taille auto-ajust\u00e9e : jamais de 2e ligne qui chevauche les dates/la signature. */
+  var _ttl=_pcTitle(tr), _tmax=PC_W-2*(MG+40), _tfs=96; x.font="700 "+_tfs+"px Georgia, 'Times New Roman', serif";
+  while(_tfs>44 && x.measureText(_ttl).width>_tmax){ _tfs-=4; x.font="700 "+_tfs+"px Georgia, 'Times New Roman', serif"; }
+  var _tdraw=_ttl; if(x.measureText(_tdraw).width>_tmax){ while(_tdraw.length>1 && x.measureText(_tdraw+"\u2026").width>_tmax) _tdraw=_tdraw.slice(0,-1); _tdraw+="\u2026"; }
+  x.fillText(_tdraw,MG+40,PC_H-196); x.restore();
   /* dates */
   const dr=fmtRange(tr.dateStart,tr.dateEnd); if(dr){ x.fillStyle="rgba(255,255,255,.94)"; x.font="400 42px Helvetica, Arial, sans-serif"; x.fillText(dr,MG+40,PC_H-124); }
   /* signature Magot Voyage */
@@ -8081,7 +8086,7 @@ function renderPostcardBack(tr){
   /* ligne verticale de separation */
   x.strokeStyle="#d4c9b0"; x.lineWidth=3; x.beginPath(); x.moveTo(PC_W*0.56,120); x.lineTo(PC_W*0.56,PC_H-120); x.stroke();
   /* cote gauche : le recit (message) */
-  x.fillStyle="#2a2a2a"; x.font="700 40px Georgia, serif"; x.fillText(_pcTitle(tr),108,150);
+  x.fillStyle="#2a2a2a"; var _vt=_pcTitle(tr), _vmax=PC_W*0.56-108-40, _vfs=40; x.font="700 "+_vfs+"px Georgia, serif"; while(_vfs>22 && x.measureText(_vt).width>_vmax){ _vfs-=2; x.font="700 "+_vfs+"px Georgia, serif"; } var _vd=_vt; if(x.measureText(_vd).width>_vmax){ while(_vd.length>1 && x.measureText(_vd+"\u2026").width>_vmax) _vd=_vd.slice(0,-1); _vd+="\u2026"; } x.fillText(_vd,108,150);
   const dr=fmtRange(tr.dateStart,tr.dateEnd); if(dr){ x.fillStyle="#8a7f66"; x.font="400 26px Helvetica, sans-serif"; x.fillText(dr,108,192); }
   x.fillStyle="#3a3a3a"; x.font="400 30px Georgia, serif";
   function _pcShort(t){ t=String(t||"").replace(/\s+/g," ").trim(); if(!t) return ""; const m=t.match(/[^.!?\u2026]+[.!?\u2026]+/g); if(!m) return t; let out=""; for(let i=0;i<m.length && i<4;i++){ out+=m[i]; } return out.trim()||t; }
