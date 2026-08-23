@@ -3241,7 +3241,7 @@ const DEFAULT_S={ version:"0.2.0", settings:{ lang:"fr", theme:"system", units:"
 /* Clé Maps JS partagée (restreinte au domaine GitHub Pages). Repli : clé perso de l'utilisateur si fournie. */
 const SHARED_MAP_KEY="AIzaSyCt5iVx8nPr1V067A3daE0X1YA568XJNbU";
 function mapKey(){ return (S.settings.mapKey||"").trim() || SHARED_MAP_KEY; }
-const BUILD="0.4.04 · v690 cover-navy";
+const BUILD="0.4.05 · v691 no-blank";
 let S=loadState();
 function normalizeTrip(tr){ if(!tr||typeof tr!=="object") return tr;
   tr.id=tr.id||("t"+Date.now()+Math.random().toString(36).slice(2,7));
@@ -8423,7 +8423,7 @@ async function exportCarnetComplet(){
       }
       /* (dépenses par jour retirées du carnet : voir le bilan à la fin) */
       /* resume du jour : lignes a ecrire a la main */
-      ensure(20);
+      ensure(74);
       doc.setFont("helvetica","bold"); doc.setFontSize(8.5); doc.setTextColor(GOLD[0],GOLD[1],GOLD[2]);
       doc.text(L({fr:"MON R\u00c9SUM\u00c9 DU JOUR",en:"MY DAY NOTES",es:"MI RESUMEN DEL D\u00cdA",it:"IL MIO DIARIO",de:"MEIN TAGEBUCH"}),MG,y+2,{charSpace:0.5}); y+=6;
       doc.setDrawColor(214,204,180); doc.setLineWidth(0.3);
