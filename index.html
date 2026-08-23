@@ -3241,7 +3241,7 @@ const DEFAULT_S={ version:"0.2.0", settings:{ lang:"fr", theme:"system", units:"
 /* Clé Maps JS partagée (restreinte au domaine GitHub Pages). Repli : clé perso de l'utilisateur si fournie. */
 const SHARED_MAP_KEY="AIzaSyCt5iVx8nPr1V067A3daE0X1YA568XJNbU";
 function mapKey(){ return (S.settings.mapKey||"").trim() || SHARED_MAP_KEY; }
-const BUILD="0.4.05 · v691 no-blank";
+const BUILD="0.4.06 · v692 pc-cover-pick";
 let S=loadState();
 function normalizeTrip(tr){ if(!tr||typeof tr!=="object") return tr;
   tr.id=tr.id||("t"+Date.now()+Math.random().toString(36).slice(2,7));
@@ -8033,7 +8033,8 @@ function _pcFocal(im){ try{
   return {fx:fx,fy:fy};
 }catch(e){ return {fx:0.5,fy:0.5}; } }
 async function _pcCityPhoto(tr){ try{
-  const q=((typeof tripCity==="function"?tripCity(tr):"")||_pcTitle(tr)||"").trim(); if(!q||typeof gText!=="function") return "";
+  var _pcSel=(tr.pcCoverCity||""); if(_pcSel==="__photo") return "";
+  const q=(_pcSel && _pcSel!=="__auto")? _pcSel : (((typeof tripCity==="function"?tripCity(tr):"")||_pcTitle(tr)||"").trim()); if(!q||typeof gText!=="function") return "";
   const opts={}; const la=(tr.dest&&tr.dest.lat), ln=(tr.dest&&tr.dest.lng); if(la!=null&&ln!=null){ opts.lat=la; opts.lng=ln; }
   const r=await gText(q,opts); const places=(r&&r.places)||[];
   for(const p of places){ if(p.photos&&p.photos[0]&&p.photos[0].name) return p.photos[0].name; }
@@ -8489,12 +8490,13 @@ function openExport(inlineHost){ const tr=(typeof souvTrip==="function"?souvTrip
   var _ed=_t2({fr:"Modifier",en:"Edit",es:"Editar",it:"Modifica",de:"Bearbeiten"});
   function _row(tag){ return `<div style="display:flex;gap:8px;margin:2px 0 12px">`    +`<button class="ex-gen" data-g="${tag}" style="flex:1;background:#faf6ec;border:1px solid #e6dcc0;color:#8a6d1e;font:600 12px system-ui;padding:8px;border-radius:10px">\u2728 ${_gen}</button>`    +`<button class="ex-edit" data-e="${tag}" style="flex:1;background:#f4f5f7;border:1px solid #dfe2e8;color:#3a3f4a;font:600 12px system-ui;padding:8px;border-radius:10px">\u270e ${_ed}</button>`    +`</div>`; }
   var _covOpts=`<div style="padding:2px 0 14px"><label style="font:700 11px system-ui;letter-spacing:1.2px;color:#8a93a5;display:block;margin-bottom:6px">${_t2({fr:"PHOTO DE COUVERTURE",en:"COVER PHOTO",es:"FOTO DE PORTADA",it:"FOTO COPERTINA",de:"TITELBILD"})}</label>`    +`<select id="exCover" style="width:100%;padding:10px;border:1px solid #dfe2e8;border-radius:10px;font:14px system-ui;background:#fff">`    +`<option value="__auto"${(!tr.coverCity||tr.coverCity==="__auto")?" selected":""}>${_t2({fr:"Automatique (destination)",en:"Automatic (destination)",es:"Autom\u00e1tico",it:"Automatico",de:"Automatisch"})}</option>`    +((tr.places||[]).map(function(p){ return p&&p.name?`<option value="${escapeHtml(p.name)}"${tr.coverCity===p.name?" selected":""}>${escapeHtml(p.name)}</option>`:""; }).join(""))    +`<option value="__photo"${tr.coverCity==="__photo"?" selected":""}>${_t2({fr:"Ma photo",en:"My photo",es:"Mi foto",it:"Mia foto",de:"Mein Foto"})}</option>`    +`</select></div>`;
-  b.innerHTML=_covOpts+`<div style="padding:2px 0 4px">`
+  var _pcOpts=`<div style="padding:2px 0 12px"><label style="font:700 11px system-ui;letter-spacing:1.2px;color:#8a93a5;display:block;margin-bottom:6px">${_t2({fr:"PHOTO DE LA CARTE POSTALE",en:"POSTCARD PHOTO",es:"FOTO DE LA POSTAL",it:"FOTO CARTOLINA",de:"POSTKARTENFOTO"})}</label>`    +`<select id="exPcCover" style="width:100%;padding:10px;border:1px solid #dfe2e8;border-radius:10px;font:14px system-ui;background:#fff">`    +`<option value="__auto"${(!tr.pcCoverCity||tr.pcCoverCity==="__auto")?" selected":""}>${_t2({fr:"Automatique (destination)",en:"Automatic (destination)",es:"Autom\u00e1tico",it:"Automatico",de:"Automatisch"})}</option>`    +((tr.places||[]).map(function(p){ return p&&p.name?`<option value="${escapeHtml(p.name)}"${tr.pcCoverCity===p.name?" selected":""}>${escapeHtml(p.name)}</option>`:""; }).join(""))    +`<option value="__photo"${tr.pcCoverCity==="__photo"?" selected":""}>${_t2({fr:"Ma photo",en:"My photo",es:"Mi foto",it:"Mia foto",de:"Mein Foto"})}</option>`    +`</select></div>`;
+  b.innerHTML=`<div style="padding:2px 0 4px">`
     +`<div style="font:700 12px system-ui;letter-spacing:1.5px;color:#8a93a5;margin:0 0 8px">${_t2({fr:"CARTE POSTALE",en:"POSTCARD",es:"POSTAL",it:"CARTOLINA",de:"POSTKARTE"})}</div>`
     +`<div class="ex-comment" data-c="pc" style="font:italic 14px/1.5 Georgia,serif;color:#3a3f4a;max-height:64px;overflow:hidden;transition:max-height .35s ease">${escapeHtml(_pcTxt)}</div>`
     +`<button class="ex-toggle" data-t="pc" style="background:none;border:0;color:#b8860b;font:600 12px system-ui;padding:5px 0 8px;cursor:pointer">${_more} \u25be</button>`
     +_row("pc")
-    +`<button class="btn navy block" id="exPcPrev">\ud83d\udc41\ufe0f ${_t2({fr:"Voir la carte postale",en:"View the postcard",es:"Ver la postal",it:"Vedi la cartolina",de:"Postkarte ansehen"})}</button>`
+    +_pcOpts+`<button class="btn navy block" id="exPcPrev">\ud83d\udc41\ufe0f ${_t2({fr:"Voir la carte postale",en:"View the postcard",es:"Ver la postal",it:"Vedi la cartolina",de:"Postkarte ansehen"})}</button>`
     +`</div>`
     +`<div style="height:1px;background:linear-gradient(90deg,transparent,#d8cba8 30%,#d8cba8 70%,transparent);margin:20px 0"></div>`
     +`<div style="padding:2px 0 4px">`
@@ -8502,13 +8504,14 @@ function openExport(inlineHost){ const tr=(typeof souvTrip==="function"?souvTrip
     +`<div class="ex-comment" data-c="cn" style="font:italic 14px/1.5 Georgia,serif;color:#3a3f4a;max-height:64px;overflow:hidden;transition:max-height .35s ease">${escapeHtml(_cnTxt)}</div>`
     +`<button class="ex-toggle" data-t="cn" style="background:none;border:0;color:#b8860b;font:600 12px system-ui;padding:5px 0 8px;cursor:pointer">${_more} \u25be</button>`
     +_row("cn")
-    +`<button class="btn navy block" id="exCarnetFull">\ud83d\udcd4 ${_t2({fr:"Voir le carnet",en:"View the journal",es:"Ver el cuaderno",it:"Vedi il diario",de:"Reisebuch ansehen"})}</button>`
+    +_covOpts+`<button class="btn navy block" id="exCarnetFull">\ud83d\udcd4 ${_t2({fr:"Voir le carnet",en:"View the journal",es:"Ver el cuaderno",it:"Vedi il diario",de:"Reisebuch ansehen"})}</button>`
     +`</div>`
     +`<p class="est-disc">${t("mem.exportHint")}</p><div style="height:6px"></div>`;
   Array.prototype.forEach.call(b.querySelectorAll(".ex-toggle"),function(btn){ btn.onclick=function(){ var key=btn.getAttribute("data-t"); var c=b.querySelector('.ex-comment[data-c="'+key+'"]'); if(!c) return; var open=c.getAttribute("data-open")==="1"; if(open){ c.style.maxHeight="64px"; c.setAttribute("data-open","0"); } else { c.style.maxHeight=c.scrollHeight+"px"; c.setAttribute("data-open","1"); } }; });
   Array.prototype.forEach.call(b.querySelectorAll(".ex-gen"),function(btn){ btn.onclick=async function(){ var k=btn.getAttribute("data-g"); var _o=btn.innerHTML; btn.disabled=true; btn.innerHTML="\u2026"; try{ if(k==="pc"){ await generateSouvenir(tr,true); } else { await _carnetGenCn(tr); } }catch(e){} try{ btn.innerHTML=_o; btn.disabled=false; }catch(e){} _carnetRerender(); }; });
   Array.prototype.forEach.call(b.querySelectorAll(".ex-edit"),function(btn){ btn.onclick=function(){ _carnetEditInline(btn.getAttribute("data-e")); }; });
   { var _cvsel=b.querySelector("#exCover"); if(_cvsel) _cvsel.onchange=function(){ tr.coverCity=this.value; try{ saveState(); }catch(e){} }; }
+  { var _pcsel=b.querySelector("#exPcCover"); if(_pcsel) _pcsel.onchange=function(){ tr.pcCoverCity=this.value; try{ saveState(); }catch(e){} }; }
   b.querySelector("#exPcPrev").onclick=()=>previewPostcard();
   b.querySelector("#exCarnetFull").onclick=()=>exportCarnetComplet();
   if(!inlineHost){ document.getElementById("exportSheet").classList.add("show"); } }
