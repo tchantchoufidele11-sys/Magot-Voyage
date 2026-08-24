@@ -1,5 +1,5 @@
 <!doctype html>
-<!-- Studio Magot — FIX GEL APRES INITIALISATION : _expYield utilisait requestAnimationFrame, qui peut ne JAMAIS se declencher en webview iOS -> await bloque a vie juste apres Initialisation. Remplace par setTimeout(0) qui se declenche toujours. C-etait le seul await non-borne de la preparation. · BUILD 2026-08-13-C154 -->
+<!-- Studio Magot — FIX GEL APRES INITIALISATION : _expYield utilisait requestAnimationFrame, qui peut ne JAMAIS se declencher en webview iOS -> await bloque a vie juste apres Initialisation. Remplace par setTimeout(0) qui se declenche toujours. C-etait le seul await non-borne de la preparation. · BUILD 2026-08-13-C155 -->
 <!-- Studio Magot — FIX EXPORT ANTI-BLOCAGE (C155) : (1) venc.flush()/aenc.flush() etaient des await NON bornes -> gel a ~90% sur Safari/iOS quand l'encodeur ne rend jamais la main ; desormais bornes par _expRace() (25s/20s). (2) Aucun moyen de sortir d'un export fige : ajout bouton "Annuler" sur l'overlay + _expForceReset() qui rearme l'UI meme si un await reste parque. (3) Watchdog global 3 min. (4) Garde anti double-lancement (double-tap). (5) Repli MediaRecorder universel quand WebCodecs absent (vieux Android/iOS/Firefox) -> WebM/MP4 selon support, au lieu d'un cul-de-sac. · BUILD 2026-08-24-C178 (fluidité clips vidéo : maintien lecture) -->
 
 <!-- Studio Magot — FIX FLOU A LA REOUVERTURE (C267a) : à l'import, window._PMAX=1440, donc les photos s'affichaient nettes ; mais a froid (app ouverte 3-4 jours apres), window._PMAX etait undefined -> studioOpenFilm / _restorePhotoFromBlob / _decodeFromSrc retombaient sur 1200 et RE-sous-echantillonnaient les blobs 1440 stockes -> flou. Desormais la restauration/re-decodage utilise un PLANCHER Math.max(1440, ...) : les blobs stockes sont decodes a leur taille native (jamais reduits), donc une photo rouverte est aussi nette qu'a sa creation. Qualite JPEG de stockage 0.82 -> 0.86. Memoire inchangee (identique a la session de creation). · BUILD 2026-08-16-C267 -->
@@ -8323,7 +8323,11 @@ function loop(){
     if(VIDACT!==idx){ VIDACT=idx; for(var _c=0;_c<CLIPS.length;_c++){ if(_c!==sg.vclip){ try{ CLIPS[_c].el.pause(); }catch(e){} } } try{ _clA.el.muted=true; _clA.el.playbackRate=(sg.vspeed||_clA.speed||1); if(Math.abs((_clA.el.currentTime||0)-(sg.vstart||0))>0.18) _clA.el.currentTime=sg.vstart||0; }catch(e){} var _pv=_clA.el.play(); if(_pv&&_pv.then) _pv.catch(function(){}); }
     /* MAINTIEN DE LECTURE : un <video> muted inline peut se figer tout seul sur iOS, ou le clip atteint sa fin
        avant la fin du plan -> on le relance / on repart au début de l\u2019extrait pour qu\u2019il tourne en continu. */
-    try{ var _cd=_clA.el.duration||0; if(_cd>0.2 && (_clA.el.ended || _clA.el.currentTime>=_cd-0.05)){ try{ _clA.el.currentTime=(sg.vstart||0); }catch(e){} } if(_clA.el.paused && playing){ var _pk=_clA.el.play(); if(_pk&&_pk.then) _pk.catch(function(){}); } }catch(e){}
+    try{ var _cd=_clA.el.duration||_clA.dur||0;                       /* iOS : el.duration souvent 0 -> repli sur la durée connue du clip */
+      var _tE=(_clA.trimEnd!=null?_clA.trimEnd:_cd);                     /* fin utile : respecte le trim, jamais de rab figé */
+      var _end=Math.min((_cd>0?_cd:1e9),(_tE>0?_tE:1e9)); var _ct=_clA.el.currentTime||0;
+      if(_end>0.2 && (_clA.el.ended || _ct>=_end-0.05)){ try{ _clA.el.currentTime=(sg.vstart||0); }catch(e){} }
+      if(_clA.el.paused && playing){ var _pk=_clA.el.play(); if(_pk&&_pk.then) _pk.catch(function(){}); } }catch(e){}
   } else { if(VIDACT>=0){ VIDACT=-1; for(var _c2=0;_c2<CLIPS.length;_c2++){ try{ CLIPS[_c2].el.pause(); }catch(e){} } } }
   /* FLUIDITÉ : pendant une transition qui arrive sur un plan vidéo, on lance déjà le clip entrant
      -> il tourne pendant la transition au lieu de rester figé sur sa première image. */
