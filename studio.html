@@ -1,6 +1,6 @@
 <!doctype html>
 <!-- Studio Magot — FIX GEL APRES INITIALISATION : _expYield utilisait requestAnimationFrame, qui peut ne JAMAIS se declencher en webview iOS -> await bloque a vie juste apres Initialisation. Remplace par setTimeout(0) qui se declenche toujours. C-etait le seul await non-borne de la preparation. · BUILD 2026-08-13-C154 -->
-<!-- Studio Magot — FIX EXPORT ANTI-BLOCAGE (C155) : (1) venc.flush()/aenc.flush() etaient des await NON bornes -> gel a ~90% sur Safari/iOS quand l'encodeur ne rend jamais la main ; desormais bornes par _expRace() (25s/20s). (2) Aucun moyen de sortir d'un export fige : ajout bouton "Annuler" sur l'overlay + _expForceReset() qui rearme l'UI meme si un await reste parque. (3) Watchdog global 3 min. (4) Garde anti double-lancement (double-tap). (5) Repli MediaRecorder universel quand WebCodecs absent (vieux Android/iOS/Firefox) -> WebM/MP4 selon support, au lieu d'un cul-de-sac. · BUILD 2026-08-13-C155 -->
+<!-- Studio Magot — FIX EXPORT ANTI-BLOCAGE (C155) : (1) venc.flush()/aenc.flush() etaient des await NON bornes -> gel a ~90% sur Safari/iOS quand l'encodeur ne rend jamais la main ; desormais bornes par _expRace() (25s/20s). (2) Aucun moyen de sortir d'un export fige : ajout bouton "Annuler" sur l'overlay + _expForceReset() qui rearme l'UI meme si un await reste parque. (3) Watchdog global 3 min. (4) Garde anti double-lancement (double-tap). (5) Repli MediaRecorder universel quand WebCodecs absent (vieux Android/iOS/Firefox) -> WebM/MP4 selon support, au lieu d'un cul-de-sac. · BUILD 2026-08-24-C174 (Lot1: compteurs/tuto/prêt/pleinécran/pause) -->
 
 <!-- Studio Magot — FIX FLOU A LA REOUVERTURE (C267a) : à l'import, window._PMAX=1440, donc les photos s'affichaient nettes ; mais a froid (app ouverte 3-4 jours apres), window._PMAX etait undefined -> studioOpenFilm / _restorePhotoFromBlob / _decodeFromSrc retombaient sur 1200 et RE-sous-echantillonnaient les blobs 1440 stockes -> flou. Desormais la restauration/re-decodage utilise un PLANCHER Math.max(1440, ...) : les blobs stockes sont decodes a leur taille native (jamais reduits), donc une photo rouverte est aussi nette qu'a sa creation. Qualite JPEG de stockage 0.82 -> 0.86. Memoire inchangee (identique a la session de creation). · BUILD 2026-08-16-C267 -->
 <!-- Studio Magot — NETTETE MAX / NIVEAU CAPCUT (C267b) : les photos etaient plafonnees a 1440 px alors que le montage s'EXPORTE en 1920 px -> agrandissement ~33% = flou meme en session fraiche et dans la video finale. Desormais _PCAP=1920 : source photo = resolution d'export, plus aucun upscale, netteté maximale a l'ecran ET a l'export. Le cache memoire _DEC_MAX n'est plus un nombre fixe mais un BUDGET RAM (190 Mo iOS ; adapte a la RAM sur Android) : a 1920 px on garde automatiquement moins de photos decodees pour tenir le budget -> aucun crash iPhone. Import >600 photos: repli a 1440 (encodage plus rapide). Les films crees avant restent en 1440 (blob deja encode) ; les nouveaux sont en 1920. · BUILD 2026-08-16-C267 -->
@@ -8254,9 +8254,11 @@ function _subAt(t){ if(!SUBS.length) return ""; var cur=""; for(var i=0;i<SUBS.l
 function _musicTimeNow(){ /* temps DANS la musique (pour caler les paroles) */
   try{ if(window.LOOP_ON){ var md=(window.MUSIC_DUR||(A?A.dur:0))||0; var mt=montageNow(); return md>0?(mt%md):mt; } return (audioEl?audioEl.currentTime:montageNow()); }catch(e){ return montageNow(); } }
 try{ window.studioSaveNow=function(){ try{ if(_curFilmId || PHOTOS.length || (typeof clipVidReady!=="undefined"&&clipVidReady)) studioSaveLocal(); }catch(e){} }; }catch(e){}
-try{ window.studioStop=function(){ try{ stopPlay(); if(typeof _hideClipOverlay==="function") _hideClipOverlay(); if(window._refreshPlayUI) window._refreshPlayUI(); if(_subEl) _subEl.style.opacity="0"; }catch(e){} }; }catch(e){}
+try{ window.studioStop=function(){ try{ stopPlay(); try{ var _h8=document.querySelector(".hero"); if(_h8){ _h8.classList.remove("cinema"); _h8.classList.remove("chrome-hidden"); } }catch(_e8){} if(typeof _hideClipOverlay==="function") _hideClipOverlay(); if(window._refreshPlayUI) window._refreshPlayUI(); if(_subEl) _subEl.style.opacity="0"; }catch(e){} }; }catch(e){}
 /* Sécurité : si l'onglet passe en arrière-plan, on stoppe (évite que ça joue après fermeture) */
 try{ document.addEventListener("visibilitychange", function(){ if(document.hidden){ try{ stopPlay(); }catch(e){} } }); }catch(e){}
+try{ window.addEventListener("pagehide", function(){ try{ stopPlay(); }catch(e){} }); }catch(e){}
+try{ document.addEventListener("freeze", function(){ try{ stopPlay(); }catch(e){} }); }catch(e){}
 function _updateSub(){ try{ if(!_subEl){ var h=document.querySelector(".hero"); if(!h) return; _subEl=document.createElement("div"); _subEl.id="karaokeSub"; _subEl.style.cssText="position:absolute;text-align:center;z-index:16;pointer-events:none;font-weight:700;font-family:'Playfair Display',Georgia,serif;line-height:1.32;color:#fff;text-shadow:0 2px 10px rgba(0,0,0,.85),0 0 3px rgba(0,0,0,.9);opacity:0;transition:opacity .25s"; h.appendChild(_subEl); }
   if(!SUBS.length || !playing || window.STUDIO_SUBS_ON===false){ _subEl.style.opacity="0"; return; }
   try{ var _h=document.querySelector(".hero"); var _cv=_h&&_h.querySelector("canvas");
@@ -8386,7 +8388,7 @@ function _studioReady(){ try{
   b.textContent="✓ "+_st("Ton montage est prêt")+" — "+_st("appuie sur Lire le film");
   b.classList.add("show");
   try{ var p=document.getElementById("play")||document.getElementById("watchBtn"); if(p){ p.classList.remove("_pulse"); void p.offsetWidth; p.classList.add("_pulse"); } }catch(e){}
-  clearTimeout(window._srT); window._srT=setTimeout(function(){ try{ b.classList.remove("show"); }catch(e){} }, 5000);
+  clearTimeout(window._srT); window._srT=setTimeout(function(){ try{ b.classList.remove("show"); }catch(e){} }, 30000);
 }catch(e){} }
 window._studioTuto=function(force){ try{
   if(!force && localStorage.getItem("magot_studio_tuto_v1")) return;
@@ -8398,14 +8400,15 @@ window._studioTuto=function(force){ try{
     {sel:"#openAmbience", t:_st("Choisis l\u2019ambiance de ton film."), n:"4"},
     {sel:"#watchBtn", t:_st("Et lance ton film !"), n:"5"}
   ];
-  var i=0, ov=document.createElement("div"); ov.id="studioTuto";
+  var i=0, _shown=false, _ttWait=0, ov=document.createElement("div"); ov.id="studioTuto";
   ov.innerHTML='<div class="tt-spot"></div><div class="tt-arrow"></div><div class="tt-card"><div class="tt-n"></div><div class="tt-t"></div><div class="tt-row"><button class="tt-skip"></button><button class="tt-next"></button></div></div>';
   document.body.appendChild(ov);
   var spot=ov.querySelector(".tt-spot"), arrow=ov.querySelector(".tt-arrow"), card=ov.querySelector(".tt-card"), nEl=ov.querySelector(".tt-n"), tEl=ov.querySelector(".tt-t"), nextB=ov.querySelector(".tt-next"), skipB=ov.querySelector(".tt-skip");
   skipB.textContent=_st("Passer");
-  function done(){ try{ localStorage.setItem("magot_studio_tuto_v1","1"); }catch(e){} try{ ov.remove(); }catch(e){} }
+  function done(){ if(_shown){ try{ localStorage.setItem("magot_studio_tuto_v1","1"); }catch(e){} } try{ ov.remove(); }catch(e){} }
   function show(){ var st=steps[i]; var el=document.querySelector(st.sel);
-    if(!el){ i++; if(i<steps.length) return show(); return done(); }
+    if(!el){ if(!_shown && (_ttWait=(_ttWait||0)+1)<=15){ setTimeout(show,400); return; } i++; if(i<steps.length) return show(); return done(); }
+    _shown=true;
     try{ el.scrollIntoView({block:"center",behavior:"smooth"}); }catch(e){}
     setTimeout(function(){ var r=el.getBoundingClientRect();
       spot.style.left=(r.left-6)+"px"; spot.style.top=(r.top-6)+"px"; spot.style.width=(r.width+12)+"px"; spot.style.height=(r.height+12)+"px";
@@ -8434,7 +8437,7 @@ function updateBadge(){ try{ _updateSourceLabels(); }catch(e){}
 }
 document.getElementById("pickMusic").onclick=function(){ ensureAudio(); document.getElementById("fMusic").click(); };
 document.getElementById("pickPhotos").onclick=function(){ document.getElementById("fPhotos").click(); };
-document.getElementById("play").onclick=function(){ var self=this; ensureAudio(); if(playing){ stopPlay(); self.textContent="▶ Reprendre"; } else { startPlay(); } };
+document.getElementById("play").onclick=function(){ var self=this; ensureAudio(); if(playing){ stopPlay(); self.textContent="▶ Reprendre"; } else { startPlay(); try{ var _rb=document.getElementById("studioReadyBanner"); if(_rb) _rb.classList.remove("show"); }catch(e){} try{ self.classList.remove("_pulse"); var _wb=document.getElementById("watchBtn"); if(_wb) _wb.classList.remove("_pulse"); }catch(e){} } };
 document.getElementById("restart").onclick=function(){ if(!A||(!PHOTOS.length&&!clipVidReady)) return; pausedOffset=0; buildPartition(); stopPlay(); startPlay(); setTimeout(function(){ if(playing) document.getElementById("play").textContent="⏸ Pause"; },30); };
 document.getElementById("clear").onclick=function(){ stopPlay(); PHOTOS.forEach(function(p){ try{URL.revokeObjectURL(p.url);}catch(e){} }); PHOTOS=[]; SEGS=[]; A=null; AUDIOBUF=null; pausedOffset=0; stripDirty=true;
   try{ if(typeof CLIPS!=="undefined"){ CLIPS.forEach(function(c){ try{ c.el.pause(); if(c.el._u) URL.revokeObjectURL(c.el._u); c.el.remove(); }catch(e){} }); CLIPS.length=0; } clipVidReady=false; }catch(e){}
@@ -8460,8 +8463,8 @@ function _addClipFromBlob(blob, meta){ return new Promise(function(res){ try{
   var clip={el:v, dur:0, ready:false, file:blob, thumb:null, sound:false, bal:0.6, color:{expo:0,contrast:0,sat:0,temp:0}, preset:0, trimStart:null, speed:1, _day:(meta&&meta.day!=null?meta.day:null), _cap:(meta&&meta.cap)||null};
   CLIPS.push(clip); document.body.appendChild(v); v.load();
   var done=false, fin=function(){ if(done)return; done=true; res(true); };
-  v.onloadedmetadata=function(){ clip.dur=v.duration||0; clip.ready=(clip.dur>0.5); clipVidReady=CLIPS.some(function(c){return c.ready;}); if(clip.ready && typeof genThumb==="function"){ try{ genThumb(clip); }catch(e){} } fin(); };
-  v.onerror=function(){ clip.ready=false; clipVidReady=CLIPS.some(function(c){return c.ready;}); fin(); };
+  v.onloadedmetadata=function(){ clip.dur=v.duration||0; clip.ready=(clip.dur>0.5); clipVidReady=CLIPS.some(function(c){return c.ready;}); if(clip.ready && typeof genThumb==="function"){ try{ genThumb(clip); }catch(e){} } try{ updateBadge(); }catch(e){} fin(); };
+  v.onerror=function(){ clip.ready=false; clipVidReady=CLIPS.some(function(c){return c.ready;}); try{ updateBadge(); }catch(e){} fin(); };
   setTimeout(fin, 8000);
 }catch(e){ res(false); } }); }
 
@@ -8599,7 +8602,7 @@ function _restorePhotoFromBlob(id, blob, meta, maxD){ return new Promise(functio
     try{ URL.revokeObjectURL(url); }catch(e){} res(true);
   }catch(e){ res(false); } }; im.onerror=function(){ res(false); }; im.src=url; }catch(e){ res(false); } }); }
 
-function studioOpenFilm(id){ try{ stopPlay(); }catch(e){}
+function studioOpenFilm(id){ try{ stopPlay(); }catch(e){} try{ var _h9=document.querySelector(".hero"); if(_h9){ _h9.classList.remove("cinema"); _h9.classList.remove("chrome-hidden"); } }catch(e){}
   var proj=null; try{ proj=JSON.parse(localStorage.getItem(_filmKey(id))||"null"); }catch(e){}
   if(!proj){ return; }
   _curFilmId=id; PHOTOS.forEach(function(p){ try{URL.revokeObjectURL(p.url);}catch(e){} }); PHOTOS=[]; SEGS=[]; _PSEQ=0; window._restSeen={}; A=null; AUDIOBUF=null; pausedOffset=0;
