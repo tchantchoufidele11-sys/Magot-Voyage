@@ -3241,7 +3241,7 @@ const DEFAULT_S={ version:"0.2.0", settings:{ lang:"fr", theme:"system", units:"
 /* Clé Maps JS partagée (restreinte au domaine GitHub Pages). Repli : clé perso de l'utilisateur si fournie. */
 const SHARED_MAP_KEY="AIzaSyCt5iVx8nPr1V067A3daE0X1YA568XJNbU";
 function mapKey(){ return (S.settings.mapKey||"").trim() || SHARED_MAP_KEY; }
-const BUILD="0.4.17 · v752 postcard-title";
+const BUILD="0.4.18 · v753 carnet-photos";
 let S=loadState();
 function normalizeTrip(tr){ if(!tr||typeof tr!=="object") return tr;
   tr.id=tr.id||("t"+Date.now()+Math.random().toString(36).slice(2,7));
@@ -8351,10 +8351,19 @@ async function exportCarnetComplet(){
       var r=await fetch(url); if(!r||!r.ok) return null; var b=await r.blob(); if(!b||b.size<64) return null;
       return await new Promise(function(res){ try{ var fr=new FileReader(); fr.onload=function(){ res(fr.result); }; fr.onerror=function(){ res(null); }; fr.readAsDataURL(b); }catch(e){ res(null); } });
     }catch(e){ return null; } }
-    async function _photoByName(name, lat, lng){ try{ if(typeof gText!=="function"||!name) return null;
-      var _res=await gText(String(name), (lat!=null?{lat:lat,lng:lng}:{}));
+    async function _photoByName(name, lat, lng, loc){ try{ if(typeof gText!=="function"||!name) return null;
+      /* On ajoute la localité pour lever l'ambiguïté (« Plage » seul ne désigne rien),
+         et on n'accepte un résultat que s'il est proche : mieux vaut aucune photo
+         qu'une photo d'un homonyme situé ailleurs. */
+      var _q=String(name); if(loc && String(loc).trim() && _q.toLowerCase().indexOf(String(loc).toLowerCase())<0) _q+=", "+String(loc).trim();
+      var _opt=(lat!=null)?{lat:lat,lng:lng,restrictKm:6}:{};
+      var _res=await gText(_q, _opt);
       var _places=(_res&&_res.places)||[];
       for(var _i=0;_i<_places.length;_i++){ var _pp=_places[_i];
+        if(lat!=null && _pp && _pp.location && typeof haversineKm==="function"){
+          var _d=haversineKm({lat:lat,lng:lng},{lat:_pp.location.latitude,lng:_pp.location.longitude});
+          if(_d>8) continue;
+        }
         if(_pp && _pp.photos && _pp.photos[0] && _pp.photos[0].name) return _pp.photos[0].name;
         if(_pp && typeof _pp.photo==="string" && _pp.photo) return _pp.photo;
       }
@@ -8370,7 +8379,7 @@ async function exportCarnetComplet(){
     for(const dd of days){
       const st=pts.filter(p=>p.day===dd.i);
       const _iso=(dd.date?dd.date.toISOString().slice(0,10):"");
-      const _lodgPt=(tr.lodging&&tr.lodging.lat!=null)?{ id:"__lodging_"+dd.i, title:(tr.lodging.name||L({fr:"Hébergement",en:"Accommodation",es:"Alojamiento",it:"Alloggio",de:"Unterkunft"})), lat:tr.lodging.lat, lng:tr.lodging.lng, kind:"lodging", time:"", photo:((tr.lodging.suggest&&tr.lodging.suggest.photo)||null), _lodging:true }:null;
+      const _lodgPt=(tr.lodging&&tr.lodging.lat!=null)?{ id:"__lodging_"+dd.i, title:(tr.lodging.name||L({fr:"Hébergement",en:"Accommodation",es:"Alojamiento",it:"Alloggio",de:"Unterkunft"})), lat:tr.lodging.lat, lng:tr.lodging.lng, kind:"lodging", time:"", photo:(tr.lodging.photo||(tr.lodging.suggest&&tr.lodging.suggest.photo)||(tr.lodging.suggest&&tr.lodging.suggest.photos&&tr.lodging.suggest.photos[0]&&tr.lodging.suggest.photos[0].name)||null), _lodging:true }:null;
       const stAll=_lodgPt?[_lodgPt].concat(st):st;
       const dayExps=exps.filter(e=>e.date===_iso);
       const dayPhotos=(tr.memories||[]).filter(m=>m&&m.day===dd.i&&!m.video).slice(0,3);
@@ -8410,7 +8419,7 @@ async function exportCarnetComplet(){
         var _ph=_lm;
         if(_ph){ try{ var _pd=await photoData(_ph.id); if(_pd&&_pd.data){ _crop=await _cropImg(_pd.data,Math.round(_pw*8),Math.round(_pw*8),(_ph&&_ph.cropY!=null?_ph.cropY:0.5)); _usedPh[_ph.id]=1; } }catch(e){} }
         if(!_crop){ try{ if(!p._freePhoto && typeof freePhotoOf==="function" && p.lat!=null){ var _fp=await freePhotoOf({lat:p.lat,lng:p.lng,name:(p.title||p.name||"")}, _pays); if(_fp&&_fp.photo){ p._freePhoto={url:_fp.photo}; } } var _furl=p._freePhoto&&p._freePhoto.url; if(_furl){ var _fd=await _urlToData(_furl); if(_fd){ _crop=await _cropImg(_fd,Math.round(_pw*8),Math.round(_pw*8)); } } }catch(e){} }
-        if(!_crop){ try{ var _ref=p.photo; if(!_ref){ _ref=await _photoByName(p.title||p.name, p.lat, p.lng); } if(_ref){ var _gd=await _gPhotoData(_ref,Math.round(_pw*8)); if(_gd){ _crop=await _cropImg(_gd,Math.round(_pw*8),Math.round(_pw*8)); } } }catch(e){} }
+        if(!_crop){ try{ var _ref=p.photo; if(!_ref){ var _loc=""; try{ _loc=(p.sub||p.locality||(typeof _cityOf==="function"?_cityOf(tr):"")||"")+""; }catch(e){} _ref=await _photoByName(p.title||p.name, p.lat, p.lng, _loc); } if(_ref){ var _gd=await _gPhotoData(_ref,Math.round(_pw*8)); if(_gd){ _crop=await _cropImg(_gd,Math.round(_pw*8),Math.round(_pw*8)); } } }catch(e){} }
         _polaroid(MG,y,_pw,_crop,p.title||"",_num);
         var _tx=MG+_pw+7, _tw=W-MG-_tx;
         doc.setTextColor(GOLD[0],GOLD[1],GOLD[2]); doc.setFont("helvetica","bold"); doc.setFontSize(8.5); if(p.time) doc.text(String(p.time),_tx,y+3.5);
