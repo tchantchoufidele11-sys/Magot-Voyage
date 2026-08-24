@@ -1,6 +1,6 @@
 <!doctype html>
 <!-- Studio Magot — FIX GEL APRES INITIALISATION : _expYield utilisait requestAnimationFrame, qui peut ne JAMAIS se declencher en webview iOS -> await bloque a vie juste apres Initialisation. Remplace par setTimeout(0) qui se declenche toujours. C-etait le seul await non-borne de la preparation. · BUILD 2026-08-13-C156 -->
-<!-- Studio Magot — FIX EXPORT ANTI-BLOCAGE (C156) : (1) venc.flush()/aenc.flush() etaient des await NON bornes -> gel a ~90% sur Safari/iOS quand l'encodeur ne rend jamais la main ; desormais bornes par _expRace() (25s/20s). (2) Aucun moyen de sortir d'un export fige : ajout bouton "Annuler" sur l'overlay + _expForceReset() qui rearme l'UI meme si un await reste parque. (3) Watchdog global 3 min. (4) Garde anti double-lancement (double-tap). (5) Repli MediaRecorder universel quand WebCodecs absent (vieux Android/iOS/Firefox) -> WebM/MP4 selon support, au lieu d'un cul-de-sac. · BUILD 2026-08-24-C180 (décodeurs vidéo iOS : libération dynamique) -->
+<!-- Studio Magot — FIX EXPORT ANTI-BLOCAGE (C156) : (1) venc.flush()/aenc.flush() etaient des await NON bornes -> gel a ~90% sur Safari/iOS quand l'encodeur ne rend jamais la main ; desormais bornes par _expRace() (25s/20s). (2) Aucun moyen de sortir d'un export fige : ajout bouton "Annuler" sur l'overlay + _expForceReset() qui rearme l'UI meme si un await reste parque. (3) Watchdog global 3 min. (4) Garde anti double-lancement (double-tap). (5) Repli MediaRecorder universel quand WebCodecs absent (vieux Android/iOS/Firefox) -> WebM/MP4 selon support, au lieu d'un cul-de-sac. · BUILD 2026-08-24-C181 (HUD diagnostic vidéo — temporaire) -->
 
 <!-- Studio Magot — FIX FLOU A LA REOUVERTURE (C267a) : à l'import, window._PMAX=1440, donc les photos s'affichaient nettes ; mais a froid (app ouverte 3-4 jours apres), window._PMAX etait undefined -> studioOpenFilm / _restorePhotoFromBlob / _decodeFromSrc retombaient sur 1200 et RE-sous-echantillonnaient les blobs 1440 stockes -> flou. Desormais la restauration/re-decodage utilise un PLANCHER Math.max(1440, ...) : les blobs stockes sont decodes a leur taille native (jamais reduits), donc une photo rouverte est aussi nette qu'a sa creation. Qualite JPEG de stockage 0.82 -> 0.86. Memoire inchangee (identique a la session de creation). · BUILD 2026-08-16-C267 -->
 <!-- Studio Magot — NETTETE MAX / NIVEAU CAPCUT (C267b) : les photos etaient plafonnees a 1440 px alors que le montage s'EXPORTE en 1920 px -> agrandissement ~33% = flou meme en session fraiche et dans la video finale. Desormais _PCAP=1920 : source photo = resolution d'export, plus aucun upscale, netteté maximale a l'ecran ET a l'export. Le cache memoire _DEC_MAX n'est plus un nombre fixe mais un BUDGET RAM (190 Mo iOS ; adapte a la RAM sur Android) : a 1920 px on garde automatiquement moins de photos decodees pour tenir le budget -> aucun crash iPhone. Import >600 photos: repli a 1440 (encodage plus rapide). Les films crees avant restent en 1440 (blob deja encode) ; les nouveaux sont en 1920. · BUILD 2026-08-16-C267 -->
@@ -8357,6 +8357,21 @@ function loop(){
   _atmo=sg?(sg.atmo||null):null; _atmoAmt=(ATMO_AMT[MOOD]!=null?ATMO_AMT[MOOD]:0.6);
   var _hEl=document.querySelector(".hero");
   var _vidNow=(sg && sg.video && sg.vclip!=null && CLIPS[sg.vclip] && CLIPS[sg.vclip].ready && !inTrans);   /* Lecture NATIVE pour tout plan vidéo hors transition, plein écran inclus (iOS ne peut pas redessiner une vidéo sur canvas sans la figer). Le canvas ne sert plus que pour les photos et l’export. */
+  /* ===== DIAGNOSTIC TEMPORAIRE (à retirer) : état réel du clip vidéo pendant la lecture ===== */
+  try{
+    var _dbg=document.getElementById("mvDbg");
+    if(!_dbg){ _dbg=document.createElement("div"); _dbg.id="mvDbg"; _dbg.style.cssText="position:fixed;left:4px;top:4px;z-index:99999;background:rgba(0,0,0,.8);color:#0f0;font:11px/1.35 ui-monospace,monospace;padding:5px 7px;border-radius:5px;pointer-events:none;white-space:pre;max-width:78vw"; document.body.appendChild(_dbg); }
+    if(!window._mvCtLast) window._mvCtLast={};
+    var _dl="t="+t.toFixed(1)+"  seg="+idx+(sg&&sg.video?" VIDEO":" photo")+(inTrans?" [TRANS]":"");
+    if(sg&&sg.video&&sg.vclip!=null&&CLIPS[sg.vclip]){ var _e=CLIPS[sg.vclip].el;
+      var _ctv=(_e.currentTime||0); var _prev=window._mvCtLast[sg.vclip]; var _adv=(_prev!=null)?(Math.abs(_ctv-_prev)>0.001?"AVANCE":"FIGE"):"?"; window._mvCtLast[sg.vclip]=_ctv;
+      _dl+="\nvclip="+sg.vclip+" ct="+_ctv.toFixed(2)+"/"+(_e.duration||0).toFixed(1)+" -> "+_adv;
+      _dl+="\npaused="+_e.paused+" rs="+_e.readyState+" ns="+_e.networkState+" err="+(_e.error?_e.error.code:"-");
+      _dl+="\nmode="+(_vidNow?"NATIF":"canvas")+" op="+(_e.style.opacity||"?")+" src="+(_e.getAttribute("src")?"ok":"VIDE")+" clips="+CLIPS.length;
+    }
+    _dbg.textContent=_dl;
+  }catch(_dbgE){}
+  
   if(_vidNow){ _showClipOverlay(CLIPS[sg.vclip].el); }
   else {
     _hideClipOverlay();
