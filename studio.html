@@ -1,6 +1,6 @@
 <!doctype html>
 <!-- Studio Magot — FIX GEL APRES INITIALISATION : _expYield utilisait requestAnimationFrame, qui peut ne JAMAIS se declencher en webview iOS -> await bloque a vie juste apres Initialisation. Remplace par setTimeout(0) qui se declenche toujours. C-etait le seul await non-borne de la preparation. · BUILD 2026-08-13-C156 -->
-<!-- Studio Magot — FIX EXPORT ANTI-BLOCAGE (C156) : (1) venc.flush()/aenc.flush() etaient des await NON bornes -> gel a ~90% sur Safari/iOS quand l'encodeur ne rend jamais la main ; desormais bornes par _expRace() (25s/20s). (2) Aucun moyen de sortir d'un export fige : ajout bouton "Annuler" sur l'overlay + _expForceReset() qui rearme l'UI meme si un await reste parque. (3) Watchdog global 3 min. (4) Garde anti double-lancement (double-tap). (5) Repli MediaRecorder universel quand WebCodecs absent (vieux Android/iOS/Firefox) -> WebM/MP4 selon support, au lieu d'un cul-de-sac. · BUILD 2026-08-24-C179 (clips vidéo natifs en plein écran aussi) -->
+<!-- Studio Magot — FIX EXPORT ANTI-BLOCAGE (C156) : (1) venc.flush()/aenc.flush() etaient des await NON bornes -> gel a ~90% sur Safari/iOS quand l'encodeur ne rend jamais la main ; desormais bornes par _expRace() (25s/20s). (2) Aucun moyen de sortir d'un export fige : ajout bouton "Annuler" sur l'overlay + _expForceReset() qui rearme l'UI meme si un await reste parque. (3) Watchdog global 3 min. (4) Garde anti double-lancement (double-tap). (5) Repli MediaRecorder universel quand WebCodecs absent (vieux Android/iOS/Firefox) -> WebM/MP4 selon support, au lieu d'un cul-de-sac. · BUILD 2026-08-24-C180 (décodeurs vidéo iOS : libération dynamique) -->
 
 <!-- Studio Magot — FIX FLOU A LA REOUVERTURE (C267a) : à l'import, window._PMAX=1440, donc les photos s'affichaient nettes ; mais a froid (app ouverte 3-4 jours apres), window._PMAX etait undefined -> studioOpenFilm / _restorePhotoFromBlob / _decodeFromSrc retombaient sur 1200 et RE-sous-echantillonnaient les blobs 1440 stockes -> flou. Desormais la restauration/re-decodage utilise un PLANCHER Math.max(1440, ...) : les blobs stockes sont decodes a leur taille native (jamais reduits), donc une photo rouverte est aussi nette qu'a sa creation. Qualite JPEG de stockage 0.82 -> 0.86. Memoire inchangee (identique a la session de creation). · BUILD 2026-08-16-C267 -->
 <!-- Studio Magot — NETTETE MAX / NIVEAU CAPCUT (C267b) : les photos etaient plafonnees a 1440 px alors que le montage s'EXPORTE en 1920 px -> agrandissement ~33% = flou meme en session fraiche et dans la video finale. Desormais _PCAP=1920 : source photo = resolution d'export, plus aucun upscale, netteté maximale a l'ecran ET a l'export. Le cache memoire _DEC_MAX n'est plus un nombre fixe mais un BUDGET RAM (190 Mo iOS ; adapte a la RAM sur Android) : a 1920 px on garde automatiquement moins de photos decodees pour tenir le budget -> aucun crash iPhone. Import >600 photos: repli a 1440 (encodage plus rapide). Les films crees avant restent en 1440 (blob deja encode) ; les nouveaux sont en 1920. · BUILD 2026-08-16-C267 -->
@@ -8320,7 +8320,7 @@ function loop(){
   var inTrans=(sg&&next&&TRd>0&&t>=preStart&&t<next.start);
   var trProg=inTrans?((t-preStart)/TRd):0;
   if(sg && sg.video && sg.vclip!=null && CLIPS[sg.vclip] && CLIPS[sg.vclip].ready){ var _clA=CLIPS[sg.vclip];
-    if(VIDACT!==idx){ VIDACT=idx; for(var _c=0;_c<CLIPS.length;_c++){ if(_c!==sg.vclip){ try{ CLIPS[_c].el.pause(); }catch(e){} } } try{ _clA.el.muted=true; _clA.el.playbackRate=(sg.vspeed||_clA.speed||1); if(Math.abs((_clA.el.currentTime||0)-(sg.vstart||0))>0.18) _clA.el.currentTime=sg.vstart||0; }catch(e){} var _pv=_clA.el.play(); if(_pv&&_pv.then) _pv.catch(function(){}); }
+    if(VIDACT!==idx){ VIDACT=idx; try{ if(!inTrans) _showClipOverlay(_clA.el); }catch(_sv){} for(var _c=0;_c<CLIPS.length;_c++){ if(_c!==sg.vclip){ try{ CLIPS[_c].el.pause(); }catch(e){} } } try{ _clA.el.muted=true; _clA.el.playbackRate=(sg.vspeed||_clA.speed||1); if(Math.abs((_clA.el.currentTime||0)-(sg.vstart||0))>0.18) _clA.el.currentTime=sg.vstart||0; }catch(e){} var _pv=_clA.el.play(); if(_pv&&_pv.then) _pv.catch(function(){}); }
     /* MAINTIEN DE LECTURE : un <video> muted inline peut se figer tout seul sur iOS, ou le clip atteint sa fin
        avant la fin du plan -> on le relance / on repart au début de l\u2019extrait pour qu\u2019il tourne en continu. */
     try{ var _cd=_clA.el.duration||_clA.dur||0;                       /* iOS : el.duration souvent 0 -> repli sur la durée connue du clip */
@@ -8338,7 +8338,21 @@ function loop(){
       if(_cN.el.paused){ var _pn=_cN.el.play(); if(_pn&&_pn.then) _pn.catch(function(){}); }
     }catch(e){}
   }
-  try{ if(typeof SEGS!=="undefined"&&SEGS&&idx>=0){ var _primed=0; for(var _pi2=idx+1; _pi2<SEGS.length && (SEGS[_pi2].start-t)<2.8 && _primed<3; _pi2++){ var _ps=SEGS[_pi2]; if(_ps.video&&_ps.vclip!=null&&_ps.vclip!==sg.vclip&&CLIPS[_ps.vclip]&&CLIPS[_ps.vclip].ready){ var _pe=CLIPS[_ps.vclip].el; if(_pe.paused && Math.abs((_pe.currentTime||0)-(_ps.vstart||0))>0.12){ _pe.muted=true; try{ _pe.currentTime=_ps.vstart||0; }catch(_e){} } _primed++; } } } }catch(e){}
+  /* CYCLE DE VIE DES DÉCODEURS iOS : garder chargés uniquement le clip courant + les prochains plans vidéo proches,
+     et LIBÉRER (src vidé) les clips lointains -> iOS ne décode que ~3-4 vidéos à la fois ; sans ça le clip qui joue gèle. */
+  try{ if(SEGS && idx>=0){
+    var _keep={}; if(sg&&sg.video&&sg.vclip!=null) _keep[sg.vclip]=1;
+    var _look=0; for(var _pk2=idx+1; _pk2<SEGS.length && _look<3; _pk2++){ var _psk=SEGS[_pk2]; if(_psk.video&&_psk.vclip!=null){ _keep[_psk.vclip]=1; _look++; } }
+    var _kk=Object.keys(_keep).sort().join(",");
+    if(_kk!==window._vidKeepSig){ window._vidKeepSig=_kk;
+      for(var _ci=0;_ci<CLIPS.length;_ci++){ var _cc=CLIPS[_ci]; if(!_cc||!_cc.el) continue;
+        if(_keep[_ci]){ if(!_cc.el.getAttribute("src") && _cc._u){ try{ _cc.el.src=_cc._u; _cc.el.load(); }catch(e){} } }
+        else { if(_cc.el.getAttribute("src")){ try{ _cc.el.pause(); _cc.el.removeAttribute("src"); _cc.el.load(); }catch(e){} } }
+      }
+    }
+    /* préchargement léger : positionner le prochain clip encore chargé sur son point de départ */
+    for(var _pi2=idx+1; _pi2<SEGS.length && (SEGS[_pi2].start-t)<3.0; _pi2++){ var _ps=SEGS[_pi2]; if(_ps.video&&_ps.vclip!=null&&_ps.vclip!==((sg&&sg.vclip!=null)?sg.vclip:-1)&&CLIPS[_ps.vclip]&&CLIPS[_ps.vclip].el.getAttribute("src")){ var _pe=CLIPS[_ps.vclip].el; try{ _pe.muted=true; if(_pe.paused && Math.abs((_pe.currentTime||0)-(_ps.vstart||0))>0.15) _pe.currentTime=_ps.vstart||0; }catch(_e){} break; } }
+  } }catch(e){}
   var strongPulse=(sg&&sg.strong&&into<0.10)?(1-into/0.10):0;
   _atmo=sg?(sg.atmo||null):null; _atmoAmt=(ATMO_AMT[MOOD]!=null?ATMO_AMT[MOOD]:0.6);
   var _hEl=document.querySelector(".hero");
