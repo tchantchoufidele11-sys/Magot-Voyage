@@ -1649,6 +1649,18 @@ function buildPartition(){
     /* CONTENTION HEVC : deux plans vidéo consécutifs -> COUPE FRANCHE. Un fondu dessinerait les
        deux clips en même temps = deux décodeurs HEVC simultanés = gel ~1s (limite iPhone). */
     for(var _vv=1; _vv<SEGS.length; _vv++){ if(SEGS[_vv].video && SEGS[_vv-1] && SEGS[_vv-1].video){ SEGS[_vv].trans="cut"; SEGS[_vv].trDur=0; } }
+    /* MÉTRAGE : garantir que le clip a des images pour TOUTE la durée du plan, sans figer.
+       Assez de métrage -> caler vstart (lecture continue à la vitesse choisie).
+       Pas assez -> RALENTIR le plan (vspeed abaissé) pour couvrir la durée en mouvement continu,
+       au lieu de figer sur la dernière image. Aucun rebouclage, aucun seek, calcul en partition. */
+    for(var _vf=0; _vf<SEGS.length; _vf++){ var _sv=SEGS[_vf];
+      if(!(_sv.video && _sv.vclip!=null && CLIPS[_sv.vclip])) continue;
+      var _cl=CLIPS[_sv.vclip], _cd=_cl.dur||0; if(_cd<=0.2) continue;
+      var _lo=(_cl.trimStart!=null?_cl.trimStart:0), _avail=Math.max(0.1,_cd-_lo-0.05);
+      var _D=Math.max(0.1,_sv.end-_sv.start), _s=(_sv.vspeed||_cl.speed||1)||1, _need=_D*_s;
+      if(_need<=_avail){ var _maxStart=_lo+_avail-_need, _cur=(_sv.vstart!=null?_sv.vstart:_lo); _sv.vstart=Math.max(_lo,Math.min(_cur,_maxStart)); }
+      else { _sv.vspeed=Math.max(0.0625,_avail/_D); _sv.vstart=_lo; }
+    }
   }
   for(var _es=0; _es<SEGS.length; _es++){ if(!SEGS[_es].video && SEGS[_es].img!=null && SEGS[_es].img>=0){ var _en=_capNeeded(SEGS[_es].img); if(_en>0){ while((SEGS[_es].end-SEGS[_es].start) < _en-0.01 && _es+1<SEGS.length && !SEGS[_es+1].video){ SEGS[_es].end=SEGS[_es+1].end; SEGS.splice(_es+1,1); } } } }
   /* Repères de jour : les photos sont déjà triées par journée (computePhotoOrder).
