@@ -9910,6 +9910,7 @@ function ensureTripFilm(tr){ try{
   fr.style.cssText="position:fixed;left:0;bottom:0;width:2px;height:2px;opacity:0.01;pointer-events:none;border:0;z-index:-1";
   function cleanup(){ if(done) return; done=true; _hlFilmBusy=false; try{ fr.remove(); }catch(e){} }
   function finishOk(){ if(done) return; cleanup();
+    try{ var _o=document.getElementById("studioOverlay"); if(_o&&_o.classList.contains("show")) return; }catch(e){}   /* studio ouvert -> ne pas rafraîchir/ramener à l'accueil */
     try{ toast(({fr:"\uD83C\uDFAC Ton film est pr\u00eat",en:"\uD83C\uDFAC Your film is ready",es:"\uD83C\uDFAC Tu pel\u00edcula est\u00e1 lista",it:"\uD83C\uDFAC Il tuo film \u00e8 pronto",de:"\uD83C\uDFAC Dein Film ist fertig"})[_studioLang()]||"\uD83C\uDFAC Ton film est pr\u00eat"); }catch(e){}
     try{ if(typeof renderMemories==="function") renderMemories(); }catch(e){}
     try{ if(typeof renderHome==="function") renderHome(); }catch(e){}
@@ -9929,6 +9930,7 @@ function ensureTripFilm(tr){ try{
   fr.src="studio.html"; document.body.appendChild(fr);
 }catch(e){ _hlFilmBusy=false; } }
 function openStudio(tr,version,autoplay){ tr=tr||souvTrip()||null; _studioTrip=tr;   /* studio ouvrable sans voyage : écran d’accueil + import manuel */
+  try{ var _hf=document.querySelector('iframe[name="mv-headless"]'); if(_hf) _hf.remove(); _hlFilmBusy=false; }catch(e){}   /* stop toute construction en arrière-plan */
   let ov=document.getElementById("studioOverlay");
   const backLbl=({fr:"Retour",en:"Back",es:"Volver",it:"Indietro",de:"Zur\u00fcck"})[_studioLang()]||"Retour";
   if(!ov){ ov=document.createElement("div"); ov.id="studioOverlay"; ov.className="studio-ov";

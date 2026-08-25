@@ -845,7 +845,7 @@ input[type=range]::-moz-range-thumb{width:22px;height:22px;border:0;border-radiu
 <main class="app">
   <header class="header">
     <div class="header-left"></div>
-    <div class="brand"><h1>Studio Magot<i>✦</i></h1><p>Montage vidéo · C301</p></div>
+    <div class="brand"><h1>Studio Magot<i>✦</i></h1><p>Montage vidéo · C302</p></div>
     <button class="export" id="expBtn"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 15V3m0 0L7 8m5-5l5 5M5 15v4h14v-4"/></svg> Exporter</button>
   </header>
 
@@ -8412,7 +8412,9 @@ function _updateSourceLabels(){ try{
 }catch(e){} }
 try{ if(document.readyState!=="loading") setTimeout(function(){_wireEmptyButtons();},300); else document.addEventListener("DOMContentLoaded",function(){ setTimeout(function(){_wireEmptyButtons();},300); }); }catch(e){}
 try{ setTimeout(function(){ try{ if(window._studioTuto) window._studioTuto(); }catch(e){} }, 1400); }catch(e){}
-function _studioReady(){ try{
+var _readyShown=false;
+function _maybeReady(){ try{ if(_readyShown) return; if(typeof A!=="undefined" && A && ((typeof PHOTOS!=="undefined"&&PHOTOS.length) || (typeof clipVidReady!=="undefined"&&clipVidReady))) _studioReady(); }catch(e){} }
+function _studioReady(){ _readyShown=true; try{
   var b=document.getElementById("studioReadyBanner");
   if(!b){ b=document.createElement("div"); b.id="studioReadyBanner"; document.body.appendChild(b); }
   b.textContent="✓ "+_st("Ton montage est prêt")+" — "+_st("appuie sur Lire le film");
@@ -8489,12 +8491,13 @@ function updateBadge(){ try{ _updateSourceLabels(); }catch(e){}
   if(_A){ parts.push(_A.engine==="essentia"?"Essentia":"maison"); parts.push(_A.bpm?(_A.bpm+" BPM"):"rég."); if(_A.engine==="essentia"&&_A.conf) parts.push("conf "+_A.conf.toFixed(1)); parts.push((_A.beats?_A.beats.length:0)+" temps"); }
   parts.push(PHOTOS.length+" ph"); if(SEGS.length) parts.push(SEGS.length+" plans"); if(TR&&TR.okCount) parts.push(TR.okCount+" trans"); if(ATMO&&ATMO.okCount) parts.push(ATMO.okCount+" atmo");
   document.getElementById("badge").textContent=parts.join(" · ");
+  try{ _maybeReady(); }catch(e){}
 }
 document.getElementById("pickMusic").onclick=function(){ ensureAudio(); document.getElementById("fMusic").click(); };
 document.getElementById("pickPhotos").onclick=function(){ document.getElementById("fPhotos").click(); };
 document.getElementById("play").onclick=function(){ var self=this; ensureAudio(); if(playing){ stopPlay(); self.textContent="▶ Reprendre"; } else { startPlay(); try{ var _rb=document.getElementById("studioReadyBanner"); if(_rb) _rb.classList.remove("show"); }catch(e){} try{ self.classList.remove("_pulse"); var _wb=document.getElementById("watchBtn"); if(_wb) _wb.classList.remove("_pulse"); }catch(e){} } };
 document.getElementById("restart").onclick=function(){ if(!A||(!PHOTOS.length&&!clipVidReady)) return; pausedOffset=0; buildPartition(); stopPlay(); startPlay(); setTimeout(function(){ if(playing) document.getElementById("play").textContent="⏸ Pause"; },30); };
-document.getElementById("clear").onclick=function(){ stopPlay(); PHOTOS.forEach(function(p){ try{URL.revokeObjectURL(p.url);}catch(e){} }); PHOTOS=[]; SEGS=[]; A=null; AUDIOBUF=null; pausedOffset=0; stripDirty=true;
+document.getElementById("clear").onclick=function(){ stopPlay(); _readyShown=false; PHOTOS.forEach(function(p){ try{URL.revokeObjectURL(p.url);}catch(e){} }); PHOTOS=[]; SEGS=[]; A=null; AUDIOBUF=null; pausedOffset=0; stripDirty=true;
   try{ if(typeof CLIPS!=="undefined"){ CLIPS.forEach(function(c){ try{ c.el.pause(); if(c.el._u) URL.revokeObjectURL(c.el._u); c.el.remove(); }catch(e){} }); CLIPS.length=0; } clipVidReady=false; }catch(e){}
   try{ _hideClipOverlay(); }catch(e){}
   try{ window.USER_ORDER=null; window.SIGN_TEXT=null; window._restSeen={}; window.__activeMusicFile=null; }catch(e){}
