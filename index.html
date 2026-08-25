@@ -3532,7 +3532,7 @@ function switchTab(name){ currentTab=name;
   if(name==="explore") renderExplore();
   if(name==="plan"){ planGotoToday(); renderPlan(); }
   if(name==="budget") renderBudget();
-  if(name==="memories"){ souvState.tripId=null; souvState.dayView=null; renderMemories(); }
+  if(name==="memories"){ souvState.tripId=null; souvState.dayView=null; renderMemories(); try{ ensureTripFilm(souvTrip()); }catch(e){} }
 }
 
 /* ===================== TOAST ===================== */
@@ -9496,10 +9496,11 @@ function _pastTripsHtml(list){
   let o=`<div class="mem-sec-head" style="margin-top:22px"><h2>${t("mem.pastTrips")}</h2></div><div class="past-trips">`,ly="";
   list.forEach(pt=>{ const yr=(pt.dateEnd||"").slice(0,4); if(yr&&yr!==ly){ o+=`<div class="past-year">${yr}</div>`; ly=yr; }
     const hasPh=((pt.memories||[]).length>0);
+    const hasFilm=!!_studioFilmMeta(pt.id);
     o+=`<div class="past-acc" data-ptid="${escapeHtml(pt.id)}">`
       + `<button class="past-card" data-pasthead="${escapeHtml(pt.id)}"><span class="pc-cv" style="${coverStyle(pt)}"></span><span class="pc-nf"><span class="pc-nn">${escapeHtml(tripTitle(pt))}</span><span class="pc-dd">${fmtRange(pt.dateStart,pt.dateEnd)}</span></span><span class="pc-chev">\u203A</span></button>`
       + `<div class="past-body">`
-        + `<button class="pt-act pt-film" data-ptfilm="${escapeHtml(pt.id)}">${hasPh?lFilmSeen:lFilmNew}</button>`
+        + `<button class="pt-act pt-film" data-ptfilm="${escapeHtml(pt.id)}">${hasFilm?lFilmSeen:lFilmNew}</button>`
         + `<button class="pt-act" data-ptcarnet="${escapeHtml(pt.id)}">${lCarnet}</button>`
         + `<button class="pt-act" data-ptdays="${escapeHtml(pt.id)}">${lDays}</button>`
       + `</div></div>`;
@@ -9886,6 +9887,47 @@ async function studioFeed(w, tr){ if(!w||!tr) return;
     else if(typeof w._origFmt==="function" && typeof w._setFormat==="function"){ const f=w._origFmt(); if(f&&f.w&&f.h) w._setFormat(f.w,f.h,"Origine"); }
   }catch(e){} }, 700);
 }
+/* Le studio enregistre chaque film du voyage sous l'id "trip:<id>" (même origine -> localStorage partagé).
+   On lit l'entrée d'index pour savoir si un film existe et récupérer sa vignette + le nombre de médias. */
+function _studioFilmMeta(tripId){ try{ if(!tripId) return null;
+  var arr=JSON.parse(localStorage.getItem("studioMagotFilms")||"[]"); var id="trip:"+tripId;
+  for(var i=0;i<arr.length;i++){ if(arr[i]&&arr[i].id===id) return arr[i]; }
+}catch(e){} return null; }
+/* Construction du film EN ARRIÈRE-PLAN, sans ouvrir le studio : une iframe studio cachée
+   réutilise le moteur (studioFeed -> studioAutoMontage -> auto-enregistrement). Comme le
+   stockage est en même origine, le film enregistré devient visible pour l'app. */
+var _hlFilmBusy=false;
+function ensureTripFilm(tr){ try{
+  if(!tr||!tr.id) return;
+  if(_studioFilmMeta(tr.id)) return;                         /* déjà un film */
+  if(!((tr.memories||[]).length)) return;                   /* rien à monter */
+  if(_hlFilmBusy) return;                                    /* une seule construction à la fois */
+  var ov=document.getElementById("studioOverlay"); if(ov && ov.classList.contains("show")) return;  /* pas pendant le studio visible */
+  _hlFilmBusy=true;
+  var done=false, tStart=Date.now();
+  var fr=document.createElement("iframe");
+  fr.setAttribute("aria-hidden","true"); fr.setAttribute("allow","autoplay; encrypted-media"); try{ fr.name="mv-headless"; }catch(e){}
+  fr.style.cssText="position:fixed;left:0;bottom:0;width:2px;height:2px;opacity:0.01;pointer-events:none;border:0;z-index:-1";
+  function cleanup(){ if(done) return; done=true; _hlFilmBusy=false; try{ fr.remove(); }catch(e){} }
+  function finishOk(){ if(done) return; cleanup();
+    try{ toast(({fr:"\uD83C\uDFAC Ton film est pr\u00eat",en:"\uD83C\uDFAC Your film is ready",es:"\uD83C\uDFAC Tu pel\u00edcula est\u00e1 lista",it:"\uD83C\uDFAC Il tuo film \u00e8 pronto",de:"\uD83C\uDFAC Dein Film ist fertig"})[_studioLang()]||"\uD83C\uDFAC Ton film est pr\u00eat"); }catch(e){}
+    try{ if(typeof renderMemories==="function") renderMemories(); }catch(e){}
+    try{ if(typeof renderHome==="function") renderHome(); }catch(e){}
+  }
+  fr.onload=function(){ var w=fr.contentWindow; if(!w){ cleanup(); return; }
+    try{ w.STUDIO_LANG=_studioLang(); }catch(e){}
+    try{ w.STUDIO_ADMIN=(typeof isAdmin==="function")?!!isAdmin():false; }catch(e){}
+    try{ w.STUDIO_CATALOG=studioCatalog; }catch(e){}
+    try{ w.STUDIO_AICAPTION=window.magotCaptionSuggest; }catch(e){}
+    try{ if(typeof w._applyStudioLang==="function") w._applyStudioLang(w.STUDIO_LANG); }catch(e){}
+    var tries=0, iv=setInterval(function(){ tries++;
+      if(w.studioAutoMontage){ clearInterval(iv); try{ studioFeed(w, tr); }catch(e){}
+        var wv=setInterval(function(){ if(_studioFilmMeta(tr.id)){ clearInterval(wv); setTimeout(finishOk,1000); } else if(Date.now()-tStart>30000){ clearInterval(wv); cleanup(); } },400);
+      } else if(tries>40){ clearInterval(iv); cleanup(); }
+    },150);
+  };
+  fr.src="studio.html"; document.body.appendChild(fr);
+}catch(e){ _hlFilmBusy=false; } }
 function openStudio(tr,version,autoplay){ tr=tr||souvTrip()||null; _studioTrip=tr;   /* studio ouvrable sans voyage : écran d’accueil + import manuel */
   let ov=document.getElementById("studioOverlay");
   const backLbl=({fr:"Retour",en:"Back",es:"Volver",it:"Indietro",de:"Zur\u00fcck"})[_studioLang()]||"Retour";
@@ -12903,7 +12945,7 @@ function mvRun(tr,total){
   if(au){ mvAudioResume(); mvOverlayPlayAll(true); au.play().then(()=>{ mvSetPlaying(true); }).catch(()=>{ mvSetPlaying(false); toast("Appuie sur \u25b6 pour lancer le film (iOS bloque le son automatique)."); }); }
   step();
 }
-function _souvStudioTop(){ try{ var lang=(typeof _studioLang==="function"&&_studioLang())||"fr"; var lbl=({fr:"Ouvrir le studio",en:"Open the studio",es:"Abrir el estudio",it:"Apri lo studio",de:"Studio \u00f6ffnen"})[lang]||"Ouvrir le studio"; return '<button onclick="openStudio(souvTrip())" style="display:flex;align-items:center;justify-content:center;gap:8px;width:100%;background:linear-gradient(135deg,#D4AF37,#b8952f);color:#1a1710;border:0;font:700 15px system-ui;padding:14px;border-radius:14px;cursor:pointer;margin:2px 0 14px;box-shadow:0 4px 16px rgba(212,175,55,.3)">\uD83C\uDFAC '+lbl+'</button>'; }catch(e){ return ""; } }
+function _souvStudioTop(){ try{ var lang=(typeof _studioLang==="function"&&_studioLang())||"fr"; var lbl=({fr:"Ouvrir le studio",en:"Open the studio",es:"Abrir el estudio",it:"Apri lo studio",de:"Studio \u00f6ffnen"})[lang]||"Ouvrir le studio"; var _tr=(typeof souvTrip==="function")?souvTrip():null; var _fm=_tr?_studioFilmMeta(_tr.id):null; if(_fm && _fm.thumb){ var lplay=({fr:"Voir ton film",en:"Watch your film",es:"Ver tu pel\u00edcula",it:"Guarda il tuo film",de:"Deinen Film ansehen"})[lang]||"Voir ton film"; var lsub=({fr:"Appuie pour jouer ou modifier",en:"Tap to play or edit",es:"Toca para reproducir o editar",it:"Tocca per riprodurre o modificare",de:"Zum Abspielen oder Bearbeiten tippen"})[lang]||"Appuie pour jouer ou modifier"; var lmed=({fr:"m\u00e9dias",en:"media",es:"medios",it:"media",de:"Medien"})[lang]||"m\u00e9dias"; return '<button onclick="openStudio(souvTrip())" style="display:flex;align-items:center;gap:12px;width:100%;text-align:left;background:linear-gradient(135deg,#0E2148,#1a2f5c);color:#fff;border:1px solid rgba(212,175,55,.4);font:inherit;padding:10px;border-radius:14px;cursor:pointer;margin:2px 0 14px;box-shadow:0 4px 16px rgba(0,0,0,.25)"><span style="flex:0 0 auto;width:60px;height:90px;border-radius:10px;background:#000 center/cover no-repeat;background-image:url(\''+_fm.thumb+'\');position:relative;box-shadow:0 2px 8px rgba(0,0,0,.4)"><span style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:22px;color:#fff;text-shadow:0 1px 4px rgba(0,0,0,.6)">\u25B6</span></span><span style="flex:1;min-width:0"><span style="display:block;font:700 15px system-ui;color:#D4AF37">\uD83C\uDFAC '+lplay+'</span><span style="display:block;font:400 12.5px system-ui;color:#c7d3ee;margin-top:2px">'+lsub+(_fm.count?(" \u00b7 "+_fm.count+" "+lmed):"")+'</span></span></button>'; } return '<button onclick="openStudio(souvTrip())" style="display:flex;align-items:center;justify-content:center;gap:8px;width:100%;background:linear-gradient(135deg,#D4AF37,#b8952f);color:#1a1710;border:0;font:700 15px system-ui;padding:14px;border-radius:14px;cursor:pointer;margin:2px 0 14px;box-shadow:0 4px 16px rgba(212,175,55,.3)">\uD83C\uDFAC '+lbl+'</button>'; }catch(e){ return ""; } }
 function souvMontageCard(tr,compact){ const feats=[["\u266A",svT("mvMusic"),svT("mvMusicS")],["\u2751",svT("mvPh"),svT("mvPhS")],["\u2726",svT("mvAuto"),svT("mvAutoS")]];
   const keys=["music","photos","auto"];
   return `<div class="sv-head"><span class="sv-ic">${ICO_FILM_SV}</span><div class="sv-ht"><h3>${svT("mvTitle")} <span class="sv-new">${svT("nw")}</span></h3><p>${svT("mvSub")}</p></div></div>
@@ -13236,7 +13278,7 @@ function renderMemories(){ const body=document.getElementById("memBody"); if(!bo
   const _bilanBtn=(tr&&tripFinished(tr))?`<button class="mem-bilan" id="memBilan">📊 ${t("bilan.title")}</button>`:"";
   const _delBtn=viewingPast?`<button class="mem-del" id="memDel">${t("mem.deleteTrip")}</button>`:"";
   const _bindExtra=()=>{ body.querySelectorAll("[data-pasttrip]").forEach(b=>b.onclick=()=>{ souvState.tripId=b.dataset.pasttrip; souvState.filter="all"; souvState.dayView=null; renderMemories(); });
-    body.querySelectorAll("[data-pasthead]").forEach(b=>b.onclick=()=>{ const a=b.closest(".past-acc"); if(a) a.classList.toggle("open"); });
+    body.querySelectorAll("[data-pasthead]").forEach(b=>b.onclick=()=>{ const a=b.closest(".past-acc"); if(a){ const _op=a.classList.toggle("open"); if(_op){ const _tp=S.trips.find(x=>x.id===b.dataset.pasthead); if(_tp){ try{ ensureTripFilm(_tp); }catch(e){} } } } });
     body.querySelectorAll("[data-ptfilm]").forEach(b=>b.onclick=()=>{ const _tp=S.trips.find(x=>x.id===b.dataset.ptfilm); if(_tp) openStudio(_tp); });
     body.querySelectorAll("[data-ptcarnet]").forEach(b=>b.onclick=()=>{ souvState.tripId=b.dataset.ptcarnet; souvState.filter="carnet"; souvState.dayView=null; renderMemories(); });
     body.querySelectorAll("[data-ptdays]").forEach(b=>b.onclick=()=>{ souvState.tripId=b.dataset.ptdays; souvState.filter="photos"; souvState.dayView=null; renderMemories(); }); const bk=body.querySelector("#memBack"); if(bk) bk.onclick=()=>{ souvState.tripId=null; souvState.dayView=null; souvState.filter="journal"; renderMemories(); }; const mb=body.querySelector("#memBilan"); if(mb) mb.onclick=()=>openBilan(tr); const md=body.querySelector("#memDel"); if(md) md.onclick=()=>protectedDeleteTrip(tr); };

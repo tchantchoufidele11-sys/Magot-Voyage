@@ -8457,7 +8457,7 @@ function _studioTuto(){ try{ if(document.getElementById("mvTuto")) return; }catc
   render(); document.body.appendChild(ov);
 }
 try{ window.studioShowTuto=_studioTuto; }catch(e){}
-(function(){ function _t(){ try{ if(!localStorage.getItem("mvStudioTutoV1")) setTimeout(_studioTuto,1000); }catch(e){} }
+(function(){ function _t(){ try{ if(window.name==="mv-headless") return; if(!localStorage.getItem("mvStudioTutoV1")) setTimeout(_studioTuto,1000); }catch(e){} }
   if(document.readyState==="loading"){ document.addEventListener("DOMContentLoaded",_t); } else { _t(); } })();
 function studioAutoMontage(input){
   input=input||{};
@@ -8500,6 +8500,9 @@ function studioAutoMontage(input){
           var _mt=(window.__activeMusicMeta&&window.__activeMusicMeta.title)||"";
           var _parts=[]; if(_np) _parts.push(_np+" photo"+(_np>1?"s":"")); if(_nv) _parts.push(_nv+" vidéo"+(_nv>1?"s":""));
           _studioReady("🎬 "+_st("Prêt à jouer")+" — "+_parts.join(", ")+(_mt?(" · ♪ "+_mt):""));
+          try{ for(var _pd0=0; _pd0<Math.min(PHOTOS.length,3); _pd0++) ensurePhotoDecoded(_pd0); }catch(e){}
+          try{ if(typeof studioSaveLocal==="function") studioSaveLocal(); }catch(e){}
+          setTimeout(function(){ try{ if(typeof studioSaveLocal==="function") studioSaveLocal(); }catch(e){} }, 800);
           if(input.autoplay){ _studioStopPulse(); startPlay(); }
         }catch(e){} }
       else if(n>150){ clearInterval(_iv); try{ setState(_st("Choisis une musique pour lancer le montage.")); }catch(e){} }
