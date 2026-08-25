@@ -9836,6 +9836,7 @@ function _studioSync(){ const fr=document.getElementById("studioFrame"); if(!fr)
   try{ w.STUDIO_LANG=_studioLang(); }catch(e){}
   try{ w.STUDIO_ADMIN=(typeof isAdmin==="function")?!!isAdmin():false; }catch(e){}
   try{ w.STUDIO_CATALOG=studioCatalog; }catch(e){}
+  try{ w.STUDIO_AICAPTION=window.magotCaptionSuggest; }catch(e){}
   try{ if(typeof w._applyStudioLang==="function") w._applyStudioLang(w.STUDIO_LANG); }catch(e){}
 }
 function _studioRevoke(){ try{ _studioURLs.forEach(u=>{ try{ URL.revokeObjectURL(u); }catch(e){} }); }catch(e){} _studioURLs=[]; }
@@ -9897,6 +9898,7 @@ function openStudio(tr,version,autoplay){ tr=tr||souvTrip()||null; _studioTrip=t
       w.STUDIO_LANG=_studioLang();
       w.STUDIO_ADMIN=(typeof isAdmin==="function")?!!isAdmin():false;
       try{ w.STUDIO_CATALOG=studioCatalog; }catch(e){}
+      try{ w.STUDIO_AICAPTION=window.magotCaptionSuggest; }catch(e){}
       try{ if(typeof w._applyStudioLang==="function") w._applyStudioLang(w.STUDIO_LANG); }catch(e){}
       let _tries=0; const _feed=()=>{ if(w.studioAutoMontage){ studioOpen(w,_studioTrip); } else if(_tries++<25){ setTimeout(_feed,150); } }; _feed();
     }catch(e){} });

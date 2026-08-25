@@ -8435,6 +8435,30 @@ function _studioReady(msg){ try{ setState(msg||""); }catch(e){}
     st.textContent="@keyframes mvPlayPulse{0%{transform:translateY(0) scale(1);box-shadow:0 0 0 0 rgba(233,180,81,.55)}70%{transform:translateY(0) scale(1.015);box-shadow:0 0 0 14px rgba(233,180,81,0)}100%{transform:translateY(0) scale(1);box-shadow:0 0 0 0 rgba(233,180,81,0)}}.mv-pulse{animation:mvPlayPulse 1.5s ease-out infinite}";
     document.head.appendChild(st); } var pb=document.getElementById("play"); if(pb) pb.classList.add("mv-pulse"); }catch(e){}
 }
+/* ===== Tutoriel premier lancement du Studio (carrousel, une seule fois) ===== */
+function _studioTuto(){ try{ if(document.getElementById("mvTuto")) return; }catch(e){}
+  var steps=[
+    ["\uD83C\uDFAC","Bienvenue dans le Studio","Ton film souvenir se monte tout seul \u00e0 partir des photos et vid\u00e9os de ton voyage."],
+    ["\uD83C\uDFA8","Ambiances","Cin\u00e9ma, Doux, Voyage, Dynamique : chaque ambiance change le style du film et la musique choisie."],
+    ["\uD83C\uDFB5","Musique","Elle est choisie automatiquement selon l\u2019ambiance. Tu peux aussi appuyer sur \u00ab Musique \u00bb pour mettre la tienne."],
+    ["\uD83D\uDDBC\uFE0F","Photos & vid\u00e9os","Appuie sur une vignette pour la retoucher, \u00e9crire un texte, ou laisser Fid\u00e8le l\u2019\u00e9crire (l\u2019ic\u00f4ne \u2728)."],
+    ["\u25B6\uFE0F","Lecture & Export","Appuie sur \u00ab Lire le film \u00bb pour pr\u00e9visualiser, puis sur Exporter pour enregistrer ta vid\u00e9o."]
+  ];
+  try{ if(!document.getElementById("_mvTutoCSS")){ var st=document.createElement("style"); st.id="_mvTutoCSS";
+    st.textContent="#mvTuto{position:fixed;inset:0;z-index:100000;background:rgba(3,8,16,.72);-webkit-backdrop-filter:blur(6px);backdrop-filter:blur(6px);display:flex;align-items:center;justify-content:center;padding:24px}#mvTuto .mvt-card{width:min(92vw,360px);background:linear-gradient(180deg,#0e1a29,#0a1420);border:1px solid rgba(255,255,255,.1);border-radius:18px;padding:22px 20px 16px;box-shadow:0 20px 60px rgba(0,0,0,.6);color:#f5f7fb;text-align:center}#mvTuto .mvt-ic{font-size:38px;line-height:1;margin:4px 0 10px}#mvTuto .mvt-t{font:700 18px/1.25 Georgia,serif;margin:0 0 8px}#mvTuto .mvt-s{font:400 14px/1.5 system-ui;color:#c7d3ee;margin:0 0 16px}#mvTuto .mvt-dots{display:flex;gap:6px;justify-content:center;margin:0 0 14px}#mvTuto .mvt-dot{width:7px;height:7px;border-radius:50%;background:rgba(255,255,255,.22)}#mvTuto .mvt-dot.on{background:#e5aa34;width:18px;border-radius:4px}#mvTuto .mvt-row{display:flex;gap:10px;align-items:center;justify-content:space-between}#mvTuto .mvt-skip{background:none;border:0;color:#8ea1c6;font:600 13px system-ui;padding:8px}#mvTuto .mvt-next{flex:1;background:linear-gradient(180deg,#e9b451,#d6952f);color:#241603;border:0;border-radius:11px;padding:12px;font:700 14px system-ui}";
+    document.head.appendChild(st); } }catch(e){}
+  var ov=document.createElement("div"); ov.id="mvTuto"; var i=0;
+  function render(){ var s=steps[i];
+    ov.innerHTML='<div class="mvt-card"><div class="mvt-ic">'+s[0]+'</div><div class="mvt-t">'+s[1]+'</div><div class="mvt-s">'+s[2]+'</div><div class="mvt-dots">'+steps.map(function(_x,k){return '<span class="mvt-dot'+(k===i?" on":"")+'"></span>';}).join("")+'</div><div class="mvt-row"><button class="mvt-skip" id="mvtSkip">Passer</button><button class="mvt-next" id="mvtNext">'+(i<steps.length-1?"Suivant":"Compris")+'</button></div></div>';
+    var sk=ov.querySelector("#mvtSkip"); if(sk) sk.onclick=fin;
+    var nx=ov.querySelector("#mvtNext"); if(nx) nx.onclick=function(){ if(i<steps.length-1){ i++; render(); } else fin(); };
+  }
+  function fin(){ try{ localStorage.setItem("mvStudioTutoV1","1"); }catch(e){} try{ ov.remove(); }catch(e){} }
+  render(); document.body.appendChild(ov);
+}
+try{ window.studioShowTuto=_studioTuto; }catch(e){}
+(function(){ function _t(){ try{ if(!localStorage.getItem("mvStudioTutoV1")) setTimeout(_studioTuto,1000); }catch(e){} }
+  if(document.readyState==="loading"){ document.addEventListener("DOMContentLoaded",_t); } else { _t(); } })();
 function studioAutoMontage(input){
   input=input||{};
   var items=(input.items||[]).slice();
@@ -10027,7 +10051,19 @@ essentiaReady.then(function(ok){ if(!ok && !A){ /* silencieux : le repli se fait
     var co=ov.querySelector("#teColor"); if(co){ var cbtn=ov.querySelector('.te-cbtn'); function _paintA(v){ if(caEl) caEl.style.color=v; if(cbtn) cbtn.style.color=v; } _paintA(p._capColor||'#f5f7fb'); co.oninput=function(){ p._capColor=co.value; setAll('_capColor',p._capColor); _paintA(co.value); rp(); }; }
     var ta=ov.querySelector("#teInput"), cnt=ov.querySelector("#teCount"); if(ta) ta.oninput=function(){ p._cap=ta.value; if(cnt) cnt.textContent=ta.value.length+"/"+MAXLEN; rp(); };
     var all=ov.querySelector("#teAll"); if(all) all.onclick=function(){ window._capApplyAll=!window._capApplyAll; all.classList.toggle("on",window._capApplyAll); if(window._capApplyAll){ setAll("_capStyle",p._capStyle); setAll("_capAnim",p._capAnim); setAll("_capColor",p._capColor); setAll("_capFont",p._capFont); setAll("_capSize",p._capSize); setAll("_capPos",p._capPos); setAll("_capAlign",p._capAlign); } };
-    var ai=ov.querySelector("#teAI"); if(ai) ai.onclick=function(){ try{ if(typeof setState==="function") setState("Fid\u00e8le r\u00e9g\u00e9n\u00e9rera ton texte ici (bient\u00f4t)."); }catch(e){} };
+    var ai=ov.querySelector("#teAI"); if(ai) ai.onclick=function(){
+      var fn=(typeof window!=="undefined")?window.STUDIO_AICAPTION:null;
+      if(typeof fn!=="function"){ try{ setState(_st("Génération IA indisponible ici.")); }catch(e){} return; }
+      if(ai._busy) return; ai._busy=true; var _o=ai.innerHTML; ai.disabled=true; ai.style.opacity="0.55";
+      var cur=(ta&&ta.value||"").trim();
+      try{ setState(_st("Fidèle rédige\u2026")); }catch(e){}
+      Promise.resolve(fn(p._id, cur)).then(function(txt){
+        txt=(txt==null?"":String(txt)).trim(); if(txt.length>MAXLEN) txt=txt.slice(0,MAXLEN);
+        if(txt){ p._cap=txt; if(ta) ta.value=txt; if(cnt) cnt.textContent=txt.length+"/"+MAXLEN; rp(); try{ setState(""); }catch(e){} }
+        else { try{ setState(_st("Fidèle est occupé, réessaie dans un instant.")); }catch(e){} }
+      }).catch(function(){ try{ setState(_st("Fidèle est occupé, réessaie dans un instant.")); }catch(e){} })
+      .then(function(){ ai._busy=false; ai.disabled=false; ai.style.opacity=""; try{ ai.innerHTML=_o; }catch(e){} });
+    };
     function done(){ try{ ov.remove(); }catch(e){} try{ if(typeof renderPGrid==="function") renderPGrid(); }catch(e){} try{ if(A&&SEGS&&SEGS.length) paintStrip(playing?visualTime():0); }catch(e){} }
     var dn=ov.querySelector("#teDone"); if(dn) dn.onclick=done;
     ov.onclick=function(e){ if(e.target===ov) done(); };
