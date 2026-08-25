@@ -845,7 +845,7 @@ input[type=range]::-moz-range-thumb{width:22px;height:22px;border:0;border-radiu
 <main class="app">
   <header class="header">
     <div class="header-left"></div>
-    <div class="brand"><h1>Studio Magot<i>✦</i></h1><p>Montage vidéo · C299</p></div>
+    <div class="brand"><h1>Studio Magot<i>✦</i></h1><p>Montage vidéo · C301</p></div>
     <button class="export" id="expBtn"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 15V3m0 0L7 8m5-5l5 5M5 15v4h14v-4"/></svg> Exporter</button>
   </header>
 
@@ -8421,7 +8421,7 @@ function _studioReady(){ try{
   clearTimeout(window._srT); window._srT=setTimeout(function(){ try{ b.classList.remove("show"); }catch(e){} }, 30000);
 }catch(e){} }
 window._studioTuto=function(force){ try{
-  if(!force && localStorage.getItem("magot_studio_tuto_v1")) return;
+  if(!force && localStorage.getItem("magot_studio_tuto_v2")) return;
   if(document.getElementById("studioTuto")) return;
   var T=function(fr){ try{ return (typeof _st==="function")?_st(fr):fr; }catch(e){ return fr; } };
   var AV='<svg viewBox="0 0 24 24" fill="none" stroke="#1a1710" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M15.6 8.4l-2.1 5.1-5.1 2.1 2.1-5.1z" fill="#1a1710" stroke="none"/></svg>';
@@ -8474,7 +8474,7 @@ window._studioTuto=function(force){ try{
       nextB.textContent=(i===steps.length-1)?T("Termin\u00e9"):T("Suivant");
     }, el?480:0);
   }
-  function done(){ clearInterval(typeTimer); if(_shown){ try{ localStorage.setItem("magot_studio_tuto_v1","1"); }catch(e){} } ov.classList.add("closing"); setTimeout(function(){ try{ ov.remove(); }catch(e){} },400); }
+  function done(){ clearInterval(typeTimer); if(_shown){ try{ localStorage.setItem("magot_studio_tuto_v2","1"); }catch(e){} } ov.classList.add("closing"); setTimeout(function(){ try{ ov.remove(); }catch(e){} },400); }
   nextB.onclick=function(){ i++; if(i<steps.length) render(); else done(); };
   skipB.onclick=done;
   setTimeout(function(){ ov.classList.add("on"); bubble.classList.add("show"); render(); },40);
@@ -8700,13 +8700,17 @@ function _ensureFilmsOverlay(){ if(document.getElementById("filmsOv")) return;
   o.innerHTML='<div style="max-width:520px;margin:0 auto;min-height:100%;position:relative;padding-bottom:120px">'
     +'<div style="display:flex;align-items:flex-start;justify-content:space-between;padding:20px 22px 6px">'
       +'<div><div style="color:#D4AF37;font:600 10px system-ui;letter-spacing:3px">STUDIO MAGOT</div><div style="font-family:\'Cormorant Garamond\',Georgia,serif;font-weight:600;font-size:40px;color:#F5F2EB;line-height:1.02">'+_st("Vos films")+'</div></div>'
-      +'<button id="filmsClose" style="width:44px;height:44px;border-radius:50%;border:1px solid #282622;background:#151413;color:#F5F2EB;font-size:19px;cursor:pointer;flex-shrink:0">\u2715</button>'
+      +'<div style="display:flex;gap:8px;align-items:center;flex-shrink:0">'
+        +'<button id="filmsTuto" style="height:44px;padding:0 15px;border-radius:22px;border:1px solid rgba(212,175,55,.45);background:#151413;color:#D4AF37;font:600 13px system-ui;cursor:pointer">? '+_st("Tuto")+'</button>'
+        +'<button id="filmsClose" style="width:44px;height:44px;border-radius:50%;border:1px solid #282622;background:#151413;color:#F5F2EB;font-size:19px;cursor:pointer;flex-shrink:0">\u2715</button>'
+      +'</div>'
     +'</div>'
     +'<div id="filmsBody" style="padding:0 22px"></div>'
     +'<button id="filmsNew" style="position:fixed;left:50%;transform:translateX(-50%);bottom:26px;display:flex;align-items:center;gap:8px;background:#D4AF37;color:#050505;font:700 14px system-ui;letter-spacing:1px;padding:14px 24px;border:none;border-radius:999px;cursor:pointer;box-shadow:0 8px 22px rgba(212,175,55,.42);z-index:3">\uFF0B '+_st("Nouveau film")+'</button>'
     +'</div>';
   document.body.appendChild(o);
   document.getElementById("filmsClose").onclick=closeFilms;
+  try{ var _ft=document.getElementById("filmsTuto"); if(_ft) _ft.onclick=function(){ closeFilms(); setTimeout(function(){ try{ window._studioTuto(true); }catch(e){} }, 250); }; }catch(e){}
   document.getElementById("filmsNew").onclick=studioNewFilm;
 }
 function openFilms(){ try{ studioSaveLocal(); }catch(e){} _ensureFilmsOverlay(); renderFilms(); document.getElementById("filmsOv").style.display="block"; }
@@ -8883,13 +8887,15 @@ function _toggleFilmsMenu(anchor){
     m.innerHTML='<button class="fm-i" data-a="open" style="'+_bs+'">\uD83C\uDFAC '+_st("Mes films")+'</button>'
       +'<button class="fm-i" data-a="save" style="'+_bs+'">\uD83D\uDCBE '+_st("Enregistrer le montage")+'</button>'
       +'<button class="fm-i" data-a="new" style="'+_bs+';color:#e6c15a">\u2728 '+_st("Nouveau montage")+'</button>'
-      +'<button class="fm-i" data-a="subs" style="'+_bs+'">'+((window.STUDIO_SUBS_ON===false)?"\u2610":"\u2611")+' '+_st("Sous-titres")+'</button>';
+      +'<button class="fm-i" data-a="subs" style="'+_bs+'">'+((window.STUDIO_SUBS_ON===false)?"\u2610":"\u2611")+' '+_st("Sous-titres")+'</button>'
+      +'<button class="fm-i" data-a="tuto" style="'+_bs+'">\uD83E\uDDED '+_st("Revoir le tutoriel")+'</button>';
     document.body.appendChild(m);
     Array.prototype.forEach.call(m.querySelectorAll(".fm-i"), function(it){ it.onclick=function(ev){ ev.stopPropagation(); var a=it.getAttribute("data-a"); m.style.display="none";
       if(a==="open"){ try{ openFilms(); }catch(e){} }
       else if(a==="save"){ try{ if(!PHOTOS.length && !clipVidReady){ setState(_st("Rien \u00e0 enregistrer pour l\'instant.")); return; } studioSaveLocal(); setState(_st("\u2713 Montage enregistr\u00e9 dans \u00ab Mes films \u00bb.")); }catch(e){} }
       else if(a==="subs"){ try{ window.studioSetSubs(window.STUDIO_SUBS_ON===false); setState(window.STUDIO_SUBS_ON?_st("Sous-titres activ\u00e9s"):_st("Sous-titres masqu\u00e9s")); }catch(e){} }
       else if(a==="new"){ if(confirm("Enregistrer le montage en cours puis repartir \u00e0 z\u00e9ro ?")){ try{ if(PHOTOS.length||clipVidReady) studioSaveLocal(); }catch(e){} try{ _curFilmId=null; document.getElementById("clear").click(); setState(_st("Nouveau montage \u2014 ajoute des photos et une musique.")); }catch(e){} } }
+      else if(a==="tuto"){ setTimeout(function(){ try{ window._studioTuto(true); }catch(e){} }, 200); }
     }; });
     document.addEventListener("click", function(ev){ var mm=document.getElementById("filmsMenu"); if(mm && mm.style.display!=="none" && !mm.contains(ev.target) && ev.target!==anchor && !anchor.contains(ev.target)) mm.style.display="none"; });
   }
