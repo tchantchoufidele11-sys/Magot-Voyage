@@ -2,8 +2,8 @@
 <!-- Studio Magot — FIX GEL APRES INITIALISATION : _expYield utilisait requestAnimationFrame, qui peut ne JAMAIS se declencher en webview iOS -> await bloque a vie juste apres Initialisation. Remplace par setTimeout(0) qui se declenche toujours. C-etait le seul await non-borne de la preparation. · BUILD 2026-08-13-C154 -->
 <!-- Studio Magot — FIX EXPORT ANTI-BLOCAGE (C155) : (1) venc.flush()/aenc.flush() etaient des await NON bornes -> gel a ~90% sur Safari/iOS quand l'encodeur ne rend jamais la main ; desormais bornes par _expRace() (25s/20s). (2) Aucun moyen de sortir d'un export fige : ajout bouton "Annuler" sur l'overlay + _expForceReset() qui rearme l'UI meme si un await reste parque. (3) Watchdog global 3 min. (4) Garde anti double-lancement (double-tap). (5) Repli MediaRecorder universel quand WebCodecs absent (vieux Android/iOS/Firefox) -> WebM/MP4 selon support, au lieu d'un cul-de-sac. · BUILD 2026-08-13-C155 -->
 
-<!-- Studio Magot — FIX FLOU A LA REOUVERTURE (C267a) : à l'import, window._PMAX=1440, donc les photos s'affichaient nettes ; mais a froid (app ouverte 3-4 jours apres), window._PMAX etait undefined -> studioOpenFilm / _restorePhotoFromBlob / _decodeFromSrc retombaient sur 1200 et RE-sous-echantillonnaient les blobs 1440 stockes -> flou. Desormais la restauration/re-decodage utilise un PLANCHER Math.max(1440, ...) : les blobs stockes sont decodes a leur taille native (jamais reduits), donc une photo rouverte est aussi nette qu'a sa creation. Qualite JPEG de stockage 0.82 -> 0.86. Memoire inchangee (identique a la session de creation). · BUILD 2026-08-16-C267 -->
-<!-- Studio Magot — NETTETE MAX / NIVEAU CAPCUT (C267b) : les photos etaient plafonnees a 1440 px alors que le montage s'EXPORTE en 1920 px -> agrandissement ~33% = flou meme en session fraiche et dans la video finale. Desormais _PCAP=1920 : source photo = resolution d'export, plus aucun upscale, netteté maximale a l'ecran ET a l'export. Le cache memoire _DEC_MAX n'est plus un nombre fixe mais un BUDGET RAM (190 Mo iOS ; adapte a la RAM sur Android) : a 1920 px on garde automatiquement moins de photos decodees pour tenir le budget -> aucun crash iPhone. Import >600 photos: repli a 1440 (encodage plus rapide). Les films crees avant restent en 1440 (blob deja encode) ; les nouveaux sont en 1920. · BUILD 2026-08-16-C267 -->
+<!-- Studio Magot — FIX FLOU A LA REOUVERTURE (v769a) : à l'import, window._PMAX=1440, donc les photos s'affichaient nettes ; mais a froid (app ouverte 3-4 jours apres), window._PMAX etait undefined -> studioOpenFilm / _restorePhotoFromBlob / _decodeFromSrc retombaient sur 1200 et RE-sous-echantillonnaient les blobs 1440 stockes -> flou. Desormais la restauration/re-decodage utilise un PLANCHER Math.max(1440, ...) : les blobs stockes sont decodes a leur taille native (jamais reduits), donc une photo rouverte est aussi nette qu'a sa creation. Qualite JPEG de stockage 0.82 -> 0.86. Memoire inchangee (identique a la session de creation). · BUILD 2026-08-16-v769 -->
+<!-- Studio Magot — NETTETE MAX / NIVEAU CAPCUT (v769b) : les photos etaient plafonnees a 1440 px alors que le montage s'EXPORTE en 1920 px -> agrandissement ~33% = flou meme en session fraiche et dans la video finale. Desormais _PCAP=1920 : source photo = resolution d'export, plus aucun upscale, netteté maximale a l'ecran ET a l'export. Le cache memoire _DEC_MAX n'est plus un nombre fixe mais un BUDGET RAM (190 Mo iOS ; adapte a la RAM sur Android) : a 1920 px on garde automatiquement moins de photos decodees pour tenir le budget -> aucun crash iPhone. Import >600 photos: repli a 1440 (encodage plus rapide). Les films crees avant restent en 1440 (blob deja encode) ; les nouveaux sont en 1920. · BUILD 2026-08-16-v769 -->
 <html lang="fr">
 <head>
 <meta charset="utf-8">
@@ -832,7 +832,7 @@ input[type=range]::-moz-range-thumb{width:22px;height:22px;border:0;border-radiu
 <main class="app">
   <header class="header">
     <div class="header-left"></div>
-    <div class="brand"><h1>Studio Magot<i>✦</i></h1><p>Montage vidéo · C267</p></div>
+    <div class="brand"><h1>Studio Magot<i>✦</i></h1><p>Montage vidéo · v769</p></div>
     <button class="export" id="expBtn"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 15V3m0 0L7 8m5-5l5 5M5 15v4h14v-4"/></svg> Exporter</button>
   </header>
 
@@ -8438,46 +8438,54 @@ function _studioReady(msg){ try{ setState(msg||""); }catch(e){}
 /* ===== Tutoriel premier lancement du Studio (carrousel, une seule fois) ===== */
 function _studioTuto(){ try{ if(document.getElementById("mvTuto")) return; }catch(e){}
   var steps=[
-    { sel:null, ic:"\uD83C\uDFAC", t:"Bienvenue dans le Studio", s:"Ton film souvenir se monte tout seul \u00e0 partir de tes photos et vid\u00e9os. Voici les commandes cl\u00e9s." },
-    { sel:".mood", parent:true, ic:"\uD83C\uDFA8", t:"Ambiances", s:"Cin\u00e9ma, Doux, Voyage, Dynamique : chaque ambiance change le style du film et la musique choisie." },
-    { sel:"#pickMusic", ic:"\uD83C\uDFB5", t:"Musique", s:"Choisie automatiquement selon l\u2019ambiance. Appuie ici pour ouvrir ta biblioth\u00e8que." },
-    { sel:"#thumbs", parent:true, ic:"\uD83D\uDDBC\uFE0F", t:"Tes m\u00e9dias", s:"Appuie sur une vignette pour la retoucher, \u00e9crire un texte, ou laisser Fid\u00e8le l\u2019\u00e9crire (l\u2019ic\u00f4ne \u2728)." },
-    { sel:"#play", ic:"\u25B6\uFE0F", t:"Lire le film", s:"Appuie ici pour lancer ou mettre en pause l\u2019aper\u00e7u." },
-    { sel:"#exportBtn", ic:"\u2B07\uFE0F", t:"Exporter", s:"Quand ton film te pla\u00eet, enregistre-le en vid\u00e9o." }
+    { sel:null, ic:"\uD83C\uDFAC", t:"Bienvenue", s:"Ton film se monte tout seul. Voici les commandes cl\u00e9s." },
+    { sel:".mood", parent:true, ic:"\uD83C\uDFA8", t:"Ambiances", s:"Cin\u00e9ma, Doux, Voyage, Dynamique \u2014 le style et la musique changent." },
+    { sel:"#pickMusic", ic:"\uD83C\uDFB5", t:"Musique", s:"Auto selon l\u2019ambiance, ou choisis la tienne ici." },
+    { sel:"#thumbs", parent:true, ic:"\uD83D\uDDBC\uFE0F", t:"Tes m\u00e9dias", s:"Appuie sur une vignette pour retoucher, \u00e9crire, ou laisser Fid\u00e8le \u00e9crire (\u2728)." },
+    { sel:"#play", ic:"\u25B6\uFE0F", t:"Lire", s:"Lance ou mets en pause l\u2019aper\u00e7u." },
+    { sel:"#exportBtn", ic:"\u2B07\uFE0F", t:"Exporter", s:"Enregistre ton film en vid\u00e9o." }
   ];
   try{ if(!document.getElementById("_mvTutoCSS")){ var stc=document.createElement("style"); stc.id="_mvTutoCSS";
-    stc.textContent="#mvTuto{position:fixed;inset:0;z-index:100000}#mvTuto.dim{background:rgba(3,8,16,.80);-webkit-backdrop-filter:blur(4px);backdrop-filter:blur(4px)}#mvTuto .mvt-hole{position:fixed;border-radius:14px;box-shadow:0 0 0 9999px rgba(3,8,16,.80);border:2px solid #e5aa34;pointer-events:none;transition:top .25s ease,left .25s ease,width .25s ease,height .25s ease}#mvTuto .mvt-card{position:fixed;left:50%;transform:translateX(-50%);width:min(90vw,340px);background:linear-gradient(180deg,#0e1a29,#0a1420);border:1px solid rgba(255,255,255,.12);border-radius:16px;padding:16px 16px 12px;box-shadow:0 16px 50px rgba(0,0,0,.6);color:#f5f7fb}#mvTuto .mvt-ic{font-size:30px;line-height:1;margin:2px 0 8px;text-align:center}#mvTuto .mvt-t{font:700 17px/1.25 Georgia,serif;margin:0 0 6px;text-align:center}#mvTuto .mvt-s{font:400 13.5px/1.5 system-ui;color:#c7d3ee;margin:0 0 12px;text-align:center}#mvTuto .mvt-dots{display:flex;gap:6px;justify-content:center;margin:0 0 12px}#mvTuto .mvt-dot{width:7px;height:7px;border-radius:50%;background:rgba(255,255,255,.22)}#mvTuto .mvt-dot.on{background:#e5aa34;width:18px;border-radius:4px}#mvTuto .mvt-row{display:flex;gap:10px;align-items:center;justify-content:space-between}#mvTuto .mvt-skip{background:none;border:0;color:#8ea1c6;font:600 13px system-ui;padding:8px}#mvTuto .mvt-next{flex:1;background:linear-gradient(180deg,#e9b451,#d6952f);color:#241603;border:0;border-radius:11px;padding:11px;font:700 14px system-ui}";
+    stc.textContent="#mvTuto{position:fixed;inset:0;z-index:100000}#mvTuto .mvt-mask{position:fixed;background:rgba(3,8,16,.82);-webkit-backdrop-filter:blur(2px);backdrop-filter:blur(2px)}#mvTuto .mvt-ring{position:fixed;border-radius:14px;border:2px solid #e5aa34;box-shadow:0 0 0 2px rgba(229,170,52,.30),0 0 22px rgba(229,170,52,.55);pointer-events:none;transition:top .22s ease,left .22s ease,width .22s ease,height .22s ease}#mvTuto .mvt-card{position:fixed;left:50%;transform:translateX(-50%);width:min(90vw,340px);max-height:60vh;overflow:auto;background:linear-gradient(180deg,#0e1a29,#0a1420);border:1px solid rgba(255,255,255,.12);border-radius:16px;padding:16px 16px 12px;box-shadow:0 16px 50px rgba(0,0,0,.6);color:#f5f7fb}#mvTuto .mvt-ic{font-size:30px;line-height:1;margin:2px 0 8px;text-align:center}#mvTuto .mvt-t{font:700 17px/1.25 Georgia,serif;margin:0 0 6px;text-align:center}#mvTuto .mvt-s{font:400 13.5px/1.5 system-ui;color:#c7d3ee;margin:0 0 12px;text-align:center}#mvTuto .mvt-dots{display:flex;gap:6px;justify-content:center;margin:0 0 12px}#mvTuto .mvt-dot{width:7px;height:7px;border-radius:50%;background:rgba(255,255,255,.22)}#mvTuto .mvt-dot.on{background:#e5aa34;width:18px;border-radius:4px}#mvTuto .mvt-row{display:flex;gap:10px;align-items:center;justify-content:space-between}#mvTuto .mvt-skip{background:none;border:0;color:#8ea1c6;font:600 13px system-ui;padding:8px}#mvTuto .mvt-next{flex:1;background:linear-gradient(180deg,#e9b451,#d6952f);color:#241603;border:0;border-radius:11px;padding:11px;font:700 14px system-ui}";
     document.head.appendChild(stc); } }catch(e){}
   var ov=document.createElement("div"); ov.id="mvTuto";
-  var hole=document.createElement("div"); hole.className="mvt-hole"; hole.style.display="none";
-  var card=document.createElement("div"); card.className="mvt-card";
-  ov.appendChild(hole); ov.appendChild(card); document.body.appendChild(ov);
+  function mk(){ var d=document.createElement("div"); d.className="mvt-mask"; ov.appendChild(d); return d; }
+  var mT=mk(), mB=mk(), mL=mk(), mR=mk();
+  var ring=document.createElement("div"); ring.className="mvt-ring"; ring.style.display="none"; ov.appendChild(ring);
+  var card=document.createElement("div"); card.className="mvt-card"; ov.appendChild(card);
+  document.body.appendChild(ov);
   var i=0;
-  function fin(){ try{ localStorage.setItem("mvStudioTutoV2","1"); }catch(e){} try{ ov.remove(); }catch(e){} }
+  function fin(){ try{ localStorage.setItem("mvStudioTutoV3","1"); }catch(e){} try{ ov.remove(); }catch(e){} }
   function fill(){ var s=steps[i];
     card.innerHTML='<div class="mvt-ic">'+s.ic+'</div><div class="mvt-t">'+s.t+'</div><div class="mvt-s">'+s.s+'</div><div class="mvt-dots">'+steps.map(function(_x,k){return '<span class="mvt-dot'+(k===i?" on":"")+'"></span>';}).join("")+'</div><div class="mvt-row"><button class="mvt-skip" id="mvtSkip">Passer</button><button class="mvt-next" id="mvtNext">'+(i<steps.length-1?"Suivant":"Compris")+'</button></div>';
     var sk=card.querySelector("#mvtSkip"); if(sk) sk.onclick=fin;
     var nx=card.querySelector("#mvtNext"); if(nx) nx.onclick=function(){ if(i<steps.length-1){ i++; render(); } else fin(); };
   }
-  function center(){ ov.classList.add("dim"); hole.style.display="none"; card.style.top="50%"; card.style.bottom="auto"; card.style.transform="translate(-50%,-50%)"; }
-  function spotlight(el){ var r=el.getBoundingClientRect(); if(r.width<4||r.height<4){ center(); return; }
-    ov.classList.remove("dim"); var pad=8;
-    hole.style.display="block"; hole.style.left=(r.left-pad)+"px"; hole.style.top=(r.top-pad)+"px"; hole.style.width=(r.width+pad*2)+"px"; hole.style.height=(r.height+pad*2)+"px";
-    card.style.transform="translateX(-50%)"; var vh=(window.innerHeight||600), ch=card.offsetHeight||190;
-    if(r.bottom+14+ch<vh){ card.style.top=(r.bottom+14)+"px"; card.style.bottom="auto"; }
-    else if(r.top-14-ch>8){ card.style.top=(r.top-14-ch)+"px"; card.style.bottom="auto"; }
-    else { card.style.top="auto"; card.style.bottom="12px"; }
+  function box(d,l,t,w,h){ d.style.left=l+"px"; d.style.top=t+"px"; d.style.width=Math.max(0,w)+"px"; d.style.height=Math.max(0,h)+"px"; }
+  function centerMask(){ var vw=window.innerWidth||360, vh=window.innerHeight||640; box(mT,0,0,vw,vh); box(mB,0,0,0,0); box(mL,0,0,0,0); box(mR,0,0,0,0); ring.style.display="none"; }
+  function centerCard(){ card.style.top="50%"; card.style.bottom="auto"; card.style.transform="translate(-50%,-50%)"; card.style.maxHeight="70vh"; }
+  function layout(el){ var vw=window.innerWidth||360, vh=window.innerHeight||640;
+    if(!el){ centerMask(); centerCard(); return; }
+    var r=el.getBoundingClientRect(); if(r.width<4||r.height<4){ centerMask(); centerCard(); return; }
+    var pad=8, L=Math.max(0,r.left-pad), T=Math.max(0,r.top-pad), R=Math.min(vw,r.right+pad), B=Math.min(vh,r.bottom+pad);
+    box(mT,0,0,vw,T); box(mB,0,B,vw,vh-B); box(mL,0,T,L,B-T); box(mR,R,T,vw-R,B-T);
+    ring.style.display="block"; ring.style.left=L+"px"; ring.style.top=T+"px"; ring.style.width=(R-L)+"px"; ring.style.height=(B-T)+"px";
+    card.style.transform="translateX(-50%)"; var ch=card.offsetHeight||180, roomB=vh-B-16, roomA=T-16;
+    if(roomB>=ch){ card.style.top=(B+12)+"px"; card.style.bottom="auto"; card.style.maxHeight=Math.max(120,roomB)+"px"; }
+    else if(roomA>=ch){ card.style.top="auto"; card.style.bottom=(vh-T+12)+"px"; card.style.maxHeight=Math.max(120,roomA)+"px"; }
+    else if(roomB>=roomA){ card.style.top=(B+12)+"px"; card.style.bottom="auto"; card.style.maxHeight=Math.max(120,roomB)+"px"; }
+    else { card.style.top="auto"; card.style.bottom=(vh-T+12)+"px"; card.style.maxHeight=Math.max(120,roomA)+"px"; }
   }
   function render(){ fill(); var s=steps[i], el=null;
     if(s.sel){ try{ el=document.querySelector(s.sel); if(el&&s.parent&&el.parentElement) el=el.parentElement; }catch(e){} }
-    if(!el){ center(); return; }
+    if(!el){ layout(null); return; }
     try{ el.scrollIntoView({block:"center",inline:"center"}); }catch(e){ try{ el.scrollIntoView(); }catch(_e){} }
-    var _el=el; setTimeout(function(){ try{ spotlight(_el); }catch(e){ center(); } }, 300);
+    var _el=el; setTimeout(function(){ try{ layout(_el); }catch(e){ layout(null); } }, 320);
   }
   render();
 }
 try{ window.studioShowTuto=_studioTuto; }catch(e){}
-(function(){ function _t(){ try{ if(window.name==="mv-headless") return; if(!localStorage.getItem("mvStudioTutoV2")) setTimeout(_studioTuto,1000); }catch(e){} }
+(function(){ function _t(){ try{ if(window.name==="mv-headless") return; if(!localStorage.getItem("mvStudioTutoV3")) setTimeout(_studioTuto,1000); }catch(e){} }
   if(document.readyState==="loading"){ document.addEventListener("DOMContentLoaded",_t); } else { _t(); } })();
 function studioAutoMontage(input){
   input=input||{};
