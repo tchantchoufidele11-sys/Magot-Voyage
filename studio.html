@@ -1625,8 +1625,8 @@ function buildPartition(){
   try{ window._DIAGC.vmerge=_diagMiss(); }catch(_e){}
   for(var _es=0; _es<SEGS.length; _es++){ if(!SEGS[_es].video && SEGS[_es].img!=null && SEGS[_es].img>=0){ var _en=_capNeeded(SEGS[_es].img); if(_en>0){ while((SEGS[_es].end-SEGS[_es].start) < _en-0.01 && _es+1<SEGS.length && !SEGS[_es+1].video){ SEGS[_es].end=SEGS[_es+1].end; SEGS.splice(_es+1,1); } } } }
   try{ window._DIAGC.cap=_diagMiss();
-    if(window.STUDIO_ADMIN||window.STUDIO_DIAG){ var _dc=window._DIAGC||{}, _fin=_diagMiss(), _keptN2=0; for(var _pk=0;_pk<PHOTOS.length;_pk++){ if(PHOTOS[_pk]&&!(PHOTOS[_pk].feat&&PHOTOS[_pk].feat.skip)) _keptN2++; }
-      var _el=document.getElementById("diagCover"); if(!_el){ _el=document.createElement("div"); _el.id="diagCover"; _el.style.cssText="position:fixed;left:6px;bottom:6px;z-index:99999;max-width:94vw;background:rgba(180,20,20,.92);color:#fff;font:600 11px/1.35 system-ui;padding:7px 9px;border-radius:8px;pointer-events:none;white-space:pre-wrap;box-shadow:0 2px 10px rgba(0,0,0,.5)"; document.body.appendChild(_el); }
+    if(true){ var _dc=window._DIAGC||{}, _fin=_diagMiss(), _keptN2=0; for(var _pk=0;_pk<PHOTOS.length;_pk++){ if(PHOTOS[_pk]&&!(PHOTOS[_pk].feat&&PHOTOS[_pk].feat.skip)) _keptN2++; }
+      var _el=document.getElementById("diagCover"); if(!_el){ _el=document.createElement("div"); _el.id="diagCover"; _el.style.cssText="position:fixed;left:6px;top:96px;z-index:2147483647;max-width:94vw;background:rgba(180,20,20,.94);color:#fff;font:600 12px/1.4 system-ui;padding:8px 10px;border-radius:9px;pointer-events:none;white-space:pre-wrap;box-shadow:0 2px 12px rgba(0,0,0,.6)"; document.body.appendChild(_el); }
       _el.textContent="DIAG couverture · plans="+SEGS.length+" photos="+_keptN2+"\nsans plan -> assign:"+((_dc.assign||[]).length)+" garantie:"+((_dc.guar||[]).length)+" fusionVideo:"+((_dc.vmerge||[]).length)+" legende:"+((_dc.cap||[]).length)+"\nfinal manquantes(idx):["+_fin.join(",")+"]"; }
   }catch(_e){}
   /* Repères de jour : les photos sont déjà triées par journée (computePhotoOrder).
