@@ -1,6 +1,6 @@
 <!doctype html>
 <!-- Studio Magot — FIX GEL APRES INITIALISATION : _expYield utilisait requestAnimationFrame, qui peut ne JAMAIS se declencher en webview iOS -> await bloque a vie juste apres Initialisation. Remplace par setTimeout(0) qui se declenche toujours. C-etait le seul await non-borne de la preparation. · BUILD 2026-08-13-C156 -->
-<!-- Studio Magot — FIX EXPORT ANTI-BLOCAGE (C156) : (1) venc.flush()/aenc.flush() etaient des await NON bornes -> gel a ~90% sur Safari/iOS quand l'encodeur ne rend jamais la main ; desormais bornes par _expRace() (25s/20s). (2) Aucun moyen de sortir d'un export fige : ajout bouton "Annuler" sur l'overlay + _expForceReset() qui rearme l'UI meme si un await reste parque. (3) Watchdog global 3 min. (4) Garde anti double-lancement (double-tap). (5) Repli MediaRecorder universel quand WebCodecs absent (vieux Android/iOS/Firefox) -> WebM/MP4 selon support, au lieu d'un cul-de-sac. · BUILD 2026-08-25-C188 (tuto dialogue - ordre création) -->
+<!-- Studio Magot — FIX EXPORT ANTI-BLOCAGE (C156) : (1) venc.flush()/aenc.flush() etaient des await NON bornes -> gel a ~90% sur Safari/iOS quand l'encodeur ne rend jamais la main ; desormais bornes par _expRace() (25s/20s). (2) Aucun moyen de sortir d'un export fige : ajout bouton "Annuler" sur l'overlay + _expForceReset() qui rearme l'UI meme si un await reste parque. (3) Watchdog global 3 min. (4) Garde anti double-lancement (double-tap). (5) Repli MediaRecorder universel quand WebCodecs absent (vieux Android/iOS/Firefox) -> WebM/MP4 selon support, au lieu d'un cul-de-sac. · BUILD 2026-08-24-C178 (fluidité clips vidéo : maintien lecture) -->
 
 <!-- Studio Magot — FIX FLOU A LA REOUVERTURE (C267a) : à l'import, window._PMAX=1440, donc les photos s'affichaient nettes ; mais a froid (app ouverte 3-4 jours apres), window._PMAX etait undefined -> studioOpenFilm / _restorePhotoFromBlob / _decodeFromSrc retombaient sur 1200 et RE-sous-echantillonnaient les blobs 1440 stockes -> flou. Desormais la restauration/re-decodage utilise un PLANCHER Math.max(1440, ...) : les blobs stockes sont decodes a leur taille native (jamais reduits), donc une photo rouverte est aussi nette qu'a sa creation. Qualite JPEG de stockage 0.82 -> 0.86. Memoire inchangee (identique a la session de creation). · BUILD 2026-08-16-C267 -->
 <!-- Studio Magot — NETTETE MAX / NIVEAU CAPCUT (C267b) : les photos etaient plafonnees a 1440 px alors que le montage s'EXPORTE en 1920 px -> agrandissement ~33% = flou meme en session fraiche et dans la video finale. Desormais _PCAP=1920 : source photo = resolution d'export, plus aucun upscale, netteté maximale a l'ecran ET a l'export. Le cache memoire _DEC_MAX n'est plus un nombre fixe mais un BUDGET RAM (190 Mo iOS ; adapte a la RAM sur Android) : a 1920 px on garde automatiquement moins de photos decodees pour tenir le budget -> aucun crash iPhone. Import >600 photos: repli a 1440 (encodage plus rapide). Les films crees avant restent en 1440 (blob deja encode) ; les nouveaux sont en 1920. · BUILD 2026-08-16-C267 -->
@@ -678,17 +678,25 @@ input[type=range]::-moz-range-thumb{width:22px;height:22px;border:0;border-radiu
   #empty{ background:radial-gradient(120% 85% at 50% 38%, rgba(35,33,32,.7), rgba(5,5,5,.3) 60%, transparent) !important; }
   .empty-ic{ background:#151413 !important; border:1px solid rgba(212,175,55,.3) !important; color:#D4AF37 !important; }
   
-#studioTuto{position:fixed;inset:0;z-index:100000;font-family:system-ui,-apple-system,sans-serif;-webkit-tap-highlight-color:transparent}#studioTuto.closing{opacity:0;transition:opacity .4s ease}#studioTuto .tt-veil{position:fixed;inset:0;background:rgba(5,6,10,.30);opacity:0;transition:opacity .45s ease}#studioTuto.on .tt-veil{opacity:1}#studioTuto .tt-spot{position:fixed;border-radius:16px;box-shadow:0 0 0 9999px rgba(5,6,10,.45);border:2px solid #E9C46A;transition:all .5s cubic-bezier(.22,1,.36,1);pointer-events:none;opacity:0}#studioTuto .tt-spot.show{opacity:1}#studioTuto .tt-arrow{position:fixed;color:#E9C46A;font:700 30px system-ui;pointer-events:none;opacity:0;transition:opacity .4s ease,left .45s cubic-bezier(.22,1,.36,1),top .45s cubic-bezier(.22,1,.36,1);text-shadow:0 2px 10px rgba(0,0,0,.6)}#studioTuto .tt-arrow.show{opacity:1;animation:ttBob 1.5s ease-in-out infinite}@keyframes ttBob{0%,100%{transform:translateY(0)}50%{transform:translateY(7px)}}#studioTuto .tt-bubble{position:fixed;left:50%;transform:translateX(-50%) translateY(16px);width:min(88vw,360px);background:linear-gradient(180deg,#151b2c,#0d111c);border:1px solid #2b3450;border-radius:20px;padding:15px 17px 13px;box-shadow:0 18px 52px rgba(0,0,0,.62);opacity:0;transition:opacity .4s ease,transform .5s cubic-bezier(.22,1,.36,1),top .5s cubic-bezier(.22,1,.36,1)}#studioTuto .tt-bubble.show{opacity:1;transform:translateX(-50%) translateY(0)}#studioTuto .tt-head{display:flex;align-items:center;gap:11px;margin-bottom:11px}#studioTuto .tt-av{width:40px;height:40px;border-radius:50%;background:radial-gradient(circle at 34% 28%,#F0D586,#9c7b22);display:flex;align-items:center;justify-content:center;flex:0 0 auto;box-shadow:0 0 0 3px rgba(233,196,106,.16);animation:ttTalk 2.4s ease-in-out infinite}@keyframes ttTalk{0%,100%{transform:scale(1)}50%{transform:scale(1.07)}}#studioTuto .tt-av svg{width:22px;height:22px}#studioTuto .tt-name{color:#E9C46A;font:700 13.5px system-ui;letter-spacing:.3px}#studioTuto .tt-role{color:#7f8aa3;font:500 11px system-ui;margin-top:1px}#studioTuto .tt-txt{color:#eef2fb;font:400 15px/1.55 system-ui;min-height:46px;margin:2px 0 13px}#studioTuto .tt-caret{display:inline-block;width:2px;height:1.05em;background:#E9C46A;vertical-align:-3px;margin-left:1px;animation:ttCaret .7s step-end infinite}@keyframes ttCaret{50%{opacity:0}}#studioTuto .tt-row{display:flex;justify-content:space-between;align-items:center;gap:10px}#studioTuto .tt-skip{background:none;border:0;color:#7f8aa3;font:600 13px system-ui;padding:8px 4px;cursor:pointer}#studioTuto .tt-dots{display:flex;gap:6px}#studioTuto .tt-dot{width:6px;height:6px;border-radius:99px;background:rgba(255,255,255,.22);transition:all .38s cubic-bezier(.22,1,.36,1)}#studioTuto .tt-dot.on{width:20px;background:linear-gradient(90deg,#E9C46A,#D4AF37)}#studioTuto .tt-next{background:linear-gradient(135deg,#E9C46A,#B8952F);color:#1a1710;border:0;font:700 14px system-ui;padding:11px 22px;border-radius:99px;cursor:pointer;box-shadow:0 6px 20px rgba(212,175,55,.3);transition:transform .15s ease}#studioTuto .tt-next:active{transform:scale(.93)}50%{transform:translateY(-7px);opacity:.45}}
+#studioTuto{position:fixed;inset:0;z-index:100000;font-family:system-ui}
+#studioTuto .tt-spot{position:fixed;border-radius:14px;box-shadow:0 0 0 9999px rgba(5,6,10,.82);border:2px solid #D4AF37;transition:all .32s ease;pointer-events:none}
+#studioTuto .tt-card{position:fixed;left:50%;transform:translateX(-50%);background:#0f0e0d;border:1px solid #2a2825;border-radius:16px;padding:16px 18px;width:min(86vw,330px);box-shadow:0 14px 44px rgba(0,0,0,.65);transition:top .32s ease}
+#studioTuto .tt-n{color:#D4AF37;font:700 12px system-ui;letter-spacing:1.5px;margin-bottom:6px}
+#studioTuto .tt-t{color:#f4f7fc;font:600 16px system-ui;line-height:1.42;margin-bottom:14px}
+#studioTuto .tt-row{display:flex;justify-content:space-between;align-items:center;gap:10px}
+#studioTuto .tt-skip{background:none;border:0;color:#8a8782;font:600 14px system-ui;cursor:pointer;padding:8px 4px}
+#studioTuto .tt-next{background:linear-gradient(135deg,#D4AF37,#b8952f);color:#1a1710;border:0;font:700 14px system-ui;padding:11px 22px;border-radius:12px;cursor:pointer}
+#studioTuto .tt-arrow{position:fixed;color:#D4AF37;font-size:34px;font-weight:700;pointer-events:none;transition:all .32s ease;text-shadow:0 2px 8px rgba(0,0,0,.5)}
 .empty-btns{display:flex;gap:10px;justify-content:center;margin-top:18px;flex-wrap:wrap}
 .empty-tuto{margin-top:16px;color:#A8A6A1;font:500 13px system-ui;line-height:1.5;max-width:300px;margin-left:auto;margin-right:auto}
 .empty-arrow{margin-top:6px;color:#D4AF37;font-size:26px;font-weight:700;animation:_ebounce 1.4s ease-in-out infinite}
 @keyframes _ebounce{0%,100%{transform:translateY(0)}50%{transform:translateY(6px)}}
 .eb-btn{background:#151413;border:1px solid #2a2825;color:#f4f7fc;font:700 14px system-ui;padding:12px 18px;border-radius:12px;cursor:pointer;display:inline-flex;align-items:center;gap:7px}
 .eb-gold{background:linear-gradient(135deg,#D4AF37,#b8952f);color:#1a1710;border-color:#D4AF37}
-#studioReadyBanner{position:fixed;left:50%;top:44%;transform:translate(-50%,-50%) scale(.88);z-index:99998;background:linear-gradient(180deg,#0e1a29,#0a1420);border:1px solid rgba(212,175,55,.5);color:#f5f2eb;padding:22px 26px;border-radius:20px;box-shadow:0 24px 70px rgba(0,0,0,.65);opacity:0;pointer-events:none;transition:opacity .35s cubic-bezier(.2,.7,.2,1),transform .35s cubic-bezier(.2,.7,.2,1);max-width:78vw;text-align:center}
-#studioReadyBanner.show{opacity:1;transform:translate(-50%,-50%) scale(1)}
-@keyframes _mplay{0%,100%{box-shadow:0 0 0 0 rgba(212,175,55,.7);transform:scale(1)}50%{box-shadow:0 0 0 15px rgba(212,175,55,0);transform:scale(1.02)}}
-._pulse{animation:_mplay 1.4s ease-out infinite}
+#studioReadyBanner{position:fixed;left:50%;top:14px;transform:translateX(-50%) translateY(-8px);z-index:99998;background:linear-gradient(135deg,#D4AF37,#b8952f);color:#1a1710;font:700 15px system-ui;padding:12px 20px;border-radius:14px;box-shadow:0 10px 34px rgba(0,0,0,.5);opacity:0;pointer-events:none;transition:opacity .3s,transform .3s;max-width:92vw;text-align:center}
+#studioReadyBanner.show{opacity:1;transform:translateX(-50%) translateY(0)}
+@keyframes _mplay{0%,100%{box-shadow:0 0 0 0 rgba(212,175,55,.55)}50%{box-shadow:0 0 0 12px rgba(212,175,55,0)}}
+._pulse{animation:_mplay 1.25s ease-out 3}
 .empty-t{ font-family:"Cormorant Garamond",Georgia,serif !important; color:#F5F2EB !important; }
   .empty-s{ color:#A8A6A1 !important; }
   /* Aperçu (hero) façon maquette */
@@ -845,7 +853,7 @@ input[type=range]::-moz-range-thumb{width:22px;height:22px;border:0;border-radiu
 <main class="app">
   <header class="header">
     <div class="header-left"></div>
-    <div class="brand"><h1>Studio Magot<i>✦</i></h1><p>Montage vidéo · C306</p></div>
+    <div class="brand"><h1>Studio Magot<i>✦</i></h1><p>Montage vidéo · C295</p></div>
     <button class="export" id="expBtn"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 15V3m0 0L7 8m5-5l5 5M5 15v4h14v-4"/></svg> Exporter</button>
   </header>
 
@@ -1114,7 +1122,7 @@ function waStart(mt){
   }catch(e){ WA.on=false; return false; }
 }
 function masterVol(v){ v=Math.max(0,Math.min(1,v)); if((window.LOOP_ON||window.MULTI) && WA.on && WA.gain){ try{ WA.gain.gain.value=v; }catch(e){} } else if(audioEl){ try{ audioEl.volume=v; }catch(e){} } }
-function seekMontageTo(mt){ mt=Math.max(0,mt); try{ pausedOffset=mt; }catch(e){}   /* point de reprise/affichage stable, y compris en pause */ if(window.MULTI){ mBase=_perfNow()-mt; if(WA.on){ waStartPlan(mt); return; } } if(window.LOOP_ON){ mBase=_perfNow()-mt; if(WA.on){ waStart(mt); return; } } try{ if(audioEl) audioEl.currentTime=audioAt(mt); }catch(e){} }
+function seekMontageTo(mt){ mt=Math.max(0,mt); if(window.MULTI){ mBase=_perfNow()-mt; if(WA.on){ waStartPlan(mt); return; } } if(window.LOOP_ON){ mBase=_perfNow()-mt; if(WA.on){ waStart(mt); return; } } try{ if(audioEl) audioEl.currentTime=audioAt(mt); }catch(e){} }
 function _mediaBeatP(bts){ var d=[]; for(var i=1;i<bts.length;i++){ var x=bts[i]-bts[i-1]; if(x>0.15&&x<2) d.push(x); } d.sort(function(a,b){return a-b;}); return d.length?d[d.length>>1]:0.5; }
 function _eWinAt(a,b){ var s=0,n=0; for(var t=a;t<=b;t+=0.15){ s+=energyAt(t); n++; } return n?s/n:energyAt(a); }
 function _bestBeat(bts,a,b,score){ var bt=null,sc=-1e9; for(var k=0;k<bts.length;k++){ var t=bts[k]; if(t>=a&&t<=b){ var m=(A.metric&&A.metric[k]!=null)?A.metric[k]:0.4; var s=score(t,m,energyAt(t),k); if(s>sc){ sc=s; bt=t; } } } return bt; }
@@ -1386,8 +1394,7 @@ function snapKick(t){ if(!A||!A.kEnv||!A.efps) return t; var f=A.efps, i=Math.ro
   for(var k=i-w;k<=i+w;k++){ if(k<0||k>=A.kEnv.length) continue; if(A.kEnv[k]>bv){ bv=A.kEnv[k]; bk=k; } } return bk/f; }
 function sigDist(a,b){ if(!a||!b||a.length!==b.length) return 1; var s=0; for(var i=0;i<a.length;i++){ s+=Math.abs(a[i]-b[i]); } return s/a.length; }
 function cosSim(a,b){ if(!a||!b) return 0; var s=0,na=0,nb=0; for(var i=0;i<a.length;i++){ s+=a[i]*b[i]; na+=a[i]*a[i]; nb+=b[i]*b[i]; } return s/(Math.sqrt(na)*Math.sqrt(nb)+1e-9); }
-function tooSimilar(ia,ib){ if(window.STUDIO_GROUP!==true) return false;   /* regroupement désactivé : chaque photo = un plan (toutes gardent une durée) */
-  var fa=(PHOTOS[ia].feat||{}), fb=(PHOTOS[ib].feat||{}); if(fa.emb&&fb.emb) return cosSim(fa.emb,fb.emb)>0.945; return sigDist(fa.sig,fb.sig)<0.018; }
+function tooSimilar(ia,ib){ var fa=(PHOTOS[ia].feat||{}), fb=(PHOTOS[ib].feat||{}); if(fa.emb&&fb.emb) return cosSim(fa.emb,fb.emb)>0.90; return sigDist(fa.sig,fb.sig)<0.030; }
 /* ===== Reconnaissance IA dans un Web Worker ISOLÉ (aucun accès au rendu GPU de la page) ===== */
 var MZ={worker:null, ready:false, seq:0, map:{}, timer:null};
 var MZ_CODE=[
@@ -1653,54 +1660,7 @@ function buildPartition(){
       _sg2.end=_mid2; SEGS.splice(_li2+1,0,_ns2); _mi2++;
     }
   }catch(_ge2){} }
-  /* Les PHOTOS (calées sur le rythme) fixent la durée ; la MUSIQUE boucle/se mixe pour remplir.
-     Deux besoins par photo : (a) son PLANCHER DE VISIBILITÉ propre au mode (= minSec*0.72, le
-     minimum que la découpe s'autorise déjà, donc aucune photo n'est invisible / à 0:00) et
-     (b) le temps de sa légende (ou sa durée fixée à la main). Une photo qui a besoin de plus
-     ALLONGE le film (on décale les plans suivants) — on ne vole JAMAIS le temps d'une autre. */
-  (function(){
-    if(!SEGS.length) return;
-    var _floor=Math.max(0, M.minSec*0.72);
-    function _needOf(im){ var _c=_capNeeded(im); return Math.max(_c>0?_c:0, _floor); }
-    var _def=0;
-    for(var _s0=0;_s0<SEGS.length;_s0++){ var _g0=SEGS[_s0]; if(_g0.video||_g0.img==null||_g0.img<0) continue; var _d0=_needOf(_g0.img)-(_g0.end-_g0.start); if(_d0>0) _def+=_d0; }
-    if(_def<=0.02) return;   /* toutes les photos ont déjà un temps suffisant -> AUCUN changement (coupes/sync/transitions intactes) */
-    var _needTo=pEnd+_def+4;
-    /* (1) grille de temps prolongée UNIQUEMENT pour le calage des coupes (local, ne change PAS
-       le mode de lecture). En multi-piste le plan reboucle déjà ; sinon on projette la boucle. */
-    if(_needTo > (beats.length?beats[beats.length-1]:0)+0.5){
-      try{
-        if(window.MULTI){ buildMusicPlan(MST, Math.max(1,_needTo-MST)); var _g2=planBeatGrid(window.MPLAN); if(_g2.beats&&_g2.beats.length){ beats=_g2.beats; } }
-        else { var _J2=(window.LOOP_ON?{start:(window.LOOP_START||MST),end:(window.LOOP_END||dur)}:computeLoopJoin(beats,dur)); var _lp0=_J2.start,_lp1=_J2.end,_ll=Math.max(2,_lp1-_lp0); var _src=beats.slice(),_bse=(_src.length?_src[_src.length-1]:MST),_gb=0; while(_bse<_needTo && _gb++<20000 && _ll>=0.1){ for(var _b6=0;_b6<_src.length;_b6++){ if(_src[_b6]>=_lp0&&_src[_b6]<_lp1-0.01) beats.push(_bse+(_src[_b6]-_lp0)); } _bse+=_ll; } beats.sort(function(a,b){return a-b;}); }
-      }catch(e){}
-    }
-    /* (2) étirement : chaque photo pousse sa fin sur le 1er vrai temps qui satisfait son besoin ;
-       les plans suivants sont décalés d'autant (temps->temps => ils restent calés sur le rythme). */
-    var _grew=0;
-    for(var _es=0; _es<SEGS.length; _es++){ var _sg=SEGS[_es];
-      if(_sg.video||_sg.img==null||_sg.img<0) continue;
-      var _en=_needOf(_sg.img); var _have=_sg.end-_sg.start; if(_have>=_en-0.02) continue;
-      var _target=_sg.start+_en, _newEnd=_target;
-      for(var _bk=0;_bk<beats.length;_bk++){ if(beats[_bk]>=_target-0.001){ _newEnd=beats[_bk]; break; } }
-      var _delta=_newEnd-_sg.end; if(_delta<=0.001) continue;
-      _sg.end=_newEnd;
-      for(var _k2=_es+1;_k2<SEGS.length;_k2++){ SEGS[_k2].start+=_delta; SEGS[_k2].end+=_delta; }
-      _grew+=_delta;
-    }
-    /* (3) durée finale dictée par les photos. On ne bascule la lecture en boucle QUE si le film
-       dépasse réellement la musique (sinon on garde le mode d'origine -> transitions/sync intactes).
-       En multi-piste le plan est rebâti sur la durée réelle (il reboucle sur la 1re piste). */
-    if(_grew>0){
-      pEnd+=_grew; wEnd+=_grew;
-      var _overflow=(wEnd > dur - 0.05);
-      if(window.MULTI){ try{ buildMusicPlan(MST, Math.max(1,wEnd-MST)); }catch(e){} }
-      else if(_overflow && !window.LOOP_ON){
-        try{ var _J=computeLoopJoin(beats,dur); WA.XF=_J.xf; window.LOOP_ON=1; window.MUSIC_DUR=dur; window.LOOP_START=_J.start; window.LOOP_END=_J.end; window.LOOP_LEN=Math.max(2,_J.end-_J.start); }
-        catch(_je){ window.LOOP_ON=1; window.MUSIC_DUR=dur; window.LOOP_START=MST; window.LOOP_END=dur; window.LOOP_LEN=Math.max(2,dur-MST); }
-      }
-      window.MONTAGE_DUR=wEnd; window.SIGN_PE=pEnd;
-    }
-  })();
+  for(var _es=0; _es<SEGS.length; _es++){ if(!SEGS[_es].video && SEGS[_es].img!=null && SEGS[_es].img>=0){ var _en=_capNeeded(SEGS[_es].img); if(_en>0){ while((SEGS[_es].end-SEGS[_es].start) < _en-0.01 && _es+1<SEGS.length && !SEGS[_es+1].video){ SEGS[_es].end=SEGS[_es+1].end; SEGS.splice(_es+1,1); } } } }
   /* Repères de jour : les photos sont déjà triées par journée (computePhotoOrder).
      On marque le 1er plan de chaque journée pour y afficher "JOUR N". */
   (function(){ var _ld=null; for(var _dm=0; _dm<SEGS.length; _dm++){ var _sgd=SEGS[_dm]; if(_sgd.sign||_sgd.video||_sgd.img==null||_sgd.img<0){ continue; } var _dv=(PHOTOS[_sgd.img]&&PHOTOS[_sgd.img]._day!=null)?PHOTOS[_sgd.img]._day:null; if(_dv==null){ continue; } _sgd._dayStart=(_dv!==_ld)?_dv:null; _ld=_dv; } })();
@@ -2093,25 +2053,16 @@ function drawSegAt(sg,t,ox,smul){
   if(sg && sg.img>=0 && PHOTOS[sg.img] && PHOTOS[sg.img]._cap){ var _cp=(""+PHOTOS[sg.img]._cap).trim(); if(_cp){ try{ var _cs=PHOTOS[sg.img]._capStyle||(typeof window!=="undefined"&&window.CAPPRESET)||"auto"; var _ca=PHOTOS[sg.img]._capAnim||(typeof window!=="undefined"&&window.CAPANIM)||"auto"; drawCaption(bctx,Wd,Hd,_cp,ox,(t-sg.start),(sg.end-sg.start),t,_cs,_ca,PHOTOS[sg.img]._capColor,PHOTOS[sg.img]._capBand,PHOTOS[sg.img]._capFont,PHOTOS[sg.img]._capSize,PHOTOS[sg.img]._capPos,PHOTOS[sg.img]._capAlign); }catch(_ce){} } }
   if(sg && sg._dayStart!=null && (typeof window==="undefined"||window.DAY_MARKERS!==false)){ try{ drawDayMarker(bctx,Wd,Hd,sg._dayStart,(t-sg.start)); }catch(_de){} }
 }
-/* Repère de chapitre "JOUR N" : dans la zone du commentaire (bas de l'image), en fondu,
-   sur la 1re photo de chaque journée. Placé là où vivent les légendes, proprement — plus
-   au milieu-haut, et sans bandeau noir plein écran. */
+/* Repère de chapitre "JOUR N" : haut de l'image, en fondu, sur la 1re photo de chaque journée. */
 function drawDayMarker(ctx,Wd,Hd,day,into){
   var HOLD=2.6; if(into>HOLD||into<0) return;
   var a=1; if(into<0.4) a=into/0.4; else if(into>HOLD-0.6) a=Math.max(0,(HOLD-into)/0.6); a=Math.max(0,Math.min(1,a));
-  var S=Wd/1080, cx=Wd/2, y=Hd*0.72;   /* zone du commentaire (bas), pas en haut */
-  var label="\u2014  JOUR  "+day+"  \u2014";
+  var S=Wd/1080, cx=Wd/2, y=Hd*0.12;
   ctx.save(); ctx.globalAlpha=a; ctx.textAlign="center"; ctx.textBaseline="middle";
-  ctx.font="700 "+(15*S)+"px system-ui,-apple-system,sans-serif";
-  try{ ctx.letterSpacing=(2*S)+"px"; }catch(e){}
-  /* halo sombre localisé derrière le texte (lisibilité), centré — pas de bandeau plein écran */
-  var _tw=0; try{ _tw=ctx.measureText(label).width; }catch(e){ _tw=Wd*0.4; }
-  var _rw=(_tw*0.5)+40*S, g=ctx.createRadialGradient(cx,y,0,cx,y,_rw);
-  g.addColorStop(0,"rgba(0,0,0,0.42)"); g.addColorStop(1,"rgba(0,0,0,0)");
-  ctx.fillStyle=g; ctx.fillRect(cx-_rw,y-26*S,_rw*2,52*S);
-  ctx.shadowColor="rgba(0,0,0,0.72)"; ctx.shadowBlur=6*S; ctx.shadowOffsetY=1*S;
-  ctx.fillStyle="#f4bd4a"; ctx.fillText(label, cx, y);
-  try{ ctx.letterSpacing="0px"; }catch(e){}
+  var g=ctx.createLinearGradient(0,0,0,y+70*S); g.addColorStop(0,"rgba(0,0,0,0.5)"); g.addColorStop(1,"rgba(0,0,0,0)");
+  ctx.fillStyle=g; ctx.fillRect(0,0,Wd,y+70*S);
+  ctx.fillStyle="#f4bd4a"; ctx.font="700 "+(15*S)+"px system-ui,-apple-system,sans-serif";
+  ctx.fillText("\u2014  JOUR  "+day+"  \u2014", cx, y);
   ctx.restore();
 }
 function renderBaseFrame(t){
@@ -8414,7 +8365,6 @@ function loop(){
 /* Phase outro de l'aperçu : coupe le son, joue la carte de fin, puis arrête. */
 function startPlay(){
   _iosUnlock();
-  try{ var _rb=document.getElementById("studioReadyBanner"); if(_rb) _rb.classList.remove("show"); var _wb=document.getElementById("watchBtn"); if(_wb) _wb.classList.remove("_pulse"); var _pb=document.getElementById("play"); if(_pb) _pb.classList.remove("_pulse"); }catch(e){}
   if(!A){ setState(_st("Choisis d'abord une musique.")); return; }
   if(!PHOTOS.length && !clipVidReady){ setState(_st("Ajoute des photos ou des vid\u00e9os.")); return; }
   if(!audioEl){ setState("Musique non chargée."); return; }
@@ -8463,80 +8413,53 @@ function _applyOrigineFormat(){ try{
 }catch(e){} }
 /* Met à jour les libellés des sources (Musique / Photos / Vidéo) avec le contenu réel */
 function _updateSourceLabels(){ try{
-  var sm=document.getElementById("srcMus"); if(sm){ var _mm=window.__activeMusicMeta||{}; var _tt=(_mm.title&&String(_mm.title).trim()&&String(_mm.title).trim().toLowerCase()!=="musique")?String(_mm.title).trim():""; if(!_tt && window.MULTI && typeof TRACKS!=="undefined" && TRACKS[0] && TRACKS[0].name) _tt=TRACKS[0].name; var _ty=String(_mm.type||MOOD||"").trim(); if(_ty) _ty=_ty.charAt(0).toUpperCase()+_ty.slice(1); var nm; if(_tt) nm=_tt+(_ty?(" \u00b7 "+_ty):""); else if(A) nm=_ty||"Musique"; else nm=""; sm.textContent = nm || _st("Choisir"); }
+  var sm=document.getElementById("srcMus"); if(sm){ var nm=(window.__activeMusicMeta&&window.__activeMusicMeta.title)||(window.MULTI&&typeof TRACKS!=="undefined"&&TRACKS[0]&&TRACKS[0].name)||(A?"Musique":""); sm.textContent = nm || _st("Choisir"); }
   var sp=document.getElementById("srcPho"); if(sp){ sp.textContent = PHOTOS.length ? (PHOTOS.length+" "+(PHOTOS.length>1?"photos":"photo")) : _st("Ajouter"); }
   var sv=document.getElementById("srcVid"); if(sv){ var nc=(typeof CLIPS!=="undefined")?CLIPS.filter(function(c){return c&&c.ready;}).length:0; sv.textContent = nc ? (nc+" "+(nc>1?"clips":"clip")) : _st("Optionnel"); }
 }catch(e){} }
 try{ if(document.readyState!=="loading") setTimeout(function(){_wireEmptyButtons();},300); else document.addEventListener("DOMContentLoaded",function(){ setTimeout(function(){_wireEmptyButtons();},300); }); }catch(e){}
 try{ setTimeout(function(){ try{ if(window._studioTuto) window._studioTuto(); }catch(e){} }, 1400); }catch(e){}
-var _readyShown=false;
-function _maybeReady(){ try{ if(_readyShown) return; if(typeof A!=="undefined" && A && ((typeof PHOTOS!=="undefined"&&PHOTOS.length) || (typeof clipVidReady!=="undefined"&&clipVidReady))) _studioReady(); }catch(e){} }
-function _studioReady(){ _readyShown=true; try{
+function _studioReady(){ try{
   var b=document.getElementById("studioReadyBanner");
   if(!b){ b=document.createElement("div"); b.id="studioReadyBanner"; document.body.appendChild(b); }
-  b.innerHTML='<div style="font-size:32px;line-height:1;margin-bottom:8px">\uD83C\uDFAC</div><div style="font:700 18px/1.3 Georgia,serif;color:#D4AF37;margin-bottom:5px">'+_st("Ton montage est prêt")+'</div><div style="font:400 13px/1.4 system-ui;color:#c7d3ee">'+_st("Appuie sur \u00ab Lire le film \u00bb")+'</div>';
+  b.textContent="✓ "+_st("Ton montage est prêt")+" — "+_st("appuie sur Lire le film");
   b.classList.add("show");
-  try{ var p=document.getElementById("watchBtn")||document.getElementById("play"); if(p){ p.classList.remove("_pulse"); void p.offsetWidth; p.classList.add("_pulse"); } }catch(e){}
-  clearTimeout(window._srT); window._srT=setTimeout(function(){ try{ b.classList.remove("show"); }catch(e){} }, 3400);
+  try{ var p=document.getElementById("play")||document.getElementById("watchBtn"); if(p){ p.classList.remove("_pulse"); void p.offsetWidth; p.classList.add("_pulse"); } }catch(e){}
+  clearTimeout(window._srT); window._srT=setTimeout(function(){ try{ b.classList.remove("show"); }catch(e){} }, 30000);
 }catch(e){} }
 window._studioTuto=function(force){ try{
-  if(!force && localStorage.getItem("magot_studio_tuto_v2")) return;
+  if(!force && localStorage.getItem("magot_studio_tuto_v1")) return;
   if(document.getElementById("studioTuto")) return;
-  var T=function(fr){ try{ return (typeof _st==="function")?_st(fr):fr; }catch(e){ return fr; } };
-  var AV='<svg viewBox="0 0 24 24" fill="none" stroke="#1a1710" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M15.6 8.4l-2.1 5.1-5.1 2.1 2.1-5.1z" fill="#1a1710" stroke="none"/></svg>';
   var steps=[
-    {sel:null, t:T("Salut ! Moi c\u2019est Fid\u00e8le. Suis-moi : on cr\u00e9e ton film \u00e9tape par \u00e9tape.")},
-    {sel:'.source[data-sheet="photos"]', t:T("1. On commence par tes photos \u2014 ajoute-les ici.")},
-    {sel:'.source[data-sheet="music"]', t:T("2. Choisis la musique \u2014 ou laisse-moi la choisir pour toi.")},
-    {sel:'.source[data-sheet="video"]', t:T("3. Ajoute aussi tes clips vid\u00e9o, si tu en as.")},
-    {sel:'#openAmbience', t:T("4. L\u2019ambiance donne le ton : voyage, doux, cin\u00e9ma\u2026")},
-    {sel:'#fmtBar', t:T("5. Le format : Origine, 9:16 pour les r\u00e9seaux, 16:9\u2026")},
-    {sel:'.syncline', t:T("6. Ce curseur cale l\u2019image sur le rythme de la musique, \u00e0 la milliseconde.")},
-    {sel:'#watchBtn', t:T("7. Quand tout est pr\u00eat, appuie ici pour regarder ton film.")},
-    {sel:'#filmsBtn', t:T("8. Ce menu regroupe tes films : enregistrer, en cr\u00e9er un nouveau, rouvrir un ancien.")},
-    {sel:'#expBtn', t:T("9. Et l\u00e0, exporte-le en haute d\u00e9finition. \u00c0 toi de jouer !")}
+    {sel:'article.source[data-sheet="photos"]', t:_st("Commence par ajouter tes photos."), n:"1"},
+    {sel:'article.source[data-sheet="music"]', t:_st("Choisis une musique \u2014 ou laisse le studio la choisir tout seul."), n:"2"},
+    {sel:'article.source[data-sheet="video"]', t:_st("Ajoute une vid\u00e9o si tu veux (optionnel)."), n:"3"},
+    {sel:"#openAmbience", t:_st("Choisis l\u2019ambiance de ton film."), n:"4"},
+    {sel:"#watchBtn", t:_st("Et lance ton film !"), n:"5"}
   ];
-  var i=0, _shown=false, _wait=0, typeTimer=null;
-  var ov=document.createElement("div"); ov.id="studioTuto";
-  var dots=steps.map(function(){ return '<span class="tt-dot"></span>'; }).join("");
-  ov.innerHTML='<div class="tt-veil"></div><div class="tt-spot"></div><div class="tt-arrow">\u2193</div>'+
-    '<div class="tt-bubble"><div class="tt-head"><div class="tt-av">'+AV+'</div><div><div class="tt-name">Fid\u00e8le</div><div class="tt-role">'+T("ton guide")+'</div></div></div>'+
-    '<div class="tt-txt"></div><div class="tt-row"><button class="tt-skip"></button><div class="tt-dots">'+dots+'</div><button class="tt-next"></button></div></div>';
+  var i=0, _shown=false, _ttWait=0, ov=document.createElement("div"); ov.id="studioTuto";
+  ov.innerHTML='<div class="tt-spot"></div><div class="tt-arrow"></div><div class="tt-card"><div class="tt-n"></div><div class="tt-t"></div><div class="tt-row"><button class="tt-skip"></button><button class="tt-next"></button></div></div>';
   document.body.appendChild(ov);
-  var veil=ov.querySelector(".tt-veil"), spot=ov.querySelector(".tt-spot"), arrow=ov.querySelector(".tt-arrow"), bubble=ov.querySelector(".tt-bubble"), txt=ov.querySelector(".tt-txt"), skipB=ov.querySelector(".tt-skip"), nextB=ov.querySelector(".tt-next"), dotEls=ov.querySelectorAll(".tt-dot");
-  skipB.textContent=T("Passer");
-  function typewrite(str){ clearInterval(typeTimer); txt.innerHTML=""; var span=document.createElement("span"); var caret=document.createElement("span"); caret.className="tt-caret"; txt.appendChild(span); txt.appendChild(caret); var k=0;
-    typeTimer=setInterval(function(){ k++; span.textContent=str.slice(0,k); if(k>=str.length){ clearInterval(typeTimer); try{ caret.remove(); }catch(e){} } }, 17); }
-  function place(el){
-    if(!el){ spot.classList.remove("show"); arrow.classList.remove("show"); bubble.style.top="auto"; bubble.style.bottom="calc(env(safe-area-inset-bottom,0px) + 36px)"; return; }
-    var r=el.getBoundingClientRect();
-    var vh=window.innerHeight||640, vw=window.innerWidth||360, sT=10, sB=16;
-    spot.style.left=(r.left-8)+"px"; spot.style.top=(r.top-8)+"px"; spot.style.width=(r.width+16)+"px"; spot.style.height=(r.height+16)+"px"; spot.classList.add("show");
-    bubble.style.bottom="auto";
-    var bh=bubble.offsetHeight||200, below=(r.bottom+14+bh+sB)<=vh, above=(r.top-14-bh-sT)>=0, top;
-    if(below){ top=r.bottom+14; arrow.textContent="\u2191"; arrow.style.top=(r.bottom+2)+"px"; }
-    else if(above){ top=r.top-14-bh; arrow.textContent="\u2193"; arrow.style.top=(r.top-30)+"px"; }
-    else if((vh-r.bottom)>=r.top){ top=r.bottom+14; arrow.textContent="\u2191"; arrow.style.top=(r.bottom+2)+"px"; }
-    else { top=r.top-14-bh; arrow.textContent="\u2193"; arrow.style.top=(r.top-30)+"px"; }
-    top=Math.max(sT, Math.min(top, vh-bh-sB));
-    bubble.style.top=top+"px";
-    arrow.style.left=(Math.max(20,Math.min(vw-20, r.left+r.width/2))-9)+"px"; arrow.classList.add("show");
-  }
-  function render(){
-    var st=steps[i]; var el=st.sel?document.querySelector(st.sel):null;
-    if(el){ var _rr=el.getBoundingClientRect(); if(_rr.width<4 && _rr.height<4) el=null; }
-    if(st.sel && !el){ if(!_shown && (_wait=_wait+1)<=15){ setTimeout(render,400); return; } i++; if(i<steps.length){ return render(); } return done(); }
+  var spot=ov.querySelector(".tt-spot"), arrow=ov.querySelector(".tt-arrow"), card=ov.querySelector(".tt-card"), nEl=ov.querySelector(".tt-n"), tEl=ov.querySelector(".tt-t"), nextB=ov.querySelector(".tt-next"), skipB=ov.querySelector(".tt-skip");
+  skipB.textContent=_st("Passer");
+  function done(){ if(_shown){ try{ localStorage.setItem("magot_studio_tuto_v1","1"); }catch(e){} } try{ ov.remove(); }catch(e){} }
+  function show(){ var st=steps[i]; var el=document.querySelector(st.sel);
+    if(!el){ if(!_shown && (_ttWait=(_ttWait||0)+1)<=15){ setTimeout(show,400); return; } i++; if(i<steps.length) return show(); return done(); }
     _shown=true;
-    if(el){ try{ el.scrollIntoView({block:"center",behavior:"smooth"}); }catch(e){} }
-    setTimeout(function(){ place(el); typewrite(st.t);
-      for(var d=0;d<dotEls.length;d++){ if(d===i) dotEls[d].classList.add("on"); else dotEls[d].classList.remove("on"); }
-      nextB.textContent=(i===steps.length-1)?T("Termin\u00e9"):T("Suivant");
-    }, el?480:0);
+    try{ el.scrollIntoView({block:"center",behavior:"smooth"}); }catch(e){}
+    setTimeout(function(){ var r=el.getBoundingClientRect();
+      spot.style.left=(r.left-6)+"px"; spot.style.top=(r.top-6)+"px"; spot.style.width=(r.width+12)+"px"; spot.style.height=(r.height+12)+"px";
+      nEl.textContent=st.n+" / "+steps.length; tEl.textContent=st.t;
+      nextB.textContent=(i===steps.length-1)?("✓ "+_st("Compris")):_st("Suivant");
+      var below=r.top < (window.innerHeight*0.42);
+      if(below){ card.style.top=(r.bottom+42)+"px"; arrow.textContent="\u2191"; arrow.style.top=(r.bottom+6)+"px"; }
+      else { setTimeout(function(){ card.style.top=(r.top-card.offsetHeight-42)+"px"; },0); arrow.textContent="\u2193"; arrow.style.top=(r.top-40)+"px"; }
+      arrow.style.left=(r.left+r.width/2-10)+"px";
+    }, 340);
   }
-  function done(){ clearInterval(typeTimer); if(_shown){ try{ localStorage.setItem("magot_studio_tuto_v2","1"); }catch(e){} } ov.classList.add("closing"); setTimeout(function(){ try{ ov.remove(); }catch(e){} },400); }
-  nextB.onclick=function(){ i++; if(i<steps.length) render(); else done(); };
+  nextB.onclick=function(){ i++; if(i<steps.length) show(); else done(); };
   skipB.onclick=done;
-  setTimeout(function(){ ov.classList.add("on"); bubble.classList.add("show"); render(); },40);
+  show();
 }catch(e){} };
 function _wireEmptyButtons(){ try{
   var ap=document.getElementById("emptyAddPho"); if(ap && !ap._w){ ap._w=1; ap.onclick=function(){ var p=document.getElementById("pickPhotos"); if(p) p.click(); }; }
@@ -8548,13 +8471,12 @@ function updateBadge(){ try{ _updateSourceLabels(); }catch(e){}
   if(_A){ parts.push(_A.engine==="essentia"?"Essentia":"maison"); parts.push(_A.bpm?(_A.bpm+" BPM"):"rég."); if(_A.engine==="essentia"&&_A.conf) parts.push("conf "+_A.conf.toFixed(1)); parts.push((_A.beats?_A.beats.length:0)+" temps"); }
   parts.push(PHOTOS.length+" ph"); if(SEGS.length) parts.push(SEGS.length+" plans"); if(TR&&TR.okCount) parts.push(TR.okCount+" trans"); if(ATMO&&ATMO.okCount) parts.push(ATMO.okCount+" atmo");
   document.getElementById("badge").textContent=parts.join(" · ");
-  try{ _maybeReady(); }catch(e){}
 }
 document.getElementById("pickMusic").onclick=function(){ ensureAudio(); document.getElementById("fMusic").click(); };
 document.getElementById("pickPhotos").onclick=function(){ document.getElementById("fPhotos").click(); };
 document.getElementById("play").onclick=function(){ var self=this; ensureAudio(); if(playing){ stopPlay(); self.textContent="▶ Reprendre"; } else { startPlay(); try{ var _rb=document.getElementById("studioReadyBanner"); if(_rb) _rb.classList.remove("show"); }catch(e){} try{ self.classList.remove("_pulse"); var _wb=document.getElementById("watchBtn"); if(_wb) _wb.classList.remove("_pulse"); }catch(e){} } };
 document.getElementById("restart").onclick=function(){ if(!A||(!PHOTOS.length&&!clipVidReady)) return; pausedOffset=0; buildPartition(); stopPlay(); startPlay(); setTimeout(function(){ if(playing) document.getElementById("play").textContent="⏸ Pause"; },30); };
-document.getElementById("clear").onclick=function(){ stopPlay(); _readyShown=false; PHOTOS.forEach(function(p){ try{URL.revokeObjectURL(p.url);}catch(e){} }); PHOTOS=[]; SEGS=[]; A=null; AUDIOBUF=null; pausedOffset=0; stripDirty=true;
+document.getElementById("clear").onclick=function(){ stopPlay(); PHOTOS.forEach(function(p){ try{URL.revokeObjectURL(p.url);}catch(e){} }); PHOTOS=[]; SEGS=[]; A=null; AUDIOBUF=null; pausedOffset=0; stripDirty=true;
   try{ if(typeof CLIPS!=="undefined"){ CLIPS.forEach(function(c){ try{ c.el.pause(); if(c.el._u) URL.revokeObjectURL(c.el._u); c.el.remove(); }catch(e){} }); CLIPS.length=0; } clipVidReady=false; }catch(e){}
   try{ _hideClipOverlay(); }catch(e){}
   try{ window.USER_ORDER=null; window.SIGN_TEXT=null; window._restSeen={}; window.__activeMusicFile=null; }catch(e){}
@@ -8588,7 +8510,7 @@ function studioAutoMontage(input){
   var items=(input.items||[]).slice();
   items.sort(function(a,b){ var da=(a.day!=null?a.day:1e9), db=(b.day!=null?b.day:1e9); if(da!==db) return da-db; return ((a.time||0)-(b.time||0)); });
   try{ stopPlay(); }catch(e){}
-  PHOTOS.forEach(function(p){ try{URL.revokeObjectURL(p.url);}catch(e){} }); PHOTOS=[]; SEGS=[]; _PSEQ=0; _readyShown=false; A=null; AUDIOBUF=null; pausedOffset=0;
+  PHOTOS.forEach(function(p){ try{URL.revokeObjectURL(p.url);}catch(e){} }); PHOTOS=[]; SEGS=[]; _PSEQ=0; A=null; AUDIOBUF=null; pausedOffset=0;
   try{ if(typeof CLIPS!=="undefined"){ CLIPS.forEach(function(c){ try{ c.el.pause(); if(c.el._u) URL.revokeObjectURL(c.el._u); c.el.remove(); }catch(e){} }); CLIPS.length=0; } clipVidReady=false; }catch(e){}
   try{ _hideClipOverlay(); }catch(e){}
   try{ window.__activeMusicFile=null; window._restSeen={}; var _sm=document.getElementById("srcMus"); if(_sm)_sm.textContent=_st("Choisir"); }catch(e){}
@@ -8701,9 +8623,9 @@ function _restorePhotoFromBlob(id, blob, meta, maxD){ return new Promise(functio
     var _md=Math.max((window._PCAP||1920), maxD||0, window._PMAX||0), _iw=im.naturalWidth||1, _ih=im.naturalHeight||1, _sc=Math.min(1,_md/Math.max(_iw,_ih,1));
     var cv=document.createElement("canvas"); cv.width=Math.max(1,Math.round(_iw*_sc)); cv.height=Math.max(1,Math.round(_ih*_sc)); cv.getContext("2d").drawImage(im,0,0,cv.width,cv.height);
     var _ft=photoFeat(cv); _ft.q=qualityScore(cv); if(meta.skip)_ft.skip=true;
-    var _rsig=(id!=null?String(id):"?")+"|"+(blob.size||0)+"|"+cv.width+"|"+cv.height+"|"+Math.round((_ft.lum||0)*1000);   /* CLÉ = id source + contenu : deux photos DIFFÉRENTES (ids distincts) ne peuvent plus entrer en collision et être perdues ; seul un ré-ajout du MÊME id (idempotent) est ignoré. */
+    var _rsig=(blob.size||0)+"|"+cv.width+"|"+cv.height+"|"+Math.round((_ft.lum||0)*1000);
     if(!window._restSeen) window._restSeen={};
-    if(window._restSeen[_rsig]){ try{ URL.revokeObjectURL(url); }catch(e){} res(false); return; }   /* même photo déjà restaurée -> ignorée (nettoie les films dupliqués) */
+    if(window._restSeen[_rsig]){ try{ URL.revokeObjectURL(url); }catch(e){} res(false); return; }   /* doublon exact -> ignoré (nettoie les films dupliqués) */
     window._restSeen[_rsig]=1;
     var p={img:cv,c:cv,url:null,lum:_ft.lum,feat:_ft,_w:cv.width,_h:cv.height,_id:id,_jpgBlob:blob};
     if(meta.day!=null)p._day=meta.day; if(meta.cap!=null)p._cap=meta.cap; if(meta.capStyle)p._capStyle=meta.capStyle; if(meta.capAnim)p._capAnim=meta.capAnim;
@@ -8720,7 +8642,7 @@ function _restorePhotoFromBlob(id, blob, meta, maxD){ return new Promise(functio
 function studioOpenFilm(id){ try{ stopPlay(); }catch(e){} try{ var _h9=document.querySelector(".hero"); if(_h9){ _h9.classList.remove("cinema"); _h9.classList.remove("chrome-hidden"); } }catch(e){}
   var proj=null; try{ proj=JSON.parse(localStorage.getItem(_filmKey(id))||"null"); }catch(e){}
   if(!proj){ return; }
-  _curFilmId=id; PHOTOS.forEach(function(p){ try{URL.revokeObjectURL(p.url);}catch(e){} }); PHOTOS=[]; SEGS=[]; _PSEQ=0; _readyShown=false; window._restSeen={}; A=null; AUDIOBUF=null; pausedOffset=0;
+  _curFilmId=id; PHOTOS.forEach(function(p){ try{URL.revokeObjectURL(p.url);}catch(e){} }); PHOTOS=[]; SEGS=[]; _PSEQ=0; window._restSeen={}; A=null; AUDIOBUF=null; pausedOffset=0;
   try{ if(typeof CLIPS!=="undefined"){ CLIPS.forEach(function(c){ try{ c.el.pause(); if(c.el._u) URL.revokeObjectURL(c.el._u); c.el.remove(); }catch(e){} }); CLIPS.length=0; } clipVidReady=false; _hideClipOverlay(); }catch(e){}
   try{ window.__activeMusicFile=null; }catch(e){}
   try{ var te=document.getElementById("thumbs"); if(te) te.innerHTML=""; }catch(e){}
@@ -8760,17 +8682,13 @@ function _ensureFilmsOverlay(){ if(document.getElementById("filmsOv")) return;
   o.innerHTML='<div style="max-width:520px;margin:0 auto;min-height:100%;position:relative;padding-bottom:120px">'
     +'<div style="display:flex;align-items:flex-start;justify-content:space-between;padding:20px 22px 6px">'
       +'<div><div style="color:#D4AF37;font:600 10px system-ui;letter-spacing:3px">STUDIO MAGOT</div><div style="font-family:\'Cormorant Garamond\',Georgia,serif;font-weight:600;font-size:40px;color:#F5F2EB;line-height:1.02">'+_st("Vos films")+'</div></div>'
-      +'<div style="display:flex;gap:8px;align-items:center;flex-shrink:0">'
-        +'<button id="filmsTuto" style="height:44px;padding:0 15px;border-radius:22px;border:1px solid rgba(212,175,55,.45);background:#151413;color:#D4AF37;font:600 13px system-ui;cursor:pointer">? '+_st("Tuto")+'</button>'
-        +'<button id="filmsClose" style="width:44px;height:44px;border-radius:50%;border:1px solid #282622;background:#151413;color:#F5F2EB;font-size:19px;cursor:pointer;flex-shrink:0">\u2715</button>'
-      +'</div>'
+      +'<button id="filmsClose" style="width:44px;height:44px;border-radius:50%;border:1px solid #282622;background:#151413;color:#F5F2EB;font-size:19px;cursor:pointer;flex-shrink:0">\u2715</button>'
     +'</div>'
     +'<div id="filmsBody" style="padding:0 22px"></div>'
     +'<button id="filmsNew" style="position:fixed;left:50%;transform:translateX(-50%);bottom:26px;display:flex;align-items:center;gap:8px;background:#D4AF37;color:#050505;font:700 14px system-ui;letter-spacing:1px;padding:14px 24px;border:none;border-radius:999px;cursor:pointer;box-shadow:0 8px 22px rgba(212,175,55,.42);z-index:3">\uFF0B '+_st("Nouveau film")+'</button>'
     +'</div>';
   document.body.appendChild(o);
   document.getElementById("filmsClose").onclick=closeFilms;
-  try{ var _ft=document.getElementById("filmsTuto"); if(_ft) _ft.onclick=function(){ closeFilms(); setTimeout(function(){ try{ window._studioTuto(true); }catch(e){} }, 250); }; }catch(e){}
   document.getElementById("filmsNew").onclick=studioNewFilm;
 }
 function openFilms(){ try{ studioSaveLocal(); }catch(e){} _ensureFilmsOverlay(); renderFilms(); document.getElementById("filmsOv").style.display="block"; }
@@ -8947,15 +8865,13 @@ function _toggleFilmsMenu(anchor){
     m.innerHTML='<button class="fm-i" data-a="open" style="'+_bs+'">\uD83C\uDFAC '+_st("Mes films")+'</button>'
       +'<button class="fm-i" data-a="save" style="'+_bs+'">\uD83D\uDCBE '+_st("Enregistrer le montage")+'</button>'
       +'<button class="fm-i" data-a="new" style="'+_bs+';color:#e6c15a">\u2728 '+_st("Nouveau montage")+'</button>'
-      +'<button class="fm-i" data-a="subs" style="'+_bs+'">'+((window.STUDIO_SUBS_ON===false)?"\u2610":"\u2611")+' '+_st("Sous-titres")+'</button>'
-      +'<button class="fm-i" data-a="tuto" style="'+_bs+'">\uD83E\uDDED '+_st("Revoir le tutoriel")+'</button>';
+      +'<button class="fm-i" data-a="subs" style="'+_bs+'">'+((window.STUDIO_SUBS_ON===false)?"\u2610":"\u2611")+' '+_st("Sous-titres")+'</button>';
     document.body.appendChild(m);
     Array.prototype.forEach.call(m.querySelectorAll(".fm-i"), function(it){ it.onclick=function(ev){ ev.stopPropagation(); var a=it.getAttribute("data-a"); m.style.display="none";
       if(a==="open"){ try{ openFilms(); }catch(e){} }
       else if(a==="save"){ try{ if(!PHOTOS.length && !clipVidReady){ setState(_st("Rien \u00e0 enregistrer pour l\'instant.")); return; } studioSaveLocal(); setState(_st("\u2713 Montage enregistr\u00e9 dans \u00ab Mes films \u00bb.")); }catch(e){} }
       else if(a==="subs"){ try{ window.studioSetSubs(window.STUDIO_SUBS_ON===false); setState(window.STUDIO_SUBS_ON?_st("Sous-titres activ\u00e9s"):_st("Sous-titres masqu\u00e9s")); }catch(e){} }
       else if(a==="new"){ if(confirm("Enregistrer le montage en cours puis repartir \u00e0 z\u00e9ro ?")){ try{ if(PHOTOS.length||clipVidReady) studioSaveLocal(); }catch(e){} try{ _curFilmId=null; document.getElementById("clear").click(); setState(_st("Nouveau montage \u2014 ajoute des photos et une musique.")); }catch(e){} } }
-      else if(a==="tuto"){ setTimeout(function(){ try{ window._studioTuto(true); }catch(e){} }, 200); }
     }; });
     document.addEventListener("click", function(ev){ var mm=document.getElementById("filmsMenu"); if(mm && mm.style.display!=="none" && !mm.contains(ev.target) && ev.target!==anchor && !anchor.contains(ev.target)) mm.style.display="none"; });
   }
@@ -10855,8 +10771,7 @@ function renderVNav(){
       var hasA=(typeof A!=="undefined")&&A;
       var np=(typeof SEGS!=="undefined"&&SEGS)?SEGS.length:0;
       if(hasA){
-        var _plNow=(typeof playing!=="undefined")&&playing;   /* barre de lecture = position RÉELLE : en pause on montre l'arrêt (pas l'horloge murale qui, en mode boucle/multi, avançait toute seule avant lecture). */
-        var cur=_plNow?((typeof montageNow==="function")?montageNow():((typeof audioEl!=="undefined"&&audioEl?audioEl.currentTime:0)||0)):((typeof pausedOffset!=="undefined")?(pausedOffset||0):0);
+        var cur=(typeof montageNow==="function")?montageNow():((typeof audioEl!=="undefined"&&audioEl?audioEl.currentTime:0)||0);
         var _mst=(window.MSTART_EFF||0), _mEnd=(window.MONTAGE_DUR||A.dur||0), _mlen=Math.max(0.1,_mEnd-_mst);
         var _mcur=Math.max(0,Math.min(_mlen,cur-_mst));
         var dur=_mlen;
