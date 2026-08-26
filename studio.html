@@ -1542,9 +1542,10 @@ function buildPartition(){
      photos au-delà du nombre de plans n'étaient jamais affichées. */
   (function(){
     var _keptN=0; for(var _kp=0;_kp<PHOTOS.length;_kp++){ if(PHOTOS[_kp] && !(PHOTOS[_kp].feat&&PHOTOS[_kp].feat.skip)) _keptN++; }
-    if(_keptN<=0 || SEGS.length===0 || SEGS.length>=_keptN) return;
+    var _needN=_keptN + ((typeof _vTgt!=="undefined"&&_vTgt>0)?_vTgt:0);   /* photos + plans vidéo = 1 plan plein par média */
+    if(_keptN<=0 || SEGS.length===0 || SEGS.length>=_needN) return;
     var _guard=0;
-    while(SEGS.length<_keptN && _guard++<800){
+    while(SEGS.length<_needN && _guard++<800){
       var _li=0,_lmax=-1; for(var _s=0;_s<SEGS.length;_s++){ if(SEGS[_s].video) continue; var _len=SEGS[_s].end-SEGS[_s].start; if(_len>_lmax){ _lmax=_len; _li=_s; } }
       if(_lmax<0.45) break;                                 /* on découpe jusqu'à 0,45s pour garantir un plan par photo */
       var _sgL=SEGS[_li], _mid=(_sgL.start+_sgL.end)/2, _cutT=_mid, _bd=1e9;
@@ -1592,7 +1593,7 @@ function buildPartition(){
     } else if(_rc.length){
       /* PHOTOS + VIDÉOS : intercalage sur les temps forts, densité réglable */
       var _gap=({cinema:7,doux:8,dynamique:4,voyage:5})[MOOD]||6;
-      var _target=Math.max(1, Math.round(SEGS.length/_gap*(window.VIDDENS||1)));
+      var _target=(typeof _vTgt!=="undefined"&&_vTgt>0)?_vTgt:Math.max(1, Math.round(SEGS.length/_gap*(window.VIDDENS||1)));
       var _lastV=-99;
       for(var _k=1;_k<=_target;_k++){
         var _ideal=Math.round(_k*SEGS.length/(_target+1));
@@ -1624,8 +1625,9 @@ function buildPartition(){
     /* PARAMS PAR MORCEAU (couleur/vitesse) : défaut = celui du clip (l'éditeur par morceau viendra les surcharger) */
     for(var _sp=0;_sp<SEGS.length;_sp++){ if(SEGS[_sp].video && CLIPS[SEGS[_sp].vclip]){ SEGS[_sp].vspeed=CLIPS[SEGS[_sp].vclip].speed||1; SEGS[_sp].vcolor=CLIPS[SEGS[_sp].vclip].color;
       var _mk=Math.round(SEGS[_sp].start*10); if(window.VMOVR && window.VMOVR[_mk]){ if(window.VMOVR[_mk].speed!=null) SEGS[_sp].vspeed=window.VMOVR[_mk].speed; if(window.VMOVR[_mk].color) SEGS[_sp].vcolor=window.VMOVR[_mk].color; } } }
-    /* intercalage : allonger un plan vidéo en absorbant le plan photo suivant (pas en vidéo-only) */
-    if(PHOTOS.length>0){ for(var _mv=SEGS.length-2; _mv>=0; _mv--){ if(SEGS[_mv].video && SEGS[_mv+1] && !SEGS[_mv+1].video){ SEGS[_mv].end=SEGS[_mv+1].end; SEGS.splice(_mv+1,1); } } }
+    /* (retiré) l'absorption du plan photo suivant par un plan vidéo évinçait des photos.
+       Les vidéos sont des plans EN PLUS (budgétés dans want + réservés au découpage) :
+       on ne supprime plus aucun plan photo. */
   }
   try{ window._DIAGC.vmerge=_diagMiss(); }catch(_e){}
   for(var _es=0; _es<SEGS.length; _es++){ if(!SEGS[_es].video && SEGS[_es].img!=null && SEGS[_es].img>=0){ var _en=_capNeeded(SEGS[_es].img); if(_en>0){ while((SEGS[_es].end-SEGS[_es].start) < _en-0.01 && _es+1<SEGS.length && !SEGS[_es+1].video){ SEGS[_es].end=SEGS[_es+1].end; SEGS.splice(_es+1,1); } } } }
@@ -1635,15 +1637,19 @@ function buildPartition(){
        déjà réservé le temps des vidéos, la timeline est assez longue -> on ne raccourcit pas,
        on remet simplement chaque photo. Synchro intacte (coupe sur beat). */
     var _keptF=[]; for(var _kf=0;_kf<PHOTOS.length;_kf++){ if(PHOTOS[_kf]&&!(PHOTOS[_kf].feat&&PHOTOS[_kf].feat.skip)) _keptF.push(_kf); }
-    var _hasF={}; for(var _sf=0;_sf<SEGS.length;_sf++){ var _sgf=SEGS[_sf]; if(_sgf&&!_sgf.video&&_sgf.img!=null&&_sgf.img>=0) _hasF[_sgf.img]=1; }
-    var _missF=[]; for(var _mf=0;_mf<_keptF.length;_mf++){ if(!_hasF[_keptF[_mf]]) _missF.push(_keptF[_mf]); }
+    var _cntF={}; for(var _sf=0;_sf<SEGS.length;_sf++){ var _sgf=SEGS[_sf]; if(_sgf&&!_sgf.video&&!_sgf.sign&&_sgf.img!=null&&_sgf.img>=0) _cntF[_sgf.img]=(_cntF[_sgf.img]||0)+1; }
+    var _missF=[]; for(var _mf=0;_mf<_keptF.length;_mf++){ if(!_cntF[_keptF[_mf]]) _missF.push(_keptF[_mf]); }
+    var _fi=0;
+    /* a) réattribuer un plan photo EN DOUBLE à une photo manquante -> aucun plan raccourci */
+    for(var _rs=0;_rs<SEGS.length && _fi<_missF.length;_rs++){ var _sg2=SEGS[_rs]; if(!_sg2||_sg2.video||_sg2.sign) continue; var _im2=_sg2.img; if(_im2!=null && _im2>=0 && _cntF[_im2]>1){ _cntF[_im2]--; _sg2.img=_missF[_fi]; _cntF[_missF[_fi]]=1; _fi++; } }
+    /* b) dernier recours seulement : découper sur un beat le plan photo le plus long (jamais < ~0,45s) */
     var _cg=0;
-    while(_missF.length && _cg++<2000){
+    while(_fi<_missF.length && _cg++<2000){
       var _li=-1,_lmax=-1; for(var _s3=0;_s3<SEGS.length;_s3++){ if(SEGS[_s3].video||SEGS[_s3].sign) continue; if(SEGS[_s3].img==null||SEGS[_s3].img<0) continue; var _ln=SEGS[_s3].end-SEGS[_s3].start; if(_ln>_lmax){ _lmax=_ln; _li=_s3; } }
-      if(_li<0 || _lmax<0.5) break;
+      if(_li<0 || _lmax<0.9) break;
       var _sgL=SEGS[_li], _mid=(_sgL.start+_sgL.end)/2, _cut=_mid, _bd=1e9;
       for(var _bk=0;_bk<beats.length;_bk++){ if(beats[_bk]>_sgL.start+0.22 && beats[_bk]<_sgL.end-0.22){ var _dd=Math.abs(beats[_bk]-_mid); if(_dd<_bd){ _bd=_dd; _cut=beats[_bk]; } } }
-      var _imgF=_missF.shift();
+      var _imgF=_missF[_fi]; _fi++;
       var _nsgF={start:_cut,end:_sgL.end,strong:false,e:_eAt(_cut),img:_imgF,kbDir:1,slideDir:1,move:MOVES[SEGS.length%MOVES.length],trans:"fade",_prev:_sgL};
       _sgL.end=_cut; SEGS.splice(_li+1,0,_nsgF);
     }
