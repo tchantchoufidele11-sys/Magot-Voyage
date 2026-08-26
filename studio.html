@@ -852,8 +852,8 @@ input[type=range]::-moz-range-thumb{width:22px;height:22px;border:0;border-radiu
 
   <div class="fmtbar" id="fmtBar">
     <span class="fmtbar-l" data-i18n="FORMAT">FORMAT</span>
-    <button class="fmc" data-n="orig" data-i18n="Origine">Origine</button>
-    <button class="fmc on" data-n="9:16">9:16</button>
+    <button class="fmc on" data-n="orig" data-i18n="Origine">Origine</button>
+    <button class="fmc" data-n="9:16">9:16</button>
     <button class="fmc" data-n="4:5">4:5</button>
     <button class="fmc" data-n="1:1">1:1</button>
     <button class="fmc" data-n="16:9">16:9</button>
@@ -968,7 +968,7 @@ input[type=range]::-moz-range-thumb{width:22px;height:22px;border:0;border-radiu
   <div class="grip"></div>
   <div class="sh-top"><b data-i18n="Exporter la vidéo">Exporter la vidéo</b><button class="cancel" data-close data-i18n="Annuler">Annuler</button></div>
   <div class="sh-body">
-    <p class="sh-note">Choisis le format, puis lance l'export. Par défaut : <b>9:16</b> (vertical).</p>
+    <p class="sh-note">Choisis le format, puis lance l'export. Par défaut : <b>Origine</b> (comme pris).</p>
     <div class="efmts">
       <button class="efmt" data-ef="orig"><div class="ef-sh ef-v" style="width:15px;background:linear-gradient(135deg,#e6c25f,#8a6d1f)"></div><div class="ef-tx"><b>Origine</b><span data-i18n="Format d'origine · comme filmé/pris">Format d'origine · comme filmé/pris</span></div></button>
       <button class="efmt on" data-ef="v"><div class="ef-sh ef-v"></div><div class="ef-tx"><b>9:16</b><span data-i18n="Vertical · Stories, Reels, TikTok">Vertical · Stories, Reels, TikTok</span></div></button>
@@ -8448,7 +8448,7 @@ function studioAutoMontage(input){
     try{ updateBadge(); paintStrip(0); }catch(e){}
     if(input.music && input.music.url && window.__useTrack){ try{ window.__useTrack({ id:input.music.id||"auto", title:input.music.title||"Musique", url:input.music.url, type:input.music.type||"", cover:input.music.cover||"" }); }catch(e){} }
     var n=0, _iv=setInterval(function(){ n++;
-      if(A && (PHOTOS.length||clipVidReady)){ clearInterval(_iv); try{ buildPartition(); paintStrip(0); try{ studioSaveLocal(); }catch(_s){}   /* -> stocke sous "trip:<id>", visible dans Souvenirs, rouvrable */ setState((PHOTOS.length+(clipVidReady?CLIPS.filter(function(c){return c.ready;}).length:0))+" éléments · montage prêt"); if(input.autoplay) startPlay(); }catch(e){} }
+      if(A && (PHOTOS.length||clipVidReady)){ clearInterval(_iv); try{ buildPartition(); paintStrip(0); try{ studioSaveLocal(); }catch(_s){}   /* -> stocke sous "trip:<id>", visible dans Souvenirs, rouvrable */ try{ var _of=document.querySelector('.fmc[data-n="orig"]'); if(_of&&_of.classList.contains("on")&&typeof _applyOrigineFormat==="function") _applyOrigineFormat(); }catch(_o){}   /* ratio d'origine réel une fois les médias chargés */ setState((PHOTOS.length+(clipVidReady?CLIPS.filter(function(c){return c.ready;}).length:0))+" éléments · montage prêt"); if(input.autoplay) startPlay(); }catch(e){} }
       else if(n>80){ clearInterval(_iv); try{ setState(_st("Choisis une musique pour lancer le montage.")); }catch(e){} }
     }, 200);
   }
@@ -9534,6 +9534,17 @@ function _origFmt(){ try{
   if(med>=1){ w=L; h=Math.round(L/med); } else { h=L; w=Math.round(L*med); }
   w=Math.max(2,Math.round(w/2)*2); h=Math.max(2,Math.round(h/2)*2); return {w:w,h:h};
 }catch(e){ return {w:1080,h:1920}; } }
+/* Applique le FORMAT D'ORIGINE (ratio dominant des médias) — défaut de l'app. Idempotent.
+   Exposé pour Magot Voyage (peut le rappeler après avoir alimenté le montage). */
+function _applyOrigineFormat(){ try{
+  var f=(typeof _origFmt==="function")?_origFmt():{w:1080,h:1920};
+  if(window._setFormat) window._setFormat(f.w,f.h,"Origine");
+  try{ document.querySelectorAll(".fmc").forEach(function(x){ x.classList.toggle("on", x.getAttribute("data-n")==="orig"); }); }catch(e){}
+  try{ document.querySelectorAll(".efmt").forEach(function(x){ x.classList.toggle("on", x.getAttribute("data-ef")==="orig"); }); }catch(e){}
+  try{ var de=document.getElementById("doExport"); if(de){ var last=de.lastChild; if(last&&last.nodeType===3) last.textContent=" Exporter (origine)"; } }catch(e){}
+  try{ var eb=document.getElementById("exportBtn"); if(eb) eb.textContent="⚡ Exporter la vidéo (origine)"; }catch(e){}
+}catch(e){} }
+try{ window._applyOrigineFormat=_applyOrigineFormat; }catch(e){}
 var _eb=document.getElementById("exportBtn"); if(_eb) _eb.onclick=function(){ exportStudio(); };
 /* Bouton Annuler : sortie de secours immédiate — même si un await encodeur reste figé,
    ceci réarme l'UI (le bouton s'exécute dans une tâche séparée) et libère l'utilisateur. */
@@ -10575,13 +10586,9 @@ function renderVNav(){
     };
   }
 
-  /* ---------- 11b) Format par défaut : 9:16 (vertical — standard mobile/réseaux) ---------- */
-  (function default916(){
-    try{
-      var vf=q('.fmt[data-n="9:16"]'); if(vf) vf.click();
-      qa(".efmt").forEach(function(x){ x.classList.remove("on"); });
-      var ev=q('.efmt[data-ef="v"]'); if(ev) ev.classList.add("on");
-    }catch(e){}
+  /* ---------- 11b) Format par défaut : ORIGINE (comme filmé/pris) ---------- */
+  (function defaultOrig(){
+    try{ if(typeof _applyOrigineFormat==="function") _applyOrigineFormat(); }catch(e){}
   })();
 
   /* ---------- 12) IA : recalcul reel du montage ---------- */
