@@ -9826,7 +9826,7 @@ async function studioCatalog(){ try{
   return (rows||[]).map(x=>({
     id:x.id, title:x.title||"Musique", artist:x.artist||"",
     mood:x.mood||"", type:x.type||x.genre||x.mood||"", genre:x.genre||x.mood||"",
-    cover:(x.cover&&/^https?:/.test(x.cover))?x.cover:(x.cover_url||""),
+    cover:(function(){ var _c=x.cover_url||x.cover||""; return /^(https?:|data:)/.test(_c)?_c:""; })(),
     path:x.path||"",
     url:(x.path?magotUrl(x.path):(x.url||"")),
     duration:+x.duration||0, bpm:+x.bpm||0,
@@ -13861,20 +13861,18 @@ async function magotUpload(file, title, mood, artist, coverBlob){
     const up=await fetch(SB_URL+"/storage/v1/object/musics/"+encodeURIComponent(path),{
       method:"POST", headers:{ apikey:SB_ANON, Authorization:"Bearer "+tok, "Content-Type":(file.type||"audio/mpeg") }, body:file });
     if(!up.ok){ const t2=await up.text().catch(()=>""); toast("Envoi refus\u00e9 ("+up.status+"). V\u00e9rifie le bucket et les droits."); console.warn(t2); return false; }
-    /* Pochette (ID3 APIC, façon Suno) -> upload storage -> cover_url */
-    let cover_url="";
-    if(coverBlob){ try{
-      const cpath=path.replace(/\.[^.]+$/,"")+"_cover.jpg";
-      const cu=await fetch(SB_URL+"/storage/v1/object/musics/"+encodeURIComponent(cpath),{ method:"POST", headers:{ apikey:SB_ANON, Authorization:"Bearer "+tok, "Content-Type":(coverBlob.type||"image/jpeg") }, body:coverBlob });
-      if(cu.ok) cover_url=magotUrl(cpath);
-    }catch(e){} }
+    /* Pochette (ID3 APIC, façon Suno) : reçue en data-URL compressée, stockée directement. */
     const _base={ title:title||String(file.name||"").replace(/\.[^.]+$/,""), path, mood:mood||"", bpm, duration:dur };
-    const _rich=Object.assign({}, _base); if(artist) _rich.artist=artist; if(cover_url) _rich.cover_url=cover_url;
+    const _cover=(typeof coverBlob==="string" && coverBlob.indexOf("data:")===0)?coverBlob:"";
     const _insertRow=(bodyObj)=>fetch(SB_URL+"/rest/v1/music_catalog",{ method:"POST", headers:{ apikey:SB_ANON, Authorization:"Bearer "+tok, "Content-Type":"application/json", Prefer:"return=minimal" }, body:JSON.stringify(bodyObj) });
-    let ins=await _insertRow(_rich);
-    if(!ins.ok && (artist||cover_url)){ ins=await _insertRow(_base); }   /* repli : colonnes artist/cover_url absentes -> publie quand même */
-    if(!ins.ok){ const t3=await ins.text().catch(()=>""); let msg=""; try{ const j3=JSON.parse(t3); msg=j3.message||j3.error||j3.hint||""; }catch(e){ msg=t3; }
-      return "Fiche non enregistr\u00e9e ("+ins.status+"). "+(ins.status===403?"La table refuse l\u2019\u00e9criture \u2014 ex\u00e9cute le SQL FINAL dans Supabase. ":"")+(msg?("D\u00e9tail : "+String(msg).slice(0,140)):""); }
+    const _bodies=[];
+    { const b=Object.assign({},_base); if(artist)b.artist=artist; if(_cover)b.cover_url=_cover; _bodies.push(b); }
+    if(_cover){ const b=Object.assign({},_base); if(artist)b.artist=artist; b.cover=_cover; _bodies.push(b); }   /* variante : colonne nommée cover */
+    if(artist||_cover){ const b=Object.assign({},_base); if(artist)b.artist=artist; _bodies.push(b); }
+    _bodies.push(_base);
+    let ins=null; for(const b of _bodies){ ins=await _insertRow(b); if(ins.ok) break; }   /* dégrade proprement si une colonne manque */
+    if(!ins || !ins.ok){ const t3=ins?await ins.text().catch(()=>""):""; let msg=""; try{ const j3=JSON.parse(t3); msg=j3.message||j3.error||j3.hint||""; }catch(e){ msg=t3; }
+      return "Fiche non enregistr\u00e9e ("+(ins?ins.status:"?")+"). "+((ins&&ins.status===403)?"La table refuse l\u2019\u00e9criture \u2014 ex\u00e9cute le SQL FINAL dans Supabase. ":"")+(msg?("D\u00e9tail : "+String(msg).slice(0,140)):""); }
     return true;
   }catch(e){ return "\u00c9chec r\u00e9seau : "+((e&&e.message)||String(e)); }
 }

@@ -8871,6 +8871,7 @@ document.getElementById("ovlOff").onclick=function(){ OVL.on=false; try{ ovVid.p
 var syncEl=document.getElementById("sync"), syncVal=document.getElementById("syncVal");
 function syncLabel(){ var v=Math.round(curSync()*1000); if(syncVal) syncVal.textContent=(v>0?"+":"")+v+" ms"; var _svl=document.getElementById("syncV"); if(_svl) _svl.textContent=(v>0?"+":"")+v+" ms"; }
 function syncApply(){ var _sv=Math.round((SYNC_M[MOOD]||0)*1000); if(syncEl) syncEl.value=_sv; var _sr=document.getElementById("syncR"); if(_sr) _sr.value=_sv; syncLabel(); try{ if(typeof _paintAllRanges==="function") _paintAllRanges(); }catch(e){} if(A) paintStrip(playing?visualTime():0); }
+function _applyMoodUI(md){ try{ document.querySelectorAll(".mood").forEach(function(x){ x.classList.toggle("on", x.dataset.mood===md); }); var _b=document.querySelector('.mood[data-mood="'+md+'"]'); var _an=document.getElementById("ambName"); if(_an && _b) _an.textContent=_b.textContent; if(typeof syncApply==="function") syncApply(); }catch(e){} }
 if(syncEl) syncEl.oninput=function(){ SYNC_M[MOOD]=(+syncEl.value)/1000; syncLabel(); if(A){ paintStrip(playing?visualTime():0); try{ if(SEGS&&SEGS.length) renderMontageAt(playing?visualTime():0); }catch(e){} } };
 var srst=document.getElementById("syncReset"); if(srst) srst.onclick=function(){ SYNC_M[MOOD]=autoSync(MOOD,(A&&A.bpmFelt)?A.bpmFelt:((A&&A.bpm)?A.bpm:120)); syncApply(); };
 syncApply();
@@ -9956,6 +9957,23 @@ essentiaReady.then(function(ok){ if(!ok && !A){ /* silencieux : le repli se fait
       }
     },200);
   }
+  /* 2B — Auto-sélection de la musique selon le MODE. Priorité aux pistes déjà téléchargées,
+     choix déterministe par voyage (film stable). Renvoie true si une piste a été lancée. */
+  function _studioAutoPickMusic(mood){
+    mood=String(mood||"").toLowerCase();
+    var cands=LIB.filter(function(t){ return t && String(t.type||"").toLowerCase()===mood; });
+    if(!cands.length) return false;
+    var dl=cands.filter(function(t){ return isDL(t) || t._file || t.file; });
+    var pool=dl.length?dl:cands;
+    var seed=String((typeof _curFilmId!=="undefined"&&_curFilmId)?_curFilmId:"studio")+"|"+mood;
+    var h=0; for(var i=0;i<seed.length;i++){ h=((h<<5)-h+seed.charCodeAt(i))|0; }
+    var picked=pool[Math.abs(h)%pool.length]; if(!picked) return false;
+    window._musicAuto=true;
+    try{ useTrack(picked); }catch(e){ window._musicAuto=false; return false; }
+    return true;
+  }
+  function _studioModeHasMusic(mood){ mood=String(mood||"").toLowerCase(); return LIB.some(function(t){ return t && String(t.type||"").toLowerCase()===mood; }); }
+  try{ window._studioAutoPickMusic=_studioAutoPickMusic; window._studioModeHasMusic=_studioModeHasMusic; window._modeLabel=_modeLabel; }catch(e){}
   function useTrack(t){
     if(_mLoading) return; stopPreview();
     LIB_ACTIVE=t.id; TRACKS=[]; window.MULTI=0;
@@ -9965,7 +9983,10 @@ essentiaReady.then(function(ok){ if(!ok && !A){ /* silencieux : le repli se fait
       if(!ok){ renderLib(); return; }
       try{ AUDIOBUF=t._buf; A=t._A; setMusicEl(t._file); }catch(e){}
       try{ window.__activeMusicFile=t._file||null; window.__activeMusicMeta={ id:t.id, title:t.title, url:t.url||null, type:t.type||null, cover:t.cover||null }; }catch(e){}
+      var _wasAuto=!!window._musicAuto; window._musicAuto=false;
+      try{ var _cat=String(t.type||"").toLowerCase(); if(!_wasAuto && ["cinema","doux","voyage","dynamique"].indexOf(_cat)>=0 && typeof MOOD!=="undefined" && _cat!==MOOD){ MOOD=_cat; try{ _applyMoodUI(_cat); }catch(e){} } }catch(e){}   /* choix utilisateur : le mode suit la piste */
       try{ if(typeof finishAnalyze==="function") finishAnalyze(); }catch(e){}
+      if(!_wasAuto){ try{ if(A && (typeof PHOTOS!=="undefined") && (PHOTOS.length||clipVidReady) && typeof buildPartition==="function"){ buildPartition(); paintStrip(0); try{ renderMontageAt(0); }catch(e){} } }catch(e){} }   /* applique tout de suite la nouvelle musique/mode si un montage existe */
       renderLib();
     }, true);
   }
@@ -10008,6 +10029,14 @@ essentiaReady.then(function(ok){ if(!ok && !A){ /* silencieux : le repli se fait
      +((typeof window!=="undefined"&&window.STUDIO_ADMIN!==false)?'<button class="doexp" id="mImport">\uFF0B '+_st("Importer une musique")+'</button>':'');
     var myMusicIn=document.createElement("input"); myMusicIn.type="file"; myMusicIn.style.display="none"; /* pas d'accept : iOS grise les MP3 avec audio/* — comme le champ du moteur */
     try{ (document.body||document.documentElement).appendChild(myMusicIn); }catch(e){}
+    function _coverToDataURL(objUrl, cb){
+      if(!objUrl){ cb(""); return; }
+      try{ var img=new Image();
+        img.onload=function(){ try{ var s=Math.min(img.naturalWidth,img.naturalHeight)||320, S=320; var cv=document.createElement("canvas"); cv.width=S; cv.height=S; var cx=cv.getContext("2d"); var sx=(img.naturalWidth-s)/2, sy=(img.naturalHeight-s)/2; cx.drawImage(img, sx, sy, s, s, 0, 0, S, S); cb(cv.toDataURL("image/jpeg",0.82)); }catch(e){ cb(""); } };
+        img.onerror=function(){ cb(""); };
+        img.src=objUrl;
+      }catch(e){ cb(""); }
+    }
     myMusicIn.onchange=function(){ var f=this.files&&this.files[0]; if(!f) return; this.value="";
       if(window.STUDIO_ADMIN && typeof window.STUDIO_UPLOAD==="function"){
         _readID3(f, function(meta){ meta=meta||{};
@@ -10015,9 +10044,9 @@ essentiaReady.then(function(ok){ if(!ok && !A){ /* silencieux : le repli se fait
           var _artist=(meta.artist && meta.artist.toLowerCase()!=="import")?meta.artist:"";
           var _coverUrl=meta.cover||"";   /* objectURL de la pochette (APIC) */
           _studioPickMode(null, function(mode){ if(!mode) return; try{ setState("Publication au catalogue\u2026"); }catch(_){}
-            var _send=function(coverBlob){ Promise.resolve(window.STUDIO_UPLOAD(f,_title,mode,_artist,coverBlob||null)).then(function(r){ if(r===true){ try{ setState("\u2713 \u00ab "+_title+" \u00bb publi\u00e9e ("+_modeLabel(mode)+")."); }catch(_){} try{ if(typeof window.__reloadCatalog==="function") window.__reloadCatalog(); }catch(e){} } else { try{ setState(typeof r==="string"?r:"Publication impossible."); }catch(_){} } }).catch(function(){ try{ setState("Publication impossible (r\u00e9seau ?)."); }catch(_){} }); };
-            if(_coverUrl){ fetch(_coverUrl).then(function(r){ return r.blob(); }).then(_send).catch(function(){ _send(null); }); }
-            else _send(null);
+            _coverToDataURL(_coverUrl, function(coverData){
+              Promise.resolve(window.STUDIO_UPLOAD(f,_title,mode,_artist,coverData||"")).then(function(r){ if(r===true){ try{ setState("\u2713 \u00ab "+_title+" \u00bb publi\u00e9e ("+_modeLabel(mode)+")."); }catch(_){} try{ if(typeof window.__reloadCatalog==="function") window.__reloadCatalog(); }catch(e){} } else { try{ setState(typeof r==="string"?r:"Publication impossible."); }catch(_){} } }).catch(function(){ try{ setState("Publication impossible (r\u00e9seau ?)."); }catch(_){} });
+            });
           });
         });
         return;
