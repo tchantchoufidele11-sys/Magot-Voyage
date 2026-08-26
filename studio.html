@@ -1669,6 +1669,7 @@ function buildPartition(){
     if(_oD>0) SEGS.push({start:pEnd, end:wEnd, sign:"outro", img:-1, trans:"none"});
   }
   try{ if(typeof _projSaveSoon==="function") _projSaveSoon(); }catch(e){}
+  try{ if(typeof _refreshSrcCounts==="function") _refreshSrcCounts(); }catch(e){}   /* compteurs Photos/Vidéo à jour dès le montage */
 }
 
 /* ================= Rendu 2D ================= */
@@ -9545,6 +9546,15 @@ function _applyOrigineFormat(){ try{
   try{ var eb=document.getElementById("exportBtn"); if(eb) eb.textContent="⚡ Exporter la vidéo (origine)"; }catch(e){}
 }catch(e){} }
 try{ window._applyOrigineFormat=_applyOrigineFormat; }catch(e){}
+/* Rafraîchit les compteurs des SOURCES (Photos / Vidéo) sans ouvrir les feuilles. */
+function _refreshSrcCounts(){ try{
+  var _tot=(typeof PHOTOS!=="undefined"&&PHOTOS)?PHOTOS.length:0, _exc=0;
+  if(_tot){ for(var i=0;i<PHOTOS.length;i++){ if(PHOTOS[i]&&PHOTOS[i].feat&&PHOTOS[i].feat.skip) _exc++; } }
+  var _sp=document.getElementById("srcPho"); if(_sp) _sp.textContent=_tot?(_tot+(_exc?(" \u00b7 "+_exc+" \u00e9cart\u00e9e"+(_exc>1?"s":"")):"")):"Ajouter";
+  var _nc=(typeof CLIPS!=="undefined"&&CLIPS)?CLIPS.length:0;
+  var _sv=document.getElementById("srcVid"); if(_sv) _sv.textContent=_nc?(_nc+" clip"+(_nc>1?"s":"")):"Optionnel";
+}catch(e){} }
+try{ window._refreshSrcCounts=_refreshSrcCounts; }catch(e){}
 var _eb=document.getElementById("exportBtn"); if(_eb) _eb.onclick=function(){ exportStudio(); };
 /* Bouton Annuler : sortie de secours immédiate — même si un await encodeur reste figé,
    ceci réarme l'UI (le bouton s'exécute dans une tâche séparée) et libère l'utilisateur. */
