@@ -685,8 +685,8 @@ input[type=range]::-moz-range-thumb{width:22px;height:22px;border:0;border-radiu
 @keyframes _ebounce{0%,100%{transform:translateY(0)}50%{transform:translateY(6px)}}
 .eb-btn{background:#151413;border:1px solid #2a2825;color:#f4f7fc;font:700 14px system-ui;padding:12px 18px;border-radius:12px;cursor:pointer;display:inline-flex;align-items:center;gap:7px}
 .eb-gold{background:linear-gradient(135deg,#D4AF37,#b8952f);color:#1a1710;border-color:#D4AF37}
-#studioReadyBanner{position:fixed;left:50%;top:14px;transform:translateX(-50%) translateY(-8px);z-index:99998;background:linear-gradient(135deg,#D4AF37,#b8952f);color:#1a1710;font:700 15px system-ui;padding:12px 20px;border-radius:14px;box-shadow:0 10px 34px rgba(0,0,0,.5);opacity:0;pointer-events:none;transition:opacity .3s,transform .3s;max-width:92vw;text-align:center}
-#studioReadyBanner.show{opacity:1;transform:translateX(-50%) translateY(0)}
+#studioReadyBanner{position:fixed;left:50%;top:44%;transform:translate(-50%,-50%) scale(.88);z-index:99998;background:linear-gradient(180deg,#0e1a29,#0a1420);border:1px solid rgba(212,175,55,.5);color:#f5f2eb;padding:22px 26px;border-radius:20px;box-shadow:0 24px 70px rgba(0,0,0,.65);opacity:0;pointer-events:none;transition:opacity .35s cubic-bezier(.2,.7,.2,1),transform .35s cubic-bezier(.2,.7,.2,1);max-width:78vw;text-align:center}
+#studioReadyBanner.show{opacity:1;transform:translate(-50%,-50%) scale(1)}
 @keyframes _mplay{0%,100%{box-shadow:0 0 0 0 rgba(212,175,55,.7);transform:scale(1)}50%{box-shadow:0 0 0 15px rgba(212,175,55,0);transform:scale(1.02)}}
 ._pulse{animation:_mplay 1.4s ease-out infinite}
 .empty-t{ font-family:"Cormorant Garamond",Georgia,serif !important; color:#F5F2EB !important; }
@@ -845,7 +845,7 @@ input[type=range]::-moz-range-thumb{width:22px;height:22px;border:0;border-radiu
 <main class="app">
   <header class="header">
     <div class="header-left"></div>
-    <div class="brand"><h1>Studio Magot<i>✦</i></h1><p>Montage vidéo · C303</p></div>
+    <div class="brand"><h1>Studio Magot<i>✦</i></h1><p>Montage vidéo · C305</p></div>
     <button class="export" id="expBtn"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 15V3m0 0L7 8m5-5l5 5M5 15v4h14v-4"/></svg> Exporter</button>
   </header>
 
@@ -1386,7 +1386,7 @@ function snapKick(t){ if(!A||!A.kEnv||!A.efps) return t; var f=A.efps, i=Math.ro
   for(var k=i-w;k<=i+w;k++){ if(k<0||k>=A.kEnv.length) continue; if(A.kEnv[k]>bv){ bv=A.kEnv[k]; bk=k; } } return bk/f; }
 function sigDist(a,b){ if(!a||!b||a.length!==b.length) return 1; var s=0; for(var i=0;i<a.length;i++){ s+=Math.abs(a[i]-b[i]); } return s/a.length; }
 function cosSim(a,b){ if(!a||!b) return 0; var s=0,na=0,nb=0; for(var i=0;i<a.length;i++){ s+=a[i]*b[i]; na+=a[i]*a[i]; nb+=b[i]*b[i]; } return s/(Math.sqrt(na)*Math.sqrt(nb)+1e-9); }
-function tooSimilar(ia,ib){ var fa=(PHOTOS[ia].feat||{}), fb=(PHOTOS[ib].feat||{}); if(fa.emb&&fb.emb) return cosSim(fa.emb,fb.emb)>0.90; return sigDist(fa.sig,fb.sig)<0.030; }
+function tooSimilar(ia,ib){ var fa=(PHOTOS[ia].feat||{}), fb=(PHOTOS[ib].feat||{}); if(fa.emb&&fb.emb) return cosSim(fa.emb,fb.emb)>0.945; return sigDist(fa.sig,fb.sig)<0.018; }
 /* ===== Reconnaissance IA dans un Web Worker ISOLÉ (aucun accès au rendu GPU de la page) ===== */
 var MZ={worker:null, ready:false, seq:0, map:{}, timer:null};
 var MZ_CODE=[
@@ -8406,7 +8406,7 @@ function _applyOrigineFormat(){ try{
 }catch(e){} }
 /* Met à jour les libellés des sources (Musique / Photos / Vidéo) avec le contenu réel */
 function _updateSourceLabels(){ try{
-  var sm=document.getElementById("srcMus"); if(sm){ var nm=(window.__activeMusicMeta&&window.__activeMusicMeta.title)||(window.MULTI&&typeof TRACKS!=="undefined"&&TRACKS[0]&&TRACKS[0].name)||(A?"Musique":""); sm.textContent = nm || _st("Choisir"); }
+  var sm=document.getElementById("srcMus"); if(sm){ var _mm=window.__activeMusicMeta||{}; var _tt=(_mm.title&&String(_mm.title).trim()&&String(_mm.title).trim().toLowerCase()!=="musique")?String(_mm.title).trim():""; if(!_tt && window.MULTI && typeof TRACKS!=="undefined" && TRACKS[0] && TRACKS[0].name) _tt=TRACKS[0].name; var _ty=String(_mm.type||MOOD||"").trim(); if(_ty) _ty=_ty.charAt(0).toUpperCase()+_ty.slice(1); var nm; if(_tt) nm=_tt+(_ty?(" \u00b7 "+_ty):""); else if(A) nm=_ty||"Musique"; else nm=""; sm.textContent = nm || _st("Choisir"); }
   var sp=document.getElementById("srcPho"); if(sp){ sp.textContent = PHOTOS.length ? (PHOTOS.length+" "+(PHOTOS.length>1?"photos":"photo")) : _st("Ajouter"); }
   var sv=document.getElementById("srcVid"); if(sv){ var nc=(typeof CLIPS!=="undefined")?CLIPS.filter(function(c){return c&&c.ready;}).length:0; sv.textContent = nc ? (nc+" "+(nc>1?"clips":"clip")) : _st("Optionnel"); }
 }catch(e){} }
@@ -8417,10 +8417,10 @@ function _maybeReady(){ try{ if(_readyShown) return; if(typeof A!=="undefined" &
 function _studioReady(){ _readyShown=true; try{
   var b=document.getElementById("studioReadyBanner");
   if(!b){ b=document.createElement("div"); b.id="studioReadyBanner"; document.body.appendChild(b); }
-  b.textContent="✓ "+_st("Ton montage est prêt")+" — "+_st("appuie sur Lire le film");
+  b.innerHTML='<div style="font-size:32px;line-height:1;margin-bottom:8px">\uD83C\uDFAC</div><div style="font:700 18px/1.3 Georgia,serif;color:#D4AF37;margin-bottom:5px">'+_st("Ton montage est prêt")+'</div><div style="font:400 13px/1.4 system-ui;color:#c7d3ee">'+_st("Appuie sur \u00ab Lire le film \u00bb")+'</div>';
   b.classList.add("show");
   try{ var p=document.getElementById("watchBtn")||document.getElementById("play"); if(p){ p.classList.remove("_pulse"); void p.offsetWidth; p.classList.add("_pulse"); } }catch(e){}
-  clearTimeout(window._srT); window._srT=setTimeout(function(){ try{ b.classList.remove("show"); }catch(e){} }, 30000);
+  clearTimeout(window._srT); window._srT=setTimeout(function(){ try{ b.classList.remove("show"); }catch(e){} }, 3400);
 }catch(e){} }
 window._studioTuto=function(force){ try{
   if(!force && localStorage.getItem("magot_studio_tuto_v2")) return;
@@ -8531,7 +8531,7 @@ function studioAutoMontage(input){
   var items=(input.items||[]).slice();
   items.sort(function(a,b){ var da=(a.day!=null?a.day:1e9), db=(b.day!=null?b.day:1e9); if(da!==db) return da-db; return ((a.time||0)-(b.time||0)); });
   try{ stopPlay(); }catch(e){}
-  PHOTOS.forEach(function(p){ try{URL.revokeObjectURL(p.url);}catch(e){} }); PHOTOS=[]; SEGS=[]; _PSEQ=0; A=null; AUDIOBUF=null; pausedOffset=0;
+  PHOTOS.forEach(function(p){ try{URL.revokeObjectURL(p.url);}catch(e){} }); PHOTOS=[]; SEGS=[]; _PSEQ=0; _readyShown=false; A=null; AUDIOBUF=null; pausedOffset=0;
   try{ if(typeof CLIPS!=="undefined"){ CLIPS.forEach(function(c){ try{ c.el.pause(); if(c.el._u) URL.revokeObjectURL(c.el._u); c.el.remove(); }catch(e){} }); CLIPS.length=0; } clipVidReady=false; }catch(e){}
   try{ _hideClipOverlay(); }catch(e){}
   try{ window.__activeMusicFile=null; window._restSeen={}; var _sm=document.getElementById("srcMus"); if(_sm)_sm.textContent=_st("Choisir"); }catch(e){}
@@ -8663,7 +8663,7 @@ function _restorePhotoFromBlob(id, blob, meta, maxD){ return new Promise(functio
 function studioOpenFilm(id){ try{ stopPlay(); }catch(e){} try{ var _h9=document.querySelector(".hero"); if(_h9){ _h9.classList.remove("cinema"); _h9.classList.remove("chrome-hidden"); } }catch(e){}
   var proj=null; try{ proj=JSON.parse(localStorage.getItem(_filmKey(id))||"null"); }catch(e){}
   if(!proj){ return; }
-  _curFilmId=id; PHOTOS.forEach(function(p){ try{URL.revokeObjectURL(p.url);}catch(e){} }); PHOTOS=[]; SEGS=[]; _PSEQ=0; window._restSeen={}; A=null; AUDIOBUF=null; pausedOffset=0;
+  _curFilmId=id; PHOTOS.forEach(function(p){ try{URL.revokeObjectURL(p.url);}catch(e){} }); PHOTOS=[]; SEGS=[]; _PSEQ=0; _readyShown=false; window._restSeen={}; A=null; AUDIOBUF=null; pausedOffset=0;
   try{ if(typeof CLIPS!=="undefined"){ CLIPS.forEach(function(c){ try{ c.el.pause(); if(c.el._u) URL.revokeObjectURL(c.el._u); c.el.remove(); }catch(e){} }); CLIPS.length=0; } clipVidReady=false; _hideClipOverlay(); }catch(e){}
   try{ window.__activeMusicFile=null; }catch(e){}
   try{ var te=document.getElementById("thumbs"); if(te) te.innerHTML=""; }catch(e){}
