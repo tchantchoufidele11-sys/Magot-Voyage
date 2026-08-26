@@ -1114,7 +1114,7 @@ function waStart(mt){
   }catch(e){ WA.on=false; return false; }
 }
 function masterVol(v){ v=Math.max(0,Math.min(1,v)); if((window.LOOP_ON||window.MULTI) && WA.on && WA.gain){ try{ WA.gain.gain.value=v; }catch(e){} } else if(audioEl){ try{ audioEl.volume=v; }catch(e){} } }
-function seekMontageTo(mt){ mt=Math.max(0,mt); if(window.MULTI){ mBase=_perfNow()-mt; if(WA.on){ waStartPlan(mt); return; } } if(window.LOOP_ON){ mBase=_perfNow()-mt; if(WA.on){ waStart(mt); return; } } try{ if(audioEl) audioEl.currentTime=audioAt(mt); }catch(e){} }
+function seekMontageTo(mt){ mt=Math.max(0,mt); try{ pausedOffset=mt; }catch(e){}   /* point de reprise/affichage stable, y compris en pause */ if(window.MULTI){ mBase=_perfNow()-mt; if(WA.on){ waStartPlan(mt); return; } } if(window.LOOP_ON){ mBase=_perfNow()-mt; if(WA.on){ waStart(mt); return; } } try{ if(audioEl) audioEl.currentTime=audioAt(mt); }catch(e){} }
 function _mediaBeatP(bts){ var d=[]; for(var i=1;i<bts.length;i++){ var x=bts[i]-bts[i-1]; if(x>0.15&&x<2) d.push(x); } d.sort(function(a,b){return a-b;}); return d.length?d[d.length>>1]:0.5; }
 function _eWinAt(a,b){ var s=0,n=0; for(var t=a;t<=b;t+=0.15){ s+=energyAt(t); n++; } return n?s/n:energyAt(a); }
 function _bestBeat(bts,a,b,score){ var bt=null,sc=-1e9; for(var k=0;k<bts.length;k++){ var t=bts[k]; if(t>=a&&t<=b){ var m=(A.metric&&A.metric[k]!=null)?A.metric[k]:0.4; var s=score(t,m,energyAt(t),k); if(s>sc){ sc=s; bt=t; } } } return bt; }
@@ -2050,12 +2050,18 @@ function drawSegAt(sg,t,ox,smul){
 function drawDayMarker(ctx,Wd,Hd,day,into){
   var HOLD=2.6; if(into>HOLD||into<0) return;
   var a=1; if(into<0.4) a=into/0.4; else if(into>HOLD-0.6) a=Math.max(0,(HOLD-into)/0.6); a=Math.max(0,Math.min(1,a));
-  var S=Wd/1080, cx=Wd/2, y=Hd*0.12;
+  var S=Wd/1080, cx=Wd/2, y=Hd*0.72;   /* zone du commentaire (bas), pas en haut */
+  var label="\u2014  JOUR  "+day+"  \u2014";
   ctx.save(); ctx.globalAlpha=a; ctx.textAlign="center"; ctx.textBaseline="middle";
-  var g=ctx.createLinearGradient(0,0,0,y+70*S); g.addColorStop(0,"rgba(0,0,0,0.5)"); g.addColorStop(1,"rgba(0,0,0,0)");
-  ctx.fillStyle=g; ctx.fillRect(0,0,Wd,y+70*S);
-  ctx.fillStyle="#f4bd4a"; ctx.font="700 "+(15*S)+"px system-ui,-apple-system,sans-serif";
-  ctx.fillText("\u2014  JOUR  "+day+"  \u2014", cx, y);
+  ctx.font="700 "+(15*S)+"px system-ui,-apple-system,sans-serif";
+  try{ ctx.letterSpacing=(2*S)+"px"; }catch(e){}
+  var _tw=0; try{ _tw=ctx.measureText(label).width; }catch(e){ _tw=Wd*0.4; }
+  var _rw=(_tw*0.5)+40*S, g=ctx.createRadialGradient(cx,y,0,cx,y,_rw);
+  g.addColorStop(0,"rgba(0,0,0,0.42)"); g.addColorStop(1,"rgba(0,0,0,0)");
+  ctx.fillStyle=g; ctx.fillRect(cx-_rw,y-26*S,_rw*2,52*S);
+  ctx.shadowColor="rgba(0,0,0,0.72)"; ctx.shadowBlur=6*S; ctx.shadowOffsetY=1*S;
+  ctx.fillStyle="#f4bd4a"; ctx.fillText(label, cx, y);
+  try{ ctx.letterSpacing="0px"; }catch(e){}
   ctx.restore();
 }
 function renderBaseFrame(t){
@@ -8645,9 +8651,9 @@ function _restorePhotoFromBlob(id, blob, meta, maxD){ return new Promise(functio
     var _md=Math.max((window._PCAP||1920), maxD||0, window._PMAX||0), _iw=im.naturalWidth||1, _ih=im.naturalHeight||1, _sc=Math.min(1,_md/Math.max(_iw,_ih,1));
     var cv=document.createElement("canvas"); cv.width=Math.max(1,Math.round(_iw*_sc)); cv.height=Math.max(1,Math.round(_ih*_sc)); cv.getContext("2d").drawImage(im,0,0,cv.width,cv.height);
     var _ft=photoFeat(cv); _ft.q=qualityScore(cv); if(meta.skip)_ft.skip=true;
-    var _rsig=(blob.size||0)+"|"+cv.width+"|"+cv.height+"|"+Math.round((_ft.lum||0)*1000);
+    var _rsig=(id!=null?String(id):"?")+"|"+(blob.size||0)+"|"+cv.width+"|"+cv.height+"|"+Math.round((_ft.lum||0)*1000);   /* CLÉ = id source + contenu : deux photos DIFFÉRENTES (ids distincts) ne peuvent plus entrer en collision et être perdues ; seul un ré-ajout du MÊME id est ignoré. */
     if(!window._restSeen) window._restSeen={};
-    if(window._restSeen[_rsig]){ try{ URL.revokeObjectURL(url); }catch(e){} res(false); return; }   /* doublon exact -> ignoré (nettoie les films dupliqués) */
+    if(window._restSeen[_rsig]){ try{ URL.revokeObjectURL(url); }catch(e){} res(false); return; }   /* même photo déjà restaurée -> ignorée (nettoie les films dupliqués) */
     window._restSeen[_rsig]=1;
     var p={img:cv,c:cv,url:null,lum:_ft.lum,feat:_ft,_w:cv.width,_h:cv.height,_id:id,_jpgBlob:blob};
     if(meta.day!=null)p._day=meta.day; if(meta.cap!=null)p._cap=meta.cap; if(meta.capStyle)p._capStyle=meta.capStyle; if(meta.capAnim)p._capAnim=meta.capAnim;
@@ -10799,7 +10805,8 @@ function renderVNav(){
       var hasA=(typeof A!=="undefined")&&A;
       var np=(typeof SEGS!=="undefined"&&SEGS)?SEGS.length:0;
       if(hasA){
-        var cur=(typeof montageNow==="function")?montageNow():((typeof audioEl!=="undefined"&&audioEl?audioEl.currentTime:0)||0);
+        var _plNow=(typeof playing!=="undefined")&&playing;   /* barre de lecture = position RÉELLE : en pause on montre l'arrêt (pas l'horloge murale qui, en mode boucle/multi, avançait toute seule avant lecture). */
+        var cur=_plNow?((typeof montageNow==="function")?montageNow():((typeof audioEl!=="undefined"&&audioEl?audioEl.currentTime:0)||0)):((typeof pausedOffset!=="undefined")?(pausedOffset||0):0);
         var _mst=(window.MSTART_EFF||0), _mEnd=(window.MONTAGE_DUR||A.dur||0), _mlen=Math.max(0.1,_mEnd-_mst);
         var _mcur=Math.max(0,Math.min(_mlen,cur-_mst));
         var dur=_mlen;
