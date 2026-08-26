@@ -9879,22 +9879,26 @@ function _studioIdle(w, tries){ tries=tries||0;
     if(!busy || n>200) { res(); return; }                       /* 200 x 150 ms = 30 s de marge */
     setTimeout(function(){ chk(n+1); },150);
   })(tries); }); }
-function studioOpen(w, tr){ if(!w||!tr) return; var fid="trip:"+tr.id;
+function studioOpen(w, tr){ if(!w||!tr) return Promise.resolve(false); var fid="trip:"+tr.id;
   try{ if(w.studioHasFilm && w.studioHasFilm(fid)){
     try{ w.studioOpenFilm(fid); }catch(e){}
-    (async function(){ try{
+    return (async function(){ try{
       await new Promise(function(r){ setTimeout(r,400); });      /* laisse studioOpenFilm lever son drapeau */
       await _studioIdle(w);
       var have=(w.studioPhotoIds&&w.studioPhotoIds())||[];
       var items=await studioBuildItems(tr);
       var missing=items.filter(function(it){ return have.indexOf(it.id)<0; });
-      /* Toutes les photos du voyage doivent être dans le film : celles dont l'image
-         enregistrée manque (stockage incomplet) sont re-fournies depuis la capsule. */
-      if(missing.length && w.studioAddPhotos) w.studioAddPhotos(missing);
-    }catch(e){} })();
-    return;
+      /* Toutes les photos du voyage doivent être dans le film : celles ajoutées depuis
+         et celles dont l'image enregistrée manque sont (re)fournies depuis la capsule. */
+      if(missing.length && w.studioAddPhotos){
+        w.studioAddPhotos(missing);
+        await new Promise(function(r){ setTimeout(r,350); });
+        await _studioIdle(w);
+      }
+      return true;
+    }catch(e){ return false; } })();
   } }catch(e){}
-  studioFeed(w, tr);
+  return studioFeed(w, tr);
 }
 async function studioFeed(w, tr){ if(!w||!tr) return;
   let items=[], sig=null;
@@ -9909,6 +9913,11 @@ async function studioFeed(w, tr){ if(!w||!tr) return;
 }
 /* Le studio enregistre chaque film du voyage sous l'id "trip:<id>" (même origine -> localStorage partagé).
    On lit l'entrée d'index pour savoir si un film existe et récupérer sa vignette + le nombre de médias. */
+function _studioFilmSyncMark(tripId,n){ try{ if(!tripId) return;
+  var arr=JSON.parse(localStorage.getItem("studioMagotFilms")||"[]"), id="trip:"+tripId, ch=false;
+  for(var i=0;i<arr.length;i++){ if(arr[i]&&arr[i].id===id){ arr[i].srcN=n; ch=true; break; } }
+  if(ch) localStorage.setItem("studioMagotFilms", JSON.stringify(arr));
+}catch(e){} }
 function _studioFilmMeta(tripId){ try{ if(!tripId) return null;
   var arr=JSON.parse(localStorage.getItem("studioMagotFilms")||"[]"); var id="trip:"+tripId;
   for(var i=0;i<arr.length;i++){ if(arr[i]&&arr[i].id===id) return arr[i]; }
@@ -9919,8 +9928,13 @@ function _studioFilmMeta(tripId){ try{ if(!tripId) return null;
 var _hlFilmBusy=false;
 function ensureTripFilm(tr){ try{
   if(!tr||!tr.id) return;
-  if(_studioFilmMeta(tr.id)) return;                         /* déjà un film */
-  if(!((tr.memories||[]).length)) return;                   /* rien à monter */
+  var _nMem=(tr.memories||[]).length;
+  if(!_nMem) return;                                        /* rien à monter */
+  var _meta=_studioFilmMeta(tr.id);
+  /* Un film existait déjà ? On le COMPLÈTE quand le voyage a gagné (ou perdu) des photos
+     depuis la dernière synchro. Avant, ensureTripFilm s'arrêtait dès qu'un film existait :
+     un film monté avec 24 photos restait à 24 même après en avoir ajouté dix de plus. */
+  if(_meta && (_meta.srcN|0)===_nMem) return;               /* déjà à jour */
   if(_hlFilmBusy) return;                                    /* une seule construction à la fois */
   var ov=document.getElementById("studioOverlay"); if(ov && ov.classList.contains("show")) return;  /* pas pendant le studio visible */
   _hlFilmBusy=true;
@@ -9929,9 +9943,11 @@ function ensureTripFilm(tr){ try{
   fr.setAttribute("aria-hidden","true"); fr.setAttribute("allow","autoplay; encrypted-media"); try{ fr.name="mv-headless"; }catch(e){}
   fr.style.cssText="position:fixed;left:0;bottom:0;width:2px;height:2px;opacity:0.01;pointer-events:none;border:0;z-index:-1";
   function cleanup(){ if(done) return; done=true; _hlFilmBusy=false; try{ fr.remove(); }catch(e){} }
-  function finishOk(){ if(done) return; cleanup();
+  function finishOk(){ if(done) return; try{ _studioFilmSyncMark(tr.id,_nMem); }catch(e){} cleanup();
     try{ var _o=document.getElementById("studioOverlay"); if(_o&&_o.classList.contains("show")) return; }catch(e){}   /* studio ouvert -> ne pas rafraîchir/ramener à l'accueil */
-    try{ toast(({fr:"\uD83C\uDFAC Ton film est pr\u00eat",en:"\uD83C\uDFAC Your film is ready",es:"\uD83C\uDFAC Tu pel\u00edcula est\u00e1 lista",it:"\uD83C\uDFAC Il tuo film \u00e8 pronto",de:"\uD83C\uDFAC Dein Film ist fertig"})[_studioLang()]||"\uD83C\uDFAC Ton film est pr\u00eat"); }catch(e){}
+    /* Film neuf -> on l'annonce. Simple mise à jour d'un film existant -> on rafraîchit en
+       silence : inutile de reparler du film à chaque photo ajoutée. */
+    if(!_meta){ try{ toast(({fr:"\uD83C\uDFAC Ton film est pr\u00eat",en:"\uD83C\uDFAC Your film is ready",es:"\uD83C\uDFAC Tu pel\u00edcula est\u00e1 lista",it:"\uD83C\uDFAC Il tuo film \u00e8 pronto",de:"\uD83C\uDFAC Dein Film ist fertig"})[_studioLang()]||"\uD83C\uDFAC Ton film est pr\u00eat"); }catch(e){} }
     try{ if(typeof renderMemories==="function") renderMemories(); }catch(e){}
     try{ if(typeof renderHome==="function") renderHome(); }catch(e){}
   }
@@ -9942,7 +9958,11 @@ function ensureTripFilm(tr){ try{
     try{ w.STUDIO_AICAPTION=window.magotCaptionSuggest; }catch(e){}
     try{ if(typeof w._applyStudioLang==="function") w._applyStudioLang(w.STUDIO_LANG); }catch(e){}
     var tries=0, iv=setInterval(function(){ tries++;
-      if(w.studioAutoMontage){ clearInterval(iv); try{ studioFeed(w, tr); }catch(e){}
+      if(w.studioAutoMontage){ clearInterval(iv);
+        /* studioOpen = monte un nouveau film OU complète celui qui existe (édits préservés). */
+        var _sync=false;
+        var _endSync=function(){ try{ if(typeof w.studioSaveNow==="function") w.studioSaveNow(); }catch(e){} _sync=true; };
+        try{ Promise.resolve(studioOpen(w, tr)).then(_endSync,_endSync); }catch(e){ _endSync(); }
         /* On ne referme l'iframe QU'APRÈS l'écriture de toutes les images du film.
            Avant, elle était retirée dès que l'entrée de bibliothèque existait : les
            dernières photos n'avaient pas fini d'être enregistrées et disparaissaient
@@ -9953,7 +9973,7 @@ function ensureTripFilm(tr){ try{
           var busy=true, pend=1;
           try{ busy=(w.studioBusy===true); }catch(e){ busy=false; }
           try{ pend=(typeof w.studioPendingWrites==="function")?w.studioPendingWrites():0; }catch(e){ pend=0; }
-          if(meta && !busy && !pend){ _calm++; } else { _calm=0; }
+          if(_sync && meta && !busy && !pend){ _calm++; } else { _calm=0; }
           if(_calm>=3){ clearInterval(wv); setTimeout(finishOk,600); }          /* 3 relevés calmes d'affilée */
           else if(Date.now()-tStart>150000){ clearInterval(wv); if(meta) setTimeout(finishOk,300); else cleanup(); }
         },400);
@@ -13266,24 +13286,42 @@ function memDefaultDay(tr, mems){ const days=tripDays(tr); const N=days.length; 
   const c={}; (mems||[]).forEach(m=>{ if(m&&m.day!=null) c[m.day]=(c[m.day]||0)+1; });
   for(let i=0;i<N;i++){ if(c[i]) return i; }
   return "all"; }
+/* Journées à afficher = celles du voyage + TOUTE journée qui porte des photos, même hors
+   des dates du voyage (dates raccourcies après coup, photo rangée sur un jour qui n'existe
+   plus au planning). Sans cette union, ces photos devenaient introuvables : elles comptaient
+   dans le total et partaient bien dans le film, mais aucune carte ne permettait de les ouvrir. */
+function _memDayIdx(tr, byDay){
+  const days=tripDays(tr), out=[], seen={};
+  days.forEach(dd=>{ if(!seen[dd.i]){ seen[dd.i]=1; out.push(dd.i); } });
+  Object.keys(byDay||{}).forEach(k=>{ const i=parseInt(k,10); if(!isNaN(i) && !seen[i]){ seen[i]=1; out.push(i); } });
+  out.sort((a,b)=>a-b);
+  return out;
+}
+function _memDayInfo(tr, i){
+  const days=tripDays(tr);
+  for(let k=0;k<days.length;k++){ if(days[k].i===i) return days[k]; }
+  /* jour hors plage : on prolonge la date de départ pour garder un libellé cohérent */
+  if(tr && tr.dateStart){ const a=new Date(tr.dateStart+"T00:00:00"); if(!isNaN(a)) return {i, date:new Date(a.getTime()+i*86400000)}; }
+  return {i, date:null};
+}
 function memDaysListHtml(tr, mems){
-  const days=tripDays(tr); const byDay={}; const none=[];
+  const byDay={}; const none=[];
   (mems||[]).forEach(m=>{ if(!m) return; if(m.day==null) none.push(m); else (byDay[m.day]=byDay[m.day]||[]).push(m); });
   let cards="";
-  days.forEach(dd=>{ const g=byDay[dd.i]; if(!g||!g.length) return; const cover=g[0]; const dstr=dd.date?(dayWk(dd)+" "+dayNum(dd)):"";
-    cards+=`<button class="md-card" data-daysel="${dd.i}"><span class="md-cover ph-tile loading" data-media="${cover.id}"></span><span class="md-meta"><b>${t("plan.day")} ${dd.i+1}</b><small>${g.length} ${g.length>1?"photos":"photo"}${dstr?" \u00b7 "+dstr:""}</small></span><span class="md-chev">\u203a</span></button>`; });
+  _memDayIdx(tr,byDay).forEach(i=>{ const g=byDay[i]; if(!g||!g.length) return; const dd=_memDayInfo(tr,i); const cover=g[0]; const dstr=dd.date?(dayWk(dd)+" "+dayNum(dd)):"";
+    cards+=`<button class="md-card" data-daysel="${i}"><span class="md-cover ph-tile loading" data-media="${cover.id}"></span><span class="md-meta"><b>${t("plan.day")} ${i+1}</b><small>${g.length} ${g.length>1?"photos":"photo"}${dstr?" \u00b7 "+dstr:""}</small></span><span class="md-chev">\u203a</span></button>`; });
   if(none.length){ const cover=none[0];
     cards+=`<button class="md-card" data-daysel="none"><span class="md-cover ph-tile loading" data-media="${cover.id}"></span><span class="md-meta"><b>${t("mem.noDay")}</b><small>${none.length} ${none.length>1?"photos":"photo"}</small></span><span class="md-chev">\u203a</span></button>`; }
   if(!cards) return `<div class="empty" style="padding:26px 10px;text-align:center"><p>${t("mem.noPhotos")}</p><button class="btn navy" id="memDaysAdd" style="margin-top:12px">${t("mem.add")}</button></div>`;
   return `<div class="md-list">${cards}</div>`;
 }
-function memDayBarHtml(tr, mems){ const days=tripDays(tr); const sel=souvState.dayView; const ti=memTodayDayIdx(tr); const st=tripStatus(tr);
+function memDayBarHtml(tr, mems){ const sel=souvState.dayView; const ti=memTodayDayIdx(tr); const st=tripStatus(tr);
   const c={}; let nNone=0; const nAll=(mems||[]).length;
   (mems||[]).forEach(m=>{ if(!m) return; if(m.day==null) nNone++; else c[m.day]=(c[m.day]||0)+1; });
   const isFuture=(i)=>{ if(st==="upcoming") return true; if(st==="ongoing") return i>ti; return false; };
   let o=`<button class="mdc ${sel==="all"?"on":""}" data-md="all"><span class="mdc-n">${t("mem.fAll")}</span>${nAll?`<span class="mdc-c">${nAll}</span>`:""}</button>`;
-  days.forEach(dd=>{ const n=c[dd.i]||0; const fut=isFuture(dd.i)&&!n;
-    o+=`<button class="mdc ${sel===dd.i?"on":""} ${fut?"muted":""} ${ti===dd.i?"today":""}" data-md="${dd.i}"><span class="mdc-n">${t("plan.day")} ${dd.i+1}</span>${n?`<span class="mdc-dot"></span><span class="mdc-c">${n}</span>`:""}</button>`; });
+  _memDayIdx(tr,c).forEach(i=>{ const n=c[i]||0; const fut=isFuture(i)&&!n;   /* journées hors dates incluses : la somme des pastilles doit égaler « Tous » */
+    o+=`<button class="mdc ${sel===i?"on":""} ${fut?"muted":""} ${ti===i?"today":""}" data-md="${i}"><span class="mdc-n">${t("plan.day")} ${i+1}</span>${n?`<span class="mdc-dot"></span><span class="mdc-c">${n}</span>`:""}</button>`; });
   if(nNone) o+=`<button class="mdc ${sel==="none"?"on":""}" data-md="none"><span class="mdc-n">${t("mem.noDay")}</span><span class="mdc-c">${nNone}</span></button>`;
   return `<div class="mem-daybar">${o}</div>`; }
 function memDayGridHtml(tr, mems){ const sel=souvState.dayView; let list;
