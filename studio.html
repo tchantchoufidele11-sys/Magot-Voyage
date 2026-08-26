@@ -9777,6 +9777,12 @@ essentiaReady.then(function(ok){ if(!ok && !A){ /* silencieux : le repli se fait
         +'</button>'
         +dlBtn
         +'<button class="mt-addbtn" data-id="'+t.id+'">'+addBtn+'</button>'
+        +((window.STUDIO_ADMIN && t.remote && t.catId!=null)?(
+            '<select class="mt-mood" data-id="'+t.id+'" title="Ambiance (admin)" onclick="event.stopPropagation()" style="font:600 10px system-ui;max-width:94px;border-radius:8px;padding:3px;margin-left:4px">'
+            +[["","\u2014 mode \u2014"],["cinema","Cin\u00e9ma"],["doux","Doux"],["voyage","Voyage"],["dynamique","Dynamique"]].map(function(o){ return '<option value="'+o[0]+'"'+((String(t.type||"").toLowerCase()===o[0])?' selected':'')+'>'+o[1]+'</option>'; }).join("")
+            +'</select>'
+            +'<button class="mt-del" data-id="'+t.id+'" title="Supprimer (admin)" style="margin-left:4px;background:none;border:0;color:#d08;font-size:15px;padding:4px;cursor:pointer">\u2715</button>'
+          ):'')
       +'</div>';
     }).join("");
     Array.prototype.forEach.call(lib.querySelectorAll(".mt-dl"),function(b){
@@ -9787,6 +9793,12 @@ essentiaReady.then(function(ok){ if(!ok && !A){ /* silencieux : le repli se fait
     });
     Array.prototype.forEach.call(lib.querySelectorAll(".mt-addbtn"),function(b){
       b.onclick=function(e){ if(e&&e.stopPropagation)e.stopPropagation(); var t=byId(b.getAttribute("data-id")); if(!t) return; if(inMix(t.id)) removeFromMix(t); else addToMix(t); };
+    });
+    Array.prototype.forEach.call(lib.querySelectorAll(".mt-mood"),function(s){
+      s.onchange=function(e){ if(e&&e.stopPropagation)e.stopPropagation(); var t=byId(s.getAttribute("data-id")); if(!t||t.catId==null) return; var mood=s.value; if(typeof window.STUDIO_SET_MOOD!=="function"){ try{ setState("Cat\u00e9gorisation indisponible ici."); }catch(_){} return; } s.disabled=true; Promise.resolve(window.STUDIO_SET_MOOD(t.catId,mood)).then(function(r){ s.disabled=false; if(r===true){ t.type=mood; try{ setState("Ambiance mise \u00e0 jour"+(mood?(" : "+mood):" (retir\u00e9e)")); }catch(_){} renderLib(); } else { try{ setState(typeof r==="string"?r:"\u00c9chec de la mise \u00e0 jour."); }catch(_){} } }).catch(function(){ s.disabled=false; try{ setState("\u00c9chec de la mise \u00e0 jour."); }catch(_){} }); };
+    });
+    Array.prototype.forEach.call(lib.querySelectorAll(".mt-del"),function(b){
+      b.onclick=function(e){ if(e&&e.stopPropagation)e.stopPropagation(); var t=byId(b.getAttribute("data-id")); if(!t||t.catId==null) return; if(typeof window.STUDIO_DELETE!=="function"){ try{ setState("Suppression indisponible ici."); }catch(_){} return; } var ok=true; try{ ok=window.confirm("Supprimer \u00ab "+(t.title||"cette musique")+" \u00bb du catalogue ?"); }catch(_){} if(!ok) return; b.disabled=true; Promise.resolve(window.STUDIO_DELETE(t.catId,t.path||"")).then(function(r){ if(r===true){ var _i=LIB.indexOf(t); if(_i>=0) LIB.splice(_i,1); try{ setState("Musique supprim\u00e9e."); }catch(_){} renderLib(); } else { b.disabled=false; try{ setState(typeof r==="string"?r:"\u00c9chec de suppression."); }catch(_){} } }).catch(function(){ b.disabled=false; try{ setState("\u00c9chec de suppression."); }catch(_){} }); };
     });
   }
   function showProg(on,label){ var p=$("mProg"); if(!p) return; p.style.display=on?"block":"none"; if(label!=null){ var l=p.querySelector(".mp-label"); if(l) l.innerHTML=label; } }
@@ -9906,11 +9918,11 @@ essentiaReady.then(function(ok){ if(!ok && !A){ /* silencieux : le repli se fait
      +((typeof window!=="undefined"&&window.STUDIO_ADMIN!==false)?'<button class="doexp" id="mImport">\uFF0B '+_st("Importer une musique")+'</button>':'');
     var myMusicIn=document.createElement("input"); myMusicIn.type="file"; myMusicIn.style.display="none"; /* pas d'accept : iOS grise les MP3 avec audio/* — comme le champ du moteur */
     try{ (document.body||document.documentElement).appendChild(myMusicIn); }catch(e){}
-    myMusicIn.onchange=function(){ var f=this.files&&this.files[0]; if(!f) return; this.value=""; addImport(f); };
+    myMusicIn.onchange=function(){ var f=this.files&&this.files[0]; if(!f) return; this.value=""; if(window.STUDIO_ADMIN && typeof window.STUDIO_PUBLISH==="function"){ try{ window.STUDIO_PUBLISH(f); return; }catch(e){} } addImport(f); };
     var mi=$("mImport"); if(mi) mi.onclick=function(){ myMusicIn.click(); };
     var msrch=$("mSearch"); if(msrch) msrch.oninput=function(){ _mQuery=this.value||""; renderLib(); };
     renderLib();
-    function _addCatalog(arr){ if(!arr||!arr.length) return; arr.forEach(function(m){ var t={ id:"r"+(++LIB_SEQ), title:m.title||cleanName(m.file||m.url||""), artist:m.artist||"", type:m.type||m.genre||m.style||"", cover:m.cover||"", url:m.file||m.url, remote:true }; if(typeof m.duration==="string") t.durStr=m.duration; else if(typeof m.duration==="number") t.dur=m.duration; LIB.push(t); probeDur(t); }); renderLib(); }
+    function _addCatalog(arr){ if(!arr||!arr.length) return; arr.forEach(function(m){ var t={ id:"r"+(++LIB_SEQ), catId:(m.id!=null?m.id:null), path:(m.path||""), title:m.title||cleanName(m.file||m.url||""), artist:m.artist||"", type:m.type||m.genre||m.style||m.mood||"", cover:m.cover||"", url:m.file||m.url, remote:true }; if(typeof m.duration==="string") t.durStr=m.duration; else if(typeof m.duration==="number") t.dur=m.duration; LIB.push(t); probeDur(t); }); renderLib(); }
     function _loadCatalog(){ try{
       var c=(typeof window!=="undefined")?window.STUDIO_CATALOG:null;              /* greffe : MagotVoyage fournit le catalogue depuis Supabase */
       if(typeof c==="function"){ Promise.resolve().then(c).then(function(arr){ _addCatalog(arr); }).catch(function(){}); return; }
@@ -9918,6 +9930,7 @@ essentiaReady.then(function(ok){ if(!ok && !A){ /* silencieux : le repli se fait
       fetch("musics.json",{cache:"no-store"}).then(function(r){ return r&&r.ok?r.json():null; }).then(function(arr){ _addCatalog(arr); }).catch(function(){});   /* standalone : fichier local */
     }catch(e){} }
     _loadCatalog();
+    try{ window.__reloadCatalog=function(){ try{ for(var i=LIB.length-1;i>=0;i--){ if(LIB[i]&&LIB[i].remote&&LIB[i].catId!=null) LIB.splice(i,1); } }catch(e){} _loadCatalog(); }; }catch(e){}
   }
   /* import & lecture pilotés par addImport()/useTrack() -> pas de dépendance à l'événement change du moteur */
 
