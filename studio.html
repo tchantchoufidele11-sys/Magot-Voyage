@@ -1473,6 +1473,11 @@ function buildPartition(){
   var avail=Math.max(1,dur-MST);
   var emin=M.minSec, etgt=M.tgtSec, emax=M.maxSec, bdur=avail, _nP=0, want=0, _MAXFILM=3600;
   for(var _pp=0;_pp<PHOTOS.length;_pp++){ if(PHOTOS[_pp] && !(PHOTOS[_pp].feat&&PHOTOS[_pp].feat.skip)){ _nP++; var _nd=_capNeeded(_pp); want += (_nd>0?_nd:M.tgtSec); } }
+  /* MÉDIAS = DURÉE : les vidéos sont des médias EN PLUS, pas à la place des photos.
+     On réserve leur temps dans `want` -> la timeline s'allonge pour porter photos + vidéos
+     (la musique boucle par-dessus). Le nombre de plans vidéo suit la densité de mix du mode. */
+  var _vTgt=0;
+  if(clipVidReady && _nP>0){ var _gapW=({cinema:7,doux:8,dynamique:4,voyage:5})[MOOD]||6; _vTgt=Math.max(1, Math.round(_nP/_gapW*(window.VIDDENS||1))); want += _vTgt*M.tgtSec; }
   var _iD=(typeof SIGN!=="undefined"&&SIGN.on)?SIGN.introDur:0, _oD=(typeof SIGN!=="undefined"&&SIGN.on)?SIGN.outroDur:0;
   window.LOOP_ON=0; window.MULTI=0;
   var _videoOnly=(_nP===0 && clipVidReady);
@@ -1625,9 +1630,27 @@ function buildPartition(){
   try{ window._DIAGC.vmerge=_diagMiss(); }catch(_e){}
   for(var _es=0; _es<SEGS.length; _es++){ if(!SEGS[_es].video && SEGS[_es].img!=null && SEGS[_es].img>=0){ var _en=_capNeeded(SEGS[_es].img); if(_en>0){ while((SEGS[_es].end-SEGS[_es].start) < _en-0.01 && _es+1<SEGS.length && !SEGS[_es+1].video){ SEGS[_es].end=SEGS[_es+1].end; SEGS.splice(_es+1,1); } } } }
   try{ window._DIAGC.cap=_diagMiss();
+    /* COUVERTURE FINALE : après le mix vidéo + les légendes, toute photo encore sans plan
+       récupère un plan en découpant sur un VRAI temps le plan photo le plus long. `want` ayant
+       déjà réservé le temps des vidéos, la timeline est assez longue -> on ne raccourcit pas,
+       on remet simplement chaque photo. Synchro intacte (coupe sur beat). */
+    var _keptF=[]; for(var _kf=0;_kf<PHOTOS.length;_kf++){ if(PHOTOS[_kf]&&!(PHOTOS[_kf].feat&&PHOTOS[_kf].feat.skip)) _keptF.push(_kf); }
+    var _hasF={}; for(var _sf=0;_sf<SEGS.length;_sf++){ var _sgf=SEGS[_sf]; if(_sgf&&!_sgf.video&&_sgf.img!=null&&_sgf.img>=0) _hasF[_sgf.img]=1; }
+    var _missF=[]; for(var _mf=0;_mf<_keptF.length;_mf++){ if(!_hasF[_keptF[_mf]]) _missF.push(_keptF[_mf]); }
+    var _cg=0;
+    while(_missF.length && _cg++<2000){
+      var _li=-1,_lmax=-1; for(var _s3=0;_s3<SEGS.length;_s3++){ if(SEGS[_s3].video||SEGS[_s3].sign) continue; if(SEGS[_s3].img==null||SEGS[_s3].img<0) continue; var _ln=SEGS[_s3].end-SEGS[_s3].start; if(_ln>_lmax){ _lmax=_ln; _li=_s3; } }
+      if(_li<0 || _lmax<0.5) break;
+      var _sgL=SEGS[_li], _mid=(_sgL.start+_sgL.end)/2, _cut=_mid, _bd=1e9;
+      for(var _bk=0;_bk<beats.length;_bk++){ if(beats[_bk]>_sgL.start+0.22 && beats[_bk]<_sgL.end-0.22){ var _dd=Math.abs(beats[_bk]-_mid); if(_dd<_bd){ _bd=_dd; _cut=beats[_bk]; } } }
+      var _imgF=_missF.shift();
+      var _nsgF={start:_cut,end:_sgL.end,strong:false,e:_eAt(_cut),img:_imgF,kbDir:1,slideDir:1,move:MOVES[SEGS.length%MOVES.length],trans:"fade",_prev:_sgL};
+      _sgL.end=_cut; SEGS.splice(_li+1,0,_nsgF);
+    }
+    window._DIAGC.cover=_diagMiss();
     if(true){ var _dc=window._DIAGC||{}, _fin=_diagMiss(), _keptN2=0; for(var _pk=0;_pk<PHOTOS.length;_pk++){ if(PHOTOS[_pk]&&!(PHOTOS[_pk].feat&&PHOTOS[_pk].feat.skip)) _keptN2++; }
       var _el=document.getElementById("diagCover"); if(!_el){ _el=document.createElement("div"); _el.id="diagCover"; _el.style.cssText="position:fixed;left:6px;top:96px;z-index:2147483647;max-width:94vw;background:rgba(180,20,20,.94);color:#fff;font:600 12px/1.4 system-ui;padding:8px 10px;border-radius:9px;pointer-events:none;white-space:pre-wrap;box-shadow:0 2px 12px rgba(0,0,0,.6)"; document.body.appendChild(_el); }
-      _el.textContent="DIAG couverture · plans="+SEGS.length+" photos="+_keptN2+"\nsans plan -> assign:"+((_dc.assign||[]).length)+" garantie:"+((_dc.guar||[]).length)+" fusionVideo:"+((_dc.vmerge||[]).length)+" legende:"+((_dc.cap||[]).length)+"\nfinal manquantes(idx):["+_fin.join(",")+"]"; }
+      _el.textContent="DIAG couverture · plans="+SEGS.length+" photos="+_keptN2+"\nsans plan -> assign:"+((_dc.assign||[]).length)+" garantie:"+((_dc.guar||[]).length)+" fusionVideo:"+((_dc.vmerge||[]).length)+" legende:"+((_dc.cap||[]).length)+" couv:"+((_dc.cover||[]).length)+"\nfinal manquantes(idx):["+_fin.join(",")+"]"; }
   }catch(_e){}
   /* Repères de jour : les photos sont déjà triées par journée (computePhotoOrder).
      On marque le 1er plan de chaque journée pour y afficher "JOUR N". */
