@@ -9846,32 +9846,52 @@ async function _dataURLtoBlob(u){ try{ const r=await fetch(u); return await r.bl
 /* Construit la liste items (photos + clips) du voyage pour le Studio, en ordre chronologique.
    Photos = dataURL (clé id) ; vidéos = blob (clé vid_<id>). Tout est converti en objectURL
    (léger et valide entre l'app et l'iframe même origine), révoqué à la construction suivante. */
+function _memTime(m){ return (m&&(m.takenAt||m.createdAt||m.at))||0; }   /* heure de prise de vue si l'appareil l'a inscrite */
+let _studioDropped=0;
 async function studioBuildItems(tr){ if(!tr) return []; _studioRevoke();
   const mems=(tr.memories||[]).slice();
-  mems.sort((a,b)=>{ const da=(a&&a.day!=null)?a.day:9999, db=(b&&b.day!=null)?b.day:9999; if(da!==db) return da-db; return ((a.createdAt||a.at||0)-(b.createdAt||b.at||0)); });
-  const items=[];
+  mems.sort((a,b)=>{ const da=(a&&a.day!=null)?a.day:9999, db=(b&&b.day!=null)?b.day:9999; if(da!==db) return da-db; return _memTime(a)-_memTime(b); });
+  const items=[]; _studioDropped=0;
   for(const m of mems){ if(!m||!m.id) continue; const isVid=(m.kind==="video");
     let media=null; try{ media=await idbGetMedia(isVid?("vid_"+m.id):m.id); }catch(e){}
-    if(!media) continue;
+    /* 2e chance : le cache mémoire garde souvent la photo même quand la lecture IndexedDB
+       échoue (quota, base occupée). Sans ça, des souvenirs bien présents dans la capsule
+       étaient silencieusement absents du montage. */
+    if(!media && !isVid && _mediaCache[m.id]!=null) media=_mediaCache[m.id];
+    if(!media){ _studioDropped++; continue; }
     let blob=(typeof media==="string")?await _dataURLtoBlob(media):media;
-    if(!blob) continue;
+    if(!blob){ _studioDropped++; continue; }
     let url=null; try{ url=URL.createObjectURL(blob); _studioURLs.push(url); }catch(e){}
-    if(!url) continue;
-    const it={ id:m.id, url, caption:(m.caption||_studioPlaceName(tr,m.placeId)||""), time:(m.createdAt||m.at||0), video:isVid };
+    if(!url){ _studioDropped++; continue; }
+    const it={ id:m.id, url, caption:(m.caption||_studioPlaceName(tr,m.placeId)||""), time:_memTime(m), video:isVid };
     if(m.day!=null) it.day=m.day+1;
     items.push(it); }
+  if(_studioDropped){ try{ console.warn("[studio] "+_studioDropped+" souvenir(s) sans média local"); }catch(e){} }
   return items; }
 /* Lot 6 : 1 voyage = 1 film. Si le film existe -> restaurer (éditions/musique/format),
    puis (choix B) ajouter automatiquement les nouvelles photos. Sinon -> auto-montage. */
+/* Attend que le studio ait fini de charger (window.studioBusy) avant de lui parler :
+   sinon on comparait la liste des photos alors qu'elle était encore incomplète, et les
+   photos manquantes n'étaient jamais réclamées. */
+function _studioIdle(w, tries){ tries=tries||0;
+  return new Promise(function(res){ (function chk(n){
+    var busy=true; try{ busy=(w.studioBusy===true); }catch(e){ busy=false; }
+    if(!busy || n>200) { res(); return; }                       /* 200 x 150 ms = 30 s de marge */
+    setTimeout(function(){ chk(n+1); },150);
+  })(tries); }); }
 function studioOpen(w, tr){ if(!w||!tr) return; var fid="trip:"+tr.id;
   try{ if(w.studioHasFilm && w.studioHasFilm(fid)){
     try{ w.studioOpenFilm(fid); }catch(e){}
-    setTimeout(function(){ (async function(){ try{
+    (async function(){ try{
+      await new Promise(function(r){ setTimeout(r,400); });      /* laisse studioOpenFilm lever son drapeau */
+      await _studioIdle(w);
       var have=(w.studioPhotoIds&&w.studioPhotoIds())||[];
       var items=await studioBuildItems(tr);
       var missing=items.filter(function(it){ return have.indexOf(it.id)<0; });
+      /* Toutes les photos du voyage doivent être dans le film : celles dont l'image
+         enregistrée manque (stockage incomplet) sont re-fournies depuis la capsule. */
       if(missing.length && w.studioAddPhotos) w.studioAddPhotos(missing);
-    }catch(e){} })(); }, 1600);
+    }catch(e){} })();
     return;
   } }catch(e){}
   studioFeed(w, tr);
@@ -9923,7 +9943,20 @@ function ensureTripFilm(tr){ try{
     try{ if(typeof w._applyStudioLang==="function") w._applyStudioLang(w.STUDIO_LANG); }catch(e){}
     var tries=0, iv=setInterval(function(){ tries++;
       if(w.studioAutoMontage){ clearInterval(iv); try{ studioFeed(w, tr); }catch(e){}
-        var wv=setInterval(function(){ if(_studioFilmMeta(tr.id)){ clearInterval(wv); setTimeout(finishOk,1000); } else if(Date.now()-tStart>30000){ clearInterval(wv); cleanup(); } },400);
+        /* On ne referme l'iframe QU'APRÈS l'écriture de toutes les images du film.
+           Avant, elle était retirée dès que l'entrée de bibliothèque existait : les
+           dernières photos n'avaient pas fini d'être enregistrées et disparaissaient
+           du montage à la réouverture (moins de photos que dans la capsule). */
+        var _calm=0;
+        var wv=setInterval(function(){
+          var meta=_studioFilmMeta(tr.id);
+          var busy=true, pend=1;
+          try{ busy=(w.studioBusy===true); }catch(e){ busy=false; }
+          try{ pend=(typeof w.studioPendingWrites==="function")?w.studioPendingWrites():0; }catch(e){ pend=0; }
+          if(meta && !busy && !pend){ _calm++; } else { _calm=0; }
+          if(_calm>=3){ clearInterval(wv); setTimeout(finishOk,600); }          /* 3 relevés calmes d'affilée */
+          else if(Date.now()-tStart>150000){ clearInterval(wv); if(meta) setTimeout(finishOk,300); else cleanup(); }
+        },400);
       } else if(tries>40){ clearInterval(iv); cleanup(); }
     },150);
   };
