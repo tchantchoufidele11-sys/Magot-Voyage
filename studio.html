@@ -9783,7 +9783,7 @@ essentiaReady.then(function(ok){ if(!ok && !A){ /* silencieux : le repli se fait
   function esc(s){ return String(s==null?"":s).replace(/[&<>"]/g,function(c){return {"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c];}); }
   function cleanName(s){ return String(s||"").replace(/\.[^.]+$/,"").replace(/[_-]+/g," ").trim(); }
   function clock(sec){ sec=Math.max(0,Math.round(sec||0)); var m=Math.floor(sec/60),s=sec%60; return m+":"+(s<10?"0":"")+s; }
-  function trackMeta(t){ var d=t.durStr?t.durStr:(t.dur!=null?clock(t.dur):""); var a=t.artist||""; var isHash=(!/\s/.test(a) && /^[a-z0-9]{8,}$/i.test(a)); var ty=t.type||(isHash?"":a); if(ty && ty.toLowerCase()==="import") ty=""; return ty?(d?ty+" \u00B7 "+d:ty):d; }
+  function trackMeta(t){ var d=t.durStr?t.durStr:(t.dur!=null?clock(t.dur):""); var a=t.artist||""; var isHash=(!/\s/.test(a) && /^[a-z0-9]{8,}$/i.test(a)); var head=(a && !isHash && a.toLowerCase()!=="import")?a:(t.type||""); if(head && head.toLowerCase()==="import") head=""; return head?(d?head+" \u00B7 "+d:head):d; }
   function probeDur(t){
     if(t.dur!=null||t.durStr) return;
     var revoke=false, src=t.url||(t.file?(revoke=true,URL.createObjectURL(t.file)):null); if(!src) return;
@@ -10010,9 +10010,15 @@ essentiaReady.then(function(ok){ if(!ok && !A){ /* silencieux : le repli se fait
     try{ (document.body||document.documentElement).appendChild(myMusicIn); }catch(e){}
     myMusicIn.onchange=function(){ var f=this.files&&this.files[0]; if(!f) return; this.value="";
       if(window.STUDIO_ADMIN && typeof window.STUDIO_UPLOAD==="function"){
-        var _title=cleanName(f.name);
-        _studioPickMode(null, function(mode){ if(!mode) return; try{ setState("Publication au catalogue\u2026"); }catch(_){} 
-          Promise.resolve(window.STUDIO_UPLOAD(f,_title,mode)).then(function(r){ if(r===true){ try{ setState("\u2713 \u00ab "+_title+" \u00bb publi\u00e9e ("+_modeLabel(mode)+")."); }catch(_){} try{ if(typeof window.__reloadCatalog==="function") window.__reloadCatalog(); }catch(e){} } else { try{ setState(typeof r==="string"?r:"Publication impossible."); }catch(_){} } }).catch(function(){ try{ setState("Publication impossible (r\u00e9seau ?)."); }catch(_){} });
+        _readID3(f, function(meta){ meta=meta||{};
+          var _title=(meta.title||cleanName(f.name));
+          var _artist=(meta.artist && meta.artist.toLowerCase()!=="import")?meta.artist:"";
+          var _coverUrl=meta.cover||"";   /* objectURL de la pochette (APIC) */
+          _studioPickMode(null, function(mode){ if(!mode) return; try{ setState("Publication au catalogue\u2026"); }catch(_){}
+            var _send=function(coverBlob){ Promise.resolve(window.STUDIO_UPLOAD(f,_title,mode,_artist,coverBlob||null)).then(function(r){ if(r===true){ try{ setState("\u2713 \u00ab "+_title+" \u00bb publi\u00e9e ("+_modeLabel(mode)+")."); }catch(_){} try{ if(typeof window.__reloadCatalog==="function") window.__reloadCatalog(); }catch(e){} } else { try{ setState(typeof r==="string"?r:"Publication impossible."); }catch(_){} } }).catch(function(){ try{ setState("Publication impossible (r\u00e9seau ?)."); }catch(_){} }); };
+            if(_coverUrl){ fetch(_coverUrl).then(function(r){ return r.blob(); }).then(_send).catch(function(){ _send(null); }); }
+            else _send(null);
+          });
         });
         return;
       }

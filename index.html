@@ -9841,7 +9841,7 @@ function _studioSync(){ const fr=document.getElementById("studioFrame"); if(!fr)
   try{ w.STUDIO_SET_MOOD=function(id,mood){ return magotSetMood(id,mood); }; }catch(e){}
   try{ w.STUDIO_DELETE=function(id,path){ return magotDelete(id,path); }; }catch(e){}
   try{ w.STUDIO_PUBLISH=function(file){ try{ openPublishForm(file, function(){ try{ if(w && typeof w.__reloadCatalog==="function") w.__reloadCatalog(); }catch(e){} }); }catch(e){} }; }catch(e){}
-  try{ w.STUDIO_UPLOAD=function(file,title,mood){ return magotUpload(file,title,mood); }; }catch(e){}
+  try{ w.STUDIO_UPLOAD=function(file,title,mood,artist,cover){ return magotUpload(file,title,mood,artist,cover); }; }catch(e){}
   try{ w.STUDIO_AICAPTION=window.magotCaptionSuggest; }catch(e){}
   try{ if(typeof w._applyStudioLang==="function") w._applyStudioLang(w.STUDIO_LANG); }catch(e){}
 }
@@ -9927,7 +9927,7 @@ function ensureTripFilm(tr){ try{
     try{ w.STUDIO_SET_MOOD=function(id,mood){ return magotSetMood(id,mood); }; }catch(e){}
     try{ w.STUDIO_DELETE=function(id,path){ return magotDelete(id,path); }; }catch(e){}
     try{ w.STUDIO_PUBLISH=function(file){ try{ openPublishForm(file, function(){ try{ if(w && typeof w.__reloadCatalog==="function") w.__reloadCatalog(); }catch(e){} }); }catch(e){} }; }catch(e){}
-    try{ w.STUDIO_UPLOAD=function(file,title,mood){ return magotUpload(file,title,mood); }; }catch(e){}
+    try{ w.STUDIO_UPLOAD=function(file,title,mood,artist,cover){ return magotUpload(file,title,mood,artist,cover); }; }catch(e){}
     try{ w.STUDIO_AICAPTION=window.magotCaptionSuggest; }catch(e){}
     try{ if(typeof w._applyStudioLang==="function") w._applyStudioLang(w.STUDIO_LANG); }catch(e){}
     var tries=0, iv=setInterval(function(){ tries++;
@@ -9954,7 +9954,7 @@ function openStudio(tr,version,autoplay){ tr=tr||souvTrip()||null; _studioTrip=t
       try{ w.STUDIO_SET_MOOD=function(id,mood){ return magotSetMood(id,mood); }; }catch(e){}
       try{ w.STUDIO_DELETE=function(id,path){ return magotDelete(id,path); }; }catch(e){}
       try{ w.STUDIO_PUBLISH=function(file){ try{ openPublishForm(file, function(){ try{ if(w && typeof w.__reloadCatalog==="function") w.__reloadCatalog(); }catch(e){} }); }catch(e){} }; }catch(e){}
-      try{ w.STUDIO_UPLOAD=function(file,title,mood){ return magotUpload(file,title,mood); }; }catch(e){}
+      try{ w.STUDIO_UPLOAD=function(file,title,mood,artist,cover){ return magotUpload(file,title,mood,artist,cover); }; }catch(e){}
       try{ w.STUDIO_AICAPTION=window.magotCaptionSuggest; }catch(e){}
       try{ if(typeof w._applyStudioLang==="function") w._applyStudioLang(w.STUDIO_LANG); }catch(e){}
       let _tries=0; const _feed=()=>{ if(w.studioAutoMontage){ studioOpen(w,_studioTrip); } else if(_tries++<25){ setTimeout(_feed,150); } }; _feed();
@@ -13844,7 +13844,7 @@ async function magotDownload(tr2){
     return true;
   }catch(e){ toast("T\u00e9l\u00e9chargement impossible (r\u00e9seau ?)."); return false; }
 }
-async function magotUpload(file, title, mood){
+async function magotUpload(file, title, mood, artist, coverBlob){
   if(!isAdmin()){ return "R\u00e9serv\u00e9 \u00e0 l'administrateur."; }
   if(!currentUser){ return "Tu n'es pas connect\u00e9."; }
   /* DÉDUP : refuse une piste dont le titre normalisé existe déjà au catalogue. */
@@ -13861,9 +13861,18 @@ async function magotUpload(file, title, mood){
     const up=await fetch(SB_URL+"/storage/v1/object/musics/"+encodeURIComponent(path),{
       method:"POST", headers:{ apikey:SB_ANON, Authorization:"Bearer "+tok, "Content-Type":(file.type||"audio/mpeg") }, body:file });
     if(!up.ok){ const t2=await up.text().catch(()=>""); toast("Envoi refus\u00e9 ("+up.status+"). V\u00e9rifie le bucket et les droits."); console.warn(t2); return false; }
-    const ins=await fetch(SB_URL+"/rest/v1/music_catalog",{
-      method:"POST", headers:{ apikey:SB_ANON, Authorization:"Bearer "+tok, "Content-Type":"application/json", Prefer:"return=minimal" },
-      body: JSON.stringify({ title:title||String(file.name||"").replace(/\.[^.]+$/,""), path, mood:mood||"", bpm, duration:dur }) });
+    /* Pochette (ID3 APIC, façon Suno) -> upload storage -> cover_url */
+    let cover_url="";
+    if(coverBlob){ try{
+      const cpath=path.replace(/\.[^.]+$/,"")+"_cover.jpg";
+      const cu=await fetch(SB_URL+"/storage/v1/object/musics/"+encodeURIComponent(cpath),{ method:"POST", headers:{ apikey:SB_ANON, Authorization:"Bearer "+tok, "Content-Type":(coverBlob.type||"image/jpeg") }, body:coverBlob });
+      if(cu.ok) cover_url=magotUrl(cpath);
+    }catch(e){} }
+    const _base={ title:title||String(file.name||"").replace(/\.[^.]+$/,""), path, mood:mood||"", bpm, duration:dur };
+    const _rich=Object.assign({}, _base); if(artist) _rich.artist=artist; if(cover_url) _rich.cover_url=cover_url;
+    const _insertRow=(bodyObj)=>fetch(SB_URL+"/rest/v1/music_catalog",{ method:"POST", headers:{ apikey:SB_ANON, Authorization:"Bearer "+tok, "Content-Type":"application/json", Prefer:"return=minimal" }, body:JSON.stringify(bodyObj) });
+    let ins=await _insertRow(_rich);
+    if(!ins.ok && (artist||cover_url)){ ins=await _insertRow(_base); }   /* repli : colonnes artist/cover_url absentes -> publie quand même */
     if(!ins.ok){ const t3=await ins.text().catch(()=>""); let msg=""; try{ const j3=JSON.parse(t3); msg=j3.message||j3.error||j3.hint||""; }catch(e){ msg=t3; }
       return "Fiche non enregistr\u00e9e ("+ins.status+"). "+(ins.status===403?"La table refuse l\u2019\u00e9criture \u2014 ex\u00e9cute le SQL FINAL dans Supabase. ":"")+(msg?("D\u00e9tail : "+String(msg).slice(0,140)):""); }
     return true;
