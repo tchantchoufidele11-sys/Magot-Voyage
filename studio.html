@@ -1464,6 +1464,8 @@ function orderWithin(order){
 }
 function buildPartition(){
   SEGS=[]; stripDirty=true; if(!A||!A.beats||A.beats.length<2) return;
+  /* [DIAG couverture — admin only, aucun effet sur le montage] */
+  window._DIAGC={}; function _diagMiss(){ var kept=[]; for(var _p=0;_p<PHOTOS.length;_p++){ if(PHOTOS[_p]&&!(PHOTOS[_p].feat&&PHOTOS[_p].feat.skip)) kept.push(_p); } var has={}; for(var _s=0;_s<SEGS.length;_s++){ var sg=SEGS[_s]; if(sg&&!sg.video&&sg.img!=null&&sg.img>=0) has[sg.img]=1; } var m=[]; for(var _k=0;_k<kept.length;_k++){ if(!has[kept[_k]]) m.push(kept[_k]); } return m; }
   if(glReady && TR.ready){ trCompileAll(); atmCompileAll(); }
   trReset(); atmReset();
   var M=MOODS[MOOD], beats=A.beats, str=A.strength||[], dur=A.dur, metricArr=A.metric||[];
@@ -1557,6 +1559,7 @@ function buildPartition(){
     sg._prev=SEGS[idx-1];
     sg.trans=gtChoose(idx,sg,SEGS[idx-1],PHOTOS,_eAt(sg.start),MOOD);
   });
+  try{ window._DIAGC.assign=_diagMiss(); }catch(_e){}
   /* GARANTIE DÉTERMINISTE : chaque photo non-écartée apparaît au moins une fois (sinon on remplace une photo répétée). */
   if(_PORDER.length){ try{
     var _asg={}; for(var _gs=0;_gs<SEGS.length;_gs++){ if(!SEGS[_gs].video && SEGS[_gs].img>=0) _asg[SEGS[_gs].img]=(_asg[SEGS[_gs].img]||0)+1; }
@@ -1574,6 +1577,7 @@ function buildPartition(){
       _sgL.end=_mid; SEGS.splice(_li+1,0,_nsg); _mi++;
     }
   }catch(_ge){} }
+  try{ window._DIAGC.guar=_diagMiss(); }catch(_e){}
   /* VIDÉO — placement PRO */
   if(clipVidReady && SEGS.length>=1){
     var _rc=[]; for(var _c=0;_c<CLIPS.length;_c++){ if(CLIPS[_c].ready) _rc.push(_c); }
@@ -1618,7 +1622,13 @@ function buildPartition(){
     /* intercalage : allonger un plan vidéo en absorbant le plan photo suivant (pas en vidéo-only) */
     if(PHOTOS.length>0){ for(var _mv=SEGS.length-2; _mv>=0; _mv--){ if(SEGS[_mv].video && SEGS[_mv+1] && !SEGS[_mv+1].video){ SEGS[_mv].end=SEGS[_mv+1].end; SEGS.splice(_mv+1,1); } } }
   }
+  try{ window._DIAGC.vmerge=_diagMiss(); }catch(_e){}
   for(var _es=0; _es<SEGS.length; _es++){ if(!SEGS[_es].video && SEGS[_es].img!=null && SEGS[_es].img>=0){ var _en=_capNeeded(SEGS[_es].img); if(_en>0){ while((SEGS[_es].end-SEGS[_es].start) < _en-0.01 && _es+1<SEGS.length && !SEGS[_es+1].video){ SEGS[_es].end=SEGS[_es+1].end; SEGS.splice(_es+1,1); } } } }
+  try{ window._DIAGC.cap=_diagMiss();
+    if(window.STUDIO_ADMIN||window.STUDIO_DIAG){ var _dc=window._DIAGC||{}, _fin=_diagMiss(), _keptN2=0; for(var _pk=0;_pk<PHOTOS.length;_pk++){ if(PHOTOS[_pk]&&!(PHOTOS[_pk].feat&&PHOTOS[_pk].feat.skip)) _keptN2++; }
+      var _el=document.getElementById("diagCover"); if(!_el){ _el=document.createElement("div"); _el.id="diagCover"; _el.style.cssText="position:fixed;left:6px;bottom:6px;z-index:99999;max-width:94vw;background:rgba(180,20,20,.92);color:#fff;font:600 11px/1.35 system-ui;padding:7px 9px;border-radius:8px;pointer-events:none;white-space:pre-wrap;box-shadow:0 2px 10px rgba(0,0,0,.5)"; document.body.appendChild(_el); }
+      _el.textContent="DIAG couverture · plans="+SEGS.length+" photos="+_keptN2+"\nsans plan -> assign:"+((_dc.assign||[]).length)+" garantie:"+((_dc.guar||[]).length)+" fusionVideo:"+((_dc.vmerge||[]).length)+" legende:"+((_dc.cap||[]).length)+"\nfinal manquantes(idx):["+_fin.join(",")+"]"; }
+  }catch(_e){}
   /* Repères de jour : les photos sont déjà triées par journée (computePhotoOrder).
      On marque le 1er plan de chaque journée pour y afficher "JOUR N". */
   (function(){ var _ld=null; for(var _dm=0; _dm<SEGS.length; _dm++){ var _sgd=SEGS[_dm]; if(_sgd.sign||_sgd.video||_sgd.img==null||_sgd.img<0){ continue; } var _dv=(PHOTOS[_sgd.img]&&PHOTOS[_sgd.img]._day!=null)?PHOTOS[_sgd.img]._day:null; if(_dv==null){ continue; } _sgd._dayStart=(_dv!==_ld)?_dv:null; _ld=_dv; } })();
