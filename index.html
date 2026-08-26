@@ -9846,52 +9846,32 @@ async function _dataURLtoBlob(u){ try{ const r=await fetch(u); return await r.bl
 /* Construit la liste items (photos + clips) du voyage pour le Studio, en ordre chronologique.
    Photos = dataURL (clé id) ; vidéos = blob (clé vid_<id>). Tout est converti en objectURL
    (léger et valide entre l'app et l'iframe même origine), révoqué à la construction suivante. */
-function _memTime(m){ return (m&&(m.takenAt||m.createdAt||m.at))||0; }   /* heure de prise de vue si l'appareil l'a inscrite */
-let _studioDropped=0;
 async function studioBuildItems(tr){ if(!tr) return []; _studioRevoke();
   const mems=(tr.memories||[]).slice();
-  mems.sort((a,b)=>{ const da=(a&&a.day!=null)?a.day:9999, db=(b&&b.day!=null)?b.day:9999; if(da!==db) return da-db; return _memTime(a)-_memTime(b); });
-  const items=[]; _studioDropped=0;
+  mems.sort((a,b)=>{ const da=(a&&a.day!=null)?a.day:9999, db=(b&&b.day!=null)?b.day:9999; if(da!==db) return da-db; return ((a.createdAt||a.at||0)-(b.createdAt||b.at||0)); });
+  const items=[];
   for(const m of mems){ if(!m||!m.id) continue; const isVid=(m.kind==="video");
     let media=null; try{ media=await idbGetMedia(isVid?("vid_"+m.id):m.id); }catch(e){}
-    /* 2e chance : le cache mémoire garde souvent la photo même quand la lecture IndexedDB
-       échoue (quota, base occupée). Sans ça, des souvenirs bien présents dans la capsule
-       étaient silencieusement absents du montage. */
-    if(!media && !isVid && _mediaCache[m.id]!=null) media=_mediaCache[m.id];
-    if(!media){ _studioDropped++; continue; }
+    if(!media) continue;
     let blob=(typeof media==="string")?await _dataURLtoBlob(media):media;
-    if(!blob){ _studioDropped++; continue; }
+    if(!blob) continue;
     let url=null; try{ url=URL.createObjectURL(blob); _studioURLs.push(url); }catch(e){}
-    if(!url){ _studioDropped++; continue; }
-    const it={ id:m.id, url, caption:(m.caption||_studioPlaceName(tr,m.placeId)||""), time:_memTime(m), video:isVid };
+    if(!url) continue;
+    const it={ id:m.id, url, caption:(m.caption||_studioPlaceName(tr,m.placeId)||""), time:(m.createdAt||m.at||0), video:isVid };
     if(m.day!=null) it.day=m.day+1;
     items.push(it); }
-  if(_studioDropped){ try{ console.warn("[studio] "+_studioDropped+" souvenir(s) sans média local"); }catch(e){} }
   return items; }
 /* Lot 6 : 1 voyage = 1 film. Si le film existe -> restaurer (éditions/musique/format),
    puis (choix B) ajouter automatiquement les nouvelles photos. Sinon -> auto-montage. */
-/* Attend que le studio ait fini de charger (window.studioBusy) avant de lui parler :
-   sinon on comparait la liste des photos alors qu'elle était encore incomplète, et les
-   photos manquantes n'étaient jamais réclamées. */
-function _studioIdle(w, tries){ tries=tries||0;
-  return new Promise(function(res){ (function chk(n){
-    var busy=true; try{ busy=(w.studioBusy===true); }catch(e){ busy=false; }
-    if(!busy || n>200) { res(); return; }                       /* 200 x 150 ms = 30 s de marge */
-    setTimeout(function(){ chk(n+1); },150);
-  })(tries); }); }
 function studioOpen(w, tr){ if(!w||!tr) return; var fid="trip:"+tr.id;
   try{ if(w.studioHasFilm && w.studioHasFilm(fid)){
     try{ w.studioOpenFilm(fid); }catch(e){}
-    (async function(){ try{
-      await new Promise(function(r){ setTimeout(r,400); });      /* laisse studioOpenFilm lever son drapeau */
-      await _studioIdle(w);
+    setTimeout(function(){ (async function(){ try{
       var have=(w.studioPhotoIds&&w.studioPhotoIds())||[];
       var items=await studioBuildItems(tr);
       var missing=items.filter(function(it){ return have.indexOf(it.id)<0; });
-      /* Toutes les photos du voyage doivent être dans le film : celles dont l'image
-         enregistrée manque (stockage incomplet) sont re-fournies depuis la capsule. */
       if(missing.length && w.studioAddPhotos) w.studioAddPhotos(missing);
-    }catch(e){} })();
+    }catch(e){} })(); }, 1600);
     return;
   } }catch(e){}
   studioFeed(w, tr);
@@ -9943,20 +9923,7 @@ function ensureTripFilm(tr){ try{
     try{ if(typeof w._applyStudioLang==="function") w._applyStudioLang(w.STUDIO_LANG); }catch(e){}
     var tries=0, iv=setInterval(function(){ tries++;
       if(w.studioAutoMontage){ clearInterval(iv); try{ studioFeed(w, tr); }catch(e){}
-        /* On ne referme l'iframe QU'APRÈS l'écriture de toutes les images du film.
-           Avant, elle était retirée dès que l'entrée de bibliothèque existait : les
-           dernières photos n'avaient pas fini d'être enregistrées et disparaissaient
-           du montage à la réouverture (moins de photos que dans la capsule). */
-        var _calm=0;
-        var wv=setInterval(function(){
-          var meta=_studioFilmMeta(tr.id);
-          var busy=true, pend=1;
-          try{ busy=(w.studioBusy===true); }catch(e){ busy=false; }
-          try{ pend=(typeof w.studioPendingWrites==="function")?w.studioPendingWrites():0; }catch(e){ pend=0; }
-          if(meta && !busy && !pend){ _calm++; } else { _calm=0; }
-          if(_calm>=3){ clearInterval(wv); setTimeout(finishOk,600); }          /* 3 relevés calmes d'affilée */
-          else if(Date.now()-tStart>150000){ clearInterval(wv); if(meta) setTimeout(finishOk,300); else cleanup(); }
-        },400);
+        var wv=setInterval(function(){ if(_studioFilmMeta(tr.id)){ clearInterval(wv); setTimeout(finishOk,1000); } else if(Date.now()-tStart>30000){ clearInterval(wv); cleanup(); } },400);
       } else if(tries>40){ clearInterval(iv); cleanup(); }
     },150);
   };
@@ -13842,6 +13809,16 @@ async function magotDelete(id, path){
     return true;
   }catch(e){ return "Erreur r\u00e9seau."; }
 }
+async function magotSetMood(id, mood){
+  if(!isAdmin()) return "Action r\u00e9serv\u00e9e \u00e0 l'administrateur.";
+  if(!id) return "Piste inconnue.";
+  const tok=await sbAccessToken(); if(!tok || tok===SB_ANON) return "Session admin introuvable. Reconnecte-toi.";
+  try{
+    const r=await fetch(SB_URL+"/rest/v1/music_catalog?id=eq."+encodeURIComponent(id),{ method:"PATCH", headers:{ apikey:SB_ANON, Authorization:"Bearer "+tok, "Content-Type":"application/json", Prefer:"return=minimal" }, body:JSON.stringify({ mood:mood||"" }) });
+    if(!r.ok){ const t=await r.text().catch(()=>""); return "Mise \u00e0 jour refus\u00e9e ("+r.status+"). "+String(t).slice(0,120); }
+    return true;
+  }catch(e){ return "Erreur r\u00e9seau."; }
+}
 async function magotDownload(tr2){
   try{
     toast("T\u00e9l\u00e9chargement\u2026");
@@ -13857,6 +13834,13 @@ async function magotDownload(tr2){
 async function magotUpload(file, title, mood){
   if(!isAdmin()){ return "R\u00e9serv\u00e9 \u00e0 l'administrateur."; }
   if(!currentUser){ return "Tu n'es pas connect\u00e9."; }
+  /* DÉDUP : refuse une piste dont le titre normalisé existe déjà au catalogue. */
+  try{
+    const _rows=(typeof magotCatalog==="function")?await magotCatalog():[];
+    const _norm=s=>String(s||"").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g,"").replace(/\.[^.]+$/,"").replace(/[^a-z0-9]+/g,"").trim();
+    const _nt=_norm(title||(file&&file.name));
+    if(_nt && (_rows||[]).some(x=>_norm(x.title)===_nt)){ return "\u00ab "+(title||"Cette musique")+" \u00bb est d\u00e9j\u00e0 au catalogue (doublon \u00e9vit\u00e9)."; }
+  }catch(e){}
   const tok=await sbAccessToken(); const path=Date.now()+"_"+String(file.name||"track.mp3").replace(/[^\w.\-]/g,"_");
   if(!tok || tok===SB_ANON){ return "Session admin introuvable. D\u00e9connecte-toi puis reconnecte-toi, puis r\u00e9essaie."; }
   try{
@@ -13905,8 +13889,8 @@ function openPublishForm(file, done){
       <div class="crop-hint">Fichier : <b>${escapeHtml(file.name||"musique")}</b></div>
       <div class="mv-lab">Titre</div>
       <input type="text" id="pfTitle" value="${escapeHtml(base)}" style="width:100%;border:1px solid var(--line);border-radius:11px;padding:11px;font:600 16px system-ui">
-      <div class="mv-lab" style="margin-top:10px">Ambiance (optionnel)</div>
-      <div class="mv-durs" id="pfMoods">${["romantique","aventure","nature","calme","f\u00eate","voyage"].map(m=>`<button class="mv-dur" data-mood="${m}">${m}</button>`).join("")}</div>
+      <div class="mv-lab" style="margin-top:10px">Ambiance du film (obligatoire)</div>
+      <div class="mv-durs" id="pfMoods">${[["cinema","Cinéma"],["doux","Doux"],["voyage","Voyage"],["dynamique","Dynamique"]].map(m=>`<button class="mv-dur" data-mood="${m[0]}">${m[1]}</button>`).join("")}</div>
       <div id="pfStatus" style="margin-top:12px;font-size:12.5px;color:var(--muted)"></div>
     </div>
     <div class="cal-foot"><button class="btn navy block" id="pfGo" type="button">Publier</button></div></div>`;
@@ -13917,6 +13901,7 @@ function openPublishForm(file, done){
   ov.querySelectorAll("[data-mood]").forEach(b=>b.onclick=()=>{ ov.querySelectorAll("[data-mood]").forEach(x=>x.classList.remove("on")); b.classList.add("on"); mood=b.dataset.mood; });
   ov.querySelector("#pfGo").onclick=async()=>{
     const go=ov.querySelector("#pfGo"), st=ov.querySelector("#pfStatus");
+    if(!mood){ st.style.color="#B3261E"; st.textContent="Choisis d'abord l'ambiance : Cinéma, Doux, Voyage ou Dynamique."; return; }
     const title=(ov.querySelector("#pfTitle").value||base||"Musique").trim();
     go.disabled=true; go.textContent="Envoi\u2026"; st.style.color="var(--muted)"; st.textContent="Analyse du rythme, puis envoi\u2026";
     const r=await magotUpload(file, title, mood);
@@ -13976,10 +13961,11 @@ function openMusicLib(fromMontage){
         <span class="mus-b"><b>${escapeHtml(x.title||"Musique")}</b>
           <span>${x.duration?_fmtDur(x.duration):""}${x.bpm?" \u00b7 "+x.bpm+" BPM":""}</span>
           ${x.mood?`<span class="mus-tags"><span class="mus-tag">${escapeHtml(x.mood)}</span></span>`:``}</span>
-        <span class="mus-act"><button class="mus-use" data-dl="${escapeHtml(x.path)}" data-title="${escapeHtml(x.title||"")}" data-bpm="${x.bpm||0}" data-dur="${x.duration||0}" data-mood="${escapeHtml(x.mood||"")}">\u2b07 Obtenir</button>${isAdmin()?`<button class="mus-del" data-mdel="${escapeHtml(String(x.id||""))}" data-mpath="${escapeHtml(x.path||"")}" title="Supprimer (admin)">\u2715</button>`:""}</span></div>`).join("");
+        <span class="mus-act"><button class="mus-use" data-dl="${escapeHtml(x.path)}" data-title="${escapeHtml(x.title||"")}" data-bpm="${x.bpm||0}" data-dur="${x.duration||0}" data-mood="${escapeHtml(x.mood||"")}">\u2b07 Obtenir</button>${isAdmin()?`<select class="mus-mood" data-mid="${escapeHtml(String(x.id||""))}" title="Ambiance (admin)" style="font:600 11px system-ui;max-width:106px;border-radius:8px;padding:4px;margin-left:4px">${[["","\u2014 mode \u2014"],["cinema","Cin\u00e9ma"],["doux","Doux"],["voyage","Voyage"],["dynamique","Dynamique"]].map(o=>`<option value="${o[0]}"${(String(x.mood||"").toLowerCase()===o[0]?" selected":"")}>${o[1]}</option>`).join("")}</select><button class="mus-del" data-mdel="${escapeHtml(String(x.id||""))}" data-mpath="${escapeHtml(x.path||"")}" title="Supprimer (admin)">\u2715</button>`:""}</span></div>`).join("");
       el.querySelectorAll("[data-prev]").forEach(b=>b.onclick=()=>musPreview("url",b.dataset.prev,b.dataset.src));
       musPreviewPaint();
       el.querySelectorAll("[data-mdel]").forEach(b=>b.onclick=()=>{ askConfirm("Supprimer cette musique de la biblioth\u00e8que Magot ?","Supprimer",async()=>{ b.disabled=true; const r=await magotDelete(b.dataset.mdel,b.dataset.mpath); if(r===true){ toast("Musique supprim\u00e9e"); close(); window._musTab="magot"; openMusicLib(fromMontage); } else { b.disabled=false; toast(typeof r==="string"?r:"\u00c9chec de suppression"); } }); });
+      el.querySelectorAll(".mus-mood[data-mid]").forEach(s=>s.onchange=async()=>{ const id=s.dataset.mid, mood=s.value; s.disabled=true; const r=await magotSetMood(id,mood); s.disabled=false; if(r===true){ try{ const row=s.closest(".mus-row"); const u=row&&row.querySelector(".mus-use"); if(u) u.setAttribute("data-mood",mood); }catch(e){} toast("Ambiance mise \u00e0 jour"+(mood?(" : "+mood):" (retir\u00e9e)")); } else { toast(typeof r==="string"?r:"\u00c9chec de la mise \u00e0 jour"); } });
       el.querySelectorAll("[data-dl]").forEach(b=>b.onclick=async()=>{ b.disabled=true; b.textContent="\u2026";
         const okd=await magotDownload({path:b.dataset.dl,title:b.dataset.title,bpm:b.dataset.bpm,duration:b.dataset.dur,mood:b.dataset.mood||""});
         if(okd){ close(); window._musTab="mine"; openMusicLib(fromMontage); } else { b.disabled=false; b.textContent="\u2b07 Obtenir"; } });
