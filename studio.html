@@ -845,7 +845,7 @@ input[type=range]::-moz-range-thumb{width:22px;height:22px;border:0;border-radiu
 <main class="app">
   <header class="header">
     <div class="header-left"></div>
-    <div class="brand"><h1>Studio Magot<i>✦</i></h1><p>Montage vidéo · C306</p></div>
+    <div class="brand"><h1>Studio Magot<i>✦</i></h1><p>Montage vidéo · C307</p></div>
     <button class="export" id="expBtn"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 15V3m0 0L7 8m5-5l5 5M5 15v4h14v-4"/></svg> Exporter</button>
   </header>
 
@@ -1653,7 +1653,14 @@ function buildPartition(){
       _sg2.end=_mid2; SEGS.splice(_li2+1,0,_ns2); _mi2++;
     }
   }catch(_ge2){} }
-  for(var _es=0; _es<SEGS.length; _es++){ if(!SEGS[_es].video && SEGS[_es].img!=null && SEGS[_es].img>=0){ var _en=_capNeeded(SEGS[_es].img); if(_en>0){ while((SEGS[_es].end-SEGS[_es].start) < _en-0.01 && _es+1<SEGS.length && !SEGS[_es+1].video){ SEGS[_es].end=SEGS[_es+1].end; SEGS.splice(_es+1,1); } } } }
+  for(var _es=0; _es<SEGS.length; _es++){ var _sgc=SEGS[_es]; if(_sgc.video || _sgc.img==null || _sgc.img<0) continue; var _en=_capNeeded(_sgc.img); if(_en<=0) continue; var _minK=0.9, _guard3=0;
+    while((_sgc.end-_sgc.start) < _en-0.01 && _es+1<SEGS.length && !SEGS[_es+1].video && SEGS[_es+1].img!=null && SEGS[_es+1].img>=0 && _guard3++<50){
+      var _nxc=SEGS[_es+1]; var _availc=(_nxc.end-_nxc.start)-_minK; if(_availc<=0.02) break;   /* le suivant est déjà court -> on ne le vide pas */
+      var _needc=_en-(_sgc.end-_sgc.start); var _takec=Math.min(_needc,_availc);
+      _sgc.end+=_takec; _nxc.start+=_takec;                                                        /* on EMPRUNTE du temps, aucune photo n'est supprimée */
+      if(_takec<_needc-0.001) break;                                                                /* pas assez sans vider le suivant -> légende un peu plus courte, mais toutes les photos gardent leur durée */
+    }
+  }
   /* Repères de jour : les photos sont déjà triées par journée (computePhotoOrder).
      On marque le 1er plan de chaque journée pour y afficher "JOUR N". */
   (function(){ var _ld=null; for(var _dm=0; _dm<SEGS.length; _dm++){ var _sgd=SEGS[_dm]; if(_sgd.sign||_sgd.video||_sgd.img==null||_sgd.img<0){ continue; } var _dv=(PHOTOS[_sgd.img]&&PHOTOS[_sgd.img]._day!=null)?PHOTOS[_sgd.img]._day:null; if(_dv==null){ continue; } _sgd._dayStart=(_dv!==_ld)?_dv:null; _ld=_dv; } })();
