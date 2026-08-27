@@ -802,7 +802,11 @@ input[type=range]::-moz-range-thumb{width:22px;height:22px;border:0;border-radiu
   .msearch input:focus{ border-color:rgba(244,189,74,.5); box-shadow:0 0 0 3px rgba(244,189,74,.10); }
   .msearch input::placeholder{ color:#6f7d92; }
   .mlib{ display:flex; flex-direction:column; gap:9px; margin:2px 0 12px; }
-  .mtrack{ display:flex; align-items:center; gap:11px; padding:9px 10px; border:1px solid rgba(255,255,255,.08); border-radius:15px; background:rgba(255,255,255,.025); color:#eaf1fb; transition:border-color .15s,background .15s; }
+  .mtrack{ display:flex; flex-direction:column; align-items:stretch; gap:0; padding:9px 10px; border:1px solid rgba(255,255,255,.08); border-radius:15px; background:rgba(255,255,255,.025); color:#eaf1fb; transition:border-color .15s,background .15s; }
+  .mt-row{ display:flex; align-items:center; gap:11px; width:100%; min-width:0; }
+  .mt-admin{ display:flex; align-items:center; gap:6px; justify-content:flex-end; margin-top:8px; padding-top:8px; border-top:1px solid rgba(255,255,255,.06); }
+  .mt-cover{ flex:0 0 auto; width:30px; height:30px; border-radius:9px; border:1px solid var(--line); background:transparent; color:var(--muted); font-size:13px; cursor:pointer; display:flex; align-items:center; justify-content:center; -webkit-tap-highlight-color:transparent; }
+  .mt-cover:active{ color:#E9C46A; border-color:rgba(233,196,106,.5); }
   .mtrack.on{ border-color:rgba(244,189,74,.6); background:linear-gradient(180deg,rgba(244,189,74,.12),rgba(244,189,74,.02)); box-shadow:0 4px 16px rgba(244,189,74,.12); }
   .mt-main{ flex:1; min-width:0; display:flex; align-items:center; gap:12px; background:none; border:0; color:inherit; text-align:left; cursor:pointer; padding:0; }
   .mt-cov{ position:relative; width:54px; height:54px; border-radius:11px; flex-shrink:0; overflow:hidden; display:grid; place-items:center; background:linear-gradient(158deg,#2a4c7f,#12274c); box-shadow:inset 0 1px 0 rgba(255,255,255,.12), 0 4px 12px rgba(0,0,0,.35); }
@@ -9894,15 +9898,20 @@ essentiaReady.then(function(ok){ if(!ok && !A){ /* silencieux : le repli se fait
       var _dl=isDL(t), _dlg=t.dling;
       var dlBtn='<button class="mt-dl'+(_dl?' on':'')+'" data-id="'+t.id+'" title="'+(_dl?'T\u00e9l\u00e9charg\u00e9':'T\u00e9l\u00e9charger')+'">'+(_dlg?'<span class="mt-load"></span>':(_dl?'\u2713':'\u2193'))+'</button>';
       return '<div class="mtrack'+(act?' on':'')+(_dl?' dl':'')+'" data-id="'+t.id+'">'
-        +'<button class="mt-main" data-id="'+t.id+'">'
-          +'<span class="mt-cov">'+coverHTML(t)+'<span class="mt-covplay">'+(playing?'\u23F8':'\u25B6')+'</span>'+(playing?'<span class="mt-prog"><i></i></span>':'')+'</span>'
-          +'<span class="mt-meta"><b>'+esc(t.title)+'</b><small>'+esc(trackMeta(t))+'</small></span>'
-        +'</button>'
-        +dlBtn
-        +'<button class="mt-addbtn" data-id="'+t.id+'">'+addBtn+'</button>'
+        +'<div class="mt-row">'
+          +'<button class="mt-main" data-id="'+t.id+'">'
+            +'<span class="mt-cov">'+coverHTML(t)+'<span class="mt-covplay">'+(playing?'\u23F8':'\u25B6')+'</span>'+(playing?'<span class="mt-prog"><i></i></span>':'')+'</span>'
+            +'<span class="mt-meta"><b>'+esc(t.title)+'</b><small>'+esc(trackMeta(t))+'</small></span>'
+          +'</button>'
+          +dlBtn
+          +'<button class="mt-addbtn" data-id="'+t.id+'">'+addBtn+'</button>'
+        +'</div>'
         +((window.STUDIO_ADMIN && t.remote && t.catId!=null)?(
-            '<button class="mt-modepill'+(t.type?'':' empty')+'" data-id="'+t.id+'" title="Changer l\u2019ambiance (admin)">'+esc(_modeLabel(t.type)||"Ranger")+'</button>'
+            '<div class="mt-admin">'
+            +'<button class="mt-modepill'+(t.type?'':' empty')+'" data-id="'+t.id+'" title="Changer l\u2019ambiance (admin)">'+esc(_modeLabel(t.type)||"Ranger")+'</button>'
+            +'<button class="mt-cover" data-id="'+t.id+'" title="R\u00e9cup\u00e9rer la pochette du MP3">\uD83D\uDDBC\uFE0F</button>'
             +'<button class="mt-del" data-id="'+t.id+'" title="Supprimer (admin)">\u2715</button>'
+            +'</div>'
           ):'')
       +'</div>';
     }).join("");
@@ -9917,6 +9926,15 @@ essentiaReady.then(function(ok){ if(!ok && !A){ /* silencieux : le repli se fait
     });
     Array.prototype.forEach.call(lib.querySelectorAll(".mt-modepill"),function(p){
       p.onclick=function(e){ if(e&&e.stopPropagation)e.stopPropagation(); var t=byId(p.getAttribute("data-id")); if(!t||t.catId==null) return; if(typeof window.STUDIO_SET_MOOD!=="function"){ try{ setState("Cat\u00e9gorisation indisponible ici."); }catch(_){} return; } _studioPickMode(t.type, function(mode){ if(mode==null) return; p.style.opacity=".5"; Promise.resolve(window.STUDIO_SET_MOOD(t.catId,mode)).then(function(r){ p.style.opacity="1"; if(r===true){ t.type=mode; try{ setState("Ambiance : "+_modeLabel(mode)); }catch(_){} renderLib(); } else { try{ setState(typeof r==="string"?r:"\u00c9chec de la mise \u00e0 jour."); }catch(_){} } }).catch(function(){ p.style.opacity="1"; try{ setState("\u00c9chec de la mise \u00e0 jour."); }catch(_){} }); }); };
+    });
+    Array.prototype.forEach.call(lib.querySelectorAll(".mt-cover"),function(b){
+      b.onclick=function(e){ if(e&&e.stopPropagation)e.stopPropagation(); var t=byId(b.getAttribute("data-id")); if(!t||t.catId==null) return; if(typeof window.STUDIO_SET_COVER!=="function"){ try{ setState("Indisponible ici."); }catch(_){} return; }
+        var _src=t._file||t.file||t.url; if(!_src){ try{ setState("Piste sans fichier."); }catch(_){} return; }
+        b.disabled=true; try{ setState("Lecture de la pochette\u2026"); }catch(_){}
+        var _go=function(blob){ try{ _readID3(blob, function(meta){ if(!meta||!meta.cover){ b.disabled=false; try{ setState("Pas de pochette dans ce MP3."); }catch(_){} return; } _coverToDataURL(meta.cover, function(dataUrl){ if(!dataUrl){ b.disabled=false; try{ setState("Pochette illisible."); }catch(_){} return; } Promise.resolve(window.STUDIO_SET_COVER(t.catId,dataUrl)).then(function(r){ b.disabled=false; if(r===true){ t.cover=dataUrl; try{ setState("\u2713 Pochette ajout\u00e9e."); }catch(_){} renderLib(); } else { try{ setState(typeof r==="string"?r:"\u00c9chec."); }catch(_){} } }).catch(function(){ b.disabled=false; try{ setState("\u00c9chec r\u00e9seau."); }catch(_){} }); }); }); }catch(_e){ b.disabled=false; } };
+        if(t._file||t.file){ _go(t._file||t.file); }
+        else { fetch(t.url).then(function(r){ return r.blob(); }).then(_go).catch(function(){ b.disabled=false; try{ setState("T\u00e9l\u00e9chargement impossible."); }catch(_){} }); }
+      };
     });
     Array.prototype.forEach.call(lib.querySelectorAll(".mt-del"),function(b){
       b.onclick=function(e){ if(e&&e.stopPropagation)e.stopPropagation(); var t=byId(b.getAttribute("data-id")); if(!t||t.catId==null) return; if(typeof window.STUDIO_DELETE!=="function"){ try{ setState("Suppression indisponible ici."); }catch(_){} return; } var ok=true; try{ ok=window.confirm("Supprimer \u00ab "+(t.title||"cette musique")+" \u00bb du catalogue ?"); }catch(_){} if(!ok) return; b.disabled=true; Promise.resolve(window.STUDIO_DELETE(t.catId,t.path||"")).then(function(r){ if(r===true){ var _i=LIB.indexOf(t); if(_i>=0) LIB.splice(_i,1); try{ setState("Musique supprim\u00e9e."); }catch(_){} renderLib(); } else { b.disabled=false; try{ setState(typeof r==="string"?r:"\u00c9chec de suppression."); }catch(_){} } }).catch(function(){ b.disabled=false; try{ setState("\u00c9chec de suppression."); }catch(_){} }); };

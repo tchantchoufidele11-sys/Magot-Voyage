@@ -13876,9 +13876,11 @@ async function magotUpload(file, title, mood, artist, coverBlob){
     const _cover=(typeof coverBlob==="string" && coverBlob.indexOf("data:")===0)?coverBlob:"";
     const _insertRow=(bodyObj)=>fetch(SB_URL+"/rest/v1/music_catalog",{ method:"POST", headers:{ apikey:SB_ANON, Authorization:"Bearer "+tok, "Content-Type":"application/json", Prefer:"return=minimal" }, body:JSON.stringify(bodyObj) });
     const _bodies=[];
-    _bodies.push({name:"cover_url", body:(function(){ const b=Object.assign({},_base); if(artist)b.artist=artist; if(_cover)b.cover_url=_cover; return b; })()});
-    if(_cover) _bodies.push({name:"cover", body:(function(){ const b=Object.assign({},_base); if(artist)b.artist=artist; b.cover=_cover; return b; })()});   /* variante : colonne nommée cover */
-    if(artist||_cover) _bodies.push({name:"artist_only", body:(function(){ const b=Object.assign({},_base); if(artist)b.artist=artist; return b; })()});
+    if(_cover||artist) _bodies.push({name:"cover_url+artist", body:(function(){ const b=Object.assign({},_base); if(_cover)b.cover_url=_cover; if(artist)b.artist=artist; return b; })()});
+    if(_cover) _bodies.push({name:"cover_url", body:(function(){ const b=Object.assign({},_base); b.cover_url=_cover; return b; })()});
+    if(_cover||artist) _bodies.push({name:"cover+artist", body:(function(){ const b=Object.assign({},_base); if(_cover)b.cover=_cover; if(artist)b.artist=artist; return b; })()});
+    if(_cover) _bodies.push({name:"cover", body:(function(){ const b=Object.assign({},_base); b.cover=_cover; return b; })()});
+    if(artist) _bodies.push({name:"artist", body:(function(){ const b=Object.assign({},_base); b.artist=artist; return b; })()});
     _bodies.push({name:"base", body:_base});
     let ins=null,_used="none",_lastTxt=""; for(const e of _bodies){ ins=await _insertRow(e.body); if(ins.ok){ _used=e.name; break; } else { try{ _lastTxt=await ins.clone().text(); }catch(_){} } }   /* dégrade proprement si une colonne manque */
     try{ window.__mvUploadDiag={ coverIn:!!_cover, coverLen:_cover?_cover.length:0, body:_used, status:(ins?ins.status:0), err:String(_lastTxt||"").slice(0,120) }; }catch(e){}
