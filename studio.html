@@ -9726,17 +9726,18 @@ essentiaReady.then(function(ok){ if(!ok && !A){ /* silencieux : le repli se fait
   /* ===== Téléchargement des morceaux (façon CapCut) : les téléchargés remontent en haut ===== */
   var _DLK="magot_dl_v1", _DL={};
   try{ _DL=JSON.parse(localStorage.getItem(_DLK)||"{}")||{}; }catch(e){ _DL={}; }
+  function _dlKey(t){ return t ? (t.catId!=null ? ("c"+t.catId) : (t.path||t.url||t.id)) : ""; }   /* clé STABLE (survit au rechargement) */
   function _dlSave(){ try{ localStorage.setItem(_DLK, JSON.stringify(_DL)); }catch(e){} }
-  function isDL(t){ return !!(t && _DL[t.id]); }
+  function isDL(t){ return !!(t && _DL[_dlKey(t)]); }
   function downloadTrack(t){
-    if(!t) return;
-    if(isDL(t)){ delete _DL[t.id]; _dlSave(); try{ if(typeof _pdel==="function") _pdel("dl:"+t.id); }catch(e){} renderLib(); return; }   /* re-clic = retirer du téléchargé */
-    if(t.file || t._file){ _DL[t.id]=Date.now(); _dlSave(); renderLib(); return; }   /* déjà local */
+    if(!t) return; var _k=_dlKey(t);
+    if(isDL(t)){ delete _DL[_k]; _dlSave(); try{ if(typeof _pdel==="function") _pdel("dl:"+_k); }catch(e){} t._dlblob=null; renderLib(); return; }   /* re-clic = retirer du téléchargé (libère l'espace) */
+    if(t.file || t._file){ _DL[_k]=Date.now(); _dlSave(); renderLib(); return; }   /* déjà local */
     if(!t.url){ setState(_st("Musique non chargée.")); return; }
     t.dling=true; renderLib();
     fetch(t.url).then(function(r){ return r.blob(); }).then(function(b){
-      t._dlblob=b; try{ if(typeof _pput==="function") _pput("dl:"+t.id, b); }catch(e){}
-      _DL[t.id]=Date.now(); _dlSave(); t.dling=false; renderLib();
+      t._dlblob=b; t._file=b; try{ if(typeof _pput==="function") _pput("dl:"+_k, b); }catch(e){}
+      _DL[_k]=Date.now(); _dlSave(); t.dling=false; renderLib();
     }).catch(function(){ t.dling=false; renderLib(); try{ setState("T\u00e9l\u00e9chargement impossible."); }catch(e){} });
   }
   var MIX=[]; /* ids des pistes du mix, dans l'ordre (= enchaînement DJ) */
@@ -9908,7 +9909,7 @@ essentiaReady.then(function(ok){ if(!ok && !A){ /* silencieux : le repli se fait
       return true;
     });
     if(!_list.length){ lib.innerHTML='<p class="sh-note" style="opacity:.72">Aucun r\u00e9sultat'+(_mCat?(' dans \u00ab '+esc(_mCat)+' \u00bb'):'')+(_mQuery?(' pour \u00ab '+esc(_mQuery)+' \u00bb'):'')+'.</p>'; return; }
-    _list.sort(function(a,b){ var da=isDL(a)?(_DL[a.id]||1):0, db=isDL(b)?(_DL[b.id]||1):0; if(da!==db) return db-da; return 0; });   /* téléchargés en haut (plus récent d'abord) */
+    _list.sort(function(a,b){ var da=isDL(a)?(_DL[_dlKey(a)]||1):0, db=isDL(b)?(_DL[_dlKey(b)]||1):0; if(da!==db) return db-da; return 0; });   /* téléchargés en haut (plus récent d'abord) */
     lib.innerHTML=_list.map(function(t){
       var act=inMix(t.id); var _mp=mixPos(t.id);
       var playing=(PREV && PREV.id===t.id && PREV.audio && !PREV.audio.paused);
@@ -10139,7 +10140,7 @@ essentiaReady.then(function(ok){ if(!ok && !A){ /* silencieux : le repli se fait
     var mi=$("mImport"); if(mi) mi.onclick=function(){ myMusicIn.click(); };
     var msrch=$("mSearch"); if(msrch) msrch.oninput=function(){ _mQuery=this.value||""; renderLib(); };
     renderLib();
-    function _addCatalog(arr){ if(!arr||!arr.length) return; arr.forEach(function(m){ var t={ id:"r"+(++LIB_SEQ), catId:(m.id!=null?m.id:null), path:(m.path||""), title:m.title||cleanName(m.file||m.url||""), artist:m.artist||"", type:m.type||m.genre||m.style||m.mood||"", cover:m.cover||"", url:m.file||m.url, remote:true }; if(typeof m.duration==="string") t.durStr=m.duration; else if(typeof m.duration==="number") t.dur=m.duration; LIB.push(t); probeDur(t); }); renderLib(); }
+    function _addCatalog(arr){ if(!arr||!arr.length) return; arr.forEach(function(m){ var t={ id:"r"+(++LIB_SEQ), catId:(m.id!=null?m.id:null), path:(m.path||""), title:m.title||cleanName(m.file||m.url||""), artist:m.artist||"", type:m.type||m.genre||m.style||m.mood||"", cover:m.cover||"", url:m.file||m.url, remote:true }; if(typeof m.duration==="string") t.durStr=m.duration; else if(typeof m.duration==="number") t.dur=m.duration; LIB.push(t); probeDur(t); if(isDL(t)){ try{ _pget("dl:"+_dlKey(t)).then(function(b){ if(b){ t._file=b; t._dlblob=b; } }).catch(function(){}); }catch(e){} } }); renderLib(); }
     function _loadCatalog(){ try{
       var c=(typeof window!=="undefined")?window.STUDIO_CATALOG:null;              /* greffe : MagotVoyage fournit le catalogue depuis Supabase */
       if(typeof c==="function"){ Promise.resolve().then(c).then(function(arr){ _addCatalog(arr); }).catch(function(){}); return; }
