@@ -8453,9 +8453,10 @@ function studioAutoMontage(input){
     }catch(e){} }
     try{ updateBadge(); paintStrip(0); }catch(e){}
     if(input.music && input.music.url && window.__useTrack){ try{ window.__useTrack({ id:input.music.id||"auto", title:input.music.title||"Musique", url:input.music.url, type:input.music.type||"", cover:input.music.cover||"" }); }catch(e){} }
+    else if(!A && !window.__activeMusicFile){ try{ if(typeof window._autoMusicForMood==="function") window._autoMusicForMood(input.project||_curFilmId||"seed", false); }catch(e){} }   /* 2B : le mode choisit la musique tout seul */
     var n=0, _iv=setInterval(function(){ n++;
       if(A && (PHOTOS.length||clipVidReady)){ clearInterval(_iv); try{ buildPartition(); paintStrip(0); try{ studioSaveLocal(); }catch(_s){}   /* -> stocke sous "trip:<id>", visible dans Souvenirs, rouvrable */ try{ var _of=document.querySelector('.fmc[data-n="orig"]'); if(_of&&_of.classList.contains("on")&&typeof _applyOrigineFormat==="function") _applyOrigineFormat(); }catch(_o){}   /* ratio d'origine réel une fois les médias chargés */ setState((PHOTOS.length+(clipVidReady?CLIPS.filter(function(c){return c.ready;}).length:0))+" éléments · montage prêt"); if(input.autoplay) startPlay(); }catch(e){} }
-      else if(n>80){ clearInterval(_iv); try{ setState(_st("Choisis une musique pour lancer le montage.")); }catch(e){} }
+      else if(n>150){ clearInterval(_iv); try{ setState(_st(window.__activeMusicFile?"Chargement du montage\u2026":"Choisis une musique pour lancer le montage.")); }catch(e){} }
     }, 200);
   }
   _one();
@@ -8875,7 +8876,7 @@ function _applyMoodUI(md){ try{ document.querySelectorAll(".mood").forEach(funct
 if(syncEl) syncEl.oninput=function(){ SYNC_M[MOOD]=(+syncEl.value)/1000; syncLabel(); if(A){ paintStrip(playing?visualTime():0); try{ if(SEGS&&SEGS.length) renderMontageAt(playing?visualTime():0); }catch(e){} } };
 var srst=document.getElementById("syncReset"); if(srst) srst.onclick=function(){ SYNC_M[MOOD]=autoSync(MOOD,(A&&A.bpmFelt)?A.bpmFelt:((A&&A.bpm)?A.bpm:120)); syncApply(); };
 syncApply();
-document.querySelectorAll(".mood").forEach(function(btn){ btn.onclick=function(){ document.querySelectorAll(".mood").forEach(function(x){ x.classList.remove("on"); }); btn.classList.add("on"); MOOD=btn.dataset.mood; syncApply(); try{ if(_ovEl) _ovEl._flt=null; }catch(e){} if(A&&(PHOTOS.length||clipVidReady)){ var _wasP=playing, _pos=(playing?montageNow():pausedOffset)||0; buildPartition(); updateBadge(); if(_wasP){ try{ var _mx=(window.MONTAGE_DUR||_pos)-0.05; seekMontageTo(Math.max(0,Math.min(_pos,_mx))); }catch(e){} paintStrip(visualTime()); } else { paintStrip(0); try{ renderMontageAt(0); }catch(e){} } } setState("Ambiance : <b>"+btn.textContent+"</b> · "+(A?( (SEGS.length)+" plans"):"")); }; });
+document.querySelectorAll(".mood").forEach(function(btn){ btn.onclick=function(){ document.querySelectorAll(".mood").forEach(function(x){ x.classList.remove("on"); }); btn.classList.add("on"); MOOD=btn.dataset.mood; syncApply(); try{ if(_ovEl) _ovEl._flt=null; }catch(e){} var _swap=false; try{ if(typeof window._autoMusicForMood==="function") _swap=window._autoMusicForMood(_curFilmId||"seed", true); }catch(e){} if(!_swap && A&&(PHOTOS.length||clipVidReady)){ var _wasP=playing, _pos=(playing?montageNow():pausedOffset)||0; buildPartition(); updateBadge(); if(_wasP){ try{ var _mx=(window.MONTAGE_DUR||_pos)-0.05; seekMontageTo(Math.max(0,Math.min(_pos,_mx))); }catch(e){} paintStrip(visualTime()); } else { paintStrip(0); try{ renderMontageAt(0); }catch(e){} } } setState("Ambiance : <b>"+btn.textContent+"</b> · "+(A?( (SEGS.length)+" plans"):"")); }; });
 
 document.getElementById("fMusic").onchange=function(e){
   var file=e.target.files&&e.target.files[0]; if(!file) return; setMusicEl(file);
@@ -9835,6 +9836,27 @@ essentiaReady.then(function(ok){ if(!ok && !A){ /* silencieux : le repli se fait
     var x=ov.querySelector("#mpX"); if(x) x.onclick=function(){ close(); if(cb) cb(null); };
     Array.prototype.forEach.call(ov.querySelectorAll(".mp-opt"),function(b){ b.onclick=function(){ var m=b.getAttribute("data-m"); close(); if(cb) cb(m); }; });
   }
+  function _hashStr(s){ var h=0,str=String(s||"x"); for(var i=0;i<str.length;i++){ h=((h<<5)-h+str.charCodeAt(i))|0; } return Math.abs(h); }
+  function _autoPickTrackForMood(mood, seed){
+    mood=String(mood||"").toLowerCase();
+    var all=LIB.filter(function(t){ return t && !t._dupHidden && String(t.type||"").toLowerCase()===mood && (t.url||t._file||t.file); });
+    if(!all.length) return null;
+    all.sort(function(a,b){ return String(a.title||a.id).localeCompare(String(b.title||b.id)); });   /* ordre stable */
+    var dl=all.filter(function(t){ return (typeof isDL==="function"&&isDL(t)) || t._file || t.file; });
+    var pool=dl.length?dl:all;   /* priorité aux déjà téléchargées */
+    return pool[_hashStr(seed)%pool.length];   /* choix déterministe par voyage */
+  }
+  function _autoMusicForMood(seed, rebuildAfter){
+    try{
+      var pick=_autoPickTrackForMood(MOOD, seed||"seed");
+      if(!pick){ try{ setState("Aucune musique \u00ab "+(_modeLabel(MOOD)||MOOD)+" \u00bb dans la biblioth\u00e8que \u2014 ajoutes-en une (bouton Importer)."); }catch(e){} return false; }
+      if(LIB_ACTIVE===pick.id && A){ return false; }   /* déjà la bonne piste chargée */
+      window._musicAuto=true; if(rebuildAfter) window._musicRebuildAfter=true;
+      useTrack(pick);
+      return true;
+    }catch(e){ return false; }
+  }
+  try{ window._autoMusicForMood=_autoMusicForMood; }catch(e){}
   function renderCats(){
     var cwrap=$("mCats"); if(!cwrap) return;
     var types=[]; for(var i=0;i<LIB.length;i++){ var ty=(LIB[i].type||"").trim(); if(ty && types.indexOf(ty)<0) types.push(ty); }
@@ -9994,7 +10016,7 @@ essentiaReady.then(function(ok){ if(!ok && !A){ /* silencieux : le repli se fait
       var _wasAuto=!!window._musicAuto; window._musicAuto=false;
       try{ var _cat=String(t.type||"").toLowerCase(); if(!_wasAuto && ["cinema","doux","voyage","dynamique"].indexOf(_cat)>=0 && typeof MOOD!=="undefined" && _cat!==MOOD){ MOOD=_cat; try{ _applyMoodUI(_cat); }catch(e){} } }catch(e){}   /* choix utilisateur : le mode suit la piste */
       try{ if(typeof finishAnalyze==="function") finishAnalyze(); }catch(e){}
-      if(!_wasAuto){ try{ if(A && (typeof PHOTOS!=="undefined") && (PHOTOS.length||clipVidReady) && typeof buildPartition==="function"){ buildPartition(); paintStrip(0); try{ renderMontageAt(0); }catch(e){} } }catch(e){} }   /* applique tout de suite la nouvelle musique/mode si un montage existe */
+      if(!_wasAuto || window._musicRebuildAfter){ window._musicRebuildAfter=false; try{ if(A && (typeof PHOTOS!=="undefined") && (PHOTOS.length||clipVidReady) && typeof buildPartition==="function"){ buildPartition(); paintStrip(0); try{ renderMontageAt(0); }catch(e){} } }catch(e){} }   /* applique tout de suite la nouvelle musique/mode si un montage existe */
       renderLib();
     }, true);
   }
