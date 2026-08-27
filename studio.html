@@ -10074,15 +10074,25 @@ essentiaReady.then(function(ok){ if(!ok && !A){ /* silencieux : le repli se fait
         img.src=objUrl;
       }catch(e){ cb(""); }
     }
+    function _showImportDiag(d){ try{ var el=document.getElementById("impDiag"); if(!el){ el=document.createElement("div"); el.id="impDiag"; el.style.cssText="position:fixed;left:6px;top:150px;z-index:2147483647;max-width:94vw;background:rgba(20,60,140,.96);color:#fff;font:600 11px/1.45 system-ui;padding:9px 11px;border-radius:9px;white-space:pre-wrap;box-shadow:0 2px 14px rgba(0,0,0,.6);pointer-events:none"; document.body.appendChild(el); } el.textContent="IMPORT DIAG\nID3 pochette: "+d.id3+"\ndataURL Studio: "+d.durl+" Ko (reçu MV: "+(d.durlMV!=null?d.durlMV:"?")+" Ko)\nupload: "+d.r+" · body="+d.body+" · http="+d.http+(d.err?("\nerr: "+d.err):"")+"\nrelecture pochette: "+d.back; }catch(e){} }
     myMusicIn.onchange=function(){ var f=this.files&&this.files[0]; if(!f) return; this.value="";
       if(window.STUDIO_ADMIN && typeof window.STUDIO_UPLOAD==="function"){
         _readID3(f, function(meta){ meta=meta||{};
           var _title=(meta.title||cleanName(f.name));
           var _artist=(meta.artist && meta.artist.toLowerCase()!=="import")?meta.artist:"";
           var _coverUrl=meta.cover||"";   /* objectURL de la pochette (APIC) */
+          var _dg={ id3:(_coverUrl?"OUI":"NON"), durl:0, durlMV:null, r:"?", body:"?", http:0, err:"", back:"…" };
           _studioPickMode(null, function(mode){ if(!mode) return; try{ setState("Publication au catalogue\u2026"); }catch(_){}
             _coverToDataURL(_coverUrl, function(coverData){
-              Promise.resolve(window.STUDIO_UPLOAD(f,_title,mode,_artist,coverData||"")).then(function(r){ if(r===true){ try{ setState("\u2713 \u00ab "+_title+" \u00bb publi\u00e9e ("+_modeLabel(mode)+")."); }catch(_){} try{ if(typeof window.__reloadCatalog==="function") window.__reloadCatalog(); }catch(e){} } else { try{ setState(typeof r==="string"?r:"Publication impossible."); }catch(_){} } }).catch(function(){ try{ setState("Publication impossible (r\u00e9seau ?)."); }catch(_){} });
+              _dg.durl=coverData?Math.round(coverData.length/1024):0; _showImportDiag(_dg);
+              Promise.resolve(window.STUDIO_UPLOAD(f,_title,mode,_artist,coverData||"")).then(function(r){
+                _dg.r=(r===true)?"OK":String(r).slice(0,70);
+                try{ var dd=window.__coverDiag||{}; _dg.body=dd.body||"?"; _dg.http=dd.status||0; _dg.err=dd.err||""; if(dd.coverLen!=null)_dg.durlMV=Math.round(dd.coverLen/1024); }catch(e){}
+                _showImportDiag(_dg);
+                if(r===true){ try{ setState("\u2713 \u00ab "+_title+" \u00bb publi\u00e9e ("+_modeLabel(mode)+")."); }catch(_){} try{ if(typeof window.__reloadCatalog==="function") window.__reloadCatalog(); }catch(e){}
+                  setTimeout(function(){ try{ var _n=_title.toLowerCase().replace(/[^a-z0-9]+/g,""), found=null; for(var i=0;i<LIB.length;i++){ if(LIB[i].remote && String(LIB[i].title||"").toLowerCase().replace(/[^a-z0-9]+/g,"")===_n){ found=LIB[i]; break; } } _dg.back=found?(found.cover?"OUI":"NON (pas en base)"):"piste introuvable"; _showImportDiag(_dg); }catch(e){} }, 2000);
+                } else { _dg.back="(upload échoué)"; _showImportDiag(_dg); try{ setState(typeof r==="string"?r:"Publication impossible."); }catch(_){} }
+              }).catch(function(){ _dg.r="exception"; _showImportDiag(_dg); try{ setState("Publication impossible (r\u00e9seau ?)."); }catch(_){} });
             });
           });
         });

@@ -9842,7 +9842,7 @@ function _studioSync(){ const fr=document.getElementById("studioFrame"); if(!fr)
   try{ w.STUDIO_SET_COVER=function(id,cover){ return magotSetCover(id,cover); }; }catch(e){}
   try{ w.STUDIO_DELETE=function(id,path){ return magotDelete(id,path); }; }catch(e){}
   try{ w.STUDIO_PUBLISH=function(file){ try{ openPublishForm(file, function(){ try{ if(w && typeof w.__reloadCatalog==="function") w.__reloadCatalog(); }catch(e){} }); }catch(e){} }; }catch(e){}
-  try{ w.STUDIO_UPLOAD=function(file,title,mood,artist,cover){ return magotUpload(file,title,mood,artist,cover); }; }catch(e){}
+  try{ w.STUDIO_UPLOAD=async function(file,title,mood,artist,cover){ var _r=await magotUpload(file,title,mood,artist,cover); try{ w.__coverDiag=window.__mvUploadDiag||null; }catch(e){} return _r; }; }catch(e){}
   try{ w.STUDIO_AICAPTION=window.magotCaptionSuggest; }catch(e){}
   try{ if(typeof w._applyStudioLang==="function") w._applyStudioLang(w.STUDIO_LANG); }catch(e){}
 }
@@ -9929,7 +9929,7 @@ function ensureTripFilm(tr){ try{
     try{ w.STUDIO_SET_COVER=function(id,cover){ return magotSetCover(id,cover); }; }catch(e){}
     try{ w.STUDIO_DELETE=function(id,path){ return magotDelete(id,path); }; }catch(e){}
     try{ w.STUDIO_PUBLISH=function(file){ try{ openPublishForm(file, function(){ try{ if(w && typeof w.__reloadCatalog==="function") w.__reloadCatalog(); }catch(e){} }); }catch(e){} }; }catch(e){}
-    try{ w.STUDIO_UPLOAD=function(file,title,mood,artist,cover){ return magotUpload(file,title,mood,artist,cover); }; }catch(e){}
+    try{ w.STUDIO_UPLOAD=async function(file,title,mood,artist,cover){ var _r=await magotUpload(file,title,mood,artist,cover); try{ w.__coverDiag=window.__mvUploadDiag||null; }catch(e){} return _r; }; }catch(e){}
     try{ w.STUDIO_AICAPTION=window.magotCaptionSuggest; }catch(e){}
     try{ if(typeof w._applyStudioLang==="function") w._applyStudioLang(w.STUDIO_LANG); }catch(e){}
     var tries=0, iv=setInterval(function(){ tries++;
@@ -9957,7 +9957,7 @@ function openStudio(tr,version,autoplay){ tr=tr||souvTrip()||null; _studioTrip=t
       try{ w.STUDIO_SET_COVER=function(id,cover){ return magotSetCover(id,cover); }; }catch(e){}
       try{ w.STUDIO_DELETE=function(id,path){ return magotDelete(id,path); }; }catch(e){}
       try{ w.STUDIO_PUBLISH=function(file){ try{ openPublishForm(file, function(){ try{ if(w && typeof w.__reloadCatalog==="function") w.__reloadCatalog(); }catch(e){} }); }catch(e){} }; }catch(e){}
-      try{ w.STUDIO_UPLOAD=function(file,title,mood,artist,cover){ return magotUpload(file,title,mood,artist,cover); }; }catch(e){}
+      try{ w.STUDIO_UPLOAD=async function(file,title,mood,artist,cover){ var _r=await magotUpload(file,title,mood,artist,cover); try{ w.__coverDiag=window.__mvUploadDiag||null; }catch(e){} return _r; }; }catch(e){}
       try{ w.STUDIO_AICAPTION=window.magotCaptionSuggest; }catch(e){}
       try{ if(typeof w._applyStudioLang==="function") w._applyStudioLang(w.STUDIO_LANG); }catch(e){}
       let _tries=0; const _feed=()=>{ if(w.studioAutoMontage){ studioOpen(w,_studioTrip); } else if(_tries++<25){ setTimeout(_feed,150); } }; _feed();
@@ -13856,6 +13856,7 @@ async function magotDownload(tr2){
 async function magotUpload(file, title, mood, artist, coverBlob){
   if(!isAdmin()){ return "R\u00e9serv\u00e9 \u00e0 l'administrateur."; }
   if(!currentUser){ return "Tu n'es pas connect\u00e9."; }
+  try{ window.__mvUploadDiag=null; }catch(e){}
   /* DÉDUP : refuse une piste dont le titre normalisé existe déjà au catalogue. */
   try{
     const _rows=(typeof magotCatalog==="function")?await magotCatalog():[];
@@ -13875,11 +13876,12 @@ async function magotUpload(file, title, mood, artist, coverBlob){
     const _cover=(typeof coverBlob==="string" && coverBlob.indexOf("data:")===0)?coverBlob:"";
     const _insertRow=(bodyObj)=>fetch(SB_URL+"/rest/v1/music_catalog",{ method:"POST", headers:{ apikey:SB_ANON, Authorization:"Bearer "+tok, "Content-Type":"application/json", Prefer:"return=minimal" }, body:JSON.stringify(bodyObj) });
     const _bodies=[];
-    { const b=Object.assign({},_base); if(artist)b.artist=artist; if(_cover)b.cover_url=_cover; _bodies.push(b); }
-    if(_cover){ const b=Object.assign({},_base); if(artist)b.artist=artist; b.cover=_cover; _bodies.push(b); }   /* variante : colonne nommée cover */
-    if(artist||_cover){ const b=Object.assign({},_base); if(artist)b.artist=artist; _bodies.push(b); }
-    _bodies.push(_base);
-    let ins=null; for(const b of _bodies){ ins=await _insertRow(b); if(ins.ok) break; }   /* dégrade proprement si une colonne manque */
+    _bodies.push({name:"cover_url", body:(function(){ const b=Object.assign({},_base); if(artist)b.artist=artist; if(_cover)b.cover_url=_cover; return b; })()});
+    if(_cover) _bodies.push({name:"cover", body:(function(){ const b=Object.assign({},_base); if(artist)b.artist=artist; b.cover=_cover; return b; })()});   /* variante : colonne nommée cover */
+    if(artist||_cover) _bodies.push({name:"artist_only", body:(function(){ const b=Object.assign({},_base); if(artist)b.artist=artist; return b; })()});
+    _bodies.push({name:"base", body:_base});
+    let ins=null,_used="none",_lastTxt=""; for(const e of _bodies){ ins=await _insertRow(e.body); if(ins.ok){ _used=e.name; break; } else { try{ _lastTxt=await ins.clone().text(); }catch(_){} } }   /* dégrade proprement si une colonne manque */
+    try{ window.__mvUploadDiag={ coverIn:!!_cover, coverLen:_cover?_cover.length:0, body:_used, status:(ins?ins.status:0), err:String(_lastTxt||"").slice(0,120) }; }catch(e){}
     if(!ins || !ins.ok){ const t3=ins?await ins.text().catch(()=>""):""; let msg=""; try{ const j3=JSON.parse(t3); msg=j3.message||j3.error||j3.hint||""; }catch(e){ msg=t3; }
       return "Fiche non enregistr\u00e9e ("+(ins?ins.status:"?")+"). "+((ins&&ins.status===403)?"La table refuse l\u2019\u00e9criture \u2014 ex\u00e9cute le SQL FINAL dans Supabase. ":"")+(msg?("D\u00e9tail : "+String(msg).slice(0,140)):""); }
     return true;
