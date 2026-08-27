@@ -9850,7 +9850,15 @@ essentiaReady.then(function(ok){ if(!ok && !A){ /* silencieux : le repli se fait
     try{ renderCats(); }catch(e){}
     if(!LIB.length){ lib.innerHTML='<p class="sh-note" style="opacity:.72">Aucune piste pour l\'instant. Importe une musique, ou d\u00e9pose tes pistes + <b>musics.json</b> dans le d\u00e9p\u00f4t.</p>'; return; }
     var _q=(_mQuery||"").trim().toLowerCase();
+    /* Dédup : la musique du montage ("Ce montage") en double avec une piste catalogue ->
+       on garde l'entrée catalogue et on lui prête la pochette + le blob ; on masque le doublon. */
+    try{
+      var _nk=function(s){ return String(s||"").toLowerCase().replace(/[^a-z0-9]+/g,""); };
+      var _remoteBy={}; for(var _r=0;_r<LIB.length;_r++){ if(LIB[_r].remote){ var _k=_nk(LIB[_r].title); if(_k&&!_remoteBy[_k]) _remoteBy[_k]=LIB[_r]; } }
+      for(var _c=0;_c<LIB.length;_c++){ var _t=LIB[_c]; if(_t){ _t._dupHidden=false; if(!_t.remote && _t.artist==="Ce montage"){ var _m=_remoteBy[_nk(_t.title)]; if(_m){ if(_t.cover && !_m.cover) _m.cover=_t.cover; if(_t._file && !_m._file){ _m._file=_t._file; _m.file=_t._file; } if(LIB_ACTIVE===_t.id) LIB_ACTIVE=_m.id; _t._dupHidden=true; } } } }
+    }catch(e){}
     var _list=LIB.filter(function(t){
+      if(t._dupHidden) return false;
       if(_mCat && (t.type||"")!==_mCat) return false;
       if(_q && ((t.title||"")+" "+(t.type||"")+" "+(t.artist||"")).toLowerCase().indexOf(_q)<0) return false;
       return true;
@@ -9995,7 +10003,14 @@ essentiaReady.then(function(ok){ if(!ok && !A){ /* silencieux : le repli se fait
     LIB=LIB.filter(function(x){ return x.artist!=="Ce montage"; });
     var t={ id:"restored"+(++LIB_SEQ), title:title||"Musique", artist:"Ce montage", file:blob, _file:blob, remote:false };
     LIB.unshift(t); renderLib(); probeDur(t);
-    try{ _readID3(blob, function(meta){ if(!meta) return; if(meta.title)t.title=meta.title; if(meta.type)t.type=meta.type; if(meta.cover)t.cover=meta.cover; renderLib(); }); }catch(e){}
+    try{ _readID3(blob, function(meta){ if(!meta) return; if(meta.title)t.title=meta.title; if(meta.type)t.type=meta.type; if(meta.cover)t.cover=meta.cover; renderLib();
+      /* Pochette rétroactive : si cette musique est au catalogue sans pochette, on la lui donne (persistée pour tous). */
+      try{ if(meta.cover && window.STUDIO_ADMIN && typeof window.STUDIO_SET_COVER==="function" && typeof _coverToDataURL==="function"){
+        _coverToDataURL(meta.cover, function(dataUrl){ if(!dataUrl) return; var _n=String(t.title||"").toLowerCase().replace(/[^a-z0-9]+/g,"");
+          for(var i=0;i<LIB.length;i++){ var m=LIB[i]; if(m&&m.remote&&m.catId!=null&&!m._coverDone&&String(m.title||"").toLowerCase().replace(/[^a-z0-9]+/g,"")===_n){ m._coverDone=true; if(!m.cover) m.cover=dataUrl; Promise.resolve(window.STUDIO_SET_COVER(m.catId,dataUrl)).then(function(){ try{ renderLib(); }catch(e){} }).catch(function(){}); break; } }
+        });
+      } }catch(e){}
+    }); }catch(e){}
     useTrack(t);
   }catch(e){ try{ useTrack({ id:"restored", title:title||"Musique", file:blob, _file:blob, remote:false }); }catch(_){} } }; }catch(e){}
   function downloadThenLoad(t){

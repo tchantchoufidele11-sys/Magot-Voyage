@@ -9839,6 +9839,7 @@ function _studioSync(){ const fr=document.getElementById("studioFrame"); if(!fr)
   try{ w.STUDIO_ADMIN=(typeof isAdmin==="function")?!!isAdmin():false; }catch(e){}
   try{ w.STUDIO_CATALOG=studioCatalog; }catch(e){}
   try{ w.STUDIO_SET_MOOD=function(id,mood){ return magotSetMood(id,mood); }; }catch(e){}
+  try{ w.STUDIO_SET_COVER=function(id,cover){ return magotSetCover(id,cover); }; }catch(e){}
   try{ w.STUDIO_DELETE=function(id,path){ return magotDelete(id,path); }; }catch(e){}
   try{ w.STUDIO_PUBLISH=function(file){ try{ openPublishForm(file, function(){ try{ if(w && typeof w.__reloadCatalog==="function") w.__reloadCatalog(); }catch(e){} }); }catch(e){} }; }catch(e){}
   try{ w.STUDIO_UPLOAD=function(file,title,mood,artist,cover){ return magotUpload(file,title,mood,artist,cover); }; }catch(e){}
@@ -9925,6 +9926,7 @@ function ensureTripFilm(tr){ try{
     try{ w.STUDIO_ADMIN=(typeof isAdmin==="function")?!!isAdmin():false; }catch(e){}
     try{ w.STUDIO_CATALOG=studioCatalog; }catch(e){}
     try{ w.STUDIO_SET_MOOD=function(id,mood){ return magotSetMood(id,mood); }; }catch(e){}
+    try{ w.STUDIO_SET_COVER=function(id,cover){ return magotSetCover(id,cover); }; }catch(e){}
     try{ w.STUDIO_DELETE=function(id,path){ return magotDelete(id,path); }; }catch(e){}
     try{ w.STUDIO_PUBLISH=function(file){ try{ openPublishForm(file, function(){ try{ if(w && typeof w.__reloadCatalog==="function") w.__reloadCatalog(); }catch(e){} }); }catch(e){} }; }catch(e){}
     try{ w.STUDIO_UPLOAD=function(file,title,mood,artist,cover){ return magotUpload(file,title,mood,artist,cover); }; }catch(e){}
@@ -9952,6 +9954,7 @@ function openStudio(tr,version,autoplay){ tr=tr||souvTrip()||null; _studioTrip=t
       w.STUDIO_ADMIN=(typeof isAdmin==="function")?!!isAdmin():false;
       try{ w.STUDIO_CATALOG=studioCatalog; }catch(e){}
       try{ w.STUDIO_SET_MOOD=function(id,mood){ return magotSetMood(id,mood); }; }catch(e){}
+      try{ w.STUDIO_SET_COVER=function(id,cover){ return magotSetCover(id,cover); }; }catch(e){}
       try{ w.STUDIO_DELETE=function(id,path){ return magotDelete(id,path); }; }catch(e){}
       try{ w.STUDIO_PUBLISH=function(file){ try{ openPublishForm(file, function(){ try{ if(w && typeof w.__reloadCatalog==="function") w.__reloadCatalog(); }catch(e){} }); }catch(e){} }; }catch(e){}
       try{ w.STUDIO_UPLOAD=function(file,title,mood,artist,cover){ return magotUpload(file,title,mood,artist,cover); }; }catch(e){}
@@ -13822,8 +13825,7 @@ async function magotDelete(id, path){
     return true;
   }catch(e){ return "Erreur r\u00e9seau."; }
 }
-async function magotSetMood(id, mood){
-  if(!isAdmin()) return "Action r\u00e9serv\u00e9e \u00e0 l'administrateur.";
+async function magotSetMood(id, mood){  if(!isAdmin()) return "Action r\u00e9serv\u00e9e \u00e0 l'administrateur.";
   if(!id) return "Piste inconnue.";
   const tok=await sbAccessToken(); if(!tok || tok===SB_ANON) return "Session admin introuvable. Reconnecte-toi.";
   try{
@@ -13831,6 +13833,13 @@ async function magotSetMood(id, mood){
     if(!r.ok){ const t=await r.text().catch(()=>""); return "Mise \u00e0 jour refus\u00e9e ("+r.status+"). "+String(t).slice(0,120); }
     return true;
   }catch(e){ return "Erreur r\u00e9seau."; }
+}
+async function magotSetCover(id, cover){
+  if(!isAdmin()) return "Action r\u00e9serv\u00e9e \u00e0 l'administrateur.";
+  if(!id || !cover) return "Donn\u00e9es manquantes.";
+  const tok=await sbAccessToken(); if(!tok || tok===SB_ANON) return "Session admin introuvable.";
+  const _patch=(body)=>fetch(SB_URL+"/rest/v1/music_catalog?id=eq."+encodeURIComponent(id),{ method:"PATCH", headers:{ apikey:SB_ANON, Authorization:"Bearer "+tok, "Content-Type":"application/json", Prefer:"return=minimal" }, body:JSON.stringify(body) });
+  try{ let r=await _patch({ cover_url:cover }); if(!r.ok) r=await _patch({ cover:cover }); if(!r.ok){ const t=await r.text().catch(()=>""); return "Pochette non enregistr\u00e9e ("+r.status+"). "+String(t).slice(0,100); } return true; }catch(e){ return "Erreur r\u00e9seau."; }
 }
 async function magotDownload(tr2){
   try{
