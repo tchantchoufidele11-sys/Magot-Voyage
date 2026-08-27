@@ -1693,21 +1693,20 @@ function _decodeFromSrc(p,cb){ var mx=Math.max((window._PCAP||1920),(typeof wind
   }catch(e){ if(p._file)_decodeFromFile(p._file,cb); else cb(null); } }
 function _decodeFromFile(file,cb){ var mx=Math.max((window._PCAP||1920),(typeof window!=="undefined"&&window._PMAX)?window._PMAX:0); var done=function(src){ var c=prerender(src,mx); if(src&&src.close){try{src.close();}catch(e){}} cb(c); }; try{ if(window.createImageBitmap){ createImageBitmap(file).then(done).catch(function(){ var u=URL.createObjectURL(file); var im=new Image(); im.onload=function(){ done(im); try{URL.revokeObjectURL(u);}catch(e){} }; im.onerror=function(){ try{URL.revokeObjectURL(u);}catch(e){} cb(null); }; im.src=u; }); } else { var u=URL.createObjectURL(file); var im=new Image(); im.onload=function(){ done(im); try{URL.revokeObjectURL(u);}catch(e){} }; im.onerror=function(){ cb(null); }; im.src=u; } }catch(e){ cb(null); } }
 /* RÉSOLUTION SOURCE DES PHOTOS = résolution d'export (1920) : plus aucun agrandissement -> netteté « niveau CapCut » à l'affichage ET à l'export. */
-var _PCAP=1920; try{ window._PCAP=_PCAP; }catch(e){}
-var _decLRU=[], _DEC_MAX=(function(){
-  /* Photos gardées décodées en mémoire. Piloté par un BUDGET RAM (et non un nombre fixe) : à 1920 px
-     chaque photo pèse ~1,8x plus, donc on garde AUTOMATIQUEMENT moins de photos décodées pour tenir
-     le même budget mémoire -> jamais de crash iOS, netteté maximale. Les films anciens (blobs 1440)
-     pèsent moins, donc on reste toujours sous le budget. */
-  var bytesPer=_PCAP*_PCAP*4*0.62;   /* ~9 Mo par canvas décodé à 1920 (estimation prudente) */
-  var budgetMB;
-  try{ var dm=(typeof navigator!=="undefined"&&navigator.deviceMemory)||0;   /* Go de RAM (Android/Chrome ; absent sur iOS) */
+var _HQ=false; try{ _HQ=(localStorage.getItem("magot_hq")==="1"); }catch(e){}
+var _PCAP=_HQ?2560:1920; try{ window._PCAP=_PCAP; window._HQ=_HQ; }catch(e){}
+function _resCap(){ if(window._HQ) return 2560; return ((typeof navigator!=="undefined"&&navigator.deviceMemory&&navigator.deviceMemory<4)?1280:1920); }
+try{ window._resCap=_resCap; }catch(e){}
+function _computeDecMax(){
+  var pc=(window._PCAP||1920), bytesPer=pc*pc*4*0.62, budgetMB;
+  try{ var dm=(typeof navigator!=="undefined"&&navigator.deviceMemory)||0;
     if(dm){ budgetMB=(dm>=8?320:(dm>=6?240:(dm>=4?170:(dm>=2?100:64)))); }
-    else { budgetMB=190; }   /* iPhone / Safari (pas d'info RAM) : budget prudent pour un iPhone récent */
+    else { budgetMB=190; }
   }catch(e){ budgetMB=160; }
   var n=Math.round(budgetMB*1024*1024/bytesPer);
-  return Math.max(8, Math.min(60, n));
-})();
+  return Math.max(6, Math.min(60, n));
+}
+var _decLRU=[], _DEC_MAX=_computeDecMax();
 try{ window._DEC_MAX=_DEC_MAX; }catch(e){}
 function _touchDec(i){ if(typeof PHOTOS==="undefined"||!PHOTOS[i]) return; var k=_decLRU.indexOf(i); if(k>=0) _decLRU.splice(k,1); _decLRU.push(i); while(_decLRU.length>_DEC_MAX){ var old=_decLRU.shift(); if(old!==i && PHOTOS[old] && (PHOTOS[old]._jpgBlob || PHOTOS[old]._file)){ PHOTOS[old].c=null; PHOTOS[old].img=null; PHOTOS[old]._durl=null; } } }
 function _ensureDecodedP(p,cb){ if(!p){ if(cb)cb(null); return; } if(p.c){ if(cb)cb(p.c); return; } if(!p._jpgBlob && !p._file){ if(cb)cb(null); return; } if(p._decoding){ if(cb)(p._decCbs=p._decCbs||[]).push(cb); return; } p._decoding=true; window._decInFlight=(window._decInFlight||0)+1; p._decCbs=cb?[cb]:[]; _decodeFromSrc(p,function(c){ p._decoding=false; window._decInFlight=Math.max(0,(window._decInFlight||1)-1); if(c){ p.c=c; p.img=c; var ix=(typeof PHOTOS!=="undefined")?PHOTOS.indexOf(p):-1; if(ix>=0)_touchDec(ix); } var cbs=p._decCbs||[]; p._decCbs=null; for(var z=0;z<cbs.length;z++){ try{ cbs[z](c); }catch(e){} } }); }
@@ -8849,13 +8848,23 @@ function _toggleFilmsMenu(anchor){
     m.innerHTML='<button class="fm-i" data-a="open" style="'+_bs+'">\uD83C\uDFAC '+_st("Mes films")+'</button>'
       +'<button class="fm-i" data-a="save" style="'+_bs+'">\uD83D\uDCBE '+_st("Enregistrer le montage")+'</button>'
       +'<button class="fm-i" data-a="new" style="'+_bs+';color:#e6c15a">\u2728 '+_st("Nouveau montage")+'</button>'
-      +'<button class="fm-i" data-a="tuto" style="'+_bs+'">\uD83E\uDDED '+_st("Revoir le tutoriel")+'</button>';
+      +'<button class="fm-i" data-a="tuto" style="'+_bs+'">\uD83E\uDDED '+_st("Revoir le tutoriel")+'</button>'
+      +'<button class="fm-i" data-a="hq" style="'+_bs+'">\u26A1 Qualit\u00e9 max'+(window._HQ?" \u2713":"")+'</button>';
     document.body.appendChild(m);
     Array.prototype.forEach.call(m.querySelectorAll(".fm-i"), function(it){ it.onclick=function(ev){ ev.stopPropagation(); var a=it.getAttribute("data-a"); m.style.display="none";
       if(a==="open"){ try{ openFilms(); }catch(e){} }
       else if(a==="save"){ try{ if(!PHOTOS.length && !clipVidReady){ setState(_st("Rien \u00e0 enregistrer pour l\'instant.")); return; } studioSaveLocal(); setState(_st("\u2713 Montage enregistr\u00e9 dans \u00ab Mes films \u00bb.")); }catch(e){} }
       else if(a==="new"){ var _nm=function(){ try{ if(PHOTOS.length||clipVidReady) studioSaveLocal(); }catch(e){} try{ _curFilmId=null; document.getElementById("clear").click(); setState(_st("Nouveau montage \u2014 ajoute des photos et une musique.")); }catch(e){} }; if(typeof window._studioConfirm==="function") window._studioConfirm("Enregistrer le montage en cours puis repartir \u00e0 z\u00e9ro ?","Nouveau",_nm); else if(confirm("Enregistrer le montage en cours puis repartir \u00e0 z\u00e9ro ?")) _nm(); }
       else if(a==="tuto"){ setTimeout(function(){ try{ window._studioTuto(true); }catch(e){} }, 200); }
+      else if(a==="hq"){ try{
+        window._HQ=!window._HQ; try{ localStorage.setItem("magot_hq", window._HQ?"1":"0"); }catch(e){}
+        window._PCAP=window._HQ?2560:1920;
+        try{ _DEC_MAX=_computeDecMax(); window._DEC_MAX=_DEC_MAX; }catch(e){}
+        try{ for(var _q=0;_q<PHOTOS.length;_q++){ if(PHOTOS[_q]){ PHOTOS[_q].c=null; PHOTOS[_q].img=null; PHOTOS[_q]._durl=null; } } _decLRU=[]; }catch(e){}
+        try{ var _of2=document.querySelector('.fmc[data-n="orig"]'); if(_of2&&_of2.classList.contains("on")&&typeof _applyOrigineFormat==="function"){ _applyOrigineFormat(); } else { var _on=document.querySelector('.fmc.on'); if(_on&&_on.click) _on.click(); } }catch(e){}
+        try{ if(A&&(PHOTOS.length||clipVidReady)){ buildPartition(); renderMontageAt(playing?visualTime():0); } }catch(e){}
+        setState(window._HQ?"\u26A1 Qualit\u00e9 max activ\u00e9e (~2560 px) \u2014 export plus net, un peu plus lent.":"Qualit\u00e9 normale (1920 px).");
+      }catch(e){} }
     }; });
     document.addEventListener("click", function(ev){ var mm=document.getElementById("filmsMenu"); if(mm && mm.style.display!=="none" && !mm.contains(ev.target) && ev.target!==anchor && !anchor.contains(ev.target)) mm.style.display="none"; });
   }
@@ -9113,7 +9122,7 @@ function _showExportResult(blob, outType, ext, DUR, audioAdded, dt){
 async function _turboExport(){
   if(typeof VideoEncoder==="undefined" || typeof VideoFrame==="undefined" || typeof Mp4Muxer==="undefined") return "fail";
   var W=EXPFMT.w,H=EXPFMT.h,FPS=30;
-  var _capPx=((typeof navigator!=="undefined"&&navigator.deviceMemory&&navigator.deviceMemory<4)?1280:1920),_mxWH=Math.max(W,H);   /* pleine HD ; garde-fou 1280 sur appareils faibles */
+  var _capPx=((typeof _resCap==="function")?_resCap():1920),_mxWH=Math.max(W,H);   /* plafond : 2560 en Qualité max */
   if(_mxWH>_capPx){ var _scl=_capPx/_mxWH; W=Math.max(2,Math.round(W*_scl/2)*2); H=Math.max(2,Math.round(H*_scl/2)*2); }
   var DUR=Math.max(1, Math.min((window.MONTAGE_DUR||A.dur||6), SEGS.length?SEGS[SEGS.length-1].end:(window.MONTAGE_DUR||A.dur||6)));
   var N=Math.round(DUR*FPS);
@@ -9302,7 +9311,7 @@ async function exportStudio(){ try{ _reqWake(); }catch(e){} try{ _hideClipOverla
   _setStage("Pr\u00e9paration\u2026"); await _paint();
   try{
     var FPS=30;
-    var W=EXPFMT.w, H=EXPFMT.h, cap=(clipVidReady?1280:1920), mx=Math.max(W,H);
+    var W=EXPFMT.w, H=EXPFMT.h, cap=(window._HQ?2560:(clipVidReady?1280:1920)), mx=Math.max(W,H);
     if(mx>cap){ var s=cap/mx; W=Math.max(2,Math.round(W*s/2)*2); H=Math.max(2,Math.round(H*s/2)*2); }
     /* NB : pas de réordonnancement ici — SEGS[i].img est déjà défini par buildPartition().
        L'ancien code référençait _PORDER (variable LOCALE à buildPartition) -> ReferenceError
@@ -9505,7 +9514,7 @@ async function exportFast(){ return exportStudio(); /* MOTEUR UNIFIÉ : tout pas
   _expWatch=setTimeout(function(){ if(EXPORTING){ _expForceReset("Export interrompu : trop long (blocage encodeur probable). Réessaie, ou réduis la durée / le format."); } }, 180000);
   await new Promise(function(r){ setTimeout(r,30); });
   var W=EXPFMT.w,H=EXPFMT.h,FPS=30;
-  var _capPx=((typeof navigator!=="undefined"&&navigator.deviceMemory&&navigator.deviceMemory<4)?1280:1920), _mxWH=Math.max(W,H);   /* pleine HD ; garde-fou 1280 sur appareils faibles */
+  var _capPx=((typeof _resCap==="function")?_resCap():1920), _mxWH=Math.max(W,H);   /* plafond : 2560 en Qualité max */
   if(_mxWH>_capPx){ var _scl=_capPx/_mxWH; W=Math.max(2,Math.round(W*_scl/2)*2); H=Math.max(2,Math.round(H*_scl/2)*2); }
   if(typeof _PORDER!=="undefined" && _PORDER && _PORDER.length){ var _cpi=0, _csi=0; while(_csi<SEGS.length){ if(SEGS[_csi].video){ _csi++; continue; } if(_cpi>=_PORDER.length) break; var _cph=_PORDER[_cpi]; SEGS[_csi].img=_cph; var _need=_capNeeded(_cph); if(_need>0){ while((SEGS[_csi].end-SEGS[_csi].start) < _need-0.01 && _csi+1<SEGS.length && !SEGS[_csi+1].video){ SEGS[_csi].end=SEGS[_csi+1].end; SEGS.splice(_csi+1,1); } } _cpi++; _csi++; } }
   var DUR=Math.max(1, Math.min((window.MONTAGE_DUR||A.dur||6), SEGS.length?SEGS[SEGS.length-1].end:(window.MONTAGE_DUR||A.dur||6)));
@@ -9595,9 +9604,10 @@ async function exportFast(){ return exportStudio(); /* MOTEUR UNIFIÉ : tout pas
 (function(){ var row=document.getElementById("fmtRow"); if(!row) return; var bs=row.querySelectorAll(".fmt");
   function setFormat(w,h,name,btn){
     for(var j=0;j<bs.length;j++) bs[j].classList.remove("on"); if(btn) btn.classList.add("on");
+    if(window._HQ){ var _m=Math.min(2560/Math.max(w,h),1.6); if(_m>1.02){ w=Math.max(2,Math.round(w*_m/2)*2); h=Math.max(2,Math.round(h*_m/2)*2); } }   /* Qualité max : pousse la résolution vers ~2560 */
     EXPFMT={w:w,h:h,name:name};
     var sw=document.querySelector(".stageWrap"); if(sw) sw.style.aspectRatio=w+" / "+h;
-    var _cap=(typeof navigator!=="undefined" && navigator.deviceMemory && navigator.deviceMemory<4)?1280:1920;   /* pleine résolution (net sur retina) ; garde-fou : 1280 sur appareils peu puissants */
+    var _cap=(typeof _resCap==="function")?_resCap():1920;   /* plafond : 2560 en Qualité max, sinon 1920 (1280 sur appareils faibles) */
     var _ps=Math.min(1, _cap/Math.max(w,h)); setRenderSize(Math.round(w*_ps), Math.round(h*_ps));
     try{ if(A&&SEGS.length) renderMontageAt(playing?visualTime():0); else if(glReady){ gl.clearColor(0,0,0,1); gl.clear(gl.COLOR_BUFFER_BIT); } }catch(e){}
     var eb=document.getElementById("exportBtn"); if(eb) eb.textContent="⚡ Exporter la vidéo ("+name+")";
