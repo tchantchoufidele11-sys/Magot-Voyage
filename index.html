@@ -13682,7 +13682,7 @@ async function addMemPhotos(files,fromCamera){
       const okv=await addMemVideo(file,tr,placeId,day); if(okv) added++; else { skipped++; why=(file.name||"").split(".").pop()||"vid\u00e9o"; }
       continue; }
     if(ty && !/^image\//.test(ty)){ skipped++; why=ty||"?"; continue; }
-    let data=null; try{ data=await compressImage(file,2560,0.90); }catch(e){ data=null; }
+    let data=null; try{ data=await compressImage(file,3840,0.92); }catch(e){ data=null; }
     if(!data){ skipped++; why=ty||((file.name||"").split(".").pop()||"?"); continue; }
     const ex=fromCamera?null:await mvExifRead(file);   /* date/heure/lieu inscrits par l'appareil */
     const id=uid(); await idbSetMedia(id,data); _mediaCache[id]=data;
@@ -15191,6 +15191,7 @@ async function pullConvs(){
 }
 
 async function boot(){
+  try{ if(navigator.storage && navigator.storage.persist){ navigator.storage.persist().catch(function(){}); } }catch(e){}
   try{ const hadLS=!!localStorage.getItem(STORAGE_KEY); const idb=await idbGet(STORAGE_KEY);
     if(idb && (!hadLS || (idb._ts||0) > (S._ts||0))){ S=mergeState(idb); try{ localStorage.setItem(STORAGE_KEY,JSON.stringify(S)); }catch(e){} }
     else if(hadLS){ idbSet(STORAGE_KEY,S); }

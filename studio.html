@@ -2044,6 +2044,7 @@ function drawSegAt(sg,t,ox,smul){
   var _fitEarly=isVid?((_clip&&_clip._fit)||"fit"):((sg.img>=0&&PHOTOS[sg.img]&&PHOTOS[sg.img]._fit)||"fit");
   var _isFill=(_fitEarly==="fill");
   var baseZ=_isFill?1.03:1.06, amp=M.kb*(isVid?0.35:1)*(_isFill?0.45:1), panA=Wd*0.07*(_isFill?0.3:1);   /* rempli : mouvement doux, cadrage centré stable -> l'image reste cadrée comme prise */
+  if(window._HQ && !isVid){ baseZ=_isFill?1.006:1.02; amp*=0.5; panA*=0.6; }   /* Qualité max : quasi pas de zoom -> l'image reste à sa netteté native */
   if(isVid){ baseZ=1.0; amp=0; panA=0; }   /* VIDÉO : aucun Ken Burns -> elle joue telle qu'elle a été filmée, sans recadrage ni mouvement ajouté (comme CapCut) */
   var zoom, dx=0, dy=0;
   if(mv==="zoomIn"){ zoom=baseZ+amp*ease; }
@@ -9131,7 +9132,7 @@ async function _turboExport(){
   try{ if(base.width!==W||base.height!==H){ setRenderSize(W,H); await new Promise(function(r){ setTimeout(r,30); }); } }catch(e){}
   _expStage("Turbo : vérification du codec\u2026"); await _expYield();
   var vcfg=null, vc=["avc1.640028","avc1.4D4028","avc1.42E01F","avc1.42E01E"];
-  var _vbps=Math.max(4000000, Math.min(12000000, Math.floor(180*1048576*8/Math.max(1,DUR))));
+  var _vbps=Math.max((window._HQ?8000000:4000000), Math.min((window._HQ?24000000:12000000), Math.floor((window._HQ?340:180)*1048576*8/Math.max(1,DUR))));
   for(var i=0;i<vc.length;i++){ var cfg={codec:vc[i],width:W,height:H,bitrate:_vbps,framerate:FPS};
     try{ if(!VideoEncoder.isConfigSupported){ vcfg=cfg; break; }
       var _sup=await Promise.race([ VideoEncoder.isConfigSupported(cfg).then(function(r){ return (r&&r.supported)?"ok":"no"; }).catch(function(){ return "no"; }), new Promise(function(r){ setTimeout(function(){ r("timeout"); },1500); }) ]);
@@ -9350,7 +9351,7 @@ async function exportStudio(){ try{ _reqWake(); }catch(e){} try{ _hideClipOverla
     /* Débit ADAPTATIF orienté CLARTÉ : une vidéo en mouvement a besoin de beaucoup plus de
        débit qu'un diaporama de photos pour rester nette. Court = jusqu'à 12 Mbit/s (très net),
        plancher 4 Mbit/s, plafonné par un budget total (~180 Mo) pour protéger la mémoire iOS. */
-    var _vbps=Math.max(4000000, Math.min(12000000, Math.floor(180*1048576*8/Math.max(1,DUR))));
+    var _vbps=Math.max((window._HQ?8000000:4000000), Math.min((window._HQ?24000000:12000000), Math.floor((window._HQ?340:180)*1048576*8/Math.max(1,DUR))));
     var rec; try{ rec=new MediaRecorder(stream, mime?{mimeType:mime,videoBitsPerSecond:_vbps}:{videoBitsPerSecond:_vbps}); }catch(e){ try{ rec=new MediaRecorder(stream);}catch(e2){ EXPORTING=false; try{setRenderSize(_ow,_oh);}catch(_r){} _expMsg("MediaRecorder refusé : "+((e2&&e2.message)||e2)); return; } }
 
     var chunks=[],done=false,_hardStop=null,_bytes=0;
@@ -9445,7 +9446,7 @@ async function exportRecorderFallback(){
     /* --- choix du conteneur selon le support réel --- */
     var mimes=["video/mp4;codecs=avc1.42E01E,mp4a.40.2","video/mp4","video/webm;codecs=vp9,opus","video/webm;codecs=vp8,opus","video/webm"];
     var mime=""; for(var mi=0;mi<mimes.length;mi++){ try{ if(MediaRecorder.isTypeSupported&&MediaRecorder.isTypeSupported(mimes[mi])){ mime=mimes[mi]; break; } }catch(e){} }
-    var rec; try{ rec=new MediaRecorder(stream, mime?{mimeType:mime,videoBitsPerSecond:5000000}:{videoBitsPerSecond:5000000}); }
+    var rec; try{ rec=new MediaRecorder(stream, mime?{mimeType:mime,videoBitsPerSecond:(window._HQ?12000000:5000000)}:{videoBitsPerSecond:(window._HQ?12000000:5000000)}); }
     catch(e){ try{ rec=new MediaRecorder(stream); }catch(e2){ EXPORTING=false; _expMsg("MediaRecorder refusé : "+((e2&&e2.message)||e2)); return; } }
     var outType=(mime&&mime.indexOf("mp4")>=0)?"video/mp4":"video/webm", ext=(outType==="video/mp4")?"mp4":"webm";
     var chunks=[], done=false;
