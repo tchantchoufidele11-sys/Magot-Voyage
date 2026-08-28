@@ -9840,6 +9840,7 @@ function _studioSync(){ const fr=document.getElementById("studioFrame"); if(!fr)
   try{ w.STUDIO_CATALOG=studioCatalog; }catch(e){}
   try{ w.STUDIO_SET_MOOD=function(id,mood){ return magotSetMood(id,mood); }; }catch(e){}
   try{ w.STUDIO_SET_COVER=function(id,cover){ return magotSetCover(id,cover); }; }catch(e){}
+  try{ w.STUDIO_SET_ARTIST=function(id,artist){ return magotSetArtist(id,artist); }; }catch(e){}
   try{ w.STUDIO_DELETE=function(id,path){ return magotDelete(id,path); }; }catch(e){}
   try{ w.STUDIO_PUBLISH=function(file){ try{ openPublishForm(file, function(){ try{ if(w && typeof w.__reloadCatalog==="function") w.__reloadCatalog(); }catch(e){} }); }catch(e){} }; }catch(e){}
   try{ w.STUDIO_UPLOAD=async function(file,title,mood,artist,cover){ var _r=await magotUpload(file,title,mood,artist,cover); try{ w.__coverDiag=window.__mvUploadDiag||null; }catch(e){} return _r; }; }catch(e){}
@@ -9927,6 +9928,7 @@ function ensureTripFilm(tr){ try{
     try{ w.STUDIO_CATALOG=studioCatalog; }catch(e){}
     try{ w.STUDIO_SET_MOOD=function(id,mood){ return magotSetMood(id,mood); }; }catch(e){}
     try{ w.STUDIO_SET_COVER=function(id,cover){ return magotSetCover(id,cover); }; }catch(e){}
+    try{ w.STUDIO_SET_ARTIST=function(id,artist){ return magotSetArtist(id,artist); }; }catch(e){}
     try{ w.STUDIO_DELETE=function(id,path){ return magotDelete(id,path); }; }catch(e){}
     try{ w.STUDIO_PUBLISH=function(file){ try{ openPublishForm(file, function(){ try{ if(w && typeof w.__reloadCatalog==="function") w.__reloadCatalog(); }catch(e){} }); }catch(e){} }; }catch(e){}
     try{ w.STUDIO_UPLOAD=async function(file,title,mood,artist,cover){ var _r=await magotUpload(file,title,mood,artist,cover); try{ w.__coverDiag=window.__mvUploadDiag||null; }catch(e){} return _r; }; }catch(e){}
@@ -9940,7 +9942,7 @@ function ensureTripFilm(tr){ try{
   };
   fr.src="studio.html"; document.body.appendChild(fr);
 }catch(e){ _hlFilmBusy=false; } }
-function openStudio(tr,version,autoplay){ tr=tr||souvTrip()||null; _studioTrip=tr;   /* studio ouvrable sans voyage : écran d’accueil + import manuel */
+function openStudio(tr,version,autoplay,empty){ if(empty){ tr=null; } else { tr=tr||souvTrip()||null; } _studioTrip=tr;   /* empty = Studio vierge (écran d’accueil), pas de film chargé */
   try{ var _hf=document.querySelector('iframe[name="mv-headless"]'); if(_hf) _hf.remove(); _hlFilmBusy=false; }catch(e){}   /* stop toute construction en arrière-plan */
   let ov=document.getElementById("studioOverlay");
   const backLbl=({fr:"Retour",en:"Back",es:"Volver",it:"Indietro",de:"Zur\u00fcck"})[_studioLang()]||"Retour";
@@ -9955,15 +9957,16 @@ function openStudio(tr,version,autoplay){ tr=tr||souvTrip()||null; _studioTrip=t
       try{ w.STUDIO_CATALOG=studioCatalog; }catch(e){}
       try{ w.STUDIO_SET_MOOD=function(id,mood){ return magotSetMood(id,mood); }; }catch(e){}
       try{ w.STUDIO_SET_COVER=function(id,cover){ return magotSetCover(id,cover); }; }catch(e){}
+      try{ w.STUDIO_SET_ARTIST=function(id,artist){ return magotSetArtist(id,artist); }; }catch(e){}
       try{ w.STUDIO_DELETE=function(id,path){ return magotDelete(id,path); }; }catch(e){}
       try{ w.STUDIO_PUBLISH=function(file){ try{ openPublishForm(file, function(){ try{ if(w && typeof w.__reloadCatalog==="function") w.__reloadCatalog(); }catch(e){} }); }catch(e){} }; }catch(e){}
       try{ w.STUDIO_UPLOAD=async function(file,title,mood,artist,cover){ var _r=await magotUpload(file,title,mood,artist,cover); try{ w.__coverDiag=window.__mvUploadDiag||null; }catch(e){} return _r; }; }catch(e){}
       try{ w.STUDIO_AICAPTION=window.magotCaptionSuggest; }catch(e){}
       try{ if(typeof w._applyStudioLang==="function") w._applyStudioLang(w.STUDIO_LANG); }catch(e){}
-      let _tries=0; const _feed=()=>{ if(w.studioAutoMontage){ studioOpen(w,_studioTrip); _studioLoadedId=(_studioTrip&&_studioTrip.id)||null; } else if(_tries++<25){ setTimeout(_feed,150); } }; _feed();
+      let _tries=0; const _feed=()=>{ if(w.studioAutoMontage){ if(empty){ try{ if(w.studioReset) w.studioReset(); }catch(e){} _studioLoadedId=null; } else { studioOpen(w,_studioTrip); _studioLoadedId=(_studioTrip&&_studioTrip.id)||null; } } else if(_tries++<25){ setTimeout(_feed,150); } }; _feed();
     }catch(e){} });
   }
-  else { try{ var _fr2=ov.querySelector("#studioFrame"); (function _re(_t){ try{ var _w2=_fr2&&_fr2.contentWindow; if(_w2&&_w2.studioAutoMontage){ try{ if(_w2.studioStop) _w2.studioStop(); }catch(e){}   /* arrête la lecture + sort du plein écran */ var _same=(tr&&_studioLoadedId!=null&&tr.id===_studioLoadedId); if(!_same){ studioOpen(_w2, tr); _studioLoadedId=(tr&&tr.id)||null; } return; } }catch(e){} if((_t||0)<25) setTimeout(function(){ _re((_t||0)+1); },150); })(0); }catch(e){} }
+  else { try{ var _fr2=ov.querySelector("#studioFrame"); (function _re(_t){ try{ var _w2=_fr2&&_fr2.contentWindow; if(_w2&&_w2.studioAutoMontage){ try{ if(_w2.studioStop) _w2.studioStop(); }catch(e){}   /* arrête la lecture + sort du plein écran */ if(empty){ try{ if(_w2.studioReset) _w2.studioReset(); }catch(e){} _studioLoadedId=null; } else { var _same=(tr&&_studioLoadedId!=null&&tr.id===_studioLoadedId); if(!_same){ studioOpen(_w2, tr); _studioLoadedId=(tr&&tr.id)||null; } } return; } }catch(e){} if((_t||0)<25) setTimeout(function(){ _re((_t||0)+1); },150); })(0); }catch(e){} }
   { const sp=ov.querySelector(".studio-back span"); if(sp) sp.textContent=backLbl; }
   ov.classList.add("show"); document.documentElement.classList.add("studio-open"); _studioSync();
 }
@@ -13081,7 +13084,7 @@ function souvMiniMapOSM(tr,el){ const pts=souvPoints(tr); if(!pts.length||!el) r
 function renderMemChips(){ const el=document.getElementById("memChips"); if(!el) return;
   const F=[["all","overview"],["photos","medias"],["journal","journal"],["carnet","carnet"],["studio","studio"]];
   el.innerHTML=F.map(([k,lab])=>`<button class="chip ${souvState.filter===k?'on':''}${k==='studio'?' chip-studio':''}" data-mf="${k}">${k==='studio'?'\uD83C\uDFAC ':''}${svT(lab)}</button>`).join("");
-  el.querySelectorAll("[data-mf]").forEach(b=>b.onclick=()=>{ if(b.dataset.mf==="studio"){ openStudio(souvTrip()); return; } souvState.filter=b.dataset.mf; renderMemories(); }); }
+  el.querySelectorAll("[data-mf]").forEach(b=>b.onclick=()=>{ if(b.dataset.mf==="studio"){ openStudio(null,null,false,true); return; } souvState.filter=b.dataset.mf; renderMemories(); }); }
 const SOUV_I18N={
   fr:{ title:"Carnet de l'agent", gen:"Générer le résumé du voyage", regen:"Régénérer", generating:"L'agent écrit ton carnet…", hint:"Un titre et un résumé de ton voyage, écrits à partir de tes vrais lieux." , jTitle:"Journal du voyage en cours", jEmpty:"Rien d'écrit pour ce voyage. Les étapes, tes notes et tes photos apparaîtront ici, jour par jour." },
   en:{ title:"Agent's journal", gen:"Generate trip summary", regen:"Regenerate", generating:"The agent is writing your journal…", hint:"A title and summary of your trip, written from your real places." , jTitle:"Your journal", jEmpty:"Nothing written for this trip yet. Stops, notes and photos will appear here, day by day." },
@@ -13833,6 +13836,13 @@ async function magotSetMood(id, mood){  if(!isAdmin()) return "Action r\u00e9ser
     if(!r.ok){ const t=await r.text().catch(()=>""); return "Mise \u00e0 jour refus\u00e9e ("+r.status+"). "+String(t).slice(0,120); }
     return true;
   }catch(e){ return "Erreur r\u00e9seau."; }
+}
+async function magotSetArtist(id, artist){
+  if(!isAdmin()) return "Action r\u00e9serv\u00e9e \u00e0 l'administrateur.";
+  if(!id) return "Piste inconnue.";
+  const tok=await sbAccessToken(); if(!tok || tok===SB_ANON) return "Session admin introuvable.";
+  try{ const r=await fetch(SB_URL+"/rest/v1/music_catalog?id=eq."+encodeURIComponent(id),{ method:"PATCH", headers:{ apikey:SB_ANON, Authorization:"Bearer "+tok, "Content-Type":"application/json", Prefer:"return=minimal" }, body:JSON.stringify({ artist:artist||"" }) });
+    if(!r.ok){ const t=await r.text().catch(()=>""); return "Artiste non enregistr\u00e9 ("+r.status+"). "+String(t).slice(0,100); } return true; }catch(e){ return "Erreur r\u00e9seau."; }
 }
 async function magotSetCover(id, cover){
   if(!isAdmin()) return "Action r\u00e9serv\u00e9e \u00e0 l'administrateur.";

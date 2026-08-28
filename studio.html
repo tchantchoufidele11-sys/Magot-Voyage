@@ -8651,6 +8651,8 @@ function _afterOpenFilm(proj){ try{
 function studioHasFilm(id){ try{ return !!localStorage.getItem(_filmKey(id)); }catch(e){ return false; } }
 function studioPhotoIds(){ var a=[]; try{ for(var i=0;i<PHOTOS.length;i++){ if(PHOTOS[i]&&PHOTOS[i]._id!=null) a.push(PHOTOS[i]._id); } }catch(e){} return a; }
 function studioStop(){ try{ stopPlay(); }catch(e){} try{ var _h=document.querySelector(".hero"); if(_h) _h.classList.remove("cinema"); }catch(e){} }
+function studioReset(){ try{ if(PHOTOS.length||clipVidReady) studioSaveLocal(); }catch(e){} try{ stopPlay(); }catch(e){} try{ var _h=document.querySelector(".hero"); if(_h) _h.classList.remove("cinema"); }catch(e){} try{ _curFilmId=null; }catch(e){} try{ var c=document.getElementById("clear"); if(c) c.click(); }catch(e){} try{ setState(_st("Cr\u00e9e ton film souvenir \u2014 ajoute des photos et une musique.")); }catch(e){} }
+try{ window.studioReset=studioReset; }catch(e){}
 /* Ajoute les médias absents (nouvelles photos/vidéos) sans tout reconstruire, recompose la partition, ré-enregistre.
    items = [{ id, url|blob, caption, day, video }]. */
 function studioAddPhotos(items){ try{
