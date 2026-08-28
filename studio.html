@@ -334,7 +334,7 @@ input[type=range]::-moz-range-thumb{width:16px;height:16px;border-radius:50%;bac
 .mtrack{display:flex;align-items:center;gap:6px;padding:8px;border:1px solid var(--line);border-radius:12px;background:linear-gradient(180deg,rgba(255,255,255,.03),transparent);color:#eaf1fb}
 .mtrack.on{border-color:var(--gold);box-shadow:inset 0 0 0 1px rgba(224,163,62,.5);background:linear-gradient(180deg,rgba(224,163,62,.10),transparent)}
 .mt-main{flex:1;min-width:0;display:flex;align-items:center;gap:11px;background:none;border:0;color:inherit;text-align:left;cursor:pointer;padding:0}
-.mt-cov{position:relative;width:46px;height:46px;border-radius:9px;flex-shrink:0;overflow:hidden;display:grid;place-items:center;background:linear-gradient(158deg,#2a4c7f,#12274c);box-shadow:inset 0 1px 0 rgba(255,255,255,.12)}
+.mt-cov{position:relative;width:40px;height:40px;border-radius:8px;flex-shrink:0;overflow:hidden;display:grid;place-items:center;background:linear-gradient(158deg,#2a4c7f,#12274c);box-shadow:inset 0 1px 0 rgba(255,255,255,.12)}
 .mt-cov img{width:100%;height:100%;object-fit:cover}
 .mt-ph{color:#cfe0ff;font-size:20px}
 .mt-covplay{position:absolute;inset:0;display:grid;place-items:center;color:#fff;font-size:14px;background:rgba(0,0,0,.30)}
@@ -805,8 +805,8 @@ input[type=range]::-moz-range-thumb{width:22px;height:22px;border:0;border-radiu
   .gtog{ flex:0 0 auto; margin-left:4px; padding:6px 13px; border-radius:999px; border:1px solid #282622; background:#151413; color:#A8A6A1; font:700 12px system-ui; white-space:nowrap; cursor:pointer; -webkit-tap-highlight-color:transparent; }
   .gtog:not(.nat){ border-color:#D4AF37; color:#D4AF37; background:rgba(212,175,55,.12); }
   .gtog.nat{ border-color:#6fbf87; color:#8fd6a3; background:rgba(120,200,140,.10); }
-  .mtrack{ display:flex; flex-direction:column; align-items:stretch; gap:0; padding:9px 10px; border:1px solid rgba(255,255,255,.08); border-radius:15px; background:rgba(255,255,255,.025); color:#eaf1fb; transition:border-color .15s,background .15s; }
-  .mt-row{ display:flex; align-items:center; gap:11px; width:100%; min-width:0; }
+  .mtrack{ display:flex; flex-direction:column; align-items:stretch; gap:0; padding:6px 9px; border:1px solid rgba(255,255,255,.08); border-radius:14px; background:rgba(255,255,255,.025); color:#eaf1fb; transition:border-color .15s,background .15s; }
+  .mt-row{ display:flex; align-items:center; gap:10px; width:100%; min-width:0; }
   .mt-admin{ display:flex; align-items:center; gap:5px; justify-content:flex-end; margin-top:5px; padding-top:5px; border-top:1px solid rgba(255,255,255,.045); }
   .mt-cover{ flex:0 0 auto; width:26px; height:26px; border-radius:7px; border:1px solid var(--line); background:transparent; color:var(--muted); font-size:11px; cursor:pointer; display:flex; align-items:center; justify-content:center; -webkit-tap-highlight-color:transparent; }
   .mt-cover:active{ color:#E9C46A; border-color:rgba(233,196,106,.5); }
@@ -9966,7 +9966,9 @@ essentiaReady.then(function(ok){ if(!ok && !A){ /* silencieux : le repli se fait
       b.onclick=function(e){ if(e&&e.stopPropagation)e.stopPropagation(); var t=byId(b.getAttribute("data-id")); if(!t||t.catId==null) return; if(typeof window.STUDIO_SET_COVER!=="function"){ try{ setState("Indisponible ici."); }catch(_){} return; }
         var _src=t._file||t.file||t.url; if(!_src){ try{ setState("Piste sans fichier."); }catch(_){} return; }
         b.disabled=true; try{ setState("Lecture de la pochette\u2026"); }catch(_){}
-        var _go=function(blob){ try{ _readID3(blob, function(meta){ if(!meta||!meta.cover){ b.disabled=false; try{ setState("Pas de pochette dans ce MP3."); }catch(_){} return; } _coverToDataURL(meta.cover, function(dataUrl){ if(!dataUrl){ b.disabled=false; try{ setState("Pochette illisible."); }catch(_){} return; } Promise.resolve(window.STUDIO_SET_COVER(t.catId,dataUrl)).then(function(r){ b.disabled=false; if(r===true){ t.cover=dataUrl; try{ setState("\u2713 Pochette ajout\u00e9e."); }catch(_){} renderLib(); } else { try{ setState(typeof r==="string"?r:"\u00c9chec."); }catch(_){} } }).catch(function(){ b.disabled=false; try{ setState("\u00c9chec r\u00e9seau."); }catch(_){} }); }); }); }catch(_e){ b.disabled=false; } };
+        var _go=function(blob){ try{ _readID3(blob, function(meta){ if(!meta){ b.disabled=false; try{ setState("Pas de m\u00e9tadonn\u00e9es dans ce MP3."); }catch(_){} return; }
+          if(meta.artist && !t.artist && typeof window.STUDIO_SET_ARTIST==="function"){ var _ar=String(meta.artist); if(_ar.toLowerCase()!=="import"){ Promise.resolve(window.STUDIO_SET_ARTIST(t.catId,_ar)).then(function(rr){ if(rr===true){ t.artist=_ar; renderLib(); } }).catch(function(){}); } }
+          if(!meta.cover){ b.disabled=false; try{ setState(t.artist?"\u2713 Artiste ajout\u00e9.":"Pas de pochette dans ce MP3."); }catch(_){} return; } _coverToDataURL(meta.cover, function(dataUrl){ if(!dataUrl){ b.disabled=false; try{ setState("Pochette illisible."); }catch(_){} return; } Promise.resolve(window.STUDIO_SET_COVER(t.catId,dataUrl)).then(function(r){ b.disabled=false; if(r===true){ t.cover=dataUrl; try{ setState("\u2713 Pochette"+(t.artist?" + artiste":"")+" ajout\u00e9(e)."); }catch(_){} renderLib(); } else { try{ setState(typeof r==="string"?r:"\u00c9chec."); }catch(_){} } }).catch(function(){ b.disabled=false; try{ setState("\u00c9chec r\u00e9seau."); }catch(_){} }); }); }); }catch(_e){ b.disabled=false; } };
         if(t._file||t.file){ _go(t._file||t.file); }
         else { fetch(t.url).then(function(r){ return r.blob(); }).then(_go).catch(function(){ b.disabled=false; try{ setState("T\u00e9l\u00e9chargement impossible."); }catch(_){} }); }
       };
@@ -10071,7 +10073,7 @@ essentiaReady.then(function(ok){ if(!ok && !A){ /* silencieux : le repli se fait
       try{ if(typeof finishAnalyze==="function") finishAnalyze(); }catch(e){}
       if(!_wasAuto || window._musicRebuildAfter){ window._musicRebuildAfter=false; try{ if(A && (typeof PHOTOS!=="undefined") && (PHOTOS.length||clipVidReady) && typeof buildPartition==="function"){ buildPartition(); paintStrip(0); try{ renderMontageAt(0); }catch(e){} } }catch(e){} }   /* applique tout de suite la nouvelle musique/mode si un montage existe */
       renderLib();
-    }, true);
+    }, !isDL(t));   /* déjà téléchargée -> décodage silencieux depuis le cache, pas de barre */
   }
   try{ window.__useTrack=useTrack; }catch(e){}
   try{ window.__loadMusicBlob=function(blob,title){ if(!blob) return; try{
@@ -10156,7 +10158,7 @@ essentiaReady.then(function(ok){ if(!ok && !A){ /* silencieux : le repli se fait
     var mi=$("mImport"); if(mi) mi.onclick=function(){ myMusicIn.click(); };
     var msrch=$("mSearch"); if(msrch) msrch.oninput=function(){ _mQuery=this.value||""; renderLib(); };
     renderLib();
-    function _addCatalog(arr){ if(!arr||!arr.length) return; arr.forEach(function(m){ var t={ id:"r"+(++LIB_SEQ), catId:(m.id!=null?m.id:null), path:(m.path||""), title:m.title||cleanName(m.file||m.url||""), artist:m.artist||"", type:m.type||m.genre||m.style||m.mood||"", cover:m.cover||"", url:m.file||m.url, remote:true }; if(typeof m.duration==="string") t.durStr=m.duration; else if(typeof m.duration==="number") t.dur=m.duration; LIB.push(t); probeDur(t); if(isDL(t)){ try{ _pget("dl:"+_dlKey(t)).then(function(b){ if(b){ t._file=b; t._dlblob=b; } }).catch(function(){}); }catch(e){} } }); renderLib(); }
+    function _addCatalog(arr){ if(!arr||!arr.length) return; arr.forEach(function(m){ var t={ id:"r"+(++LIB_SEQ), catId:(m.id!=null?m.id:null), path:(m.path||""), title:m.title||cleanName(m.file||m.url||""), artist:m.artist||"", type:m.type||m.genre||m.style||m.mood||"", cover:m.cover||"", url:m.file||m.url, remote:true }; if(typeof m.duration==="string") t.durStr=m.duration; else if(typeof m.duration==="number") t.dur=m.duration; LIB.push(t); probeDur(t); if(isDL(t)){ try{ _pget("dl:"+_dlKey(t)).then(function(b){ if(b){ t._file=b; t._dlblob=b; } else { try{ delete _DL[_dlKey(t)]; _dlSave(); }catch(e){} renderLib(); } }).catch(function(){ try{ delete _DL[_dlKey(t)]; _dlSave(); }catch(e){} renderLib(); }); }catch(e){} } }); renderLib(); }
     function _loadCatalog(){ try{
       var c=(typeof window!=="undefined")?window.STUDIO_CATALOG:null;              /* greffe : MagotVoyage fournit le catalogue depuis Supabase */
       if(typeof c==="function"){ Promise.resolve().then(c).then(function(arr){ _addCatalog(arr); }).catch(function(){}); return; }
