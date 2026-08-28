@@ -9931,7 +9931,7 @@ essentiaReady.then(function(ok){ if(!ok && !A){ /* silencieux : le repli se fait
       var playing=(PREV && PREV.id===t.id && PREV.audio && !PREV.audio.paused);
       var addBtn=t.loading?'<span class="mt-load"></span>':(act?'<span class="mt-act" title="Dans le mix">'+_mp+'</span>':'<span class="mt-add" title="Ajouter au mix">\uFF0B</span>');
       var _dl=isDL(t), _dlg=t.dling;
-      var dlBtn='<button class="mt-dl'+(_dl?' on':'')+'" data-id="'+t.id+'" title="'+(_dl?'T\u00e9l\u00e9charg\u00e9':'T\u00e9l\u00e9charger')+'">'+(_dlg?'<span class="mt-load"></span>':(_dl?'\u2713':'\u2193'))+'</button>';
+      var dlBtn=_dl ? '' : ('<button class="mt-dl" data-id="'+t.id+'" title="T\u00e9l\u00e9charger">'+(_dlg?'<span class="mt-load"></span>':'\u2193')+'</button>');   /* téléchargé -> plus de bouton */
       return '<div class="mtrack'+(act?' on':'')+(_dl?' dl':'')+'" data-id="'+t.id+'">'
         +'<div class="mt-row">'
           +'<button class="mt-main" data-id="'+t.id+'">'
