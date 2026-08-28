@@ -8650,7 +8650,7 @@ function _afterOpenFilm(proj){ try{
 /* ---- Pont Magot Voyage : interrogation / ajout à chaud / arrêt ---- */
 function studioHasFilm(id){ try{ return !!localStorage.getItem(_filmKey(id)); }catch(e){ return false; } }
 function studioPhotoIds(){ var a=[]; try{ for(var i=0;i<PHOTOS.length;i++){ if(PHOTOS[i]&&PHOTOS[i]._id!=null) a.push(PHOTOS[i]._id); } }catch(e){} return a; }
-function studioStop(){ try{ stopPlay(); }catch(e){} }
+function studioStop(){ try{ stopPlay(); }catch(e){} try{ var _h=document.querySelector(".hero"); if(_h) _h.classList.remove("cinema"); }catch(e){} }
 /* Ajoute les médias absents (nouvelles photos/vidéos) sans tout reconstruire, recompose la partition, ré-enregistre.
    items = [{ id, url|blob, caption, day, video }]. */
 function studioAddPhotos(items){ try{
@@ -8874,7 +8874,7 @@ function _toggleFilmsMenu(anchor){
 }
 
 /* auto-save quand on quitte / masque la page */
-try{ window.addEventListener("visibilitychange", function(){ if(document.visibilityState==="hidden") studioSaveLocal(); }); window.addEventListener("pagehide", studioSaveLocal); }catch(e){}
+try{ window.addEventListener("visibilitychange", function(){ if(document.visibilityState==="hidden"){ try{ stopPlay(); }catch(e){} studioSaveLocal(); } }); window.addEventListener("pagehide", function(){ try{ stopPlay(); }catch(e){} studioSaveLocal(); }); }catch(e){}
 
 ovVid=document.getElementById("ovlVid");
 var ovlFile=document.getElementById("ovlFile"), ovlAmt=document.getElementById("ovlAmt");

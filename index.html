@@ -9783,7 +9783,7 @@ function mvDirectEntry(tr){
 /* ===== Studio Magot : éditeur vidéo autonome (studio.html) ouvert en plein écran.
    On le nourrit via ses hooks window (studioAutoMontage, STUDIO_LANG…). Le montage
    des données du voyage arrive au Lot 1 ; ici : ouverture/fermeture + langue + admin. ===== */
-let _studioTrip=null; let _studioURLs=[];
+let _studioTrip=null; let _studioURLs=[]; let _studioLoadedId=null;
 /* Catalogue musique pour le Studio : lit la table Supabase music_catalog (via magotCatalog)
    et la mappe au format attendu par STUDIO_CATALOG. cover/artist/lyrics restent optionnels. */
 let _studioTranscribing=new Set(); let _studioTranscribeWarned=false;
@@ -9960,10 +9960,10 @@ function openStudio(tr,version,autoplay){ tr=tr||souvTrip()||null; _studioTrip=t
       try{ w.STUDIO_UPLOAD=async function(file,title,mood,artist,cover){ var _r=await magotUpload(file,title,mood,artist,cover); try{ w.__coverDiag=window.__mvUploadDiag||null; }catch(e){} return _r; }; }catch(e){}
       try{ w.STUDIO_AICAPTION=window.magotCaptionSuggest; }catch(e){}
       try{ if(typeof w._applyStudioLang==="function") w._applyStudioLang(w.STUDIO_LANG); }catch(e){}
-      let _tries=0; const _feed=()=>{ if(w.studioAutoMontage){ studioOpen(w,_studioTrip); } else if(_tries++<25){ setTimeout(_feed,150); } }; _feed();
+      let _tries=0; const _feed=()=>{ if(w.studioAutoMontage){ studioOpen(w,_studioTrip); _studioLoadedId=(_studioTrip&&_studioTrip.id)||null; } else if(_tries++<25){ setTimeout(_feed,150); } }; _feed();
     }catch(e){} });
   }
-  else { try{ var _fr2=ov.querySelector("#studioFrame"); (function _re(_t){ try{ var _w2=_fr2&&_fr2.contentWindow; if(_w2&&_w2.studioAutoMontage){ studioOpen(_w2, tr); return; } }catch(e){} if((_t||0)<25) setTimeout(function(){ _re((_t||0)+1); },150); })(0); }catch(e){} }
+  else { try{ var _fr2=ov.querySelector("#studioFrame"); (function _re(_t){ try{ var _w2=_fr2&&_fr2.contentWindow; if(_w2&&_w2.studioAutoMontage){ try{ if(_w2.studioStop) _w2.studioStop(); }catch(e){}   /* arrête la lecture + sort du plein écran */ var _same=(tr&&_studioLoadedId!=null&&tr.id===_studioLoadedId); if(!_same){ studioOpen(_w2, tr); _studioLoadedId=(tr&&tr.id)||null; } return; } }catch(e){} if((_t||0)<25) setTimeout(function(){ _re((_t||0)+1); },150); })(0); }catch(e){} }
   { const sp=ov.querySelector(".studio-back span"); if(sp) sp.textContent=backLbl; }
   ov.classList.add("show"); document.documentElement.classList.add("studio-open"); _studioSync();
 }
