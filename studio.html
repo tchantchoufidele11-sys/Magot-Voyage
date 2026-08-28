@@ -9898,6 +9898,26 @@ essentiaReady.then(function(ok){ if(!ok && !A){ /* silencieux : le repli se fait
     var yes=ov.querySelector("#scYes"); if(yes) yes.onclick=function(){ close(); try{ if(cb) cb(); }catch(e){} };
   }
   try{ window._studioConfirm=_studioConfirm; }catch(e){}
+  function _studioPrompt(title, cur, cb){
+    try{ var ex=document.getElementById("stPrompt"); if(ex) ex.remove(); }catch(e){}
+    var ov=document.createElement("div"); ov.id="stPrompt";
+    ov.style.cssText="position:fixed;inset:0;z-index:100004;background:rgba(4,6,10,.64);display:flex;align-items:center;justify-content:center;opacity:0;transition:opacity .18s ease;padding:24px";
+    ov.innerHTML='<div style="width:100%;max-width:360px;background:#0f0e0d;border:1px solid #232120;border-radius:18px;padding:20px 18px;box-shadow:0 14px 46px rgba(0,0,0,.6)">'
+      +'<p style="margin:0 0 12px;color:#eaf1fb;font:600 15px/1.4 system-ui">'+esc(title)+'</p>'
+      +'<input id="spIn" type="text" value="'+esc(cur||"")+'" placeholder="Nom de l\u2019artiste" autocapitalize="words" style="width:100%;box-sizing:border-box;padding:12px;border-radius:12px;border:1px solid #2a2824;background:#151413;color:#eaf1fb;font:500 15px system-ui;margin-bottom:16px" />'
+      +'<div style="display:flex;gap:10px">'
+      +'<button id="spNo" style="flex:1;padding:12px;border-radius:12px;border:1px solid #2a2824;background:transparent;color:#c7c3ba;font:600 14px system-ui;cursor:pointer">Annuler</button>'
+      +'<button id="spYes" style="flex:1;padding:12px;border-radius:12px;border:0;background:#E9C46A;color:#241603;font:700 14px system-ui;cursor:pointer">Enregistrer</button>'
+      +'</div></div>';
+    document.body.appendChild(ov);
+    requestAnimationFrame(function(){ ov.style.opacity="1"; });
+    var inp=ov.querySelector("#spIn"); try{ setTimeout(function(){ inp.focus(); },120); }catch(e){}
+    function close(){ ov.style.opacity="0"; setTimeout(function(){ try{ ov.remove(); }catch(e){} },180); }
+    ov.addEventListener("click",function(e){ if(e.target===ov) close(); });
+    var no=ov.querySelector("#spNo"); if(no) no.onclick=function(){ close(); };
+    var yes=ov.querySelector("#spYes"); if(yes) yes.onclick=function(){ var v=(inp.value||"").trim(); close(); if(cb) cb(v||null); };
+  }
+  try{ window._studioPrompt=_studioPrompt; }catch(e){}
   function renderCats(){
     var cwrap=$("mCats"); if(!cwrap) return;
     var types=[]; for(var i=0;i<LIB.length;i++){ var ty=(LIB[i].type||"").trim(); if(ty && types.indexOf(ty)<0) types.push(ty); }
@@ -9969,7 +9989,7 @@ essentiaReady.then(function(ok){ if(!ok && !A){ /* silencieux : le repli se fait
         var _src=t._file||t.file||t.url; if(!_src){ try{ setState("Piste sans fichier."); }catch(_){} return; }
         b.disabled=true; try{ setState("Lecture de la pochette\u2026"); }catch(_){}
         var _go=function(blob){ try{ _readID3(blob, function(meta){ if(!meta){ b.disabled=false; try{ setState("Pas de m\u00e9tadonn\u00e9es dans ce MP3."); }catch(_){} return; }
-          if(meta.artist && !t.artist && typeof window.STUDIO_SET_ARTIST==="function"){ var _ar=String(meta.artist); if(_ar.toLowerCase()!=="import"){ Promise.resolve(window.STUDIO_SET_ARTIST(t.catId,_ar)).then(function(rr){ if(rr===true){ t.artist=_ar; renderLib(); } }).catch(function(){}); } }
+          if(typeof window.STUDIO_SET_ARTIST==="function"){ var _setArt=function(name){ if(!name) return; Promise.resolve(window.STUDIO_SET_ARTIST(t.catId,name)).then(function(rr){ if(rr===true){ t.artist=name; try{ setState("\u2713 Artiste : "+name); }catch(_){} renderLib(); } }).catch(function(){}); }; var _idArt=(meta.artist && String(meta.artist).toLowerCase()!=="import" && String(meta.artist).trim())?String(meta.artist).trim():""; if(_idArt){ _setArt(_idArt); } else if(typeof _studioPrompt==="function"){ _studioPrompt("Nom de l\u2019artiste (absent du MP3) :", t.artist||"", _setArt); } }
           if(!meta.cover){ b.disabled=false; try{ setState(t.artist?"\u2713 Artiste ajout\u00e9.":"Pas de pochette dans ce MP3."); }catch(_){} return; } _coverToDataURL(meta.cover, function(dataUrl){ if(!dataUrl){ b.disabled=false; try{ setState("Pochette illisible."); }catch(_){} return; } Promise.resolve(window.STUDIO_SET_COVER(t.catId,dataUrl)).then(function(r){ b.disabled=false; if(r===true){ t.cover=dataUrl; try{ setState("\u2713 Pochette"+(t.artist?" + artiste":"")+" ajout\u00e9(e)."); }catch(_){} renderLib(); } else { try{ setState(typeof r==="string"?r:"\u00c9chec."); }catch(_){} } }).catch(function(){ b.disabled=false; try{ setState("\u00c9chec r\u00e9seau."); }catch(_){} }); }); }); }catch(_e){ b.disabled=false; } };
         if(t._file||t.file){ _go(t._file||t.file); }
         else { fetch(t.url).then(function(r){ return r.blob(); }).then(_go).catch(function(){ b.disabled=false; try{ setState("T\u00e9l\u00e9chargement impossible."); }catch(_){} }); }
