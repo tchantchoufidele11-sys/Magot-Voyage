@@ -9949,9 +9949,9 @@ essentiaReady.then(function(ok){ if(!ok && !A){ /* silencieux : le repli se fait
     if(!_list.length){ lib.innerHTML='<p class="sh-note" style="opacity:.72">Aucun r\u00e9sultat'+(_mCat?(' dans \u00ab '+esc(_mCat)+' \u00bb'):'')+(_mQuery?(' pour \u00ab '+esc(_mQuery)+' \u00bb'):'')+'.</p>'; return; }
     _list.sort(function(a,b){ var da=isDL(a)?(_DL[_dlKey(a)]||1):0, db=isDL(b)?(_DL[_dlKey(b)]||1):0; if(da!==db) return db-da; return 0; });   /* téléchargés en haut (plus récent d'abord) */
     lib.innerHTML=_list.map(function(t){
-      var act=inMix(t.id); var _mp=mixPos(t.id);
+      var _inMix=inMix(t.id); var _mp=mixPos(t.id); var _isCur=(LIB_ACTIVE===t.id)&&!_inMix; var act=_inMix||_isCur;   /* active = dans le mix OU musique actuelle du montage */
       var playing=(PREV && PREV.id===t.id && PREV.audio && !PREV.audio.paused);
-      var addBtn=t.loading?'<span class="mt-load"></span>':(act?'<span class="mt-act" title="Dans le mix">'+_mp+'</span>':'<span class="mt-add" title="Ajouter au mix">\uFF0B</span>');
+      var addBtn=t.loading?'<span class="mt-load"></span>':(_inMix?'<span class="mt-act" title="Dans le mix">'+_mp+'</span>':(_isCur?'<span class="mt-act mt-cur" title="Musique du montage">\u266A</span>':'<span class="mt-add" title="Ajouter au mix">\uFF0B</span>'));
       var _dl=isDL(t), _dlg=t.dling;
       var dlBtn=_dl ? '' : ('<button class="mt-dl" data-id="'+t.id+'" title="T\u00e9l\u00e9charger">'+(_dlg?'<span class="mt-load"></span>':'\u2193')+'</button>');   /* téléchargé -> plus de bouton */
       return '<div class="mtrack'+(act?' on':'')+(_dl?' dl':'')+'" data-id="'+t.id+'">'
