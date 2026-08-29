@@ -1704,9 +1704,9 @@ function _adaptivePCAP(){ try{
 }catch(e){ return 1600; } }
 var _PCAP=_adaptivePCAP(); try{ window._PCAP=_PCAP; window._HQ=false; }catch(e){}   /* décodage 100% adaptatif à l'écran réel, sans plafond arbitraire */
 /* ===== MOTEUR IMAGES — étape 1 : résolution PAR PLAN + cache glissant borné en Mo ===== */
-var _CACHE_MB_CAP=100;   /* plafond mémoire du cache d'images décodées (premier réglage, à valider au diagnostic) */
+var _CACHE_MB_CAP=120;   /* plafond mémoire du cache d'images décodées : tient ~10 photos à 1500px = toute la fenêtre de préchargement, plus de thrashing */
 function _dispPx(){ try{ var h=document.querySelector(".hero"); var w=h?h.clientWidth:0, ht=h?h.clientHeight:0; var lng=Math.max(w,ht)||Math.max((window.screen&&screen.width)||390,(window.screen&&screen.height)||700); return Math.round(lng*Math.max(1,(window.devicePixelRatio||1))); }catch(e){ return 1400; } }
-function _resMax(){ try{ var isTouch=(('ontouchstart' in window)||((navigator.maxTouchPoints||0)>0)); return isTouch?1800:3200; }catch(e){ return 1800; } }
+function _resMax(){ try{ var isTouch=(('ontouchstart' in window)||((navigator.maxTouchPoints||0)>0)); return isTouch?1500:3200; }catch(e){ return 1500; } }   /* mobile 1500 : résolution que l'iPhone décode à TEMPS pendant la lecture ET qui tient dans le cache (au-delà, la photo n'est jamais prête -> on ne voit que le secours mou) */
 function _planZoomMax(sg){ try{ if(sg&&sg.video) return 1.0; var fit=(sg&&sg.img>=0&&typeof PHOTOS!=="undefined"&&PHOTOS[sg.img]&&PHOTOS[sg.img]._fit)||"fit"; return (fit==="fill")?1.12:1.32; }catch(e){ return 1.32; } }
 function _planTargetRes(sg){ try{ var t=Math.round(_dispPx()*_planZoomMax(sg)*1.1); return Math.max(600, Math.min(_resMax(), Math.min(3840, t))); }catch(e){ return Math.min(_resMax(),1600); } }   /* borne HAUTE seulement : un plan qui zoome peu reste petit */
 function _photoMB(p){ try{ if(!p||!p.c) return 0; return (p.c.width*p.c.height*4)/1048576; }catch(e){ return 0; } }
@@ -9066,6 +9066,22 @@ function makeASC(sampleRate, channels){ var m={96000:0,88200:1,64000:2,48000:3,4
 function setRenderSize(w,h){
   try{ base.width=w; base.height=h; var gc=document.getElementById("gl"); if(gc){ gc.width=w; gc.height=h; } if(glReady){ initTransitions(); } }catch(e){}
 }
+function _fitRenderToDisplay(){ try{
+  if(typeof EXPFMT==="undefined"||!EXPFMT) return;
+  if(typeof EXPORTING!=="undefined" && EXPORTING) return;   /* pas pendant l'export */
+  var dpr=Math.max(1,(window.devicePixelRatio||1));
+  var hero=document.querySelector(".hero");
+  var dw=(hero&&hero.clientWidth)||390, dh=(hero&&hero.clientHeight)||694;
+  var dispLong=Math.round(Math.max(dw,dh)*dpr);   /* pixels RÉELS de la zone d'affichage (plein écran inclus) */
+  var isTouch=(('ontouchstart' in window)||((navigator.maxTouchPoints||0)>0));
+  var cap=isTouch?2200:3000;   /* borne haute de rendu : mobile vs ordinateur */
+  var target=Math.max(1080, Math.min(cap, dispLong));
+  var ps=target/Math.max(EXPFMT.w,EXPFMT.h);
+  var nw=Math.max(2,Math.round(EXPFMT.w*ps)), nh=Math.max(2,Math.round(EXPFMT.h*ps));
+  if(base.width!==nw || base.height!==nh){ setRenderSize(nw,nh); try{ if(typeof A!=="undefined"&&A&&SEGS.length) renderMontageAt((typeof playing!=="undefined"&&playing)?visualTime():(window._pauseRenderT||0)); }catch(e){} }
+}catch(e){} }
+try{ window._fitRenderToDisplay=_fitRenderToDisplay; }catch(e){}
+try{ var _fitT2; window.addEventListener("resize", function(){ clearTimeout(_fitT2); _fitT2=setTimeout(function(){ try{ _fitRenderToDisplay(); }catch(e){} },250); }); window.addEventListener("orientationchange", function(){ setTimeout(function(){ try{ _fitRenderToDisplay(); }catch(e){} },350); }); }catch(e){}
 function renderMontageAt(t){
   if(t<0)t=0;
   try{ window._pauseRenderT = playing?null:t; }catch(e){}
@@ -9690,8 +9706,7 @@ async function exportFast(){ return exportStudio(); /* MOTEUR UNIFIÉ : tout pas
     if(window._HQ){ var _m=Math.min(2560/Math.max(w,h),1.6); if(_m>1.02){ w=Math.max(2,Math.round(w*_m/2)*2); h=Math.max(2,Math.round(h*_m/2)*2); } }   /* Qualité max : pousse la résolution vers ~2560 */
     EXPFMT={w:w,h:h,name:name};
     var sw=document.querySelector(".stageWrap"); if(sw) sw.style.aspectRatio=w+" / "+h;
-    var _cap=(typeof _resCap==="function")?_resCap():1920;   /* plafond : 2560 en Qualité max, sinon 1920 (1280 sur appareils faibles) */
-    var _ps=Math.min(1, _cap/Math.max(w,h)); setRenderSize(Math.round(w*_ps), Math.round(h*_ps));
+    try{ _fitRenderToDisplay(); }catch(e){ setRenderSize(w,h); }   /* rendu à la résolution RÉELLE de l'écran (net en aperçu ET plein écran) */
     try{ if(A&&SEGS.length) renderMontageAt(playing?visualTime():0); else if(glReady){ gl.clearColor(0,0,0,1); gl.clear(gl.COLOR_BUFFER_BIT); } }catch(e){}
     var eb=document.getElementById("exportBtn"); if(eb) eb.textContent="⚡ Exporter la vidéo ("+name+")";
   }
@@ -10965,7 +10980,7 @@ function renderVNav(){
 
   /* ---------- 13) Icone agrandir (apercu plein cadre) — action reelle ---------- */
   var expandBtn=hero?hero.querySelector(".hero-top .iconbtn"):null;
-  if(expandBtn&&hero) expandBtn.onclick=function(){ hero.classList.toggle("cinema"); };
+  if(expandBtn&&hero) expandBtn.onclick=function(){ hero.classList.toggle("cinema"); try{ setTimeout(function(){ if(typeof _fitRenderToDisplay==="function") _fitRenderToDisplay(); },70); }catch(e){} };
 
   /* ---------- 14) "Afficher tout" -> montre le zoom des temps ---------- */
   var showAll=q(".s-seq .title button");
