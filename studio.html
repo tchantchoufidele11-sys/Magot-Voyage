@@ -1693,8 +1693,8 @@ function _decodeFromSrc(p,cb){ var mx=Math.max((window._PCAP||1920),(typeof wind
   }catch(e){ if(p._file)_decodeFromFile(p._file,cb); else cb(null); } }
 function _decodeFromFile(file,cb){ var mx=Math.max((window._PCAP||1920),(typeof window!=="undefined"&&window._PMAX)?window._PMAX:0); var done=function(src){ var c=prerender(src,mx); if(src&&src.close){try{src.close();}catch(e){}} cb(c); }; try{ if(window.createImageBitmap){ createImageBitmap(file).then(done).catch(function(){ var u=URL.createObjectURL(file); var im=new Image(); im.onload=function(){ done(im); try{URL.revokeObjectURL(u);}catch(e){} }; im.onerror=function(){ try{URL.revokeObjectURL(u);}catch(e){} cb(null); }; im.src=u; }); } else { var u=URL.createObjectURL(file); var im=new Image(); im.onload=function(){ done(im); try{URL.revokeObjectURL(u);}catch(e){} }; im.onerror=function(){ cb(null); }; im.src=u; } }catch(e){ cb(null); } }
 /* RÉSOLUTION SOURCE DES PHOTOS = résolution d'export (1920) : plus aucun agrandissement -> netteté « niveau CapCut » à l'affichage ET à l'export. */
-var _HQ=false; try{ _HQ=(localStorage.getItem("magot_hq")==="1"); }catch(e){}
-var _PCAP=_HQ?2560:1920; try{ window._PCAP=_PCAP; window._HQ=_HQ; }catch(e){}
+var _HQ=false; try{ localStorage.removeItem("magot_hq"); }catch(e){}   /* Qualité max retirée : la source fraîche (3840) décodée en 1920 est déjà nette et évite les crashes mémoire iOS */
+var _PCAP=1920; try{ window._PCAP=_PCAP; window._HQ=false; }catch(e){}
 function _resCap(){ if(window._HQ) return 2560; return ((typeof navigator!=="undefined"&&navigator.deviceMemory&&navigator.deviceMemory<4)?1280:1920); }
 try{ window._resCap=_resCap; }catch(e){}
 function _computeDecMax(){
@@ -8681,17 +8681,15 @@ function studioRebuild(){ try{ if(A&&(PHOTOS.length||clipVidReady)){ window.USER
 function studioRefreshFromSource(items){ try{
   var map={}; (items||[]).forEach(function(it){ if(it&&!it.video&&it.id!=null&&it.url) map[it.id]=it.url; });
   var idx=0, cap=(window._PCAP||1920);
+  function _decode(blob, cb){
+    try{ if(typeof createImageBitmap==="function"){ createImageBitmap(blob).then(function(bm){ try{ var sc=Math.min(1,cap/Math.max(bm.width,bm.height,1)); var cv=document.createElement("canvas"); cv.width=Math.max(1,Math.round(bm.width*sc)); cv.height=Math.max(1,Math.round(bm.height*sc)); cv.getContext("2d").drawImage(bm,0,0,cv.width,cv.height); try{ bm.close(); }catch(e){} cb(cv); }catch(e){ try{ bm.close(); }catch(_){} cb(null); } }).catch(function(){ cb(null); }); return; } }catch(e){}
+    var im=new Image(), ou=URL.createObjectURL(blob); im.onload=function(){ try{ var sc=Math.min(1,cap/Math.max(im.naturalWidth,im.naturalHeight,1)); var cv=document.createElement("canvas"); cv.width=Math.max(1,Math.round(im.naturalWidth*sc)); cv.height=Math.max(1,Math.round(im.naturalHeight*sc)); cv.getContext("2d").drawImage(im,0,0,cv.width,cv.height); try{ URL.revokeObjectURL(ou); }catch(e){} cb(cv); }catch(e){ try{ URL.revokeObjectURL(ou); }catch(_){} cb(null); } }; im.onerror=function(){ try{ URL.revokeObjectURL(ou); }catch(e){} cb(null); }; im.src=ou;
+  }
   (function next(){ if(idx>=PHOTOS.length){ try{ studioRebuild(); }catch(e){} return; }
     var p=PHOTOS[idx++]; var u=(p&&p._id!=null)?map[p._id]:null; if(!u){ next(); return; }
     fetch(u).then(function(r){ return r.blob(); }).then(function(src){
-      var im=new Image(), ou=URL.createObjectURL(src);
-      im.onload=function(){ try{ var sc=Math.min(1,cap/Math.max(im.naturalWidth,im.naturalHeight,1)); var cv=document.createElement("canvas"); cv.width=Math.max(1,Math.round(im.naturalWidth*sc)); cv.height=Math.max(1,Math.round(im.naturalHeight*sc)); cv.getContext("2d").drawImage(im,0,0,cv.width,cv.height);
-        if(cv.toBlob){ cv.toBlob(function(b){ if(b){ p._jpgBlob=b; p.c=null; p.img=null; p._durl=null; try{ p._fb=prerender(cv,(PHOTOS.length>60?300:560)); }catch(e){} } try{ URL.revokeObjectURL(ou); }catch(e){} setTimeout(next,10); },"image/jpeg",0.9); }
-        else { try{ URL.revokeObjectURL(ou); }catch(e){} next(); }
-      }catch(e){ try{ URL.revokeObjectURL(ou); }catch(_){} next(); } };
-      im.onerror=function(){ try{ URL.revokeObjectURL(ou); }catch(_){} next(); };
-      im.src=ou;
-    }).catch(function(){ next(); });
+      _decode(src, function(cv){ if(!cv){ setTimeout(next,20); return; } try{ if(cv.toBlob){ cv.toBlob(function(b){ if(b){ p._jpgBlob=b; p.c=null; p.img=null; p._durl=null; try{ p._fb=prerender(cv,(PHOTOS.length>60?300:560)); }catch(e){} } setTimeout(next,24); },"image/jpeg",0.9); } else setTimeout(next,20); }catch(e){ setTimeout(next,20); } });
+    }).catch(function(){ setTimeout(next,20); });
   })();
 }catch(e){} }
 try{ window.studioClipIds=studioClipIds; window.studioClipCount=studioClipCount; window.studioRemovePhotos=studioRemovePhotos; window.studioRemoveClips=studioRemoveClips; window.studioRemoveAllClips=studioRemoveAllClips; window.studioRebuild=studioRebuild; window.studioRefreshFromSource=studioRefreshFromSource; }catch(e){}
@@ -8876,8 +8874,7 @@ function _toggleFilmsMenu(anchor){
     m.innerHTML='<button class="fm-i" data-a="open" style="'+_bs+'">\uD83C\uDFAC '+_st("Mes films")+'</button>'
       +'<button class="fm-i" data-a="save" style="'+_bs+'">\uD83D\uDCBE '+_st("Enregistrer le montage")+'</button>'
       +'<button class="fm-i" data-a="new" style="'+_bs+';color:#e6c15a">\u2728 '+_st("Nouveau montage")+'</button>'
-      +'<button class="fm-i" data-a="tuto" style="'+_bs+'">\uD83E\uDDED '+_st("Revoir le tutoriel")+'</button>'
-      +'<button class="fm-i" data-a="hq" style="'+_bs+'">\u26A1 Qualit\u00e9 max'+(window._HQ?" \u2713":"")+'</button>';
+      +'<button class="fm-i" data-a="tuto" style="'+_bs+'">\uD83E\uDDED '+_st("Revoir le tutoriel")+'</button>';
     document.body.appendChild(m);
     Array.prototype.forEach.call(m.querySelectorAll(".fm-i"), function(it){ it.onclick=function(ev){ ev.stopPropagation(); var a=it.getAttribute("data-a"); m.style.display="none";
       if(a==="open"){ try{ openFilms(); }catch(e){} }
