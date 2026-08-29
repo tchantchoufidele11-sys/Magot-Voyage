@@ -2031,7 +2031,7 @@ function drawSegAt(sg,t,ox,smul){
   var isVid=(_clip && _clip.el.videoWidth>0);
   var img, iw, ih;
   if(isVid){ img=_clip.el; iw=_clip.el.videoWidth; ih=_clip.el.videoHeight; }
-  else { if(sg.img<0||!PHOTOS[sg.img]){ bctx.fillStyle="#000"; bctx.fillRect(0,0,Wd,Hd); return; } var _pp=PHOTOS[sg.img]; img=_pp.c||_pp.img; if(img){ _touchDec(sg.img); } else { ensurePhotoDecoded(sg.img, (!playing)?function(_cc){ try{ if(_cc && !playing && window._pauseRenderT!=null && typeof renderMontageAt==="function"){ renderMontageAt(window._pauseRenderT); } }catch(e){} }:null); img=_pp._fb||_pp._thumb||null; } iw=img?img.width:0; ih=img?img.height:0; if(!img||!iw){ bctx.fillStyle="#000"; bctx.fillRect(0,0,Wd,Hd); return; } }
+  else { if(sg.img<0||!PHOTOS[sg.img]){ bctx.fillStyle="#000"; bctx.fillRect(0,0,Wd,Hd); return; } var _pp=PHOTOS[sg.img]; img=_pp.c||_pp.img; if(img){ _touchDec(sg.img); } else { ensurePhotoDecoded(sg.img, (!playing)?function(_cc){ try{ if(_cc && !playing && window._pauseRenderT!=null && typeof renderMontageAt==="function"){ renderMontageAt(window._pauseRenderT); } }catch(e){} }:null); img=_pp._fb||_pp._thumb||null; } iw=img?img.width:0; ih=img?img.height:0; try{ window.__photoDiag={idx:sg.img, src:(img&&(img===_pp.c||img===_pp.img))?"PLEINE":(img&&img===_pp._fb?"SECOURS":(img?"thumb":"—")), w:iw, h:ih, dec:(typeof _decLRU!=="undefined"?_decLRU.length:0), max:(typeof _DEC_MAX!=="undefined"?_DEC_MAX:0), inf:(window._decInFlight||0), pc:(window._PCAP||0)}; }catch(e){} if(!img||!iw){ bctx.fillStyle="#000"; bctx.fillRect(0,0,Wd,Hd); return; } }
   var dur=Math.max(0.001,sg.end-sg.start), p=Math.max(0,Math.min(1,(t-sg.start)/dur));
   var M=MOODS[MOOD];
   /* fond : image en cover, assombrie -> pas de bandes noires */
@@ -8695,6 +8695,7 @@ function studioRefreshFromSource(items){ try{
 }catch(e){} }
 try{ window.studioClipIds=studioClipIds; window.studioClipCount=studioClipCount; window.studioRemovePhotos=studioRemovePhotos; window.studioRemoveClips=studioRemoveClips; window.studioRemoveAllClips=studioRemoveAllClips; window.studioRebuild=studioRebuild; window.studioRefreshFromSource=studioRefreshFromSource; }catch(e){}
 try{ window.__mergeDiag=function(txt){ try{ var el=document.getElementById("mergeDiag"); if(!el){ el=document.createElement("div"); el.id="mergeDiag"; el.style.cssText="position:fixed;left:6px;top:230px;z-index:2147483647;max-width:94vw;background:rgba(24,110,70,.96);color:#fff;font:600 11px/1.4 system-ui;padding:9px 11px;border-radius:9px;white-space:pre-wrap;pointer-events:none;box-shadow:0 2px 14px rgba(0,0,0,.6)"; document.body.appendChild(el); } el.textContent=txt; }catch(e){} }; }catch(e){}
+try{ (function(){ var el=null; setInterval(function(){ try{ var d=window.__photoDiag; if(!d) return; if(!el){ el=document.createElement("div"); el.id="photoDiag"; el.style.cssText="position:fixed;left:6px;bottom:96px;z-index:2147483647;max-width:94vw;background:rgba(120,30,140,.95);color:#fff;font:600 12px/1.4 system-ui;padding:8px 11px;border-radius:9px;pointer-events:none;box-shadow:0 2px 14px rgba(0,0,0,.6)"; document.body.appendChild(el); } el.textContent="PHOTO DIAG · plan#"+d.idx+" · "+d.src+" "+d.w+"\u00d7"+d.h+" · d\u00e9cod\u00e9es "+d.dec+"/"+d.max+" · file "+d.inf+" · cap "+d.pc; }catch(e){} }, 400); })(); }catch(e){}
 function studioDeleteFilm(id){ try{ var idx=_filmsIndex().filter(function(f){ return f.id!==id; }); _filmsIndexSave(idx); localStorage.removeItem(_filmKey(id)); }catch(e){} if(_curFilmId===id)_curFilmId=null; try{ renderFilms(); }catch(e){} }
 
 /* ---- UI : galerie de films (overlay injecté) ---- */
@@ -9338,9 +9339,10 @@ async function exportStudio(){ try{ _reqWake(); }catch(e){} try{ _hideClipOverla
   _setStage("Pr\u00e9paration\u2026"); await _paint();
   try{
     var FPS=30;
-    var W=EXPFMT.w, H=EXPFMT.h, cap=((typeof navigator!=="undefined"&&navigator.deviceMemory&&navigator.deviceMemory<4)?2160:2880), mx=Math.max(W,H);   /* export NET : 2880px (au-delà de 2560), 2160px sur appareils à faible mémoire */
-    if(mx<cap){ var _up=cap/mx; W=Math.round(W*_up/2)*2; H=Math.round(H*_up/2)*2; }   /* on MONTE la sortie vers 2880 (avant on la descendait) */
+    var W=EXPFMT.w, H=EXPFMT.h, cap=((typeof navigator!=="undefined"&&navigator.deviceMemory&&navigator.deviceMemory<4)?1920:2160), mx=Math.max(W,H);   /* export : 2160px = net ET va au bout sur iOS (2880 était trop lourd -> il mourait à 60-70%) */
+    if(mx<cap){ var _up=cap/mx; W=Math.round(W*_up/2)*2; H=Math.round(H*_up/2)*2; }
     else if(mx>cap){ var s=cap/mx; W=Math.max(2,Math.round(W*s/2)*2); H=Math.max(2,Math.round(H*s/2)*2); }
+    try{ window.__expRes=W+"\u00d7"+H; }catch(e){}
     /* NB : pas de réordonnancement ici — SEGS[i].img est déjà défini par buildPartition().
        L'ancien code référençait _PORDER (variable LOCALE à buildPartition) -> ReferenceError
        "Can't find variable: _PORDER" qui tuait l'export en silence. Corrigé en le retirant :
@@ -9378,7 +9380,7 @@ async function exportStudio(){ try{ _reqWake(); }catch(e){} try{ _hideClipOverla
     /* Débit ADAPTATIF orienté CLARTÉ : une vidéo en mouvement a besoin de beaucoup plus de
        débit qu'un diaporama de photos pour rester nette. Court = jusqu'à 12 Mbit/s (très net),
        plancher 4 Mbit/s, plafonné par un budget total (~180 Mo) pour protéger la mémoire iOS. */
-    var _vbps=Math.max(16000000, Math.min(40000000, Math.floor(360*1048576*8/Math.max(1,DUR))));   /* CLARTÉ MAX : plancher 16 Mbit/s, jusqu'à 40 Mbit/s, budget ~360 Mo (protège la RAM iOS sur les longs montages) */
+    var _vbps=Math.max(12000000, Math.min(24000000, Math.floor(300*1048576*8/Math.max(1,DUR))));   /* net mais plus léger : plancher 12, max 24 Mbit/s, budget ~300 Mo -> l'export va au bout */
     var rec; try{ rec=new MediaRecorder(stream, mime?{mimeType:mime,videoBitsPerSecond:_vbps}:{videoBitsPerSecond:_vbps}); }catch(e){ try{ rec=new MediaRecorder(stream);}catch(e2){ EXPORTING=false; try{setRenderSize(_ow,_oh);}catch(_r){} _expMsg("MediaRecorder refusé : "+((e2&&e2.message)||e2)); return; } }
 
     var chunks=[],done=false,_hardStop=null,_bytes=0;
