@@ -9338,8 +9338,9 @@ async function exportStudio(){ try{ _reqWake(); }catch(e){} try{ _hideClipOverla
   _setStage("Pr\u00e9paration\u2026"); await _paint();
   try{
     var FPS=30;
-    var W=EXPFMT.w, H=EXPFMT.h, cap=(window._HQ?2560:(clipVidReady?1280:1920)), mx=Math.max(W,H);
-    if(mx>cap){ var s=cap/mx; W=Math.max(2,Math.round(W*s/2)*2); H=Math.max(2,Math.round(H*s/2)*2); }
+    var W=EXPFMT.w, H=EXPFMT.h, cap=((typeof navigator!=="undefined"&&navigator.deviceMemory&&navigator.deviceMemory<4)?2160:2880), mx=Math.max(W,H);   /* export NET : 2880px (au-delà de 2560), 2160px sur appareils à faible mémoire */
+    if(mx<cap){ var _up=cap/mx; W=Math.round(W*_up/2)*2; H=Math.round(H*_up/2)*2; }   /* on MONTE la sortie vers 2880 (avant on la descendait) */
+    else if(mx>cap){ var s=cap/mx; W=Math.max(2,Math.round(W*s/2)*2); H=Math.max(2,Math.round(H*s/2)*2); }
     /* NB : pas de réordonnancement ici — SEGS[i].img est déjà défini par buildPartition().
        L'ancien code référençait _PORDER (variable LOCALE à buildPartition) -> ReferenceError
        "Can't find variable: _PORDER" qui tuait l'export en silence. Corrigé en le retirant :
@@ -9377,7 +9378,7 @@ async function exportStudio(){ try{ _reqWake(); }catch(e){} try{ _hideClipOverla
     /* Débit ADAPTATIF orienté CLARTÉ : une vidéo en mouvement a besoin de beaucoup plus de
        débit qu'un diaporama de photos pour rester nette. Court = jusqu'à 12 Mbit/s (très net),
        plancher 4 Mbit/s, plafonné par un budget total (~180 Mo) pour protéger la mémoire iOS. */
-    var _vbps=Math.max((window._HQ?8000000:4000000), Math.min((window._HQ?24000000:12000000), Math.floor((window._HQ?340:180)*1048576*8/Math.max(1,DUR))));
+    var _vbps=Math.max(16000000, Math.min(40000000, Math.floor(360*1048576*8/Math.max(1,DUR))));   /* CLARTÉ MAX : plancher 16 Mbit/s, jusqu'à 40 Mbit/s, budget ~360 Mo (protège la RAM iOS sur les longs montages) */
     var rec; try{ rec=new MediaRecorder(stream, mime?{mimeType:mime,videoBitsPerSecond:_vbps}:{videoBitsPerSecond:_vbps}); }catch(e){ try{ rec=new MediaRecorder(stream);}catch(e2){ EXPORTING=false; try{setRenderSize(_ow,_oh);}catch(_r){} _expMsg("MediaRecorder refusé : "+((e2&&e2.message)||e2)); return; } }
 
     var chunks=[],done=false,_hardStop=null,_bytes=0;
