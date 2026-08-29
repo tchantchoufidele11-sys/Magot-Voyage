@@ -1700,16 +1700,16 @@ try{ window._resCap=_resCap; }catch(e){}
 function _computeDecMax(){
   var pc=(window._PCAP||1920), bytesPer=pc*pc*4*0.62, budgetMB;
   try{ var dm=(typeof navigator!=="undefined"&&navigator.deviceMemory)||0;
-    if(dm){ budgetMB=(dm>=8?300:(dm>=6?220:(dm>=4?150:(dm>=2?90:56)))); }
-    else { budgetMB=170; }
-  }catch(e){ budgetMB=150; }
-  var n=Math.round(budgetMB*1024*1024/bytesPer*0.6);   /* réserve ~40% pour vignettes de secours + rendu + clips vidéo -> pas de crash iOS */
-  return Math.max(6, Math.min(26, n));
+    if(dm){ budgetMB=(dm>=8?340:(dm>=6?250:(dm>=4?180:(dm>=2?110:64)))); }
+    else { budgetMB=210; }
+  }catch(e){ budgetMB=180; }
+  var n=Math.round(budgetMB*1024*1024/bytesPer*0.68);   /* réserve ~32% pour vignettes + rendu + 6 clips vidéo ; à 1920 ça garde ~24 photos décodées -> quasi plus de grisaille */
+  return Math.max(8, Math.min(34, n));
 }
 var _decLRU=[], _DEC_MAX=_computeDecMax();
 try{ window._DEC_MAX=_DEC_MAX; }catch(e){}
 function _touchDec(i){ if(typeof PHOTOS==="undefined"||!PHOTOS[i]) return; var k=_decLRU.indexOf(i); if(k>=0) _decLRU.splice(k,1); _decLRU.push(i); while(_decLRU.length>_DEC_MAX){ var old=_decLRU.shift(); if(old!==i && PHOTOS[old] && (PHOTOS[old]._jpgBlob || PHOTOS[old]._file)){ PHOTOS[old].c=null; PHOTOS[old].img=null; PHOTOS[old]._durl=null; } } }
-function _ensureDecodedP(p,cb){ if(!p){ if(cb)cb(null); return; } if(p.c){ if(cb)cb(p.c); return; } if(!p._jpgBlob && !p._file){ if(cb)cb(null); return; } if(p._decoding){ if(cb)(p._decCbs=p._decCbs||[]).push(cb); return; } p._decoding=true; window._decInFlight=(window._decInFlight||0)+1; p._decCbs=cb?[cb]:[]; _decodeFromSrc(p,function(c){ p._decoding=false; window._decInFlight=Math.max(0,(window._decInFlight||1)-1); if(c){ p.c=c; p.img=c; var ix=(typeof PHOTOS!=="undefined")?PHOTOS.indexOf(p):-1; if(ix>=0)_touchDec(ix); } var cbs=p._decCbs||[]; p._decCbs=null; for(var z=0;z<cbs.length;z++){ try{ cbs[z](c); }catch(e){} } }); }
+function _ensureDecodedP(p,cb){ if(!p){ if(cb)cb(null); return; } if(p.c){ if(cb)cb(p.c); return; } if(!p._jpgBlob && !p._file){ if(cb)cb(null); return; } if(p._decoding){ if(cb)(p._decCbs=p._decCbs||[]).push(cb); return; } p._decoding=true; window._decInFlight=(window._decInFlight||0)+1; p._decCbs=cb?[cb]:[]; _decodeFromSrc(p,function(c){ p._decoding=false; window._decInFlight=Math.max(0,(window._decInFlight||1)-1); if(c){ p.c=c; p.img=c; if(!p._fb){ try{ p._fb=prerender(c,(typeof PHOTOS!=="undefined"&&PHOTOS.length>60?300:560)); }catch(e){} } var ix=(typeof PHOTOS!=="undefined")?PHOTOS.indexOf(p):-1; if(ix>=0)_touchDec(ix); } var cbs=p._decCbs||[]; p._decCbs=null; for(var z=0;z<cbs.length;z++){ try{ cbs[z](c); }catch(e){} } }); }
 function ensurePhotoDecoded(i,cb){ if(typeof PHOTOS==="undefined"||!PHOTOS[i]){ if(cb)cb(null); return; } _ensureDecodedP(PHOTOS[i],cb); }
 function ensurePhotoDecodedAsync(i){ return new Promise(function(res){ try{ ensurePhotoDecoded(i,function(c){ res(c); }); }catch(e){ res(null); } }); }
 function prerender(img,maxD){ try{ maxD=maxD||1280; var w=img.width||0,h=img.height||0; if(!w||!h) return null; var sc=Math.min(1,maxD/Math.max(w,h,1)); var cw=Math.max(1,Math.round(w*sc)), ch=Math.max(1,Math.round(h*sc)); var c=document.createElement("canvas"); c.width=cw; c.height=ch; var cx=c.getContext("2d"); if(!cx) return null; cx.drawImage(img,0,0,cw,ch); return c; }catch(e){ return null; } }
@@ -8898,7 +8898,8 @@ function _toggleFilmsMenu(anchor){
 }
 
 /* auto-save quand on quitte / masque la page */
-try{ window.addEventListener("visibilitychange", function(){ if(document.visibilityState==="hidden"){ try{ stopPlay(); }catch(e){} studioSaveLocal(); } }); window.addEventListener("pagehide", function(){ try{ stopPlay(); }catch(e){} studioSaveLocal(); }); }catch(e){}
+function _studioReDecodePhotos(){ try{ for(var i=0;i<PHOTOS.length;i++){ if(PHOTOS[i]){ PHOTOS[i].c=null; PHOTOS[i].img=null; PHOTOS[i]._durl=null; PHOTOS[i]._fb=null; } } _decLRU=[]; }catch(e){} try{ var _t=(window._pauseRenderT!=null?window._pauseRenderT:(A?visualTime():0)); if(typeof renderMontageAt==="function") renderMontageAt(_t||0); }catch(e){} }
+try{ window.addEventListener("visibilitychange", function(){ if(document.visibilityState==="hidden"){ try{ stopPlay(); }catch(e){} studioSaveLocal(); } else { _studioReDecodePhotos(); } }); window.addEventListener("pagehide", function(){ try{ stopPlay(); }catch(e){} studioSaveLocal(); }); window.addEventListener("pageshow", function(e){ if(e&&e.persisted) _studioReDecodePhotos(); }); }catch(e){}
 
 ovVid=document.getElementById("ovlVid");
 var ovlFile=document.getElementById("ovlFile"), ovlAmt=document.getElementById("ovlAmt");
