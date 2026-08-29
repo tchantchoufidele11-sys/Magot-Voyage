@@ -8603,10 +8603,10 @@ function _restorePhotoFromBlob(id, blob, meta, maxD){ return new Promise(functio
     var _md=Math.max((window._PCAP||1920), maxD||0, window._PMAX||0), _iw=im.naturalWidth||1, _ih=im.naturalHeight||1, _sc=Math.min(1,_md/Math.max(_iw,_ih,1));
     var cv=document.createElement("canvas"); cv.width=Math.max(1,Math.round(_iw*_sc)); cv.height=Math.max(1,Math.round(_ih*_sc)); cv.getContext("2d").drawImage(im,0,0,cv.width,cv.height);
     var _ft=photoFeat(cv); _ft.q=qualityScore(cv); if(meta.skip)_ft.skip=true;
-    var _rsig=(blob.size||0)+"|"+cv.width+"|"+cv.height+"|"+Math.round((_ft.lum||0)*1000);
+    var _rsig="id:"+id;
     if(!window._restSeen) window._restSeen={};
-    if(window._restSeen[_rsig]){ try{ URL.revokeObjectURL(url); }catch(e){} res(false); return; }   /* doublon exact -> ignoré (nettoie les films dupliqués) */
-    window._restSeen[_rsig]=1;
+    if(id!=null && window._restSeen[_rsig]){ try{ URL.revokeObjectURL(url); }catch(e){} res(false); return; }   /* même id déjà présent -> ignoré (les photos SIMILAIRES avec des ids différents sont conservées) */
+    if(id!=null) window._restSeen[_rsig]=1;
     var p={img:cv,c:cv,url:null,lum:_ft.lum,feat:_ft,_w:cv.width,_h:cv.height,_id:id,_jpgBlob:blob};
     if(meta.day!=null)p._day=meta.day; if(meta.cap!=null)p._cap=meta.cap; if(meta.capStyle)p._capStyle=meta.capStyle; if(meta.capAnim)p._capAnim=meta.capAnim;
     if(meta.capColor)p._capColor=meta.capColor; if(meta.capBand)p._capBand=meta.capBand; if(meta.capFont)p._capFont=meta.capFont; if(meta.capSize!=null)p._capSize=meta.capSize;
