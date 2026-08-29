@@ -9892,6 +9892,8 @@ function studioOpen(w, tr){ if(!w||!tr) return; var fid="trip:"+tr.id;
       try{ var _memPh=(tr.memories||[]).filter(function(m){return m&&m.kind!=="video";}).length; var _memVi=(tr.memories||[]).filter(function(m){return m&&m.kind==="video";}).length; var _addPh=missing.filter(function(it){return !it.video;}).length; var _addVi=missing.filter(function(it){return it.video;}).length; if(w.__mergeDiag) w.__mergeDiag("MERGE DIAG\nphotos: memoires="+_memPh+" · avec media="+curPhList.length+" · film="+havePh.length+" · +ajout="+_addPh+" · retrait="+delPh.length+"\nvideos: memoires="+_memVi+" · avec media="+curViList.length+" · +ajout="+_addVi); }catch(e){}
       if(missing.length && w.studioAddPhotos){ w.studioAddPhotos(missing); }
       else if((delPh.length||clipTotal>haveClipIds.length) && w.studioRebuild){ try{ w.studioRebuild(); }catch(e){} }
+      /* (b) Rechargement depuis la base Souvenirs : une seule fois par voyage, garde les réglages. */
+      try{ var _refKey="mv_srcref_"+tr.id; if(!localStorage.getItem(_refKey) && w.studioRefreshFromSource){ setTimeout(function(){ try{ w.studioRefreshFromSource(items); }catch(e){} }, missing.length?2500:300); localStorage.setItem(_refKey,"1"); } }catch(e){}
     }catch(e){} })(); }, 1600);
     return;
   } }catch(e){}
@@ -13335,7 +13337,7 @@ function renderMemories(){ const body=document.getElementById("memBody"); if(!bo
     h+= list.length? `<div class="mem-places">`+list.map(p=>memPlaceCard(tr,p)).join("")+`</div>` : `<div class="empty" style="padding:24px 8px"><p>${t("mem.noPlaces")}</p></div>`; }
   else { const pts=souvPoints(tr); const located=pts.length>0;
     /* --- HÉROS : la page commence par une envie, pas par un tableau de bord --- */
-    { const d=mvDirect(tr); const nPh=(tr.memories||[]).length;
+    { const d=mvDirect(tr); const nPh=(tr.memories||[]).filter(m=>m&&m.kind!=="video").length;
       const ready=(pts.length>0 && nPh>0);              /* un film exige des lieux ET des photos */
       const est=Math.max(30,Math.min(120, 8+nPh*2.5+pts.length*4));
       const cover=(tr.filmPoster?{id:tr.filmPoster}:null)||(tr.memories||[])[0];

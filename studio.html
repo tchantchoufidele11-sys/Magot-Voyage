@@ -8678,7 +8678,23 @@ function studioRemovePhotos(ids){ try{ if(!ids||!ids.length) return 0; var s={},
 function studioRemoveAllClips(){ try{ for(var i=CLIPS.length-1;i>=0;i--){ try{ if(CLIPS[i]&&CLIPS[i].el) CLIPS[i].el.remove(); }catch(e){} } CLIPS.length=0; clipVidReady=false; }catch(e){} }
 function studioRemoveClips(ids){ try{ if(!ids||!ids.length) return 0; var s={},n=0; ids.forEach(function(x){ s[x]=1; }); for(var i=CLIPS.length-1;i>=0;i--){ if(CLIPS[i]&&CLIPS[i]._mid!=null&&s[CLIPS[i]._mid]){ try{ if(CLIPS[i].el) CLIPS[i].el.remove(); }catch(e){} CLIPS.splice(i,1); n++; } } clipVidReady=CLIPS.some(function(c){return c.ready;}); return n; }catch(e){ return 0; } }
 function studioRebuild(){ try{ if(A&&(PHOTOS.length||clipVidReady)){ window.USER_ORDER=[]; for(var j=0;j<PHOTOS.length;j++) window.USER_ORDER.push(j); buildPartition(); paintStrip(0); studioSaveLocal(); } }catch(e){} }
-try{ window.studioClipIds=studioClipIds; window.studioClipCount=studioClipCount; window.studioRemovePhotos=studioRemovePhotos; window.studioRemoveClips=studioRemoveClips; window.studioRemoveAllClips=studioRemoveAllClips; window.studioRebuild=studioRebuild; }catch(e){}
+function studioRefreshFromSource(items){ try{
+  var map={}; (items||[]).forEach(function(it){ if(it&&!it.video&&it.id!=null&&it.url) map[it.id]=it.url; });
+  var idx=0, cap=(window._PCAP||1920);
+  (function next(){ if(idx>=PHOTOS.length){ try{ studioRebuild(); }catch(e){} return; }
+    var p=PHOTOS[idx++]; var u=(p&&p._id!=null)?map[p._id]:null; if(!u){ next(); return; }
+    fetch(u).then(function(r){ return r.blob(); }).then(function(src){
+      var im=new Image(), ou=URL.createObjectURL(src);
+      im.onload=function(){ try{ var sc=Math.min(1,cap/Math.max(im.naturalWidth,im.naturalHeight,1)); var cv=document.createElement("canvas"); cv.width=Math.max(1,Math.round(im.naturalWidth*sc)); cv.height=Math.max(1,Math.round(im.naturalHeight*sc)); cv.getContext("2d").drawImage(im,0,0,cv.width,cv.height);
+        if(cv.toBlob){ cv.toBlob(function(b){ if(b){ p._jpgBlob=b; p.c=null; p.img=null; p._durl=null; try{ p._fb=prerender(cv,(PHOTOS.length>60?300:560)); }catch(e){} } try{ URL.revokeObjectURL(ou); }catch(e){} setTimeout(next,10); },"image/jpeg",0.9); }
+        else { try{ URL.revokeObjectURL(ou); }catch(e){} next(); }
+      }catch(e){ try{ URL.revokeObjectURL(ou); }catch(_){} next(); } };
+      im.onerror=function(){ try{ URL.revokeObjectURL(ou); }catch(_){} next(); };
+      im.src=ou;
+    }).catch(function(){ next(); });
+  })();
+}catch(e){} }
+try{ window.studioClipIds=studioClipIds; window.studioClipCount=studioClipCount; window.studioRemovePhotos=studioRemovePhotos; window.studioRemoveClips=studioRemoveClips; window.studioRemoveAllClips=studioRemoveAllClips; window.studioRebuild=studioRebuild; window.studioRefreshFromSource=studioRefreshFromSource; }catch(e){}
 try{ window.__mergeDiag=function(txt){ try{ var el=document.getElementById("mergeDiag"); if(!el){ el=document.createElement("div"); el.id="mergeDiag"; el.style.cssText="position:fixed;left:6px;top:230px;z-index:2147483647;max-width:94vw;background:rgba(24,110,70,.96);color:#fff;font:600 11px/1.4 system-ui;padding:9px 11px;border-radius:9px;white-space:pre-wrap;pointer-events:none;box-shadow:0 2px 14px rgba(0,0,0,.6)"; document.body.appendChild(el); } el.textContent=txt; }catch(e){} }; }catch(e){}
 function studioDeleteFilm(id){ try{ var idx=_filmsIndex().filter(function(f){ return f.id!==id; }); _filmsIndexSave(idx); localStorage.removeItem(_filmKey(id)); }catch(e){} if(_curFilmId===id)_curFilmId=null; try{ renderFilms(); }catch(e){} }
 
