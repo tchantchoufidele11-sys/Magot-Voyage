@@ -9893,7 +9893,7 @@ function studioOpen(w, tr){ if(!w||!tr) return; var fid="trip:"+tr.id;
       if(missing.length && w.studioAddPhotos){ w.studioAddPhotos(missing); }
       else if((delPh.length||clipTotal>haveClipIds.length) && w.studioRebuild){ try{ w.studioRebuild(); }catch(e){} }
       /* (b) Rechargement depuis la base Souvenirs : une seule fois par voyage, garde les réglages. */
-      try{ var _refKey="mv_srcref_"+tr.id; if(!localStorage.getItem(_refKey) && w.studioRefreshFromSource){ setTimeout(function(){ try{ w.studioRefreshFromSource(items); }catch(e){} }, missing.length?2500:300); localStorage.setItem(_refKey,"1"); } }catch(e){}
+      try{ var _refKey="mv_srcref2_"+tr.id; if(!localStorage.getItem(_refKey) && w.studioRefreshFromSource){ setTimeout(function(){ try{ w.studioRefreshFromSource(items); }catch(e){} }, missing.length?2500:300); localStorage.setItem(_refKey,"1"); } }catch(e){}
     }catch(e){} })(); }, 1600);
     return;
   } }catch(e){}

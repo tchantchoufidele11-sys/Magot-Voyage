@@ -1693,20 +1693,20 @@ function _decodeFromSrc(p,cb){ var mx=Math.max((window._PCAP||1920),(typeof wind
   }catch(e){ if(p._file)_decodeFromFile(p._file,cb); else cb(null); } }
 function _decodeFromFile(file,cb){ var mx=Math.max((window._PCAP||1920),(typeof window!=="undefined"&&window._PMAX)?window._PMAX:0); var done=function(src){ var c=prerender(src,mx); if(src&&src.close){try{src.close();}catch(e){}} cb(c); }; try{ if(window.createImageBitmap){ createImageBitmap(file).then(done).catch(function(){ var u=URL.createObjectURL(file); var im=new Image(); im.onload=function(){ done(im); try{URL.revokeObjectURL(u);}catch(e){} }; im.onerror=function(){ try{URL.revokeObjectURL(u);}catch(e){} cb(null); }; im.src=u; }); } else { var u=URL.createObjectURL(file); var im=new Image(); im.onload=function(){ done(im); try{URL.revokeObjectURL(u);}catch(e){} }; im.onerror=function(){ cb(null); }; im.src=u; } }catch(e){ cb(null); } }
 /* RÉSOLUTION SOURCE DES PHOTOS = résolution d'export (1920) : plus aucun agrandissement -> netteté « niveau CapCut » à l'affichage ET à l'export. */
-var _HQ=false; try{ localStorage.removeItem("magot_hq"); }catch(e){}   /* Qualité max retirée : la source fraîche (3840) décodée en 1920 est déjà nette et évite les crashes mémoire iOS */
-var _PCAP=1920; try{ window._PCAP=_PCAP; window._HQ=false; }catch(e){}
+var _HQ=false; try{ localStorage.removeItem("magot_hq"); }catch(e){}
+var _PCAP=2560; try{ window._PCAP=_PCAP; window._HQ=false; }catch(e){}   /* photos décodées à 2560px = nettes comme l'original même avec le zoom ; le petit cache (ci-dessous) évite le crash */
 function _resCap(){ if(window._HQ) return 2560; return ((typeof navigator!=="undefined"&&navigator.deviceMemory&&navigator.deviceMemory<4)?1280:1920); }
 try{ window._resCap=_resCap; }catch(e){}
 function _computeDecMax(){
   var pc=(window._PCAP||1920), bytesPer=pc*pc*4*0.62, budgetMB;
   try{ var dm=(typeof navigator!=="undefined"&&navigator.deviceMemory)||0;
-    if(dm){ budgetMB=(dm>=8?340:(dm>=6?250:(dm>=4?180:(dm>=2?110:64)))); }
-    else { budgetMB=210; }
-  }catch(e){ budgetMB=180; }
-  var n=Math.round(budgetMB*1024*1024/bytesPer*0.5);   /* le secours 760px (net) couvre les non-décodées : on garde ~16 photos pleine résolution, marge pour vignettes 760px + 6 clips + rendu -> pas de crash, plus de grisaille */
-  return Math.max(8, Math.min(22, n));
+    if(dm){ budgetMB=(dm>=8?360:(dm>=6?270:(dm>=4?190:(dm>=2?120:70)))); }
+    else { budgetMB=230; }
+  }catch(e){ budgetMB=190; }
+  var n=Math.round(budgetMB*1024*1024/bytesPer*0.55);   /* à 2560px : garde ~8-12 photos pleine résolution (le plan courant + les suivants) ; le secours net couvre le reste -> net comme l'original, sans crash iOS */
+  return Math.max(6, Math.min(14, n));
 }
-function _fbRes(){ var n=(typeof PHOTOS!=="undefined")?PHOTOS.length:0; return n>90?640:(n>45?760:900); }
+function _fbRes(){ var n=(typeof PHOTOS!=="undefined")?PHOTOS.length:0; return n>90?480:(n>45?600:720); }
 var _decLRU=[], _DEC_MAX=_computeDecMax();
 try{ window._DEC_MAX=_DEC_MAX; }catch(e){}
 function _touchDec(i){ if(typeof PHOTOS==="undefined"||!PHOTOS[i]) return; var k=_decLRU.indexOf(i); if(k>=0) _decLRU.splice(k,1); _decLRU.push(i); while(_decLRU.length>_DEC_MAX){ var old=_decLRU.shift(); if(old!==i && PHOTOS[old] && (PHOTOS[old]._jpgBlob || PHOTOS[old]._file)){ PHOTOS[old].c=null; PHOTOS[old].img=null; PHOTOS[old]._durl=null; } } }
