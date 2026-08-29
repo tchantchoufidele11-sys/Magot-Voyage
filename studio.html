@@ -1235,6 +1235,7 @@ function _expRace(promise, ms, label){
 function _expForceReset(msg){
   try{ EXPORT_ABORT=true; EXPORTING=false; }catch(e){}
   try{ if(_expWatch){ clearTimeout(_expWatch); _expWatch=null; } }catch(e){}
+  try{ if(window.__preRender && window.__preRender.active){ var _pr=window.__preRender; window.__preRender=null; try{ if(_pr.cb) _pr.cb(false, (msg||"interrompu")+(window.__expLastPct!=null?(" (\u00e0 "+Math.round(window.__expLastPct*100)+"%)"):"")); }catch(e){} } }catch(e){}
   try{ if(typeof expHide==="function") expHide(); }catch(e){}
   try{ if(msg && typeof _expMsg==="function") _expMsg(msg); }catch(e){}
 }
@@ -8893,7 +8894,7 @@ function _toggleFilmsMenu(anchor){
       else if(a==="save"){ try{ if(!PHOTOS.length && !clipVidReady){ setState(_st("Rien \u00e0 enregistrer pour l\'instant.")); return; } studioSaveLocal(); setState(_st("\u2713 Montage enregistr\u00e9 dans \u00ab Mes films \u00bb.")); }catch(e){} }
       else if(a==="new"){ var _nm=function(){ try{ if(PHOTOS.length||clipVidReady) studioSaveLocal(); }catch(e){} try{ _curFilmId=null; document.getElementById("clear").click(); setState(_st("Nouveau montage \u2014 ajoute des photos et une musique.")); }catch(e){} }; if(typeof window._studioConfirm==="function") window._studioConfirm("Enregistrer le montage en cours puis repartir \u00e0 z\u00e9ro ?","Nouveau",_nm); else if(confirm("Enregistrer le montage en cours puis repartir \u00e0 z\u00e9ro ?")) _nm(); }
       else if(a==="tuto"){ setTimeout(function(){ try{ window._studioTuto(true); }catch(e){} }, 200); }
-      else if(a==="prerender"){ try{ if(typeof studioPreRenderFilm==="function") studioPreRenderFilm(function(ok,info){ try{ setState(ok?("\u2713 Film pr\u00e9-rendu et stock\u00e9"+(info?" ("+Math.round(info/1048576)+" Mo)":"")):("Pr\u00e9-rendu \u00e9chou\u00e9"+(typeof info==="string"?" : "+info:""))); }catch(e){} }); }catch(e){} }
+      else if(a==="prerender"){ try{ if(typeof studioPreRenderFilm==="function") studioPreRenderFilm(function(ok,info){ try{ if(ok){ alert("\u2705 FILM PR\u00c9-RENDU ET STOCK\u00c9\n\n"+(info?Math.round(info/1048576)+" Mo":"OK")+"\n\nLa fondation fonctionne \u2014 on peut passer \u00e0 la lecture vid\u00e9o."); } else { alert("\u274c PR\u00c9-RENDU \u00c9CHOU\u00c9\n"+(typeof info==="string"?info:"(interrompu)")+"\n\nDis-le-moi : on passera au d\u00e9coupage en segments."); } }catch(e){ try{ setState(ok?"\u2713 Film pr\u00e9-rendu et stock\u00e9":"Pr\u00e9-rendu \u00e9chou\u00e9"); }catch(_){} } }); }catch(e){} }
       else if(a==="hq"){ try{
         window._HQ=!window._HQ; try{ localStorage.setItem("magot_hq", window._HQ?"1":"0"); }catch(e){}
         window._PCAP=window._HQ?2560:1920;
@@ -9061,7 +9062,7 @@ function renderMontageAt(t){
   if(window.SIGN_PE && t>window.SIGN_PE-1.5 && t<window.SIGN_PE){ try{ _fadeBlackOverlay((t-(window.SIGN_PE-1.5))/1.5); }catch(e){} }   /* l'image se fond au noir avant la fin */
 }
 function _expMsg(m){ try{ var e=document.getElementById("expProg"); var t=e?e.querySelector("div"):null; if(e){ if(t) t.textContent=m; e.style.display="flex"; var b=document.getElementById("expBar"); if(b)b.style.width="0%"; setTimeout(function(){ try{ e.style.display="none"; if(t)t.textContent="Export en cours\u2026"; }catch(x){} },2600); } }catch(x){} try{ if(typeof setState==="function") setState(m); }catch(x){} }
-function expShow(p){ var e=document.getElementById("expProg"); if(e){ e.style.display="flex"; } var b=document.getElementById("expBar"), pc=document.getElementById("expPct"); var v=Math.round(p*100); if(b) b.style.width=v+"%"; if(pc) pc.textContent=v+" %"; var rg=document.getElementById("expRing"); if(rg){ var off=Math.max(0,Math.min(1,1-p)); rg.style.strokeDashoffset=String(off); } }
+function expShow(p){ try{ window.__expLastPct=p; }catch(e){} var e=document.getElementById("expProg"); if(e){ e.style.display="flex"; } var b=document.getElementById("expBar"), pc=document.getElementById("expPct"); var v=Math.round(p*100); if(b) b.style.width=v+"%"; if(pc) pc.textContent=v+" %"; var rg=document.getElementById("expRing"); if(rg){ var off=Math.max(0,Math.min(1,1-p)); rg.style.strokeDashoffset=String(off); } }
 /* Positionne le liseré EXACTEMENT autour du cadre vidéo réel (.stageWrap).
    Repli : anneau centré au ratio du format d'export si le cadre est introuvable. */
 function _expSizeRing(){
