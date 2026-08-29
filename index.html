@@ -9874,10 +9874,23 @@ function studioOpen(w, tr){ if(!w||!tr) return; var fid="trip:"+tr.id;
   try{ if(w.studioHasFilm && w.studioHasFilm(fid)){
     try{ w.studioOpenFilm(fid); }catch(e){}
     setTimeout(function(){ (async function(){ try{
-      var have=(w.studioPhotoIds&&w.studioPhotoIds())||[];
       var items=await studioBuildItems(tr);
-      var missing=items.filter(function(it){ return have.indexOf(it.id)<0; });
-      if(missing.length && w.studioAddPhotos) w.studioAddPhotos(missing);
+      var curPh={}, curVi={}, curPhList=[], curViList=[];
+      items.forEach(function(it){ if(it.video){ curVi[it.id]=1; curViList.push(it.id); } else { curPh[it.id]=1; curPhList.push(it.id); } });
+      /* --- PHOTOS : ajoute les nouvelles, retire les supprimées --- */
+      var havePh=(w.studioPhotoIds&&w.studioPhotoIds())||[];
+      var delPh=havePh.filter(function(id){ return !curPh[id]; });
+      if(delPh.length && w.studioRemovePhotos) try{ w.studioRemovePhotos(delPh); }catch(e){}
+      /* --- VIDÉOS : si le film a des clips sans id (ancien film) -> on repart propre ; sinon on synchronise par id --- */
+      var haveClipIds=(w.studioClipIds&&w.studioClipIds())||[];
+      var clipTotal=(w.studioClipCount&&w.studioClipCount())||0;
+      if(clipTotal>haveClipIds.length && w.studioRemoveAllClips){ try{ w.studioRemoveAllClips(); }catch(e){} haveClipIds=[]; }
+      else { var delVi=haveClipIds.filter(function(id){ return !curVi[id]; }); if(delVi.length && w.studioRemoveClips) try{ w.studioRemoveClips(delVi); }catch(e){} haveClipIds=haveClipIds.filter(function(id){ return curVi[id]; }); }
+      var haveClipSet={}; haveClipIds.forEach(function(id){ haveClipSet[id]=1; });
+      /* --- AJOUTS : photos + clips manquants --- */
+      var missing=items.filter(function(it){ return it.video ? !haveClipSet[it.id] : (havePh.indexOf(it.id)<0); });
+      if(missing.length && w.studioAddPhotos){ w.studioAddPhotos(missing); }
+      else if((delPh.length||clipTotal>haveClipIds.length) && w.studioRebuild){ try{ w.studioRebuild(); }catch(e){} }
     }catch(e){} })(); }, 1600);
     return;
   } }catch(e){}
