@@ -9889,6 +9889,7 @@ function studioOpen(w, tr){ if(!w||!tr) return; var fid="trip:"+tr.id;
       var haveClipSet={}; haveClipIds.forEach(function(id){ haveClipSet[id]=1; });
       /* --- AJOUTS : photos + clips manquants --- */
       var missing=items.filter(function(it){ return it.video ? !haveClipSet[it.id] : (havePh.indexOf(it.id)<0); });
+      try{ var _memPh=(tr.memories||[]).filter(function(m){return m&&m.kind!=="video";}).length; var _memVi=(tr.memories||[]).filter(function(m){return m&&m.kind==="video";}).length; var _addPh=missing.filter(function(it){return !it.video;}).length; var _addVi=missing.filter(function(it){return it.video;}).length; if(w.__mergeDiag) w.__mergeDiag("MERGE DIAG\nphotos: memoires="+_memPh+" · avec media="+curPhList.length+" · film="+havePh.length+" · +ajout="+_addPh+" · retrait="+delPh.length+"\nvideos: memoires="+_memVi+" · avec media="+curViList.length+" · +ajout="+_addVi); }catch(e){}
       if(missing.length && w.studioAddPhotos){ w.studioAddPhotos(missing); }
       else if((delPh.length||clipTotal>haveClipIds.length) && w.studioRebuild){ try{ w.studioRebuild(); }catch(e){} }
     }catch(e){} })(); }, 1600);
