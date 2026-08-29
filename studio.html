@@ -9400,7 +9400,9 @@ async function exportStudio(){ try{ _reqWake(); }catch(e){} try{ _hideClipOverla
     /* Débit ADAPTATIF orienté CLARTÉ : une vidéo en mouvement a besoin de beaucoup plus de
        débit qu'un diaporama de photos pour rester nette. Court = jusqu'à 12 Mbit/s (très net),
        plancher 4 Mbit/s, plafonné par un budget total (~180 Mo) pour protéger la mémoire iOS. */
-    var _vbps=Math.max(12000000, Math.min(24000000, Math.floor(300*1048576*8/Math.max(1,DUR))));   /* net mais plus léger : plancher 12, max 24 Mbit/s, budget ~300 Mo -> l'export va au bout */
+    var _vbps=(window.__preRender&&window.__preRender.active)
+      ? Math.max(2500000, Math.min(6000000, Math.floor(110*1048576*8/Math.max(1,DUR))))   /* PRÉ-RENDU (lecture) : ~3 Mbit/s, ~110 Mo max même sur un long film -> tient en mémoire, va au bout */
+      : Math.max(12000000, Math.min(24000000, Math.floor(300*1048576*8/Math.max(1,DUR))));   /* export partage : haute qualité */
     var rec; try{ rec=new MediaRecorder(stream, mime?{mimeType:mime,videoBitsPerSecond:_vbps}:{videoBitsPerSecond:_vbps}); }catch(e){ try{ rec=new MediaRecorder(stream);}catch(e2){ EXPORTING=false; try{setRenderSize(_ow,_oh);}catch(_r){} _expMsg("MediaRecorder refusé : "+((e2&&e2.message)||e2)); return; } }
 
     var chunks=[],done=false,_hardStop=null,_bytes=0;
