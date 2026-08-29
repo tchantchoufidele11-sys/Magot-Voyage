@@ -1710,7 +1710,15 @@ function _decodeFromSrc(p,cb){ var mx=Math.max((window._PCAP||1920),(typeof wind
 function _decodeFromFile(file,cb){ var mx=Math.max((window._PCAP||1920),(typeof window!=="undefined"&&window._PMAX)?window._PMAX:0); var done=function(src){ var c=prerender(src,mx); if(src&&src.close){try{src.close();}catch(e){}} cb(c); }; try{ if(window.createImageBitmap){ createImageBitmap(file).then(done).catch(function(){ var u=URL.createObjectURL(file); var im=new Image(); im.onload=function(){ done(im); try{URL.revokeObjectURL(u);}catch(e){} }; im.onerror=function(){ try{URL.revokeObjectURL(u);}catch(e){} cb(null); }; im.src=u; }); } else { var u=URL.createObjectURL(file); var im=new Image(); im.onload=function(){ done(im); try{URL.revokeObjectURL(u);}catch(e){} }; im.onerror=function(){ cb(null); }; im.src=u; } }catch(e){ cb(null); } }
 /* RÉSOLUTION SOURCE DES PHOTOS = résolution d'export (1920) : plus aucun agrandissement -> netteté « niveau CapCut » à l'affichage ET à l'export. */
 var _HQ=false; try{ localStorage.removeItem("magot_hq"); }catch(e){}
-var _PCAP=1200; try{ window._PCAP=_PCAP; window._HQ=false; }catch(e){}   /* 1200px = taille écran (1170px) : décodage RAPIDE qui suit la lecture + on peut en garder beaucoup prêtes -> plus de blocage, photos nettes en continu */
+function _adaptivePCAP(){ try{
+  var dpr=Math.max(1,Math.min(3,(window.devicePixelRatio||1)));
+  var sw=(window.screen&&screen.width)||400, sh=(window.screen&&screen.height)||700;
+  var desired=Math.round(Math.max(sw,sh)*dpr*1.15);   /* pixels RÉELS du plus grand côté écran × marge de zoom Ken Burns */
+  var dm=(navigator.deviceMemory||0), isTouch=(('ontouchstart' in window)||((navigator.maxTouchPoints||0)>0));
+  var cap=(!isTouch)?2600:(dm>=6?1600:(dm>=4?1400:1280));   /* ordinateur : pleine résolution nette ; mobile : optimisé rapide selon la mémoire */
+  return Math.max(1100, Math.min(cap, desired));
+}catch(e){ return 1400; } }
+var _PCAP=_adaptivePCAP(); try{ window._PCAP=_PCAP; window._HQ=false; }catch(e){}   /* décodage ADAPTATIF : chaque écran (iPhone / iPad / ordinateur) reçoit la résolution idéale — net partout, rapide partout */
 function _resCap(){ if(window._HQ) return 2560; return ((typeof navigator!=="undefined"&&navigator.deviceMemory&&navigator.deviceMemory<4)?1280:1920); }
 try{ window._resCap=_resCap; }catch(e){}
 function _computeDecMax(){
