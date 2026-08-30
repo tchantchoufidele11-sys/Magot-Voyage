@@ -9541,7 +9541,7 @@ async function exportStudio(){ try{ _reqWake(); }catch(e){} try{ _hideClipOverla
   if(!A||!SEGS.length||(!PHOTOS.length && !clipVidReady)){ _expMsg("Charge d'abord une musique + des photos ou des vidéos."); return; }
   if(typeof MediaRecorder==="undefined"){ _expMsg("Enregistrement non supporté ici. Ouvre la page dans Safari (\u2197 en bas \u2192 \u00ab Ouvrir dans Safari \u00bb)."); return; }
   stopPlay(); EXPORTING=true; EXPORT_ABORT=false; expShow(0); try{ _expSizeRing(); }catch(e){}
-  try{ window.__expSaveDec=_DEC_MAX; window.__expSavePcap=window._PCAP; if(window.__preRender&&window.__preRender.active){ _DEC_MAX=3; window._PCAP=1280; } else { _DEC_MAX=Math.min(_DEC_MAX,6); } for(var _ei=0;_ei<PHOTOS.length;_ei++){ if(PHOTOS[_ei]){ PHOTOS[_ei].c=null; PHOTOS[_ei].img=null; } } _decLRU=[]; }catch(e){}   /* mémoire minimale pendant le rendu temps réel (évite l'accumulation qui tue la page à ~85%) */
+  try{ window.__expSaveDec=_DEC_MAX; window.__expSavePcap=window._PCAP; if(window.__preRender&&window.__preRender.active){ _DEC_MAX=3; window._PCAP=1280; } else { _DEC_MAX=Math.min(_DEC_MAX,6); window._PCAP=((typeof navigator!=="undefined"&&navigator.deviceMemory&&navigator.deviceMemory<4)?1920:2160); }   /* EXPORT NET : photos décodées en pleine résolution (2160) depuis l'original, plus d'agrandissement du 1200 -> fini le mou */ for(var _ei=0;_ei<PHOTOS.length;_ei++){ if(PHOTOS[_ei]){ PHOTOS[_ei].c=null; PHOTOS[_ei].img=null; } } _decLRU=[]; }catch(e){}   /* mémoire minimale pendant le rendu temps réel (évite l'accumulation qui tue la page à ~85%) */
   /* Watchdog global couvrant Turbo + repli : rend la main au bout de 5 min si tout se fige. */
   try{ if(_expWatch) clearTimeout(_expWatch); }catch(e){}
   _expWatch=setTimeout(function(){ if(EXPORTING){ _expForceReset("Export interrompu (trop long)."); } }, 300000);
@@ -9550,8 +9550,8 @@ async function exportStudio(){ try{ _reqWake(); }catch(e){} try{ _hideClipOverla
   if((window._MAGOT_TURBO!==false) && typeof VideoEncoder!=="undefined" && typeof VideoFrame!=="undefined" && typeof Mp4Muxer!=="undefined"){
     try{ _expStage("Rendu fluide image par image (un peu plus long)\u2026"); }catch(e){}
     var _tr="fail"; try{ _tr=await _turboExport(); }catch(e){ _tr="fail"; }
-    if(_tr==="ok") return;
-    if(_tr==="abort"||EXPORT_ABORT){ EXPORTING=false; try{ if(_expWatch){clearTimeout(_expWatch);_expWatch=null;} }catch(e){} expHide(); return; }
+    if(_tr==="ok"){ try{ if(window.__expSavePcap) window._PCAP=window.__expSavePcap; }catch(e){} return; }
+    if(_tr==="abort"||EXPORT_ABORT){ try{ if(window.__expSavePcap) window._PCAP=window.__expSavePcap; }catch(e){} EXPORTING=false; try{ if(_expWatch){clearTimeout(_expWatch);_expWatch=null;} }catch(e){} expHide(); return; }
     /* _tr === "fail" -> on continue en MediaRecorder temps réel (fiable). EXPORTING reste true. */
     try{ _expStage("Bascule mode compatible\u2026"); }catch(e){}
   }
