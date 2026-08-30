@@ -1704,6 +1704,7 @@ function _decodeFromSrcFull(p,cb,mx,blob){ blob=blob||p._jpgBlob; var done=funct
    pendant que le rendu tourne. REPLI AUTOMATIQUE sur le fil principal si le Worker est indisponible,
    échoue, ou dépasse 2,5 s -> aucun risque pour la lecture qui fonctionne déjà. */
 var _decWorker=null, _decWSeq=0, _decWMap={}, _decWTried=false;
+try{ window.__decWorkerOff=true; }catch(e){}   /* DÉFAUT : Worker DÉSACTIVÉ. Le décodage fil principal des blobs légers est déjà à 0 ms, et le Worker (indisponible/lent sur beaucoup d'appareils) occupait les créneaux de décodage et asphyxiait le préchargement -> plans noirs. Réactivable via window.__decWorkerOff=false si un jour utile. */
 function _initDecWorker(){
   if(_decWorker || window.__decWorkerOff===true || _decWTried) return; _decWTried=true;
   try{
