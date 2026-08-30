@@ -9078,7 +9078,7 @@ function _studioReDecodePhotos(){
     else if(_tr>18){ if(glc) glc.style.visibility="visible"; _dg.ms=Math.round(((window.performance&&performance.now)?performance.now():Date.now())-_t0); window.__resumeDiag=_dg; clearInterval(_chk); }
   }catch(e){ clearInterval(_chk); } }, 120);
   window.__resumeDiag=_dg; window.__resumeAt=Date.now();
-  _draw(); setTimeout(_draw,150); setTimeout(_draw,450); setTimeout(_draw,1000);
+  _draw(); var _rc=0; var _ri=setInterval(function(){ _rc++; try{ _draw(); }catch(e){} if(_rc>16){ clearInterval(_ri); } }, 150);   /* redessine en continu ~2,4 s : l'image réapparaît dès que le décodage du plan courant est fini (fini l'aperçu noir figé en pause) */
 }
 try{ window.addEventListener("visibilitychange", function(){ if(document.visibilityState==="hidden"){ try{ stopPlay(); }catch(e){} studioSaveLocal(); try{ if(_decWorker) _decWorker.terminate(); }catch(e){} _decWorker=null; _decWTried=false; try{ window.__decWorker=false; }catch(e){} } else { _studioReDecodePhotos(); } }); window.addEventListener("pagehide", function(){ try{ stopPlay(); }catch(e){} studioSaveLocal(); }); window.addEventListener("pageshow", function(e){ if(e&&e.persisted) _studioReDecodePhotos(); }); }catch(e){}
 
