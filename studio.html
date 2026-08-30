@@ -1702,7 +1702,7 @@ function _adaptivePCAP(){ try{
   var desired=Math.round(Math.max(sw,sh)*dpr*1.15);   /* pixels RÉELS du plus grand côté écran × marge de zoom — exactement ce dont l'écran a besoin */
   return Math.max(1000, Math.min(3840, desired));   /* seules bornes = PHYSIQUES : min lisible, max = résolution des photos sources. Aucune limite arbitraire. */
 }catch(e){ return 1600; } }
-var _PCAP=1920; try{ window._PCAP=_PCAP; window._HQ=false; }catch(e){}   /* COMME L'ANCIEN FICHIER (prouvé plus net) : 1920 fixe pour toutes les photos = résolution d'export, net à l'écran ET à l'export, sans agrandissement */
+var _PCAP=1200; try{ window._PCAP=_PCAP; window._HQ=false; }catch(e){}   /* MESURÉ : 1920px = 708ms de décodage sur cet iPhone -> trop lent pour la lecture temps réel. 1200px ≈ 275ms estimé, tenable avec ~2s d'avance. Net sur écran 1170px. */
 /* ===== MOTEUR IMAGES — étape 1 : résolution PAR PLAN + cache glissant borné en Mo ===== */
 var _CACHE_MB_CAP=170;   /* budget RAM proche de l’ancien fichier (190 Mo iOS) : à 1920px on garde ~11 photos décodées + pinning CURRENT/NEXT */
 function _dispPx(){ try{ var h=document.querySelector(".hero"); var w=h?h.clientWidth:0, ht=h?h.clientHeight:0; var lng=Math.max(w,ht)||Math.max((window.screen&&screen.width)||390,(window.screen&&screen.height)||700); return Math.round(lng*Math.max(1,(window.devicePixelRatio||1))); }catch(e){ return 1400; } }
