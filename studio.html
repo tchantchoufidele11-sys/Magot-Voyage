@@ -9398,7 +9398,9 @@ async function _turboExport(){
       var _si=-1; for(var _q=0;_q<SEGS.length;_q++){ if(_t>=SEGS[_q].start && _t<SEGS[_q].end){ _si=_q; break; } }
       var _sg=(_si>=0)?SEGS[_si]:null;
       if(_sg && _sg.video && _sg.vclip!=null && CLIPS[_sg.vclip] && CLIPS[_sg.vclip].ready){ var _cl=CLIPS[_sg.vclip], _vt=(_sg.vstart||0)+(_t-_sg.start)*(_sg.vspeed||_cl.speed||1); _vt=Math.max(0,Math.min((_cl.dur||0.1)-0.05,_vt)); await seekClip(_cl.el, _vt); }
-      if(_sg && !_sg.video && _sg.img>=0 && PHOTOS[_sg.img] && !PHOTOS[_sg.img].c){ try{ await Promise.race([ ensurePhotoDecodedAsync(_sg.img), new Promise(function(r){ setTimeout(r,2500); }) ]); }catch(e){} }
+      if(_sg && !_sg.video && _sg.img>=0 && PHOTOS[_sg.img] && !PHOTOS[_sg.img].c){ try{ await Promise.race([ ensurePhotoDecodedAsync(_sg.img), new Promise(function(r){ setTimeout(r,6000); }) ]); }catch(e){} }
+      /* look-ahead : on décode la PROCHAINE photo en arrière-plan pendant qu'on encode la courante -> le chargement IDB + décodage 2160 se fait en parallèle, plus de blocage à chaque photo */
+      try{ for(var _la=(_si>=0?_si+1:0); _la<SEGS.length && _la<((_si>=0?_si:0)+3); _la++){ var _nsg=SEGS[_la]; if(_nsg && !_nsg.video && _nsg.img>=0 && PHOTOS[_nsg.img] && !PHOTOS[_nsg.img].c && !PHOTOS[_nsg.img]._decoding){ ensurePhotoDecodedAsync(_nsg.img); break; } } }catch(e){}
       renderMontageAt(_t);
       var _fsrc=glReady?gl.canvas:base;
       if(SUBS.length){ try{ if(glReady && gl && gl.canvas) bctx.drawImage(gl.canvas,0,0,base.width,base.height); _drawSubOnCanvas(bctx, base.width, base.height, _subExpTime(_t)); _fsrc=base; }catch(e){} }
