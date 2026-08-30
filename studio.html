@@ -8838,6 +8838,7 @@ function studioRefreshFromSource(items){ try{
 try{ window.studioClipIds=studioClipIds; window.studioClipCount=studioClipCount; window.studioRemovePhotos=studioRemovePhotos; window.studioRemoveClips=studioRemoveClips; window.studioRemoveAllClips=studioRemoveAllClips; window.studioRebuild=studioRebuild; window.studioRefreshFromSource=studioRefreshFromSource; }catch(e){}
 try{ window.__mergeDiag=function(txt){ try{ var el=document.getElementById("mergeDiag"); if(!el){ el=document.createElement("div"); el.id="mergeDiag"; el.style.cssText="position:fixed;left:6px;top:230px;z-index:2147483647;max-width:94vw;background:rgba(24,110,70,.96);color:#fff;font:600 11px/1.4 system-ui;padding:9px 11px;border-radius:9px;white-space:pre-wrap;pointer-events:none;box-shadow:0 2px 14px rgba(0,0,0,.6)"; document.body.appendChild(el); } el.textContent=txt; }catch(e){} }; }catch(e){}
 try{ (function(){ var el=null; setInterval(function(){ try{ var d=window.__photoDiag; if(!d) return; if(!el){ el=document.createElement("div"); el.id="photoDiag"; el.style.cssText="position:fixed;left:6px;bottom:96px;z-index:2147483647;max-width:94vw;background:rgba(120,30,140,.95);color:#fff;font:600 12px/1.4 system-ui;padding:8px 11px;border-radius:9px;pointer-events:none;box-shadow:0 2px 14px rgba(0,0,0,.6)"; document.body.appendChild(el); } el.textContent="PHOTO DIAG · plan#"+d.idx+" · "+d.src+" "+d.w+"\u00d7"+d.h+"\ncible "+d.tgt+" · d\u00e9cod\u00e9 "+d.decR+" · "+(d.lag?"\u23f3 en pr\u00e9pa":"\u2713 pr\u00eat")+" · CURRENT "+(d.cur?"pinned":"\u2014")+" · NEXT "+d.nx+"\ncache "+d.nb+" img / "+d.mb+" Mo · decode "+d.ms+" ms "+(window.__bmpResize===false?"(R\u2717)":"(R\u2713)")+(window.__decWorkerOff===true?"(W\u2717)":(window.__decWorker?"(W\u2713)":"(W\u2026)"))+" · l\u00e9ger "+(function(){var n=0,t=0;try{for(var i=0;i<PHOTOS.length;i++){if(PHOTOS[i]){t++;if(PHOTOS[i]._dispBlob)n++;}}}catch(e){}return n+"/"+t;})()+" · avance "+d.adv+" s · \u00e9vict "+d.ev+" · file "+d.inf; }catch(e){} }, 400); })(); }catch(e){}
+try{ (function(){ var el=null; setInterval(function(){ try{ var d=window.__resumeDiag; var at=window.__resumeAt||0; if(!(d && (Date.now()-at)<8000)){ if(el) el.style.display="none"; return; } if(!el){ el=document.createElement("div"); el.id="resumeDiag"; el.style.cssText="position:fixed;left:6px;bottom:190px;z-index:2147483647;max-width:94vw;background:rgba(20,90,150,.96);color:#fff;font:600 12px/1.4 system-ui;padding:8px 11px;border-radius:9px;pointer-events:none;box-shadow:0 2px 14px rgba(0,0,0,.6)"; document.body.appendChild(el); } el.style.display="block"; el.textContent="RESUME \u00b7 webgl perdu: "+(d.lost?"oui":"non")+" \u00b7 gl r\u00e9tabli: "+(d.gl?"oui":"non")+" \u00b7 2D courant: "+(d.twoD?"oui":"non")+" \u00b7 worker relanc\u00e9: "+(d.worker?"oui":"non")+" \u00b7 courant d\u00e9cod\u00e9: "+d.cur+" \u00b7 temps: "+d.ms+" ms"; }catch(e){} }, 400); })(); }catch(e){}
 function studioDeleteFilm(id){ try{ var idx=_filmsIndex().filter(function(f){ return f.id!==id; }); _filmsIndexSave(idx); localStorage.removeItem(_filmKey(id)); }catch(e){} if(_curFilmId===id)_curFilmId=null; try{ renderFilms(); }catch(e){} }
 
 /* ---- UI : galerie de films (overlay injecté) ---- */
@@ -9045,24 +9046,35 @@ function _toggleFilmsMenu(anchor){
 
 /* auto-save quand on quitte / masque la page */
 function _studioReDecodePhotos(){
+  var _t0=(window.performance&&performance.now)?performance.now():Date.now();
+  var _dg={lost:false, gl:false, twoD:false, worker:true, cur:0, ms:0};
   var glc=null, bc=null; try{ glc=document.getElementById("gl"); bc=document.getElementById("base"); }catch(e){}
-  /* WebGL détruit en arrière-plan : on MASQUE #gl et on MONTRE le canvas 2D #base (qui portera l'image) le temps de la restauration -> jamais d'écran noir */
-  var _lost=false; try{ _lost=(!gl || (gl.isContextLost && gl.isContextLost())); }catch(e){ _lost=true; }
-  if(_lost){ try{ glReady=false; if(glc) glc.style.visibility="hidden"; if(bc) bc.style.visibility="visible"; initGL(); }catch(e){} }
-  /* canvas purgés par iOS -> re-décodage depuis les blobs légers (qui survivent en mémoire) */
+  /* 1. Au retour, le pipeline graphique est SUSPECT (contexte WebGL, surfaces, ressources GPU). 2. On vérifie le contexte. */
+  try{ _dg.lost=(!gl || (gl.isContextLost && gl.isContextLost())); }catch(e){ _dg.lost=true; }
+  /* 3+6b. Affichage 2D immédiat (#base) le temps de la remise en état -> jamais de noir */
+  try{ if(bc) bc.style.visibility="visible"; if(glc && _dg.lost) glc.style.visibility="hidden"; }catch(e){}
+  /* 4. Si WebGL perdu : recréer contexte + shaders + textures (ne pas continuer comme si de rien n'était) */
+  if(_dg.lost){ try{ glReady=false; initGL(); _dg.gl=!!glReady; }catch(e){ _dg.gl=false; } } else { _dg.gl=true; }
+  /* 5. Surfaces invalidées -> on jette les canvas et on re-décode depuis les blobs légers (qui survivent en mémoire) */
   try{ for(var i=0;i<PHOTOS.length;i++){ if(PHOTOS[i]){ PHOTOS[i].c=null; PHOTOS[i].img=null; PHOTOS[i]._durl=null; PHOTOS[i]._decRes=0; } } _decLRU=[]; }catch(e){}
   var _t=0; try{ _t=(window._pauseRenderT!=null?window._pauseRenderT:(A?visualTime():0))||0; }catch(e){}
   function _draw(){ try{ if(typeof renderMontageAt==="function") renderMontageAt(_t); }catch(e){} }
-  /* re-décodage FIL PRINCIPAL du plan courant (fiable : le Worker peut être suspendu au retour) */
-  try{ var _idx=-1; if(typeof SEGS!=="undefined"&&SEGS&&SEGS.length){ for(var s=0;s<SEGS.length;s++){ if(_t>=SEGS[s].start && _t<SEGS[s].end){ _idx=s; break; } } if(_idx<0) _idx=(_t<SEGS[0].start)?0:SEGS.length-1; }
-    if(_idx>=0 && SEGS[_idx] && !SEGS[_idx].video && SEGS[_idx].img>=0){ var pp=PHOTOS[SEGS[_idx].img], b=pp&&(pp._dispBlob||pp._jpgBlob); if(pp&&b){ _mainDecode(pp,function(c){ if(c){ pp.c=c; pp.img=c; pp._decRes=Math.max(c.width||0,c.height||0); var _ix=PHOTOS.indexOf(pp); if(_ix>=0)_touchDec(_ix); } _draw(); }, (window._PCAP||1200), b); } }
-  }catch(e){}
-  /* re-montrer #gl dès que WebGL est revenu ; sinon on reste sur le 2D (image visible, sans étalonnage, le temps que ça revienne) */
-  if(_lost){ var _tries=0; var _chk=setInterval(function(){ _tries++; try{
-    if(gl && !(gl.isContextLost&&gl.isContextLost()) && glReady){ if(glc) glc.style.visibility="visible"; if(bc) bc.style.visibility="hidden"; _draw(); clearInterval(_chk); }
-    else if(_tries>16){ if(glc) glc.style.visibility="visible"; clearInterval(_chk); }
-  }catch(e){ clearInterval(_chk); } }, 150); }
-  _draw(); setTimeout(_draw,150); setTimeout(_draw,450); setTimeout(_draw,900); setTimeout(_draw,1500);
+  /* 5b. Réinjecter au minimum CURRENT et NEXT, sur le FIL PRINCIPAL (fiable : le Worker peut être suspendu) */
+  var _segs=(typeof SEGS!=="undefined")?SEGS:null, _idx=-1;
+  if(_segs&&_segs.length){ for(var s=0;s<_segs.length;s++){ if(_t>=_segs[s].start && _t<_segs[s].end){ _idx=s; break; } } if(_idx<0) _idx=(_t<_segs[0].start)?0:_segs.length-1; }
+  function _dec(si,cur){ if(si<0||!_segs||!_segs[si]||_segs[si].video||_segs[si].img<0) return; var pp=PHOTOS[_segs[si].img], b=pp&&(pp._dispBlob||pp._jpgBlob); if(!pp||!b) return;
+    _mainDecode(pp,function(c){ if(c){ pp.c=c; pp.img=c; pp._decRes=Math.max(c.width||0,c.height||0); var ix=PHOTOS.indexOf(pp); if(ix>=0)_touchDec(ix); if(cur){ _dg.cur=pp._decRes; _dg.twoD=true; window.__resumeDiag=_dg; } } _draw(); }, (window._PCAP||1200), b);
+  }
+  _dec(_idx,true); if(_idx>=0 && _segs && _idx+1<_segs.length) _dec(_idx+1,false);
+  _draw();
+  /* 7. Repasser sur WebGL SEULEMENT quand le contexte est rétabli ; sinon rester en 2D */
+  var _tr=0; var _chk=setInterval(function(){ _tr++; try{
+    var ok=(gl && !(gl.isContextLost&&gl.isContextLost()) && glReady);
+    if(ok){ if(glc) glc.style.visibility="visible"; if(bc) bc.style.visibility="hidden"; _dg.gl=true; _draw(); _dg.ms=Math.round(((window.performance&&performance.now)?performance.now():Date.now())-_t0); window.__resumeDiag=_dg; clearInterval(_chk); }
+    else if(_tr>18){ if(glc) glc.style.visibility="visible"; _dg.ms=Math.round(((window.performance&&performance.now)?performance.now():Date.now())-_t0); window.__resumeDiag=_dg; clearInterval(_chk); }
+  }catch(e){ clearInterval(_chk); } }, 120);
+  window.__resumeDiag=_dg; window.__resumeAt=Date.now();
+  _draw(); setTimeout(_draw,150); setTimeout(_draw,450); setTimeout(_draw,1000);
 }
 try{ window.addEventListener("visibilitychange", function(){ if(document.visibilityState==="hidden"){ try{ stopPlay(); }catch(e){} studioSaveLocal(); try{ if(_decWorker) _decWorker.terminate(); }catch(e){} _decWorker=null; _decWTried=false; try{ window.__decWorker=false; }catch(e){} } else { _studioReDecodePhotos(); } }); window.addEventListener("pagehide", function(){ try{ stopPlay(); }catch(e){} studioSaveLocal(); }); window.addEventListener("pageshow", function(e){ if(e&&e.persisted) _studioReDecodePhotos(); }); }catch(e){}
 
