@@ -1698,8 +1698,35 @@ function _decodeFromSrcFull(p,cb,mx,blob){ blob=blob||p._jpgBlob; var done=funct
   try{ if(blob){ if(window.createImageBitmap){ createImageBitmap(blob).then(done).catch(function(){ _viaImgBlob(blob,done,function(){ if(p._file)_decodeFromFile(p._file,cb,mx); else cb(null); }); }); } else { _viaImgBlob(blob,done,function(){ if(p._file)_decodeFromFile(p._file,cb,mx); else cb(null); }); } return; }
     if(p._file){ _decodeFromFile(p._file,cb,mx); return; } cb(null);
   }catch(e){ if(p._file)_decodeFromFile(p._file,cb,mx); else cb(null); } }
-function _decodeChosen(p,cb,mx,blob){
-  if(!blob){ if(p._file){ _decodeFromFile(p._file,cb,mx); return; } cb(null); return; }
+/* ===== DÉCODAGE PAR WORKER (filet de sécurité + accélérateur) =====
+   Sort le décodage JPEG du fil principal -> la lecture reste fluide même avec BEAUCOUP de photos
+   (100-150) ou de très grandes photos, sur des appareils modestes. Le Worker décode en parallèle
+   pendant que le rendu tourne. REPLI AUTOMATIQUE sur le fil principal si le Worker est indisponible,
+   échoue, ou dépasse 2,5 s -> aucun risque pour la lecture qui fonctionne déjà. */
+var _decWorker=null, _decWSeq=0, _decWMap={}, _decWTried=false;
+function _initDecWorker(){
+  if(_decWorker || window.__decWorkerOff===true || _decWTried) return; _decWTried=true;
+  try{
+    if(typeof Worker==="undefined" || typeof createImageBitmap==="undefined"){ window.__decWorkerOff=true; return; }
+    var code="self.onmessage=function(e){var d=e.data;try{createImageBitmap(d.blob,{resizeWidth:d.rw,resizeHeight:d.rh,resizeQuality:'high'}).then(function(b){try{self.postMessage({id:d.id,bmp:b},[b]);}catch(_){try{self.postMessage({id:d.id,err:1});}catch(__){}}}).catch(function(){try{self.postMessage({id:d.id,err:1});}catch(_){}});}catch(_){try{self.postMessage({id:d.id,err:1});}catch(__){}}};";
+    _decWorker=new Worker(URL.createObjectURL(new Blob([code],{type:"application/javascript"})));
+    _decWorker.onmessage=function(e){ var d=e.data||{}; var o=_decWMap[d.id]; if(!o) return; delete _decWMap[d.id]; try{ clearTimeout(o.to); }catch(_e){}
+      if(d.bmp){ window.__decWorker=true; var c=_canvasOf(d.bmp); try{ if(d.bmp.close) d.bmp.close(); }catch(_e){} if(c) o.cb(c); else o.fb(); }
+      else o.fb();
+    };
+    _decWorker.onerror=function(){ window.__decWorkerOff=true; try{ _decWorker.terminate(); }catch(e){} _decWorker=null; };
+  }catch(e){ window.__decWorkerOff=true; _decWorker=null; }
+}
+function _workerDecode(blob,rw,rh,cb,fb){
+  _initDecWorker();
+  if(!_decWorker || window.__decWorkerOff===true) return false;
+  var id=++_decWSeq;
+  var to=setTimeout(function(){ if(_decWMap[id]){ delete _decWMap[id]; fb(); } }, 2500);   /* Worker trop lent -> repli */
+  _decWMap[id]={cb:cb, fb:fb, to:to};
+  try{ _decWorker.postMessage({id:id, blob:blob, rw:rw, rh:rh}); }catch(e){ try{ clearTimeout(to); }catch(_e){} delete _decWMap[id]; return false; }
+  return true;
+}
+function _mainDecode(p,cb,mx,blob){
   if(window.createImageBitmap && window.__bmpResize!==false && p._w>0 && p._h>0){
     var ar=p._w/p._h, rw, rh;
     if(ar>=1){ rw=mx; rh=Math.max(1,Math.round(mx/ar)); } else { rh=mx; rw=Math.max(1,Math.round(mx*ar)); }
@@ -1710,6 +1737,16 @@ function _decodeChosen(p,cb,mx,blob){
     }).catch(function(){ _decodeFromSrcFull(p,cb,mx,blob); }); return; }catch(e){ _decodeFromSrcFull(p,cb,mx,blob); return; }
   }
   _decodeFromSrcFull(p,cb,mx,blob);
+}
+function _decodeChosen(p,cb,mx,blob){
+  if(!blob){ if(p._file){ _decodeFromFile(p._file,cb,mx); return; } cb(null); return; }
+  /* LECTURE (mx≤1400) -> Worker (décodage hors fil principal) ; repli fil principal si indispo/échec/lenteur */
+  if(mx<=1400 && p._w>0 && p._h>0 && window.__decWorkerOff!==true){
+    var ar=p._w/p._h, rw, rh; if(ar>=1){ rw=mx; rh=Math.max(1,Math.round(mx/ar)); } else { rh=mx; rw=Math.max(1,Math.round(mx*ar)); }
+    var used=_workerDecode(blob, rw, rh, function(c){ if(c) cb(c); else _mainDecode(p,cb,mx,blob); }, function(){ _mainDecode(p,cb,mx,blob); });
+    if(used) return;
+  }
+  _mainDecode(p,cb,mx,blob);
 }
 function _decodeFromSrc(p,cb,targetRes){ var mx=targetRes||Math.max((window._PCAP||1920),(typeof window!=="undefined"&&window._PMAX)?window._PMAX:0);
   /* EXPORT (mx>1400) et original hors mémoire -> rechargé depuis IndexedDB juste le temps de l'export. */
@@ -8800,7 +8837,7 @@ function studioRefreshFromSource(items){ try{
 }catch(e){} }
 try{ window.studioClipIds=studioClipIds; window.studioClipCount=studioClipCount; window.studioRemovePhotos=studioRemovePhotos; window.studioRemoveClips=studioRemoveClips; window.studioRemoveAllClips=studioRemoveAllClips; window.studioRebuild=studioRebuild; window.studioRefreshFromSource=studioRefreshFromSource; }catch(e){}
 try{ window.__mergeDiag=function(txt){ try{ var el=document.getElementById("mergeDiag"); if(!el){ el=document.createElement("div"); el.id="mergeDiag"; el.style.cssText="position:fixed;left:6px;top:230px;z-index:2147483647;max-width:94vw;background:rgba(24,110,70,.96);color:#fff;font:600 11px/1.4 system-ui;padding:9px 11px;border-radius:9px;white-space:pre-wrap;pointer-events:none;box-shadow:0 2px 14px rgba(0,0,0,.6)"; document.body.appendChild(el); } el.textContent=txt; }catch(e){} }; }catch(e){}
-try{ (function(){ var el=null; setInterval(function(){ try{ var d=window.__photoDiag; if(!d) return; if(!el){ el=document.createElement("div"); el.id="photoDiag"; el.style.cssText="position:fixed;left:6px;bottom:96px;z-index:2147483647;max-width:94vw;background:rgba(120,30,140,.95);color:#fff;font:600 12px/1.4 system-ui;padding:8px 11px;border-radius:9px;pointer-events:none;box-shadow:0 2px 14px rgba(0,0,0,.6)"; document.body.appendChild(el); } el.textContent="PHOTO DIAG · plan#"+d.idx+" · "+d.src+" "+d.w+"\u00d7"+d.h+"\ncible "+d.tgt+" · d\u00e9cod\u00e9 "+d.decR+" · "+(d.lag?"\u23f3 en pr\u00e9pa":"\u2713 pr\u00eat")+" · CURRENT "+(d.cur?"pinned":"\u2014")+" · NEXT "+d.nx+"\ncache "+d.nb+" img / "+d.mb+" Mo · decode "+d.ms+" ms "+(window.__bmpResize===false?"(R\u2717)":"(R\u2713)")+" · l\u00e9ger "+(function(){var n=0,t=0;try{for(var i=0;i<PHOTOS.length;i++){if(PHOTOS[i]){t++;if(PHOTOS[i]._dispBlob)n++;}}}catch(e){}return n+"/"+t;})()+" · avance "+d.adv+" s · \u00e9vict "+d.ev+" · file "+d.inf; }catch(e){} }, 400); })(); }catch(e){}
+try{ (function(){ var el=null; setInterval(function(){ try{ var d=window.__photoDiag; if(!d) return; if(!el){ el=document.createElement("div"); el.id="photoDiag"; el.style.cssText="position:fixed;left:6px;bottom:96px;z-index:2147483647;max-width:94vw;background:rgba(120,30,140,.95);color:#fff;font:600 12px/1.4 system-ui;padding:8px 11px;border-radius:9px;pointer-events:none;box-shadow:0 2px 14px rgba(0,0,0,.6)"; document.body.appendChild(el); } el.textContent="PHOTO DIAG · plan#"+d.idx+" · "+d.src+" "+d.w+"\u00d7"+d.h+"\ncible "+d.tgt+" · d\u00e9cod\u00e9 "+d.decR+" · "+(d.lag?"\u23f3 en pr\u00e9pa":"\u2713 pr\u00eat")+" · CURRENT "+(d.cur?"pinned":"\u2014")+" · NEXT "+d.nx+"\ncache "+d.nb+" img / "+d.mb+" Mo · decode "+d.ms+" ms "+(window.__bmpResize===false?"(R\u2717)":"(R\u2713)")+(window.__decWorkerOff===true?"(W\u2717)":(window.__decWorker?"(W\u2713)":"(W\u2026)"))+" · l\u00e9ger "+(function(){var n=0,t=0;try{for(var i=0;i<PHOTOS.length;i++){if(PHOTOS[i]){t++;if(PHOTOS[i]._dispBlob)n++;}}}catch(e){}return n+"/"+t;})()+" · avance "+d.adv+" s · \u00e9vict "+d.ev+" · file "+d.inf; }catch(e){} }, 400); })(); }catch(e){}
 function studioDeleteFilm(id){ try{ var idx=_filmsIndex().filter(function(f){ return f.id!==id; }); _filmsIndexSave(idx); localStorage.removeItem(_filmKey(id)); }catch(e){} if(_curFilmId===id)_curFilmId=null; try{ renderFilms(); }catch(e){} }
 
 /* ---- UI : galerie de films (overlay injecté) ---- */
