@@ -1739,8 +1739,21 @@ function _mainDecode(p,cb,mx,blob){
   }
   _decodeFromSrcFull(p,cb,mx,blob);
 }
+/* Décodage via élément <img> DOM (pas createImageBitmap). Juste après un retour d'arrière-plan,
+   createImageBitmap peut renvoyer du NOIR sous la pression iOS ; l'<img> DOM, lui, re-rasterise fiablement. */
+function _decodeViaImg(p,cb,mx,blob){ if(!blob){ if(p._file){ _decodeFromFile(p._file,cb,mx); return; } cb(null); return; } _viaImgBlob(blob, function(im){ var c=prerender(im,mx); cb(c||null); }, function(){ if(p._file)_decodeFromFile(p._file,cb,mx); else cb(null); }); }
+/* RETOUR D'ARRIÈRE-PLAN : iOS a vidé le contenu des canvas (px photo:0). On les invalide et on force,
+   pendant quelques secondes, un re-décodage via <img> depuis les blobs légers (qui survivent). */
+function _studioResumeFix(){
+  try{ for(var i=0;i<PHOTOS.length;i++){ if(PHOTOS[i]){ PHOTOS[i].c=null; PHOTOS[i].img=null; PHOTOS[i]._durl=null; PHOTOS[i]._decRes=0; PHOTOS[i]._decoding=false; PHOTOS[i]._decCbs=null; } } _decLRU=[]; window._decInFlight=0; }catch(e){}
+  window.__imgDecodeUntil=Date.now()+5000;   /* force le décodage <img> pendant 5s */
+  var _t=0; try{ _t=(window._pauseRenderT!=null?window._pauseRenderT:(A?visualTime():0))||0; }catch(e){}
+  function _dr(){ try{ if(typeof renderMontageAt==="function") renderMontageAt(_t); }catch(e){} }
+  _dr(); var _n=0; var _iv=setInterval(function(){ _n++; try{ _dr(); }catch(e){} if(_n>24) clearInterval(_iv); }, 150);
+}
 function _decodeChosen(p,cb,mx,blob){
   if(!blob){ if(p._file){ _decodeFromFile(p._file,cb,mx); return; } cb(null); return; }
+  if(Date.now() < (window.__imgDecodeUntil||0)){ _decodeViaImg(p,cb,mx,blob); return; }   /* fenêtre post-retour : <img> DOM au lieu de createImageBitmap */
   /* LECTURE (mx≤1400) -> Worker (décodage hors fil principal) ; repli fil principal si indispo/échec/lenteur */
   if(mx<=1400 && p._w>0 && p._h>0 && window.__decWorkerOff!==true){
     var ar=p._w/p._h, rw, rh; if(ar>=1){ rw=mx; rh=Math.max(1,Math.round(mx/ar)); } else { rh=mx; rw=Math.max(1,Math.round(mx*ar)); }
@@ -9081,7 +9094,7 @@ function _studioReDecodePhotos(){
   window.__resumeDiag=_dg; window.__resumeAt=Date.now();
   _draw(); var _rc=0; var _ri=setInterval(function(){ _rc++; try{ _draw(); }catch(e){} if(_rc>16){ clearInterval(_ri); } }, 150);   /* redessine en continu ~2,4 s : l'image réapparaît dès que le décodage du plan courant est fini (fini l'aperçu noir figé en pause) */
 }
-try{ window.addEventListener("visibilitychange", function(){ if(document.visibilityState==="hidden"){ try{ stopPlay(); }catch(e){} studioSaveLocal(); } }); window.addEventListener("pagehide", function(){ try{ stopPlay(); }catch(e){} studioSaveLocal(); }); }catch(e){}
+try{ window.addEventListener("visibilitychange", function(){ if(document.visibilityState==="hidden"){ try{ stopPlay(); }catch(e){} studioSaveLocal(); } else { try{ _studioResumeFix(); }catch(e){} } }); window.addEventListener("pagehide", function(){ try{ stopPlay(); }catch(e){} studioSaveLocal(); }); window.addEventListener("pageshow", function(e){ if(e&&e.persisted){ try{ _studioResumeFix(); }catch(x){} } }); }catch(e){}
 /* AU RETOUR D'ARRIÈRE-PLAN : ON NE FAIT RIEN (comme le fichier d'origine, qui ne noircissait jamais).
    Mon ancien _studioReDecodePhotos effaçait tous les canvas et les re-décodait -> c'est LUI qui causait le noir.
    On garde les images en place ; si la lecture reprend, le rendu les réutilise telles quelles. */
