@@ -1813,7 +1813,7 @@ function _touchDec(i){ if(typeof PHOTOS==="undefined"||!PHOTOS[i]) return; var k
     var evi=-1; for(var z=0;z<_decLRU.length;z++){ var idx=_decLRU[z]; if(idx!==i && idx!==pin.cur && idx!==pin.next){ evi=z; break; } }   /* le plus ANCIEN non-pinné (CURRENT/NEXT jamais candidats) */
     if(evi<0) break;   /* il ne reste que des images pinnées -> on n'éjecte JAMAIS CURRENT/NEXT */
     var old=_decLRU.splice(evi,1)[0];
-    if(PHOTOS[old] && (PHOTOS[old]._jpgBlob||PHOTOS[old]._file)){ PHOTOS[old].c=null; PHOTOS[old].img=null; PHOTOS[old]._durl=null; PHOTOS[old]._decRes=0; window.__evictN=(window.__evictN||0)+1; }
+    if(PHOTOS[old] && (PHOTOS[old]._jpgBlob||PHOTOS[old]._file||PHOTOS[old]._dispBlob)){ PHOTOS[old].c=null; PHOTOS[old].img=null; PHOTOS[old]._durl=null; PHOTOS[old]._decRes=0; window.__evictN=(window.__evictN||0)+1; }   /* accepte _dispBlob : sinon les photos dont l'original est en IDB ne sont JAMAIS libérées -> fuite mémoire -> crash */
   }
 }
 function _ensureDecodedP(p,cb,targetRes){ if(!p){ if(cb)cb(null); return; } targetRes=targetRes||(window._PCAP||1600);
