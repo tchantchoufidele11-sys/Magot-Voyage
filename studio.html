@@ -2,7 +2,6 @@
 <!-- Studio Magot — FIX GEL APRES INITIALISATION : _expYield utilisait requestAnimationFrame, qui peut ne JAMAIS se declencher en webview iOS -> await bloque a vie juste apres Initialisation. Remplace par setTimeout(0) qui se declenche toujours. C-etait le seul await non-borne de la preparation. · BUILD 2026-08-13-C154 -->
 <!-- Studio Magot — FIX EXPORT ANTI-BLOCAGE (C155) : (1) venc.flush()/aenc.flush() etaient des await NON bornes -> gel a ~90% sur Safari/iOS quand l'encodeur ne rend jamais la main ; desormais bornes par _expRace() (25s/20s). (2) Aucun moyen de sortir d'un export fige : ajout bouton "Annuler" sur l'overlay + _expForceReset() qui rearme l'UI meme si un await reste parque. (3) Watchdog global 3 min. (4) Garde anti double-lancement (double-tap). (5) Repli MediaRecorder universel quand WebCodecs absent (vieux Android/iOS/Firefox) -> WebM/MP4 selon support, au lieu d'un cul-de-sac. · BUILD 2026-08-13-C155 -->
 
-<!-- Studio Magot — LECTURE PHOTO STABLE (C268) : cible réellement adaptative par plan, cache RAM autoritaire 120 Mo, éviction des photos restaurées depuis IndexedDB, CURRENT/NEXT épinglés, démarrage borné, reprise iOS sans WebGL noir et sous-titres d'aperçu réactivés. · BUILD 2026-08-30-C268 -->
 <!-- Studio Magot — FIX FLOU A LA REOUVERTURE (C267a) : à l'import, window._PMAX=1440, donc les photos s'affichaient nettes ; mais a froid (app ouverte 3-4 jours apres), window._PMAX etait undefined -> studioOpenFilm / _restorePhotoFromBlob / _decodeFromSrc retombaient sur 1200 et RE-sous-echantillonnaient les blobs 1440 stockes -> flou. Desormais la restauration/re-decodage utilise un PLANCHER Math.max(1440, ...) : les blobs stockes sont decodes a leur taille native (jamais reduits), donc une photo rouverte est aussi nette qu'a sa creation. Qualite JPEG de stockage 0.82 -> 0.86. Memoire inchangee (identique a la session de creation). · BUILD 2026-08-16-C267 -->
 <!-- Studio Magot — NETTETE MAX / NIVEAU CAPCUT (C267b) : les photos etaient plafonnees a 1440 px alors que le montage s'EXPORTE en 1920 px -> agrandissement ~33% = flou meme en session fraiche et dans la video finale. Desormais _PCAP=1920 : source photo = resolution d'export, plus aucun upscale, netteté maximale a l'ecran ET a l'export. Le cache memoire _DEC_MAX n'est plus un nombre fixe mais un BUDGET RAM (190 Mo iOS ; adapte a la RAM sur Android) : a 1920 px on garde automatiquement moins de photos decodees pour tenir le budget -> aucun crash iPhone. Import >600 photos: repli a 1440 (encodage plus rapide). Les films crees avant restent en 1440 (blob deja encode) ; les nouveaux sont en 1920. · BUILD 2026-08-16-C267 -->
 <html lang="fr">
@@ -1705,6 +1704,7 @@ function _decodeFromSrcFull(p,cb,mx,blob){ blob=blob||p._jpgBlob; var done=funct
    pendant que le rendu tourne. REPLI AUTOMATIQUE sur le fil principal si le Worker est indisponible,
    échoue, ou dépasse 2,5 s -> aucun risque pour la lecture qui fonctionne déjà. */
 var _decWorker=null, _decWSeq=0, _decWMap={}, _decWTried=false;
+try{ window.__decWorkerOff=true; }catch(e){}   /* DÉFAUT : Worker DÉSACTIVÉ. Le décodage fil principal des blobs légers est déjà à 0 ms, et le Worker (indisponible/lent sur beaucoup d'appareils) occupait les créneaux de décodage et asphyxiait le préchargement -> plans noirs. Réactivable via window.__decWorkerOff=false si un jour utile. */
 function _initDecWorker(){
   if(_decWorker || window.__decWorkerOff===true || _decWTried) return; _decWTried=true;
   try{
@@ -1712,7 +1712,7 @@ function _initDecWorker(){
     var code="self.onmessage=function(e){var d=e.data;try{createImageBitmap(d.blob,{resizeWidth:d.rw,resizeHeight:d.rh,resizeQuality:'high'}).then(function(b){try{self.postMessage({id:d.id,bmp:b},[b]);}catch(_){try{self.postMessage({id:d.id,err:1});}catch(__){}}}).catch(function(){try{self.postMessage({id:d.id,err:1});}catch(_){}});}catch(_){try{self.postMessage({id:d.id,err:1});}catch(__){}}};";
     _decWorker=new Worker(URL.createObjectURL(new Blob([code],{type:"application/javascript"})));
     _decWorker.onmessage=function(e){ var d=e.data||{}; var o=_decWMap[d.id]; if(!o) return; delete _decWMap[d.id]; try{ clearTimeout(o.to); }catch(_e){}
-      if(d.bmp){ window.__decWorker=true; var c=_canvasOf(d.bmp); try{ if(d.bmp.close) d.bmp.close(); }catch(_e){} if(c) o.cb(c); else o.fb(); }
+      if(d.bmp){ window.__decWorker=true; window.__decWTimeouts=0; var c=_canvasOf(d.bmp); try{ if(d.bmp.close) d.bmp.close(); }catch(_e){} if(c) o.cb(c); else o.fb(); }
       else o.fb();
     };
     _decWorker.onerror=function(){ window.__decWorkerOff=true; try{ _decWorker.terminate(); }catch(e){} _decWorker=null; };
@@ -1722,7 +1722,7 @@ function _workerDecode(blob,rw,rh,cb,fb){
   _initDecWorker();
   if(!_decWorker || window.__decWorkerOff===true) return false;
   var id=++_decWSeq;
-  var to=setTimeout(function(){ if(_decWMap[id]){ delete _decWMap[id]; fb(); } }, 2500);   /* Worker trop lent -> repli */
+  var to=setTimeout(function(){ if(_decWMap[id]){ delete _decWMap[id]; window.__decWTimeouts=(window.__decWTimeouts||0)+1; if(window.__decWTimeouts>=2){ window.__decWorkerOff=true; try{ if(_decWorker) _decWorker.terminate(); }catch(e){} _decWorker=null; } fb(); } }, 600);   /* Worker lent/bloqué -> repli en 600 ms ; après 2 échecs on abandonne le Worker (le fil principal est déjà à 0 ms) */
   _decWMap[id]={cb:cb, fb:fb, to:to};
   try{ _decWorker.postMessage({id:id, blob:blob, rw:rw, rh:rh}); }catch(e){ try{ clearTimeout(to); }catch(_e){} delete _decWMap[id]; return false; }
   return true;
@@ -1739,10 +1739,23 @@ function _mainDecode(p,cb,mx,blob){
   }
   _decodeFromSrcFull(p,cb,mx,blob);
 }
+/* Décodage via élément <img> DOM (pas createImageBitmap). Juste après un retour d'arrière-plan,
+   createImageBitmap peut renvoyer du NOIR sous la pression iOS ; l'<img> DOM, lui, re-rasterise fiablement. */
+function _decodeViaImg(p,cb,mx,blob){ if(!blob){ if(p._file){ _decodeFromFile(p._file,cb,mx); return; } cb(null); return; } _viaImgBlob(blob, function(im){ var c=prerender(im,mx); cb(c||null); }, function(){ if(p._file)_decodeFromFile(p._file,cb,mx); else cb(null); }); }
+/* RETOUR D'ARRIÈRE-PLAN : iOS a vidé le contenu des canvas (px photo:0). On les invalide et on force,
+   pendant quelques secondes, un re-décodage via <img> depuis les blobs légers (qui survivent). */
+function _studioResumeFix(){
+  try{ for(var i=0;i<PHOTOS.length;i++){ if(PHOTOS[i]){ PHOTOS[i].c=null; PHOTOS[i].img=null; PHOTOS[i]._durl=null; PHOTOS[i]._decRes=0; PHOTOS[i]._decoding=false; PHOTOS[i]._decCbs=null; } } _decLRU=[]; window._decInFlight=0; }catch(e){}
+  window.__imgDecodeUntil=Date.now()+5000;   /* force le décodage <img> pendant 5s */
+  var _t=0; try{ _t=(window._pauseRenderT!=null?window._pauseRenderT:(A?visualTime():0))||0; }catch(e){}
+  function _dr(){ try{ if(typeof renderMontageAt==="function") renderMontageAt(_t); }catch(e){} }
+  _dr(); var _n=0; var _iv=setInterval(function(){ _n++; try{ _dr(); }catch(e){} if(_n>24) clearInterval(_iv); }, 150);
+}
 function _decodeChosen(p,cb,mx,blob){
   if(!blob){ if(p._file){ _decodeFromFile(p._file,cb,mx); return; } cb(null); return; }
-  /* LECTURE (mx≤1500) -> Worker (décodage hors fil principal) ; repli fil principal si indispo/échec/lenteur */
-  if(mx<=1500 && p._w>0 && p._h>0 && window.__decWorkerOff!==true){
+  if(Date.now() < (window.__imgDecodeUntil||0)){ _decodeViaImg(p,cb,mx,blob); return; }   /* fenêtre post-retour : <img> DOM au lieu de createImageBitmap */
+  /* LECTURE (mx≤1400) -> Worker (décodage hors fil principal) ; repli fil principal si indispo/échec/lenteur */
+  if(mx<=1400 && p._w>0 && p._h>0 && window.__decWorkerOff!==true){
     var ar=p._w/p._h, rw, rh; if(ar>=1){ rw=mx; rh=Math.max(1,Math.round(mx/ar)); } else { rh=mx; rw=Math.max(1,Math.round(mx*ar)); }
     var used=_workerDecode(blob, rw, rh, function(c){ if(c) cb(c); else _mainDecode(p,cb,mx,blob); }, function(){ _mainDecode(p,cb,mx,blob); });
     if(used) return;
@@ -1750,12 +1763,12 @@ function _decodeChosen(p,cb,mx,blob){
   _mainDecode(p,cb,mx,blob);
 }
 function _decodeFromSrc(p,cb,targetRes){ var mx=targetRes||Math.max((window._PCAP||1920),(typeof window!=="undefined"&&window._PMAX)?window._PMAX:0);
-  /* EXPORT / aperçu HQ (mx>1500) et original hors mémoire -> rechargé depuis IndexedDB juste le temps du rendu. */
-  if(mx>1500 && !p._jpgBlob && p._srcKey && typeof _pget==="function"){
+  /* EXPORT (mx>1400) et original hors mémoire -> rechargé depuis IndexedDB juste le temps de l'export. */
+  if(mx>1400 && !p._jpgBlob && p._srcKey && typeof _pget==="function"){
     _pget(p._srcKey).then(function(b){ _decodeChosen(p,cb,mx, b||p._dispBlob||null); }).catch(function(){ _decodeChosen(p,cb,mx, p._dispBlob||null); }); return;
   }
-  /* LECTURE (mx≤1500) : blob d'affichage léger. Sinon original s'il est encore là. */
-  var blob=(mx<=1500 && p._dispBlob) ? p._dispBlob : (p._jpgBlob || p._dispBlob);
+  /* LECTURE (mx≤1400) : blob d'affichage léger (~150 Ko, décodage ~70ms). Sinon original s'il est encore là. */
+  var blob=(mx<=1400 && p._dispBlob) ? p._dispBlob : (p._jpgBlob || p._dispBlob);
   _decodeChosen(p,cb,mx,blob); }
 /* Préchauffage RETIRÉ : il décodait les 64 photos en fond pendant la lecture -> pic mémoire -> crash iOS.
    Les blobs légers sont créés à l'ouverture (restauration / rechargement-source) ; plus besoin de préchauffer. */
@@ -1770,16 +1783,16 @@ function _adaptivePCAP(){ try{
   var desired=Math.round(Math.max(sw,sh)*dpr*1.15);   /* pixels RÉELS du plus grand côté écran × marge de zoom — exactement ce dont l'écran a besoin */
   return Math.max(1000, Math.min(3840, desired));   /* seules bornes = PHYSIQUES : min lisible, max = résolution des photos sources. Aucune limite arbitraire. */
 }catch(e){ return 1600; } }
-var _PCAP=1500; try{ window._PCAP=_PCAP; window._HQ=false; }catch(e){}   /* 1500 px = plafond de lecture mobile. L'export conserve sa résolution propre ; l'aperçu ne force plus 1920 px. */
+var _PCAP=1200; try{ window._PCAP=_PCAP; window._HQ=false; }catch(e){}   /* MESURÉ : 1920px = 708ms de décodage sur cet iPhone -> trop lent pour la lecture temps réel. 1200px ≈ 275ms estimé, tenable avec ~2s d'avance. Net sur écran 1170px. */
 /* ===== MOTEUR IMAGES — étape 1 : résolution PAR PLAN + cache glissant borné en Mo ===== */
-var _CACHE_MB_CAP=120;   /* budget réel de surfaces décodées ; CURRENT et NEXT restent épinglés */
+var _CACHE_MB_CAP=64;   /* cache réduit : à 1200px et décodage ~70ms depuis le blob léger, inutile de garder beaucoup de canvas -> mémoire iOS protégée */
 function _dispPx(){ try{ var h=document.querySelector(".hero"); var w=h?h.clientWidth:0, ht=h?h.clientHeight:0; var lng=Math.max(w,ht)||Math.max((window.screen&&screen.width)||390,(window.screen&&screen.height)||700); return Math.round(lng*Math.max(1,(window.devicePixelRatio||1))); }catch(e){ return 1400; } }
 function _resMax(){ try{ var isTouch=(('ontouchstart' in window)||((navigator.maxTouchPoints||0)>0)); return isTouch?1500:3200; }catch(e){ return 1500; } }   /* mobile 1500 : résolution que l'iPhone décode à TEMPS pendant la lecture ET qui tient dans le cache (au-delà, la photo n'est jamais prête -> on ne voit que le secours mou) */
 function _planZoomMax(sg){ try{ if(sg&&sg.video) return 1.0; var fit=(sg&&sg.img>=0&&typeof PHOTOS!=="undefined"&&PHOTOS[sg.img]&&PHOTOS[sg.img]._fit)||"fit"; return (fit==="fill")?1.12:1.32; }catch(e){ return 1.32; } }
-function _planTargetRes(sg){ try{ var need=Math.round(_dispPx()*_planZoomMax(sg)*1.10); return Math.max(1,Math.min(need,_resMax(),(window._PCAP||1500))); }catch(e){ return Math.min(1500,(window._PCAP||1500)); } }   /* zone affichée × DPR × zoom du plan × marge ; uniquement des bornes hautes */
+function _planTargetRes(sg){ return (window._PCAP||1920); }   /* comme l'ancien fichier : TOUTES les photos à pleine résolution 1920 -> net partout, plus de plan « allégé » qui ramollit */
 function _photoMB(p){ try{ if(!p||!p.c) return 0; return (p.c.width*p.c.height*4)/1048576; }catch(e){ return 0; } }
-function _cacheMB(){ try{ var m=0; for(var i=0;i<PHOTOS.length;i++){ if(PHOTOS[i]&&PHOTOS[i].c) m+=_photoMB(PHOTOS[i]); } return m; }catch(e){ return 0; } }
-function _cacheCount(){ try{ var n=0; for(var i=0;i<PHOTOS.length;i++){ if(PHOTOS[i]&&PHOTOS[i].c) n++; } return n; }catch(e){ return 0; } }
+function _cacheMB(){ try{ var m=0; for(var i=0;i<_decLRU.length;i++){ var p=PHOTOS[_decLRU[i]]; if(p&&p.c) m+=_photoMB(p); } return m; }catch(e){ return 0; } }
+function _cacheCount(){ try{ var n=0; for(var i=0;i<_decLRU.length;i++){ var p=PHOTOS[_decLRU[i]]; if(p&&p.c) n++; } return n; }catch(e){ return 0; } }
 function _resCap(){ if(window._HQ) return 2560; return ((typeof navigator!=="undefined"&&navigator.deviceMemory&&navigator.deviceMemory<4)?1280:1920); }
 try{ window._resCap=_resCap; }catch(e){}
 function _computeDecMax(){
@@ -1800,18 +1813,18 @@ function _touchDec(i){ if(typeof PHOTOS==="undefined"||!PHOTOS[i]) return; var k
     var evi=-1; for(var z=0;z<_decLRU.length;z++){ var idx=_decLRU[z]; if(idx!==i && idx!==pin.cur && idx!==pin.next){ evi=z; break; } }   /* le plus ANCIEN non-pinné (CURRENT/NEXT jamais candidats) */
     if(evi<0) break;   /* il ne reste que des images pinnées -> on n'éjecte JAMAIS CURRENT/NEXT */
     var old=_decLRU.splice(evi,1)[0];
-    if(PHOTOS[old] && PHOTOS[old].c){ PHOTOS[old].c=null; PHOTOS[old].img=null; PHOTOS[old]._durl=null; PHOTOS[old]._decRes=0; window.__evictN=(window.__evictN||0)+1; }
+    if(PHOTOS[old] && (PHOTOS[old]._jpgBlob||PHOTOS[old]._file||PHOTOS[old]._dispBlob)){ PHOTOS[old].c=null; PHOTOS[old].img=null; PHOTOS[old]._durl=null; PHOTOS[old]._decRes=0; window.__evictN=(window.__evictN||0)+1; }   /* accepte _dispBlob : sinon les photos dont l'original est en IDB ne sont JAMAIS libérées -> fuite mémoire -> crash */
   }
 }
 function _ensureDecodedP(p,cb,targetRes){ if(!p){ if(cb)cb(null); return; } targetRes=targetRes||(window._PCAP||1600);
   if(p.c && (p._decRes||0) >= Math.round(targetRes*0.95)){ if(cb)cb(p.c); return; }   /* résolution actuelle couvre déjà la cible -> AUCUN re-décodage */
-  if(!p._jpgBlob && !p._file){ if(cb)cb(p.c||null); return; }
+  if(!p._jpgBlob && !p._file && !p._dispBlob){ if(cb)cb(p.c||null); return; }   /* accepte le blob léger : depuis que les originaux sont déplacés en IndexedDB, _dispBlob est souvent la seule source en mémoire */
   if(p._decoding){ if((p._decTarget||0)>=targetRes){ if(cb)(p._decCbs=p._decCbs||[]).push(cb); return; } else { if(cb)(p._decCbs=p._decCbs||[]).push(cb); return; } }   /* décodage déjà en cours -> on attend (il se re-vérifiera après) */
   p._decoding=true; p._decTarget=targetRes; window._decInFlight=(window._decInFlight||0)+1; p._decCbs=cb?[cb]:[]; var _t0=(window.performance&&performance.now)?performance.now():Date.now();
   var _fin=false; var _complete=function(c){ if(_fin) return; _fin=true; try{ clearTimeout(_toH); }catch(e){} p._decoding=false; window._decInFlight=Math.max(0,(window._decInFlight||1)-1);
     if(c){ try{ window.__lastDecodeMs=Math.round(((window.performance&&performance.now)?performance.now():Date.now())-_t0); }catch(e){} p.c=c; p.img=c; p._decRes=Math.max(c.width||0,c.height||0); if(!p._fb){ try{ p._fb=prerender(c,_fbRes()); }catch(e){} } var ix=(typeof PHOTOS!=="undefined")?PHOTOS.indexOf(p):-1; if(ix>=0)_touchDec(ix);
-      /* décodage lecture (≤1500px) -> on fige une fois un blob d'affichage léger ; l'original reste pour l'export. */
-      if(targetRes<=1500 && !p._dispBlob && !p._dispBusy && c.toBlob){ p._dispBusy=true; try{ c.toBlob(function(b){ p._dispBusy=false; if(b && (b.size||0)>800){ p._dispBlob=b; try{ if(p._id) _pput("disp:"+p._id, b); }catch(e){} } },"image/jpeg",0.9); }catch(e){ p._dispBusy=false; } }
+      /* décodage lecture (≤1400px) -> on fige une fois un blob d'affichage léger : tous les décodages suivants de cette photo seront ~70ms, quel que soit le support du resize Safari. Le blob original reste pour l'export. */
+      if(targetRes<=1400 && !p._dispBlob && !p._dispBusy && c.toBlob){ p._dispBusy=true; try{ c.toBlob(function(b){ p._dispBusy=false; if(b && (b.size||0)>800){ p._dispBlob=b; try{ if(p._id) _pput("disp:"+p._id, b); }catch(e){} } },"image/jpeg",0.9); }catch(e){ p._dispBusy=false; } }
     }
     var cbs=p._decCbs||[]; p._decCbs=null; for(var z=0;z<cbs.length;z++){ try{ cbs[z](c); }catch(e){} }
     /* si une cible plus haute a été demandée pendant le décodage, on re-décode vers le haut */
@@ -2138,7 +2151,7 @@ function drawSegAt(sg,t,ox,smul){
   var isVid=(_clip && _clip.el.videoWidth>0);
   var img, iw, ih;
   if(isVid){ img=_clip.el; iw=_clip.el.videoWidth; ih=_clip.el.videoHeight; }
-  else { if(sg.img<0||!PHOTOS[sg.img]){ bctx.fillStyle="#000"; bctx.fillRect(0,0,Wd,Hd); return; } var _pp=PHOTOS[sg.img]; var _tgtR=_planTargetRes(sg); img=_pp.c||_pp.img; if(img){ _touchDec(sg.img); if((_pp._decRes||0)<Math.round(_tgtR*0.95) && !_pp._decoding){ ensurePhotoDecoded(sg.img,(!playing)?function(_cc){ try{ if(_cc && !playing && window._pauseRenderT!=null && typeof renderMontageAt==="function"){ renderMontageAt(window._pauseRenderT); } }catch(e){} }:null,_tgtR); } } else { ensurePhotoDecoded(sg.img, (!playing)?function(_cc){ try{ if(_cc && !playing && window._pauseRenderT!=null && typeof renderMontageAt==="function"){ renderMontageAt(window._pauseRenderT); } }catch(e){} }:null, _tgtR); img=_pp._fb||_pp._thumb||null; } iw=img?img.width:0; ih=img?img.height:0; try{ var _lag=(_pp.c&&(_pp._decRes||0)>=Math.round(_tgtR*0.95))?0:1; var _pin=window.__pinned||{}; var _nx=(_pin.next>=0&&PHOTOS[_pin.next])?((PHOTOS[_pin.next].c&&(PHOTOS[_pin.next]._decRes||0)>=Math.round(_planTargetRes({img:_pin.next})*0.9))?"pr\u00eat":"prépa"):"\u2014"; window.__photoDiag={idx:sg.img, src:(img&&(img===_pp.c||img===_pp.img))?"PLEINE":(img&&img===_pp._fb?"SECOURS":(img?"thumb":"—")), w:iw, h:ih, tgt:_tgtR, decR:(_pp._decRes||0), mb:Math.round(_cacheMB()), nb:_cacheCount(), lag:_lag, inf:(window._decInFlight||0), cur:(_pin.cur===sg.img?1:0), nx:_nx, ms:(window.__lastDecodeMs||0), adv:Math.round((window.__advance||0)*10)/10, ev:(window.__evictN||0)}; }catch(e){} if(!img||!iw){ bctx.fillStyle="#000"; bctx.fillRect(0,0,Wd,Hd); return; } }
+  else { if(sg.img<0||!PHOTOS[sg.img]){ bctx.fillStyle="#000"; bctx.fillRect(0,0,Wd,Hd); return; } var _pp=PHOTOS[sg.img]; var _tgtR=_planTargetRes(sg); img=_pp.c||_pp.img; if(img){ _touchDec(sg.img); if((_pp._decRes||0)<Math.round(_tgtR*0.95) && !_pp._decoding){ ensurePhotoDecoded(sg.img,(!playing)?function(_cc){ try{ if(_cc && !playing && window._pauseRenderT!=null && typeof renderMontageAt==="function"){ renderMontageAt(window._pauseRenderT); } }catch(e){} }:null,_tgtR); } } else { ensurePhotoDecoded(sg.img, (!playing)?function(_cc){ try{ if(_cc && !playing && window._pauseRenderT!=null && typeof renderMontageAt==="function"){ renderMontageAt(window._pauseRenderT); } }catch(e){} }:null, _tgtR); img=_pp._fb||_pp._thumb||null; } iw=img?img.width:0; ih=img?img.height:0; try{ var _lag=(_pp.c&&(_pp._decRes||0)>=Math.round(_tgtR*0.95))?0:1; var _pin=window.__pinned||{}; var _nx=(_pin.next>=0&&PHOTOS[_pin.next])?((PHOTOS[_pin.next].c&&(PHOTOS[_pin.next]._decRes||0)>=Math.round(_planTargetRes({img:_pin.next})*0.9))?"pr\u00eat":"prépa"):"\u2014"; var _pxc=-1,_pxb=-1; try{ if(_pp.c&&_pp.c.getContext){ var _cc2=_pp.c.getContext("2d"); if(_cc2){ var _dd=_cc2.getImageData(Math.max(0,(_pp.c.width/2)|0),Math.max(0,(_pp.c.height/2)|0),1,1).data; _pxc=_dd[0]+_dd[1]+_dd[2]; } } }catch(e){} try{ var _bb=bctx.getImageData((base.width/2)|0,(base.height/2)|0,1,1).data; _pxb=_bb[0]+_bb[1]+_bb[2]; }catch(e){} window.__photoDiag={idx:sg.img, pxc:_pxc, pxb:_pxb, src:(img&&(img===_pp.c||img===_pp.img))?"PLEINE":(img&&img===_pp._fb?"SECOURS":(img?"thumb":"—")), w:iw, h:ih, tgt:_tgtR, decR:(_pp._decRes||0), mb:Math.round(_cacheMB()), nb:_cacheCount(), lag:_lag, inf:(window._decInFlight||0), cur:(_pin.cur===sg.img?1:0), nx:_nx, ms:(window.__lastDecodeMs||0), adv:Math.round((window.__advance||0)*10)/10, ev:(window.__evictN||0)}; }catch(e){} if(!img||!iw){ bctx.fillStyle="#000"; bctx.fillRect(0,0,Wd,Hd); return; } }
   var dur=Math.max(0.001,sg.end-sg.start), p=Math.max(0,Math.min(1,(t-sg.start)/dur));
   var M=MOODS[MOOD];
   /* fond : image en cover, assombrie -> pas de bandes noires */
@@ -8393,7 +8406,7 @@ function _parseLRC(txt){ SUBS=[]; if(!txt) return 0; var ls=String(txt).split(/\
 function _subAt(t){ if(!SUBS.length) return ""; var cur=""; for(var i=0;i<SUBS.length;i++){ if(SUBS[i].t<=t+0.02) cur=SUBS[i].text; else break; } return cur; }
 function _musicTimeNow(){ /* temps DANS la musique (pour caler les paroles) */
   try{ if(window.LOOP_ON){ var md=(window.MUSIC_DUR||(A?A.dur:0))||0; var mt=montageNow(); return md>0?(mt%md):mt; } return (audioEl?audioEl.currentTime:montageNow()); }catch(e){ return montageNow(); } }
-function _updateSub(){ try{ if(!_subEl){ var h=document.querySelector(".hero"); if(!h) return; _subEl=document.createElement("div"); _subEl.id="karaokeSub"; _subEl.style.cssText="position:absolute;left:0;right:0;bottom:12%;text-align:center;padding:0 8%;z-index:16;pointer-events:none;font:700 clamp(15px,4.4vw,26px)/1.32 'Playfair Display',Georgia,serif;color:#fff;text-shadow:0 2px 10px rgba(0,0,0,.85),0 0 3px rgba(0,0,0,.9);opacity:0;transition:opacity .25s"; h.appendChild(_subEl); }
+function _updateSub(){ return; /* karaoké désactivé */ try{ if(!_subEl){ var h=document.querySelector(".hero"); if(!h) return; _subEl=document.createElement("div"); _subEl.id="karaokeSub"; _subEl.style.cssText="position:absolute;left:0;right:0;bottom:12%;text-align:center;padding:0 8%;z-index:16;pointer-events:none;font:700 clamp(15px,4.4vw,26px)/1.32 'Playfair Display',Georgia,serif;color:#fff;text-shadow:0 2px 10px rgba(0,0,0,.85),0 0 3px rgba(0,0,0,.9);opacity:0;transition:opacity .25s"; h.appendChild(_subEl); }
   if(!SUBS.length || !playing){ _subEl.style.opacity="0"; return; }
   var line=_subAt(_musicTimeNow());
   if(line!==_subLast){ _subLast=line; _subEl.textContent=line; }
@@ -8408,6 +8421,7 @@ function _drawSubOnCanvas(cx, W, H, mt){ try{ if(!SUBS.length||!cx) return; var 
   cx.restore(); }catch(e){} }
 function loop(){
   if(!playing) return;
+  try{ window.__loopFrames=(window.__loopFrames||0)+1; }catch(e){}
   try{
   if(window.LOOP_ON && !WA.on && audioEl){ var _le=window.LOOP_END||window.MUSIC_DUR||(A?A.dur:0); if(_le>0 && audioEl.currentTime>=_le-0.06){ try{ audioEl.currentTime=window.LOOP_START||0; }catch(e){} } }
   var t=visualTime(); if(t<0) t=0;
@@ -8488,10 +8502,13 @@ function startPlay(){
   };
   /* PRÉPARATION : décoder les premières photos (pleine résolution) AVANT de lancer -> plus de thumbnail flou au démarrage */
   try{
-    var _need=[], _seen={}, _capN=4;
-    for(var _pi=0;_pi<SEGS.length && _need.length<_capN;_pi++){ var _psg=SEGS[_pi]; if(_psg && _psg.start>_st0+6) break; if(_psg && !_psg.video && _psg.img>=0 && _psg.end>=_st0 && PHOTOS[_psg.img] && (!PHOTOS[_psg.img].c || (PHOTOS[_psg.img]._decRes||0)<Math.round(_planTargetRes(_psg)*0.95)) && !_seen[_psg.img]){ _seen[_psg.img]=1; _need.push(_psg.img); } }
-    if(!_need.length){ _launch(); }
-    else { var _tot=_need.length,_k=0; var _pstep=function(){ if(_k>=_need.length){ try{ setState(""); }catch(e){} _launch(); return; } var _ix=_need[_k++]; try{ setState(_st("Préparation…")+" "+Math.round(_k/_tot*100)+"%"); }catch(e){} ensurePhotoDecoded(_ix, function(){ setTimeout(_pstep,8); }); }; _pstep(); }
+    var _need=[], _seen={}, _capN=Math.min(12,(typeof _DEC_MAX!=="undefined"?_DEC_MAX:12));
+    for(var _pi=0;_pi<SEGS.length && _need.length<_capN;_pi++){ var _psg=SEGS[_pi]; if(_psg && !_psg.video && _psg.img>=0 && _psg.end>=_st0 && PHOTOS[_psg.img] && !PHOTOS[_psg.img].c && !_seen[_psg.img]){ _seen[_psg.img]=1; _need.push(_psg.img); } }
+    var _launched=false, _safe=null;
+    var _go1=function(){ if(_launched) return; _launched=true; try{ clearTimeout(_safe); }catch(e){} try{ setState(""); }catch(e){} _launch(); };
+    if(!_need.length){ _go1(); }
+    else { _safe=setTimeout(_go1, 1800);   /* GARANTIE : la lecture démarre en ≤1,8 s même si un décodage se bloque (ex. après un retour d'arrière-plan) -> plus jamais « rien ne joue » */
+      var _tot=_need.length,_k=0; var _pstep=function(){ if(_launched) return; if(_k>=_need.length){ _go1(); return; } var _ix=_need[_k++]; try{ setState(_st("Préparation…")+" "+Math.round(_k/_tot*100)+"%"); }catch(e){} ensurePhotoDecoded(_ix, function(){ setTimeout(_pstep,8); }); }; _pstep(); }
   }catch(e){ _launch(); }
 }
 function stopPlay(){ try{ _hideClipOverlay(); }catch(e){} try{ if(_subEl) _subEl.style.opacity="0"; }catch(e){} if(playing){ pausedOffset=Math.max(0, montageNow()); } try{ waStop(); }catch(e){} playing=false; cancelAnimationFrame(raf); if(audioEl){ try{ audioEl.pause(); }catch(e){} } if(ovVid){ try{ ovVid.pause(); }catch(e){} } }
@@ -8838,7 +8855,7 @@ function studioRefreshFromSource(items){ try{
 }catch(e){} }
 try{ window.studioClipIds=studioClipIds; window.studioClipCount=studioClipCount; window.studioRemovePhotos=studioRemovePhotos; window.studioRemoveClips=studioRemoveClips; window.studioRemoveAllClips=studioRemoveAllClips; window.studioRebuild=studioRebuild; window.studioRefreshFromSource=studioRefreshFromSource; }catch(e){}
 try{ window.__mergeDiag=function(txt){ try{ var el=document.getElementById("mergeDiag"); if(!el){ el=document.createElement("div"); el.id="mergeDiag"; el.style.cssText="position:fixed;left:6px;top:230px;z-index:2147483647;max-width:94vw;background:rgba(24,110,70,.96);color:#fff;font:600 11px/1.4 system-ui;padding:9px 11px;border-radius:9px;white-space:pre-wrap;pointer-events:none;box-shadow:0 2px 14px rgba(0,0,0,.6)"; document.body.appendChild(el); } el.textContent=txt; }catch(e){} }; }catch(e){}
-try{ (function(){ var el=null; setInterval(function(){ try{ var d=window.__photoDiag; if(!d) return; if(!el){ el=document.createElement("div"); el.id="photoDiag"; el.style.cssText="position:fixed;left:6px;bottom:96px;z-index:2147483647;max-width:94vw;background:rgba(120,30,140,.95);color:#fff;font:600 12px/1.4 system-ui;padding:8px 11px;border-radius:9px;pointer-events:none;box-shadow:0 2px 14px rgba(0,0,0,.6)"; document.body.appendChild(el); } el.textContent="PHOTO DIAG · plan#"+d.idx+" · "+d.src+" "+d.w+"\u00d7"+d.h+"\ncible "+d.tgt+" · d\u00e9cod\u00e9 "+d.decR+" · "+(d.lag?"\u23f3 en pr\u00e9pa":"\u2713 pr\u00eat")+" · CURRENT "+(d.cur?"pinned":"\u2014")+" · NEXT "+d.nx+"\ncache "+d.nb+" img / "+d.mb+" Mo · decode "+d.ms+" ms "+(window.__bmpResize===false?"(R\u2717)":"(R\u2713)")+(window.__decWorkerOff===true?"(W\u2717)":(window.__decWorker?"(W\u2713)":"(W\u2026)"))+" · l\u00e9ger "+(function(){var n=0,t=0;try{for(var i=0;i<PHOTOS.length;i++){if(PHOTOS[i]){t++;if(PHOTOS[i]._dispBlob)n++;}}}catch(e){}return n+"/"+t;})()+" · avance "+d.adv+" s · \u00e9vict "+d.ev+" · file "+d.inf; }catch(e){} }, 400); })(); }catch(e){}
+try{ (function(){ var el=null; setInterval(function(){ try{ var d=window.__photoDiag; if(!d) return; if(!el){ el=document.createElement("div"); el.id="photoDiag"; el.style.cssText="position:fixed;left:6px;bottom:96px;z-index:2147483647;max-width:94vw;background:rgba(120,30,140,.95);color:#fff;font:600 12px/1.4 system-ui;padding:8px 11px;border-radius:9px;pointer-events:none;box-shadow:0 2px 14px rgba(0,0,0,.6)"; document.body.appendChild(el); } el.textContent="PHOTO DIAG · plan#"+d.idx+" · "+d.src+" "+d.w+"\u00d7"+d.h+"\ncible "+d.tgt+" · d\u00e9cod\u00e9 "+d.decR+" · "+(d.lag?"\u23f3 en pr\u00e9pa":"\u2713 pr\u00eat")+" · CURRENT "+(d.cur?"pinned":"\u2014")+" · NEXT "+d.nx+"\ncache "+d.nb+" img / "+d.mb+" Mo · decode "+d.ms+" ms "+(window.__bmpResize===false?"(R\u2717)":"(R\u2713)")+(window.__decWorkerOff===true?"(W\u2717)":(window.__decWorker?"(W\u2713)":"(W\u2026)"))+" · l\u00e9ger "+(function(){var n=0,t=0;try{for(var i=0;i<PHOTOS.length;i++){if(PHOTOS[i]){t++;if(PHOTOS[i]._dispBlob)n++;}}}catch(e){}return n+"/"+t;})()+" · px photo:"+d.pxc+" rendu:"+d.pxb+" · avance "+d.adv+" s · \u00e9vict "+d.ev+" · file "+d.inf; }catch(e){} }, 400); })(); }catch(e){}
 try{ (function(){ var el=null; setInterval(function(){ try{ var d=window.__resumeDiag; var at=window.__resumeAt||0; if(!(d && (Date.now()-at)<8000)){ if(el) el.style.display="none"; return; } if(!el){ el=document.createElement("div"); el.id="resumeDiag"; el.style.cssText="position:fixed;left:6px;bottom:190px;z-index:2147483647;max-width:94vw;background:rgba(20,90,150,.96);color:#fff;font:600 12px/1.4 system-ui;padding:8px 11px;border-radius:9px;pointer-events:none;box-shadow:0 2px 14px rgba(0,0,0,.6)"; document.body.appendChild(el); } el.style.display="block"; el.textContent="RESUME \u00b7 webgl perdu: "+(d.lost?"oui":"non")+" \u00b7 gl r\u00e9tabli: "+(d.gl?"oui":"non")+" \u00b7 2D courant: "+(d.twoD?"oui":"non")+" \u00b7 worker relanc\u00e9: "+(d.worker?"oui":"non")+" \u00b7 courant d\u00e9cod\u00e9: "+d.cur+" \u00b7 temps: "+d.ms+" ms"; }catch(e){} }, 400); })(); }catch(e){}
 function studioDeleteFilm(id){ try{ var idx=_filmsIndex().filter(function(f){ return f.id!==id; }); _filmsIndexSave(idx); localStorage.removeItem(_filmKey(id)); }catch(e){} if(_curFilmId===id)_curFilmId=null; try{ renderFilms(); }catch(e){} }
 
@@ -9031,12 +9048,12 @@ function _toggleFilmsMenu(anchor){
       else if(a==="prerender"){ try{ if(typeof studioPreRenderFilm==="function") studioPreRenderFilm(function(ok,info){ try{ if(ok){ alert("\u2705 FILM PR\u00c9-RENDU ET STOCK\u00c9\n\n"+(info?Math.round(info/1048576)+" Mo":"OK")+"\n\nLa fondation fonctionne \u2014 on peut passer \u00e0 la lecture vid\u00e9o."); } else { alert("\u274c PR\u00c9-RENDU \u00c9CHOU\u00c9\n"+(typeof info==="string"?info:"(interrompu)")+"\n\nDis-le-moi : on passera au d\u00e9coupage en segments."); } }catch(e){ try{ setState(ok?"\u2713 Film pr\u00e9-rendu et stock\u00e9":"Pr\u00e9-rendu \u00e9chou\u00e9"); }catch(_){} } }); }catch(e){} }
       else if(a==="hq"){ try{
         window._HQ=!window._HQ; try{ localStorage.setItem("magot_hq", window._HQ?"1":"0"); }catch(e){}
-        window._PCAP=window._HQ?1920:1500;
+        window._PCAP=window._HQ?2560:1920;
         try{ _DEC_MAX=_computeDecMax(); window._DEC_MAX=_DEC_MAX; }catch(e){}
         try{ for(var _q=0;_q<PHOTOS.length;_q++){ if(PHOTOS[_q]){ PHOTOS[_q].c=null; PHOTOS[_q].img=null; PHOTOS[_q]._durl=null; } } _decLRU=[]; }catch(e){}
         try{ var _of2=document.querySelector('.fmc[data-n="orig"]'); if(_of2&&_of2.classList.contains("on")&&typeof _applyOrigineFormat==="function"){ _applyOrigineFormat(); } else { var _on=document.querySelector('.fmc.on'); if(_on&&_on.click) _on.click(); } }catch(e){}
         try{ if(A&&(PHOTOS.length||clipVidReady)){ buildPartition(); renderMontageAt(playing?visualTime():0); } }catch(e){}
-        setState(window._HQ?"\u26A1 Aperçu haute qualité (1920 px) — plus lourd sur iPhone.":"Aperçu fluide adaptatif (jusqu’à 1500 px).");
+        setState(window._HQ?"\u26A1 Qualit\u00e9 max activ\u00e9e (~2560 px) \u2014 export plus net, un peu plus lent.":"Qualit\u00e9 normale (1920 px).");
       }catch(e){} }
     }; });
     document.addEventListener("click", function(ev){ var mm=document.getElementById("filmsMenu"); if(mm && mm.style.display!=="none" && !mm.contains(ev.target) && ev.target!==anchor && !anchor.contains(ev.target)) mm.style.display="none"; });
@@ -9057,14 +9074,14 @@ function _studioReDecodePhotos(){
   /* 4. Si WebGL perdu : recréer contexte + shaders + textures (ne pas continuer comme si de rien n'était) */
   if(_dg.lost){ try{ glReady=false; initGL(); _dg.gl=!!glReady; }catch(e){ _dg.gl=false; } } else { _dg.gl=true; }
   /* 5. Surfaces invalidées -> on jette les canvas et on re-décode depuis les blobs légers (qui survivent en mémoire) */
-  try{ for(var i=0;i<PHOTOS.length;i++){ if(PHOTOS[i]){ PHOTOS[i].c=null; PHOTOS[i].img=null; PHOTOS[i]._durl=null; PHOTOS[i]._decRes=0; } } _decLRU=[]; }catch(e){}
+  try{ window._decInFlight=0; for(var i=0;i<PHOTOS.length;i++){ if(PHOTOS[i]){ PHOTOS[i].c=null; PHOTOS[i].img=null; PHOTOS[i]._durl=null; PHOTOS[i]._decRes=0; PHOTOS[i]._decoding=false; PHOTOS[i]._decCbs=null; } } _decLRU=[]; }catch(e){}   /* on remet à zéro l'état de décodage : les décodages en cours au moment du passage en fond sont orphelins (Worker terminé) et bloqueraient toute relance */
   var _t=0; try{ _t=(window._pauseRenderT!=null?window._pauseRenderT:(A?visualTime():0))||0; }catch(e){}
   function _draw(){ try{ if(typeof renderMontageAt==="function") renderMontageAt(_t); }catch(e){} }
   /* 5b. Réinjecter au minimum CURRENT et NEXT, sur le FIL PRINCIPAL (fiable : le Worker peut être suspendu) */
   var _segs=(typeof SEGS!=="undefined")?SEGS:null, _idx=-1;
   if(_segs&&_segs.length){ for(var s=0;s<_segs.length;s++){ if(_t>=_segs[s].start && _t<_segs[s].end){ _idx=s; break; } } if(_idx<0) _idx=(_t<_segs[0].start)?0:_segs.length-1; }
   function _dec(si,cur){ if(si<0||!_segs||!_segs[si]||_segs[si].video||_segs[si].img<0) return; var pp=PHOTOS[_segs[si].img], b=pp&&(pp._dispBlob||pp._jpgBlob); if(!pp||!b) return;
-    _mainDecode(pp,function(c){ if(c){ pp.c=c; pp.img=c; pp._decRes=Math.max(c.width||0,c.height||0); var ix=PHOTOS.indexOf(pp); if(ix>=0)_touchDec(ix); if(cur){ _dg.cur=pp._decRes; _dg.twoD=true; window.__resumeDiag=_dg; } } _draw(); }, _planTargetRes(_segs[si]), b);
+    _mainDecode(pp,function(c){ if(c){ pp.c=c; pp.img=c; pp._decRes=Math.max(c.width||0,c.height||0); var ix=PHOTOS.indexOf(pp); if(ix>=0)_touchDec(ix); if(cur){ _dg.cur=pp._decRes; _dg.twoD=true; window.__resumeDiag=_dg; } } _draw(); }, (window._PCAP||1200), b);
   }
   _dec(_idx,true); if(_idx>=0 && _segs && _idx+1<_segs.length) _dec(_idx+1,false);
   _draw();
@@ -9072,12 +9089,15 @@ function _studioReDecodePhotos(){
   var _tr=0; var _chk=setInterval(function(){ _tr++; try{
     var ok=(gl && !(gl.isContextLost&&gl.isContextLost()) && glReady);
     if(ok){ if(glc) glc.style.visibility="visible"; if(bc) bc.style.visibility="hidden"; _dg.gl=true; _draw(); _dg.ms=Math.round(((window.performance&&performance.now)?performance.now():Date.now())-_t0); window.__resumeDiag=_dg; clearInterval(_chk); }
-    else if(_tr>18){ if(glc) glc.style.visibility="hidden"; if(bc) bc.style.visibility="visible"; _dg.ms=Math.round(((window.performance&&performance.now)?performance.now():Date.now())-_t0); window.__resumeDiag=_dg; clearInterval(_chk); }
+    else if(_tr>18){ if(glc) glc.style.visibility="visible"; _dg.ms=Math.round(((window.performance&&performance.now)?performance.now():Date.now())-_t0); window.__resumeDiag=_dg; clearInterval(_chk); }
   }catch(e){ clearInterval(_chk); } }, 120);
   window.__resumeDiag=_dg; window.__resumeAt=Date.now();
-  _draw(); setTimeout(_draw,150); setTimeout(_draw,450); setTimeout(_draw,1000);
+  _draw(); var _rc=0; var _ri=setInterval(function(){ _rc++; try{ _draw(); }catch(e){} if(_rc>16){ clearInterval(_ri); } }, 150);   /* redessine en continu ~2,4 s : l'image réapparaît dès que le décodage du plan courant est fini (fini l'aperçu noir figé en pause) */
 }
-try{ window.addEventListener("visibilitychange", function(){ if(document.visibilityState==="hidden"){ try{ stopPlay(); }catch(e){} studioSaveLocal(); try{ for(var _dk in _decWMap){ if(_decWMap[_dk]&&_decWMap[_dk].to) clearTimeout(_decWMap[_dk].to); } _decWMap={}; for(var _di=0;_di<PHOTOS.length;_di++){ if(PHOTOS[_di]){ PHOTOS[_di]._decoding=false; PHOTOS[_di]._decCbs=null; } } window._decInFlight=0; }catch(e){} try{ if(_decWorker) _decWorker.terminate(); }catch(e){} _decWorker=null; _decWTried=false; try{ window.__decWorker=false; }catch(e){} } else { _studioReDecodePhotos(); } }); window.addEventListener("pagehide", function(){ try{ stopPlay(); }catch(e){} studioSaveLocal(); }); window.addEventListener("pageshow", function(e){ if(e&&e.persisted) _studioReDecodePhotos(); }); }catch(e){}
+try{ window.addEventListener("visibilitychange", function(){ if(document.visibilityState==="hidden"){ try{ stopPlay(); }catch(e){} studioSaveLocal(); } else { try{ _studioResumeFix(); }catch(e){} } }); window.addEventListener("pagehide", function(){ try{ stopPlay(); }catch(e){} studioSaveLocal(); }); window.addEventListener("pageshow", function(e){ if(e&&e.persisted){ try{ _studioResumeFix(); }catch(x){} } }); }catch(e){}
+/* AU RETOUR D'ARRIÈRE-PLAN : ON NE FAIT RIEN (comme le fichier d'origine, qui ne noircissait jamais).
+   Mon ancien _studioReDecodePhotos effaçait tous les canvas et les re-décodait -> c'est LUI qui causait le noir.
+   On garde les images en place ; si la lecture reprend, le rendu les réutilise telles quelles. */
 
 ovVid=document.getElementById("ovlVid");
 var ovlFile=document.getElementById("ovlFile"), ovlAmt=document.getElementById("ovlAmt");
@@ -9378,7 +9398,7 @@ async function _turboExport(){
       var _si=-1; for(var _q=0;_q<SEGS.length;_q++){ if(_t>=SEGS[_q].start && _t<SEGS[_q].end){ _si=_q; break; } }
       var _sg=(_si>=0)?SEGS[_si]:null;
       if(_sg && _sg.video && _sg.vclip!=null && CLIPS[_sg.vclip] && CLIPS[_sg.vclip].ready){ var _cl=CLIPS[_sg.vclip], _vt=(_sg.vstart||0)+(_t-_sg.start)*(_sg.vspeed||_cl.speed||1); _vt=Math.max(0,Math.min((_cl.dur||0.1)-0.05,_vt)); await seekClip(_cl.el, _vt); }
-      if(_sg && !_sg.video && _sg.img>=0 && PHOTOS[_sg.img] && !PHOTOS[_sg.img].c){ try{ await Promise.race([ ensurePhotoDecodedAsync(_sg.img), new Promise(function(r){ setTimeout(r,2500); }) ]); }catch(e){} }
+      if(_sg && !_sg.video && _sg.img>=0 && PHOTOS[_sg.img] && !PHOTOS[_sg.img].c){ try{ await Promise.race([ ensurePhotoDecodedAsync(_sg.img), new Promise(function(r){ setTimeout(r,6000); }) ]); }catch(e){} }
       renderMontageAt(_t);
       var _fsrc=glReady?gl.canvas:base;
       if(SUBS.length){ try{ if(glReady && gl && gl.canvas) bctx.drawImage(gl.canvas,0,0,base.width,base.height); _drawSubOnCanvas(bctx, base.width, base.height, _subExpTime(_t)); _fsrc=base; }catch(e){} }
@@ -9521,7 +9541,7 @@ async function exportStudio(){ try{ _reqWake(); }catch(e){} try{ _hideClipOverla
   if(!A||!SEGS.length||(!PHOTOS.length && !clipVidReady)){ _expMsg("Charge d'abord une musique + des photos ou des vidéos."); return; }
   if(typeof MediaRecorder==="undefined"){ _expMsg("Enregistrement non supporté ici. Ouvre la page dans Safari (\u2197 en bas \u2192 \u00ab Ouvrir dans Safari \u00bb)."); return; }
   stopPlay(); EXPORTING=true; EXPORT_ABORT=false; expShow(0); try{ _expSizeRing(); }catch(e){}
-  try{ window.__expSaveDec=_DEC_MAX; window.__expSavePcap=window._PCAP; if(window.__preRender&&window.__preRender.active){ _DEC_MAX=3; window._PCAP=1280; } else { _DEC_MAX=Math.min(_DEC_MAX,6); } for(var _ei=0;_ei<PHOTOS.length;_ei++){ if(PHOTOS[_ei]){ PHOTOS[_ei].c=null; PHOTOS[_ei].img=null; } } _decLRU=[]; }catch(e){}   /* mémoire minimale pendant le rendu temps réel (évite l'accumulation qui tue la page à ~85%) */
+  try{ window.__expSaveDec=_DEC_MAX; window.__expSavePcap=window._PCAP; if(window.__preRender&&window.__preRender.active){ _DEC_MAX=3; window._PCAP=1280; } else { _DEC_MAX=Math.min(_DEC_MAX,6); window.__expSaveCap=_CACHE_MB_CAP; _CACHE_MB_CAP=30; }   /* EXPORT LÉGER : la source stockée est 1200 ; on décode le blob léger en mémoire (pas d'IDB, pas de canvas 2160) -> mémoire minimale, plus de crash. La vraie netteté passera par un ré-encodage de la source (étape séparée). : photos décodées en pleine résolution (2160) depuis l'original, plus d'agrandissement du 1200 -> fini le mou */ for(var _ei=0;_ei<PHOTOS.length;_ei++){ if(PHOTOS[_ei]){ PHOTOS[_ei].c=null; PHOTOS[_ei].img=null; } } _decLRU=[]; }catch(e){}   /* mémoire minimale pendant le rendu temps réel (évite l'accumulation qui tue la page à ~85%) */
   /* Watchdog global couvrant Turbo + repli : rend la main au bout de 5 min si tout se fige. */
   try{ if(_expWatch) clearTimeout(_expWatch); }catch(e){}
   _expWatch=setTimeout(function(){ if(EXPORTING){ _expForceReset("Export interrompu (trop long)."); } }, 300000);
@@ -9530,8 +9550,8 @@ async function exportStudio(){ try{ _reqWake(); }catch(e){} try{ _hideClipOverla
   if((window._MAGOT_TURBO!==false) && typeof VideoEncoder!=="undefined" && typeof VideoFrame!=="undefined" && typeof Mp4Muxer!=="undefined"){
     try{ _expStage("Rendu fluide image par image (un peu plus long)\u2026"); }catch(e){}
     var _tr="fail"; try{ _tr=await _turboExport(); }catch(e){ _tr="fail"; }
-    if(_tr==="ok") return;
-    if(_tr==="abort"||EXPORT_ABORT){ EXPORTING=false; try{ if(_expWatch){clearTimeout(_expWatch);_expWatch=null;} }catch(e){} expHide(); return; }
+    if(_tr==="ok"){ try{ if(window.__expSavePcap) window._PCAP=window.__expSavePcap; if(window.__expSaveCap) _CACHE_MB_CAP=window.__expSaveCap; }catch(e){} return; }
+    if(_tr==="abort"||EXPORT_ABORT){ try{ if(window.__expSavePcap) window._PCAP=window.__expSavePcap; if(window.__expSaveCap) _CACHE_MB_CAP=window.__expSaveCap; }catch(e){} EXPORTING=false; try{ if(_expWatch){clearTimeout(_expWatch);_expWatch=null;} }catch(e){} expHide(); return; }
     /* _tr === "fail" -> on continue en MediaRecorder temps réel (fiable). EXPORTING reste true. */
     try{ _expStage("Bascule mode compatible\u2026"); }catch(e){}
   }
@@ -9589,7 +9609,7 @@ async function exportStudio(){ try{ _reqWake(); }catch(e){} try{ _hideClipOverla
 
     var chunks=[],done=false,_hardStop=null,_bytes=0;
     rec.ondataavailable=function(ev){ if(ev.data&&ev.data.size){ chunks.push(ev.data); _bytes+=ev.data.size; } };
-    function _cleanup(){ try{ if(window.__expSaveDec){ _DEC_MAX=window.__expSaveDec; } if(window.__expSavePcap){ window._PCAP=window.__expSavePcap; } _decLRU=[]; }catch(e){} try{ if(_expWatch){clearTimeout(_expWatch);_expWatch=null;} }catch(e){} try{ if(_hardStop){clearTimeout(_hardStop);_hardStop=null;} }catch(e){} try{ for(var _cc=0;_cc<CLIPS.length;_cc++){ try{ CLIPS[_cc].el.pause(); }catch(_p){} } }catch(e){} try{ audioSrc&&audioSrc.stop(); }catch(e){} try{ audioCtx&&audioCtx.close(); }catch(e){} try{ stream.getTracks().forEach(function(t){try{t.stop();}catch(_){}});}catch(e){} try{ if(base.width!==_ow||base.height!==_oh) setRenderSize(_ow,_oh);}catch(e){} }
+    function _cleanup(){ try{ if(window.__expSaveDec){ _DEC_MAX=window.__expSaveDec; } if(window.__expSavePcap){ window._PCAP=window.__expSavePcap; } if(window.__expSaveCap){ _CACHE_MB_CAP=window.__expSaveCap; } _decLRU=[]; }catch(e){} try{ if(_expWatch){clearTimeout(_expWatch);_expWatch=null;} }catch(e){} try{ if(_hardStop){clearTimeout(_hardStop);_hardStop=null;} }catch(e){} try{ for(var _cc=0;_cc<CLIPS.length;_cc++){ try{ CLIPS[_cc].el.pause(); }catch(_p){} } }catch(e){} try{ audioSrc&&audioSrc.stop(); }catch(e){} try{ audioCtx&&audioCtx.close(); }catch(e){} try{ stream.getTracks().forEach(function(t){try{t.stop();}catch(_){}});}catch(e){} try{ if(base.width!==_ow||base.height!==_oh) setRenderSize(_ow,_oh);}catch(e){} }
     function _finish(){ if(done)return; done=true; _cleanup();
       var blob=null; try{ blob=new Blob(chunks,{type:outType}); }catch(e){ EXPORTING=false; expHide(); try{ chunks.length=0; }catch(_){} _expMsg("Mémoire insuffisante à la finalisation. Montage trop long : réduis la durée ou la qualité."); return; }
       try{ chunks.length=0; }catch(e){}   /* libère tout de suite la RAM des morceaux (évite le double pic mémoire = crash iOS) */
@@ -10454,7 +10474,7 @@ essentiaReady.then(function(ok){ if(!ok && !A){ /* silencieux : le repli se fait
     }
     if(kept.length>=4){ PHOTOS[kept[0]]._capStyle="title"; PHOTOS[kept[0]]._capAnim="zoom"; PHOTOS[kept[kept.length-1]]._capStyle="credits"; PHOTOS[kept[kept.length-1]]._capAnim="fade"; }
   }
-  function _txtPreview(cv,p){ try{ var ctx=cv.getContext("2d"), W=cv.width, H=cv.height; ctx.clearRect(0,0,W,H); ctx.fillStyle="#000"; ctx.fillRect(0,0,W,H); if(!p.c&&(p._jpgBlob||p._file)){ _ensureDecodedP(p,function(){ try{_txtPreview(cv,p);}catch(e){} }); } var src=p.c||p.img||p._thumb; if(src&&src.width){ var iw=src.width,ih=src.height, sc=Math.max(W/iw,H/ih), dw=iw*sc, dh=ih*sc; ctx.drawImage(src,(W-dw)/2,(H-dh)/2,dw,dh); } var txt=(""+(p._cap||"")).trim(); if(txt && typeof drawCaption==="function"){ drawCaption(ctx,W,H,txt,0,1.3,3.2,1.3,(p._capStyle||"auto"),"none",p._capColor,p._capBand,p._capFont,p._capSize,p._capPos,p._capAlign); } }catch(e){} }
+  function _txtPreview(cv,p){ try{ var ctx=cv.getContext("2d"), W=cv.width, H=cv.height; ctx.clearRect(0,0,W,H); ctx.fillStyle="#000"; ctx.fillRect(0,0,W,H); if(!p.c&&(p._jpgBlob||p._file||p._dispBlob)){ _ensureDecodedP(p,function(){ try{_txtPreview(cv,p);}catch(e){} }); } var src=p.c||p.img||p._thumb; if(src&&src.width){ var iw=src.width,ih=src.height, sc=Math.max(W/iw,H/ih), dw=iw*sc, dh=ih*sc; ctx.drawImage(src,(W-dw)/2,(H-dh)/2,dw,dh); } var txt=(""+(p._cap||"")).trim(); if(txt && typeof drawCaption==="function"){ drawCaption(ctx,W,H,txt,0,1.3,3.2,1.3,(p._capStyle||"auto"),"none",p._capColor,p._capBand,p._capFont,p._capSize,p._capPos,p._capAlign); } }catch(e){} }
   function _capPrimaryFam(ff){ if(!ff) return ""; return ff.split(",")[0].trim(); }
   function _loadCapFont(ff,cb){ try{ var pr=_capPrimaryFam(ff); if(!pr||!document.fonts||!document.fonts.load){ if(cb)cb(); return; } Promise.all([document.fonts.load('400 40px '+pr),document.fonts.load('700 40px '+pr)]).then(function(){ if(cb)cb(); setTimeout(function(){ if(cb)cb(); },220); }).catch(function(){ if(cb)cb(); }); }catch(e){ if(cb)cb(); } }
   function openTextEditor(i){
@@ -10525,7 +10545,7 @@ essentiaReady.then(function(ok){ if(!ok && !A){ /* silencieux : le repli se fait
     +'</div>';
     document.body.appendChild(ov);
     var cv=ov.querySelector(".prg-cv");
-    function draw(){ try{ var src=p.c||p.img||p._thumb; if(!p.c&&(p._jpgBlob||p._file)){ _ensureDecodedP(p,function(){ try{draw();}catch(e){} }); } var iw=(src&&src.width)||16, ih=(src&&src.height)||9; var maxW=340,maxH=Math.round(window.innerHeight*0.26); var sc=Math.min(maxW/iw,maxH/ih); var cw=Math.max(1,Math.round(iw*sc)), ch=Math.max(1,Math.round(ih*sc)); cv.width=cw; cv.height=ch; var ctx=cv.getContext("2d"); ctx.clearRect(0,0,cw,ch); if(src&&src.width){ ctx.drawImage(src,0,0,cw,ch); } cv.style.filter=_cssFilter(work); }catch(e){} }
+    function draw(){ try{ var src=p.c||p.img||p._thumb; if(!p.c&&(p._jpgBlob||p._file||p._dispBlob)){ _ensureDecodedP(p,function(){ try{draw();}catch(e){} }); } var iw=(src&&src.width)||16, ih=(src&&src.height)||9; var maxW=340,maxH=Math.round(window.innerHeight*0.26); var sc=Math.min(maxW/iw,maxH/ih); var cw=Math.max(1,Math.round(iw*sc)), ch=Math.max(1,Math.round(ih*sc)); cv.width=cw; cv.height=ch; var ctx=cv.getContext("2d"); ctx.clearRect(0,0,cw,ch); if(src&&src.width){ ctx.drawImage(src,0,0,cw,ch); } cv.style.filter=_cssFilter(work); }catch(e){} }
     draw();
     function setAll(){ if(!window._gradeApplyAll) return; for(var z=0;z<PHOTOS.length;z++){ if(PHOTOS[z]){ PHOTOS[z]._grade={expo:work.expo,contrast:work.contrast,sat:work.sat,temp:work.temp}; PHOTOS[z]._fit=(p._fit||"fit"); if(p._dur!=null) PHOTOS[z]._dur=p._dur; } } }
     function apply(){ p._grade={expo:work.expo,contrast:work.contrast,sat:work.sat,temp:work.temp}; setAll(); draw(); try{ if(A&&SEGS&&SEGS.length) paintStrip(playing?visualTime():0); }catch(e){} }
