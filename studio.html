@@ -1711,7 +1711,7 @@ function _initDecWorker(){
     var code="self.onmessage=function(e){var d=e.data;try{createImageBitmap(d.blob,{resizeWidth:d.rw,resizeHeight:d.rh,resizeQuality:'high'}).then(function(b){try{self.postMessage({id:d.id,bmp:b},[b]);}catch(_){try{self.postMessage({id:d.id,err:1});}catch(__){}}}).catch(function(){try{self.postMessage({id:d.id,err:1});}catch(_){}});}catch(_){try{self.postMessage({id:d.id,err:1});}catch(__){}}};";
     _decWorker=new Worker(URL.createObjectURL(new Blob([code],{type:"application/javascript"})));
     _decWorker.onmessage=function(e){ var d=e.data||{}; var o=_decWMap[d.id]; if(!o) return; delete _decWMap[d.id]; try{ clearTimeout(o.to); }catch(_e){}
-      if(d.bmp){ window.__decWorker=true; var c=_canvasOf(d.bmp); try{ if(d.bmp.close) d.bmp.close(); }catch(_e){} if(c) o.cb(c); else o.fb(); }
+      if(d.bmp){ window.__decWorker=true; window.__decWTimeouts=0; var c=_canvasOf(d.bmp); try{ if(d.bmp.close) d.bmp.close(); }catch(_e){} if(c) o.cb(c); else o.fb(); }
       else o.fb();
     };
     _decWorker.onerror=function(){ window.__decWorkerOff=true; try{ _decWorker.terminate(); }catch(e){} _decWorker=null; };
@@ -1721,7 +1721,7 @@ function _workerDecode(blob,rw,rh,cb,fb){
   _initDecWorker();
   if(!_decWorker || window.__decWorkerOff===true) return false;
   var id=++_decWSeq;
-  var to=setTimeout(function(){ if(_decWMap[id]){ delete _decWMap[id]; fb(); } }, 2500);   /* Worker trop lent -> repli */
+  var to=setTimeout(function(){ if(_decWMap[id]){ delete _decWMap[id]; window.__decWTimeouts=(window.__decWTimeouts||0)+1; if(window.__decWTimeouts>=2){ window.__decWorkerOff=true; try{ if(_decWorker) _decWorker.terminate(); }catch(e){} _decWorker=null; } fb(); } }, 600);   /* Worker lent/bloqué -> repli en 600 ms ; après 2 échecs on abandonne le Worker (le fil principal est déjà à 0 ms) */
   _decWMap[id]={cb:cb, fb:fb, to:to};
   try{ _decWorker.postMessage({id:id, blob:blob, rw:rw, rh:rh}); }catch(e){ try{ clearTimeout(to); }catch(_e){} delete _decWMap[id]; return false; }
   return true;
