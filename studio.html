@@ -1698,36 +1698,31 @@ function _decodeFromSrcFull(p,cb,mx,blob){ blob=blob||p._jpgBlob; var done=funct
   try{ if(blob){ if(window.createImageBitmap){ createImageBitmap(blob).then(done).catch(function(){ _viaImgBlob(blob,done,function(){ if(p._file)_decodeFromFile(p._file,cb,mx); else cb(null); }); }); } else { _viaImgBlob(blob,done,function(){ if(p._file)_decodeFromFile(p._file,cb,mx); else cb(null); }); } return; }
     if(p._file){ _decodeFromFile(p._file,cb,mx); return; } cb(null);
   }catch(e){ if(p._file)_decodeFromFile(p._file,cb,mx); else cb(null); } }
-function _decodeFromSrc(p,cb,targetRes){ var mx=targetRes||Math.max((window._PCAP||1920),(typeof window!=="undefined"&&window._PMAX)?window._PMAX:0);
-  /* LECTURE (mx≤1400) : blob d'affichage léger ~1300px -> décodage ~70ms garanti. EXPORT (mx>1400) : blob original pleine qualité. */
-  var blob=(mx<=1400 && p._dispBlob) ? p._dispBlob : p._jpgBlob;
-  if(blob && window.createImageBitmap && window.__bmpResize!==false && p._w>0 && p._h>0){
-    var ar=p._w/p._h, rw, rh;   /* ratio fiable même si _w/_h reflètent la taille restaurée, pas le blob natif */
+function _decodeChosen(p,cb,mx,blob){
+  if(!blob){ if(p._file){ _decodeFromFile(p._file,cb,mx); return; } cb(null); return; }
+  if(window.createImageBitmap && window.__bmpResize!==false && p._w>0 && p._h>0){
+    var ar=p._w/p._h, rw, rh;
     if(ar>=1){ rw=mx; rh=Math.max(1,Math.round(mx/ar)); } else { rh=mx; rw=Math.max(1,Math.round(mx*ar)); }
     try{ createImageBitmap(blob, {resizeWidth:rw, resizeHeight:rh, resizeQuality:"high"}).then(function(bmp){
       var ok=(bmp && Math.abs((bmp.width||0)-rw)<=2);
-      if(!ok){ try{ if(bmp&&bmp.close) bmp.close(); }catch(e){} window.__bmpResize=false; _decodeFromSrcFull(p,cb,mx,blob); return; }   /* Safari a ignoré le resize -> on n'y revient plus */
+      if(!ok){ try{ if(bmp&&bmp.close) bmp.close(); }catch(e){} window.__bmpResize=false; _decodeFromSrcFull(p,cb,mx,blob); return; }
       var c=_canvasOf(bmp); try{ if(bmp.close) bmp.close(); }catch(e){} if(c) cb(c); else _decodeFromSrcFull(p,cb,mx,blob);
     }).catch(function(){ _decodeFromSrcFull(p,cb,mx,blob); }); return; }catch(e){ _decodeFromSrcFull(p,cb,mx,blob); return; }
   }
-  _decodeFromSrcFull(p,cb,mx,blob); }
-/* PRÉCHAUFFAGE DE FOND : dès qu'un film est ouvert, on décode une fois chaque photo à ~1200px,
-   ce qui crée son blob d'affichage léger (voir _ensureDecodedP). Concurrence 1, cède le pas à la lecture.
-   Résultat : quelques secondes après l'ouverture, TOUTES les photos se décodent en ~70ms. Persistant (IndexedDB). */
-var _primeRun=false, _primeAt=0;
-function _studioPrimeDisp(){
-  if(_primeRun || typeof PHOTOS==="undefined") return; _primeRun=true;
-  function step(){
-    if(typeof PHOTOS==="undefined"){ _primeRun=false; return; }
-    var found=-1;
-    for(var g=0; g<PHOTOS.length; g++){ var p=PHOTOS[g]; if(p && !p._dispBlob && !p._dispBusy && (p._jpgBlob||p._file) && !(p.feat&&p.feat.skip)){ found=g; break; } }
-    if(found<0){ _primeRun=false; return; }                    /* toutes les photos ont leur blob léger -> terminé */
-    if((window._decInFlight||0) >= 1){ setTimeout(step, 500); return; }   /* la lecture décode -> on attend, on ne bataille pas */
-    ensurePhotoDecoded(found, function(){ setTimeout(step, 80); }, (window._PCAP||1200));
-  }
-  setTimeout(step, 900);
+  _decodeFromSrcFull(p,cb,mx,blob);
 }
-function _studioPrimeSoon(){ try{ clearTimeout(_primeAt); }catch(e){} _primeAt=setTimeout(_studioPrimeDisp, 1500); }
+function _decodeFromSrc(p,cb,targetRes){ var mx=targetRes||Math.max((window._PCAP||1920),(typeof window!=="undefined"&&window._PMAX)?window._PMAX:0);
+  /* EXPORT (mx>1400) et original hors mémoire -> rechargé depuis IndexedDB juste le temps de l'export. */
+  if(mx>1400 && !p._jpgBlob && p._srcKey && typeof _pget==="function"){
+    _pget(p._srcKey).then(function(b){ _decodeChosen(p,cb,mx, b||p._dispBlob||null); }).catch(function(){ _decodeChosen(p,cb,mx, p._dispBlob||null); }); return;
+  }
+  /* LECTURE (mx≤1400) : blob d'affichage léger (~150 Ko, décodage ~70ms). Sinon original s'il est encore là. */
+  var blob=(mx<=1400 && p._dispBlob) ? p._dispBlob : (p._jpgBlob || p._dispBlob);
+  _decodeChosen(p,cb,mx,blob); }
+/* Préchauffage RETIRÉ : il décodait les 64 photos en fond pendant la lecture -> pic mémoire -> crash iOS.
+   Les blobs légers sont créés à l'ouverture (restauration / rechargement-source) ; plus besoin de préchauffer. */
+function _studioPrimeDisp(){}
+function _studioPrimeSoon(){}
 function _decodeFromFile(file,cb,targetRes){ var mx=targetRes||Math.max((window._PCAP||1920),(typeof window!=="undefined"&&window._PMAX)?window._PMAX:0); var done=function(src){ var c=prerender(src,mx); if(src&&src.close){try{src.close();}catch(e){}} cb(c); }; try{ if(window.createImageBitmap){ createImageBitmap(file).then(done).catch(function(){ var u=URL.createObjectURL(file); var im=new Image(); im.onload=function(){ done(im); try{URL.revokeObjectURL(u);}catch(e){} }; im.onerror=function(){ try{URL.revokeObjectURL(u);}catch(e){} cb(null); }; im.src=u; }); } else { var u=URL.createObjectURL(file); var im=new Image(); im.onload=function(){ done(im); try{URL.revokeObjectURL(u);}catch(e){} }; im.onerror=function(){ cb(null); }; im.src=u; } }catch(e){ cb(null); } }
 /* RÉSOLUTION SOURCE DES PHOTOS = résolution d'export (1920) : plus aucun agrandissement -> netteté « niveau CapCut » à l'affichage ET à l'export. */
 var _HQ=false; try{ localStorage.removeItem("magot_hq"); }catch(e){}
@@ -1739,7 +1734,7 @@ function _adaptivePCAP(){ try{
 }catch(e){ return 1600; } }
 var _PCAP=1200; try{ window._PCAP=_PCAP; window._HQ=false; }catch(e){}   /* MESURÉ : 1920px = 708ms de décodage sur cet iPhone -> trop lent pour la lecture temps réel. 1200px ≈ 275ms estimé, tenable avec ~2s d'avance. Net sur écran 1170px. */
 /* ===== MOTEUR IMAGES — étape 1 : résolution PAR PLAN + cache glissant borné en Mo ===== */
-var _CACHE_MB_CAP=170;   /* budget RAM proche de l’ancien fichier (190 Mo iOS) : à 1920px on garde ~11 photos décodées + pinning CURRENT/NEXT */
+var _CACHE_MB_CAP=64;   /* cache réduit : à 1200px et décodage ~70ms depuis le blob léger, inutile de garder beaucoup de canvas -> mémoire iOS protégée */
 function _dispPx(){ try{ var h=document.querySelector(".hero"); var w=h?h.clientWidth:0, ht=h?h.clientHeight:0; var lng=Math.max(w,ht)||Math.max((window.screen&&screen.width)||390,(window.screen&&screen.height)||700); return Math.round(lng*Math.max(1,(window.devicePixelRatio||1))); }catch(e){ return 1400; } }
 function _resMax(){ try{ var isTouch=(('ontouchstart' in window)||((navigator.maxTouchPoints||0)>0)); return isTouch?1500:3200; }catch(e){ return 1500; } }   /* mobile 1500 : résolution que l'iPhone décode à TEMPS pendant la lecture ET qui tient dans le cache (au-delà, la photo n'est jamais prête -> on ne voit que le secours mou) */
 function _planZoomMax(sg){ try{ if(sg&&sg.video) return 1.0; var fit=(sg&&sg.img>=0&&typeof PHOTOS!=="undefined"&&PHOTOS[sg.img]&&PHOTOS[sg.img]._fit)||"fit"; return (fit==="fill")?1.12:1.32; }catch(e){ return 1.32; } }
@@ -8705,7 +8700,9 @@ function _restorePhotoFromBlob(id, blob, meta, maxD){ return new Promise(functio
     if(id!=null && window._restSeen[_rsig]){ try{ URL.revokeObjectURL(url); }catch(e){} res(false); return; }   /* même id déjà présent -> ignoré (les photos SIMILAIRES avec des ids différents sont conservées) */
     if(id!=null) window._restSeen[_rsig]=1;
     var p={img:cv,c:cv,url:null,lum:_ft.lum,feat:_ft,_w:cv.width,_h:cv.height,_id:id,_jpgBlob:blob,_decRes:Math.max(cv.width||0,cv.height||0)};
-    try{ if(cv.toBlob){ cv.toBlob(function(b){ if(b&&(b.size||0)>800){ p._dispBlob=b; try{ _pput("disp:"+id,b); }catch(e){} } },"image/jpeg",0.9); } }catch(e){}   /* blob d'affichage léger prêt dès l'ouverture -> lecture rapide immédiate ; le blob original reste pour l'export */
+    try{ if(cv.toBlob){ cv.toBlob(function(b){ if(b&&(b.size||0)>800){ p._dispBlob=b; try{ _pput("disp:"+id,b); }catch(e){}
+      try{ if(blob && typeof _pput==="function"){ _pput("src:"+id, blob).then(function(){ p._srcKey="src:"+id; p._jpgBlob=null; }).catch(function(){}); } }catch(e){}   /* original -> IndexedDB puis retiré de la mémoire (libère ~1,5 Mo × 64). Rechargé seulement pour l'export. */
+    } },"image/jpeg",0.9); } }catch(e){}   /* blob d'affichage léger prêt dès l'ouverture -> lecture rapide immédiate */
     if(meta.day!=null)p._day=meta.day; if(meta.cap!=null)p._cap=meta.cap; if(meta.capStyle)p._capStyle=meta.capStyle; if(meta.capAnim)p._capAnim=meta.capAnim;
     if(meta.capColor)p._capColor=meta.capColor; if(meta.capBand)p._capBand=meta.capBand; if(meta.capFont)p._capFont=meta.capFont; if(meta.capSize!=null)p._capSize=meta.capSize;
     if(meta.capPos)p._capPos=meta.capPos; if(meta.capAlign)p._capAlign=meta.capAlign; if(meta.grade)p._grade=meta.grade; if(meta.fit)p._fit=meta.fit; if(meta.dur!=null)p._dur=meta.dur;
@@ -8787,11 +8784,19 @@ function studioRefreshFromSource(items){ try{
     var p=PHOTOS[idx++]; var u=(p&&p._id!=null)?map[p._id]:null; if(!u){ next(); return; }
     fetch(u).then(function(r){ return r.blob(); }).then(function(src){
       _decode(src, function(cv){ if(!cv){ setTimeout(next,20); return; } try{
-        try{ var _dcv=prerender(cv,(window._PCAP||1200)); if(_dcv&&_dcv.toBlob){ _dcv.toBlob(function(db){ if(db&&(db.size||0)>800){ p._dispBlob=db; try{ if(p._id) _pput("disp:"+p._id,db); }catch(e){} } },"image/jpeg",0.9); } }catch(e){}   /* blob léger 1200 pour la lecture (décodage ~70ms) */
-        if(cv.toBlob){ cv.toBlob(function(b){ if(b){ p._jpgBlob=b; p.c=null; p.img=null; p._durl=null; p._decRes=0; try{ p._fb=prerender(cv,_fbRes()); }catch(e){} } setTimeout(next,24); },"image/jpeg",0.95); } else setTimeout(next,20); }catch(e){ setTimeout(next,20); } });
+        try{ p._fb=prerender(cv,_fbRes()); }catch(e){}
+        var afterDisp=function(){
+          if(cv.toBlob){ cv.toBlob(function(b){ if(b){ p.c=null; p.img=null; p._durl=null; p._decRes=0;
+            if(p._dispBlob && p._id && typeof _pput==="function"){ _pput("src:"+p._id, b).then(function(){ p._srcKey="src:"+p._id; p._jpgBlob=null; }).catch(function(){ p._jpgBlob=b; }); }
+            else { p._jpgBlob=b; }   /* pas de blob léger -> on garde l'original en mémoire (sécurité) */
+          } setTimeout(next,24); },"image/jpeg",0.95); } else setTimeout(next,20);
+        };
+        var _dcv=prerender(cv,(window._PCAP||1200));
+        if(_dcv && _dcv.toBlob){ _dcv.toBlob(function(db){ if(db&&(db.size||0)>800){ p._dispBlob=db; try{ if(p._id) _pput("disp:"+p._id,db); }catch(e){} } afterDisp(); },"image/jpeg",0.9); }
+        else afterDisp();
+      }catch(e){ setTimeout(next,20); } });
     }).catch(function(){ setTimeout(next,20); });
   })();
-  try{ _studioPrimeSoon(); }catch(e){}
 }catch(e){} }
 try{ window.studioClipIds=studioClipIds; window.studioClipCount=studioClipCount; window.studioRemovePhotos=studioRemovePhotos; window.studioRemoveClips=studioRemoveClips; window.studioRemoveAllClips=studioRemoveAllClips; window.studioRebuild=studioRebuild; window.studioRefreshFromSource=studioRefreshFromSource; }catch(e){}
 try{ window.__mergeDiag=function(txt){ try{ var el=document.getElementById("mergeDiag"); if(!el){ el=document.createElement("div"); el.id="mergeDiag"; el.style.cssText="position:fixed;left:6px;top:230px;z-index:2147483647;max-width:94vw;background:rgba(24,110,70,.96);color:#fff;font:600 11px/1.4 system-ui;padding:9px 11px;border-radius:9px;white-space:pre-wrap;pointer-events:none;box-shadow:0 2px 14px rgba(0,0,0,.6)"; document.body.appendChild(el); } el.textContent=txt; }catch(e){} }; }catch(e){}
