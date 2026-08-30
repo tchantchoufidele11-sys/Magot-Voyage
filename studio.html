@@ -9045,16 +9045,26 @@ function _toggleFilmsMenu(anchor){
 
 /* auto-save quand on quitte / masque la page */
 function _studioReDecodePhotos(){
-  try{ if(gl && gl.isContextLost && gl.isContextLost()){ glReady=false; initGL(); } }catch(e){}   /* WebGL détruit en arrière-plan -> ré-init */
+  var glc=null, bc=null; try{ glc=document.getElementById("gl"); bc=document.getElementById("base"); }catch(e){}
+  /* WebGL détruit en arrière-plan : on MASQUE #gl et on MONTRE le canvas 2D #base (qui portera l'image) le temps de la restauration -> jamais d'écran noir */
+  var _lost=false; try{ _lost=(!gl || (gl.isContextLost && gl.isContextLost())); }catch(e){ _lost=true; }
+  if(_lost){ try{ glReady=false; if(glc) glc.style.visibility="hidden"; if(bc) bc.style.visibility="visible"; initGL(); }catch(e){} }
+  /* canvas purgés par iOS -> re-décodage depuis les blobs légers (qui survivent en mémoire) */
   try{ for(var i=0;i<PHOTOS.length;i++){ if(PHOTOS[i]){ PHOTOS[i].c=null; PHOTOS[i].img=null; PHOTOS[i]._durl=null; PHOTOS[i]._decRes=0; } } _decLRU=[]; }catch(e){}
   var _t=0; try{ _t=(window._pauseRenderT!=null?window._pauseRenderT:(A?visualTime():0))||0; }catch(e){}
-  var _draw=function(){ try{ if(typeof renderMontageAt==="function") renderMontageAt(_t); }catch(e){} };
+  function _draw(){ try{ if(typeof renderMontageAt==="function") renderMontageAt(_t); }catch(e){} }
+  /* re-décodage FIL PRINCIPAL du plan courant (fiable : le Worker peut être suspendu au retour) */
   try{ var _idx=-1; if(typeof SEGS!=="undefined"&&SEGS&&SEGS.length){ for(var s=0;s<SEGS.length;s++){ if(_t>=SEGS[s].start && _t<SEGS[s].end){ _idx=s; break; } } if(_idx<0) _idx=(_t<SEGS[0].start)?0:SEGS.length-1; }
-    if(_idx>=0 && SEGS[_idx] && !SEGS[_idx].video && SEGS[_idx].img>=0){ ensurePhotoDecoded(SEGS[_idx].img, _draw, (window._PCAP||1200)); }   /* re-décode le plan courant (blob léger, rapide) PUIS redessine */
+    if(_idx>=0 && SEGS[_idx] && !SEGS[_idx].video && SEGS[_idx].img>=0){ var pp=PHOTOS[SEGS[_idx].img], b=pp&&(pp._dispBlob||pp._jpgBlob); if(pp&&b){ _mainDecode(pp,function(c){ if(c){ pp.c=c; pp.img=c; pp._decRes=Math.max(c.width||0,c.height||0); var _ix=PHOTOS.indexOf(pp); if(_ix>=0)_touchDec(_ix); } _draw(); }, (window._PCAP||1200), b); } }
   }catch(e){}
-  _draw(); setTimeout(_draw,140); setTimeout(_draw,400); setTimeout(_draw,800);   /* re-rendus pour rattraper la restauration WebGL et le décodage */
+  /* re-montrer #gl dès que WebGL est revenu ; sinon on reste sur le 2D (image visible, sans étalonnage, le temps que ça revienne) */
+  if(_lost){ var _tries=0; var _chk=setInterval(function(){ _tries++; try{
+    if(gl && !(gl.isContextLost&&gl.isContextLost()) && glReady){ if(glc) glc.style.visibility="visible"; if(bc) bc.style.visibility="hidden"; _draw(); clearInterval(_chk); }
+    else if(_tries>16){ if(glc) glc.style.visibility="visible"; clearInterval(_chk); }
+  }catch(e){ clearInterval(_chk); } }, 150); }
+  _draw(); setTimeout(_draw,150); setTimeout(_draw,450); setTimeout(_draw,900); setTimeout(_draw,1500);
 }
-try{ window.addEventListener("visibilitychange", function(){ if(document.visibilityState==="hidden"){ try{ stopPlay(); }catch(e){} studioSaveLocal(); } else { _studioReDecodePhotos(); } }); window.addEventListener("pagehide", function(){ try{ stopPlay(); }catch(e){} studioSaveLocal(); }); window.addEventListener("pageshow", function(e){ if(e&&e.persisted) _studioReDecodePhotos(); }); }catch(e){}
+try{ window.addEventListener("visibilitychange", function(){ if(document.visibilityState==="hidden"){ try{ stopPlay(); }catch(e){} studioSaveLocal(); try{ if(_decWorker) _decWorker.terminate(); }catch(e){} _decWorker=null; _decWTried=false; try{ window.__decWorker=false; }catch(e){} } else { _studioReDecodePhotos(); } }); window.addEventListener("pagehide", function(){ try{ stopPlay(); }catch(e){} studioSaveLocal(); }); window.addEventListener("pageshow", function(e){ if(e&&e.persisted) _studioReDecodePhotos(); }); }catch(e){}
 
 ovVid=document.getElementById("ovlVid");
 var ovlFile=document.getElementById("ovlFile"), ovlAmt=document.getElementById("ovlAmt");
