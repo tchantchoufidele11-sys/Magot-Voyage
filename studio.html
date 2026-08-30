@@ -8407,6 +8407,7 @@ function _drawSubOnCanvas(cx, W, H, mt){ try{ if(!SUBS.length||!cx) return; var 
   cx.restore(); }catch(e){} }
 function loop(){
   if(!playing) return;
+  try{ window.__loopFrames=(window.__loopFrames||0)+1; }catch(e){}
   try{
   if(window.LOOP_ON && !WA.on && audioEl){ var _le=window.LOOP_END||window.MUSIC_DUR||(A?A.dur:0); if(_le>0 && audioEl.currentTime>=_le-0.06){ try{ audioEl.currentTime=window.LOOP_START||0; }catch(e){} } }
   var t=visualTime(); if(t<0) t=0;
@@ -8489,8 +8490,11 @@ function startPlay(){
   try{
     var _need=[], _seen={}, _capN=Math.min(12,(typeof _DEC_MAX!=="undefined"?_DEC_MAX:12));
     for(var _pi=0;_pi<SEGS.length && _need.length<_capN;_pi++){ var _psg=SEGS[_pi]; if(_psg && !_psg.video && _psg.img>=0 && _psg.end>=_st0 && PHOTOS[_psg.img] && !PHOTOS[_psg.img].c && !_seen[_psg.img]){ _seen[_psg.img]=1; _need.push(_psg.img); } }
-    if(!_need.length){ _launch(); }
-    else { var _tot=_need.length,_k=0; var _pstep=function(){ if(_k>=_need.length){ try{ setState(""); }catch(e){} _launch(); return; } var _ix=_need[_k++]; try{ setState(_st("Préparation…")+" "+Math.round(_k/_tot*100)+"%"); }catch(e){} ensurePhotoDecoded(_ix, function(){ setTimeout(_pstep,8); }); }; _pstep(); }
+    var _launched=false, _safe=null;
+    var _go1=function(){ if(_launched) return; _launched=true; try{ clearTimeout(_safe); }catch(e){} try{ setState(""); }catch(e){} _launch(); };
+    if(!_need.length){ _go1(); }
+    else { _safe=setTimeout(_go1, 1800);   /* GARANTIE : la lecture démarre en ≤1,8 s même si un décodage se bloque (ex. après un retour d'arrière-plan) -> plus jamais « rien ne joue » */
+      var _tot=_need.length,_k=0; var _pstep=function(){ if(_launched) return; if(_k>=_need.length){ _go1(); return; } var _ix=_need[_k++]; try{ setState(_st("Préparation…")+" "+Math.round(_k/_tot*100)+"%"); }catch(e){} ensurePhotoDecoded(_ix, function(){ setTimeout(_pstep,8); }); }; _pstep(); }
   }catch(e){ _launch(); }
 }
 function stopPlay(){ try{ _hideClipOverlay(); }catch(e){} try{ if(_subEl) _subEl.style.opacity="0"; }catch(e){} if(playing){ pausedOffset=Math.max(0, montageNow()); } try{ waStop(); }catch(e){} playing=false; cancelAnimationFrame(raf); if(audioEl){ try{ audioEl.pause(); }catch(e){} } if(ovVid){ try{ ovVid.pause(); }catch(e){} } }
@@ -9056,7 +9060,7 @@ function _studioReDecodePhotos(){
   /* 4. Si WebGL perdu : recréer contexte + shaders + textures (ne pas continuer comme si de rien n'était) */
   if(_dg.lost){ try{ glReady=false; initGL(); _dg.gl=!!glReady; }catch(e){ _dg.gl=false; } } else { _dg.gl=true; }
   /* 5. Surfaces invalidées -> on jette les canvas et on re-décode depuis les blobs légers (qui survivent en mémoire) */
-  try{ for(var i=0;i<PHOTOS.length;i++){ if(PHOTOS[i]){ PHOTOS[i].c=null; PHOTOS[i].img=null; PHOTOS[i]._durl=null; PHOTOS[i]._decRes=0; } } _decLRU=[]; }catch(e){}
+  try{ window._decInFlight=0; for(var i=0;i<PHOTOS.length;i++){ if(PHOTOS[i]){ PHOTOS[i].c=null; PHOTOS[i].img=null; PHOTOS[i]._durl=null; PHOTOS[i]._decRes=0; PHOTOS[i]._decoding=false; PHOTOS[i]._decCbs=null; } } _decLRU=[]; }catch(e){}   /* on remet à zéro l'état de décodage : les décodages en cours au moment du passage en fond sont orphelins (Worker terminé) et bloqueraient toute relance */
   var _t=0; try{ _t=(window._pauseRenderT!=null?window._pauseRenderT:(A?visualTime():0))||0; }catch(e){}
   function _draw(){ try{ if(typeof renderMontageAt==="function") renderMontageAt(_t); }catch(e){} }
   /* 5b. Réinjecter au minimum CURRENT et NEXT, sur le FIL PRINCIPAL (fiable : le Worker peut être suspendu) */
