@@ -1682,6 +1682,7 @@ function buildPartition(){
     if(_oD>0) SEGS.push({start:pEnd, end:wEnd, sign:"outro", img:-1, trans:"none"});
   }
   try{ if(typeof _projSaveSoon==="function") _projSaveSoon(); }catch(e){}
+  try{ if(typeof PHOTOS!=="undefined" && PHOTOS.length) _studioPrimeSoon(); }catch(e){}
   try{ if(typeof _refreshSrcCounts==="function") _refreshSrcCounts(); }catch(e){}   /* compteurs Photos/Vidéo à jour dès le montage */
 }
 
@@ -1689,10 +1690,44 @@ function buildPartition(){
 /* ================= Rendu 2D ================= */
 var base=document.getElementById("base"), bctx=base.getContext("2d");
 function _viaImgBlob(blob,done,fail){ try{ var u=URL.createObjectURL(blob); var im=new Image(); im.onload=function(){ done(im); try{URL.revokeObjectURL(u);}catch(e){} }; im.onerror=function(){ try{URL.revokeObjectURL(u);}catch(e){} fail(); }; im.src=u; }catch(e){ fail(); } }
-function _decodeFromSrc(p,cb,targetRes){ var mx=targetRes||Math.max((window._PCAP||1920),(typeof window!=="undefined"&&window._PMAX)?window._PMAX:0); var done=function(src){ var c=prerender(src,mx); if(src&&src.close){try{src.close();}catch(e){}} cb(c); };
-  try{ if(p._jpgBlob){ if(window.createImageBitmap){ createImageBitmap(p._jpgBlob).then(done).catch(function(){ _viaImgBlob(p._jpgBlob,done,function(){ if(p._file)_decodeFromFile(p._file,cb,mx); else cb(null); }); }); } else { _viaImgBlob(p._jpgBlob,done,function(){ if(p._file)_decodeFromFile(p._file,cb,mx); else cb(null); }); } return; }
+function _canvasOf(src){ try{ var w=src.width||0,h=src.height||0; if(!w||!h) return null; var c=document.createElement("canvas"); c.width=w; c.height=h; var cx=c.getContext("2d"); if(!cx) return null; cx.drawImage(src,0,0,w,h); return c; }catch(e){ return null; } }
+/* DÉCODAGE À LA TAILLE CIBLE : createImageBitmap({resizeWidth}) fait décoder Safari en réduit
+   (libjpeg descend l'échelle pendant le décodage) -> ~5x plus rapide que « décoder le 3840 entier puis réduire »,
+   et bien moins de mémoire (plus de N&B/écran noir sous pression). Repli automatique si Safari ignore le resize. */
+function _decodeFromSrcFull(p,cb,mx,blob){ blob=blob||p._jpgBlob; var done=function(src){ var c=prerender(src,mx); if(src&&src.close){try{src.close();}catch(e){}} cb(c); };
+  try{ if(blob){ if(window.createImageBitmap){ createImageBitmap(blob).then(done).catch(function(){ _viaImgBlob(blob,done,function(){ if(p._file)_decodeFromFile(p._file,cb,mx); else cb(null); }); }); } else { _viaImgBlob(blob,done,function(){ if(p._file)_decodeFromFile(p._file,cb,mx); else cb(null); }); } return; }
     if(p._file){ _decodeFromFile(p._file,cb,mx); return; } cb(null);
   }catch(e){ if(p._file)_decodeFromFile(p._file,cb,mx); else cb(null); } }
+function _decodeFromSrc(p,cb,targetRes){ var mx=targetRes||Math.max((window._PCAP||1920),(typeof window!=="undefined"&&window._PMAX)?window._PMAX:0);
+  /* LECTURE (mx≤1400) : blob d'affichage léger ~1300px -> décodage ~70ms garanti. EXPORT (mx>1400) : blob original pleine qualité. */
+  var blob=(mx<=1400 && p._dispBlob) ? p._dispBlob : p._jpgBlob;
+  if(blob && window.createImageBitmap && window.__bmpResize!==false && p._w>0 && p._h>0){
+    var ar=p._w/p._h, rw, rh;   /* ratio fiable même si _w/_h reflètent la taille restaurée, pas le blob natif */
+    if(ar>=1){ rw=mx; rh=Math.max(1,Math.round(mx/ar)); } else { rh=mx; rw=Math.max(1,Math.round(mx*ar)); }
+    try{ createImageBitmap(blob, {resizeWidth:rw, resizeHeight:rh, resizeQuality:"high"}).then(function(bmp){
+      var ok=(bmp && Math.abs((bmp.width||0)-rw)<=2);
+      if(!ok){ try{ if(bmp&&bmp.close) bmp.close(); }catch(e){} window.__bmpResize=false; _decodeFromSrcFull(p,cb,mx,blob); return; }   /* Safari a ignoré le resize -> on n'y revient plus */
+      var c=_canvasOf(bmp); try{ if(bmp.close) bmp.close(); }catch(e){} if(c) cb(c); else _decodeFromSrcFull(p,cb,mx,blob);
+    }).catch(function(){ _decodeFromSrcFull(p,cb,mx,blob); }); return; }catch(e){ _decodeFromSrcFull(p,cb,mx,blob); return; }
+  }
+  _decodeFromSrcFull(p,cb,mx,blob); }
+/* PRÉCHAUFFAGE DE FOND : dès qu'un film est ouvert, on décode une fois chaque photo à ~1200px,
+   ce qui crée son blob d'affichage léger (voir _ensureDecodedP). Concurrence 1, cède le pas à la lecture.
+   Résultat : quelques secondes après l'ouverture, TOUTES les photos se décodent en ~70ms. Persistant (IndexedDB). */
+var _primeRun=false, _primeAt=0;
+function _studioPrimeDisp(){
+  if(_primeRun || typeof PHOTOS==="undefined") return; _primeRun=true;
+  function step(){
+    if(typeof PHOTOS==="undefined"){ _primeRun=false; return; }
+    var found=-1;
+    for(var g=0; g<PHOTOS.length; g++){ var p=PHOTOS[g]; if(p && !p._dispBlob && !p._dispBusy && (p._jpgBlob||p._file) && !(p.feat&&p.feat.skip)){ found=g; break; } }
+    if(found<0){ _primeRun=false; return; }                    /* toutes les photos ont leur blob léger -> terminé */
+    if((window._decInFlight||0) >= 1){ setTimeout(step, 500); return; }   /* la lecture décode -> on attend, on ne bataille pas */
+    ensurePhotoDecoded(found, function(){ setTimeout(step, 80); }, (window._PCAP||1200));
+  }
+  setTimeout(step, 900);
+}
+function _studioPrimeSoon(){ try{ clearTimeout(_primeAt); }catch(e){} _primeAt=setTimeout(_studioPrimeDisp, 1500); }
 function _decodeFromFile(file,cb,targetRes){ var mx=targetRes||Math.max((window._PCAP||1920),(typeof window!=="undefined"&&window._PMAX)?window._PMAX:0); var done=function(src){ var c=prerender(src,mx); if(src&&src.close){try{src.close();}catch(e){}} cb(c); }; try{ if(window.createImageBitmap){ createImageBitmap(file).then(done).catch(function(){ var u=URL.createObjectURL(file); var im=new Image(); im.onload=function(){ done(im); try{URL.revokeObjectURL(u);}catch(e){} }; im.onerror=function(){ try{URL.revokeObjectURL(u);}catch(e){} cb(null); }; im.src=u; }); } else { var u=URL.createObjectURL(file); var im=new Image(); im.onload=function(){ done(im); try{URL.revokeObjectURL(u);}catch(e){} }; im.onerror=function(){ cb(null); }; im.src=u; } }catch(e){ cb(null); } }
 /* RÉSOLUTION SOURCE DES PHOTOS = résolution d'export (1920) : plus aucun agrandissement -> netteté « niveau CapCut » à l'affichage ET à l'export. */
 var _HQ=false; try{ localStorage.removeItem("magot_hq"); }catch(e){}
@@ -1741,7 +1776,10 @@ function _ensureDecodedP(p,cb,targetRes){ if(!p){ if(cb)cb(null); return; } targ
   if(p._decoding){ if((p._decTarget||0)>=targetRes){ if(cb)(p._decCbs=p._decCbs||[]).push(cb); return; } else { if(cb)(p._decCbs=p._decCbs||[]).push(cb); return; } }   /* décodage déjà en cours -> on attend (il se re-vérifiera après) */
   p._decoding=true; p._decTarget=targetRes; window._decInFlight=(window._decInFlight||0)+1; p._decCbs=cb?[cb]:[]; var _t0=(window.performance&&performance.now)?performance.now():Date.now();
   var _fin=false; var _complete=function(c){ if(_fin) return; _fin=true; try{ clearTimeout(_toH); }catch(e){} p._decoding=false; window._decInFlight=Math.max(0,(window._decInFlight||1)-1);
-    if(c){ try{ window.__lastDecodeMs=Math.round(((window.performance&&performance.now)?performance.now():Date.now())-_t0); }catch(e){} p.c=c; p.img=c; p._decRes=Math.max(c.width||0,c.height||0); if(!p._fb){ try{ p._fb=prerender(c,_fbRes()); }catch(e){} } var ix=(typeof PHOTOS!=="undefined")?PHOTOS.indexOf(p):-1; if(ix>=0)_touchDec(ix); }
+    if(c){ try{ window.__lastDecodeMs=Math.round(((window.performance&&performance.now)?performance.now():Date.now())-_t0); }catch(e){} p.c=c; p.img=c; p._decRes=Math.max(c.width||0,c.height||0); if(!p._fb){ try{ p._fb=prerender(c,_fbRes()); }catch(e){} } var ix=(typeof PHOTOS!=="undefined")?PHOTOS.indexOf(p):-1; if(ix>=0)_touchDec(ix);
+      /* décodage lecture (≤1400px) -> on fige une fois un blob d'affichage léger : tous les décodages suivants de cette photo seront ~70ms, quel que soit le support du resize Safari. Le blob original reste pour l'export. */
+      if(targetRes<=1400 && !p._dispBlob && !p._dispBusy && c.toBlob){ p._dispBusy=true; try{ c.toBlob(function(b){ p._dispBusy=false; if(b && (b.size||0)>800){ p._dispBlob=b; try{ if(p._id) _pput("disp:"+p._id, b); }catch(e){} } },"image/jpeg",0.9); }catch(e){ p._dispBusy=false; } }
+    }
     var cbs=p._decCbs||[]; p._decCbs=null; for(var z=0;z<cbs.length;z++){ try{ cbs[z](c); }catch(e){} }
     /* si une cible plus haute a été demandée pendant le décodage, on re-décode vers le haut */
     try{ if(c && p._decTarget && (p._decRes||0) < Math.round(p._decTarget*0.95) && !p._decoding){ _ensureDecodedP(p,null,p._decTarget); } }catch(e){}
@@ -8666,7 +8704,8 @@ function _restorePhotoFromBlob(id, blob, meta, maxD){ return new Promise(functio
     if(!window._restSeen) window._restSeen={};
     if(id!=null && window._restSeen[_rsig]){ try{ URL.revokeObjectURL(url); }catch(e){} res(false); return; }   /* même id déjà présent -> ignoré (les photos SIMILAIRES avec des ids différents sont conservées) */
     if(id!=null) window._restSeen[_rsig]=1;
-    var p={img:cv,c:cv,url:null,lum:_ft.lum,feat:_ft,_w:cv.width,_h:cv.height,_id:id,_jpgBlob:blob};
+    var p={img:cv,c:cv,url:null,lum:_ft.lum,feat:_ft,_w:cv.width,_h:cv.height,_id:id,_jpgBlob:blob,_decRes:Math.max(cv.width||0,cv.height||0)};
+    try{ if(cv.toBlob){ cv.toBlob(function(b){ if(b&&(b.size||0)>800){ p._dispBlob=b; try{ _pput("disp:"+id,b); }catch(e){} } },"image/jpeg",0.9); } }catch(e){}   /* blob d'affichage léger prêt dès l'ouverture -> lecture rapide immédiate ; le blob original reste pour l'export */
     if(meta.day!=null)p._day=meta.day; if(meta.cap!=null)p._cap=meta.cap; if(meta.capStyle)p._capStyle=meta.capStyle; if(meta.capAnim)p._capAnim=meta.capAnim;
     if(meta.capColor)p._capColor=meta.capColor; if(meta.capBand)p._capBand=meta.capBand; if(meta.capFont)p._capFont=meta.capFont; if(meta.capSize!=null)p._capSize=meta.capSize;
     if(meta.capPos)p._capPos=meta.capPos; if(meta.capAlign)p._capAlign=meta.capAlign; if(meta.grade)p._grade=meta.grade; if(meta.fit)p._fit=meta.fit; if(meta.dur!=null)p._dur=meta.dur;
@@ -8747,13 +8786,16 @@ function studioRefreshFromSource(items){ try{
   (function next(){ if(idx>=PHOTOS.length){ try{ studioRebuild(); }catch(e){} return; }
     var p=PHOTOS[idx++]; var u=(p&&p._id!=null)?map[p._id]:null; if(!u){ next(); return; }
     fetch(u).then(function(r){ return r.blob(); }).then(function(src){
-      _decode(src, function(cv){ if(!cv){ setTimeout(next,20); return; } try{ if(cv.toBlob){ cv.toBlob(function(b){ if(b){ p._jpgBlob=b; p.c=null; p.img=null; p._durl=null; try{ p._fb=prerender(cv,_fbRes()); }catch(e){} } setTimeout(next,24); },"image/jpeg",0.95); } else setTimeout(next,20); }catch(e){ setTimeout(next,20); } });
+      _decode(src, function(cv){ if(!cv){ setTimeout(next,20); return; } try{
+        try{ var _dcv=prerender(cv,(window._PCAP||1200)); if(_dcv&&_dcv.toBlob){ _dcv.toBlob(function(db){ if(db&&(db.size||0)>800){ p._dispBlob=db; try{ if(p._id) _pput("disp:"+p._id,db); }catch(e){} } },"image/jpeg",0.9); } }catch(e){}   /* blob léger 1200 pour la lecture (décodage ~70ms) */
+        if(cv.toBlob){ cv.toBlob(function(b){ if(b){ p._jpgBlob=b; p.c=null; p.img=null; p._durl=null; p._decRes=0; try{ p._fb=prerender(cv,_fbRes()); }catch(e){} } setTimeout(next,24); },"image/jpeg",0.95); } else setTimeout(next,20); }catch(e){ setTimeout(next,20); } });
     }).catch(function(){ setTimeout(next,20); });
   })();
+  try{ _studioPrimeSoon(); }catch(e){}
 }catch(e){} }
 try{ window.studioClipIds=studioClipIds; window.studioClipCount=studioClipCount; window.studioRemovePhotos=studioRemovePhotos; window.studioRemoveClips=studioRemoveClips; window.studioRemoveAllClips=studioRemoveAllClips; window.studioRebuild=studioRebuild; window.studioRefreshFromSource=studioRefreshFromSource; }catch(e){}
 try{ window.__mergeDiag=function(txt){ try{ var el=document.getElementById("mergeDiag"); if(!el){ el=document.createElement("div"); el.id="mergeDiag"; el.style.cssText="position:fixed;left:6px;top:230px;z-index:2147483647;max-width:94vw;background:rgba(24,110,70,.96);color:#fff;font:600 11px/1.4 system-ui;padding:9px 11px;border-radius:9px;white-space:pre-wrap;pointer-events:none;box-shadow:0 2px 14px rgba(0,0,0,.6)"; document.body.appendChild(el); } el.textContent=txt; }catch(e){} }; }catch(e){}
-try{ (function(){ var el=null; setInterval(function(){ try{ var d=window.__photoDiag; if(!d) return; if(!el){ el=document.createElement("div"); el.id="photoDiag"; el.style.cssText="position:fixed;left:6px;bottom:96px;z-index:2147483647;max-width:94vw;background:rgba(120,30,140,.95);color:#fff;font:600 12px/1.4 system-ui;padding:8px 11px;border-radius:9px;pointer-events:none;box-shadow:0 2px 14px rgba(0,0,0,.6)"; document.body.appendChild(el); } el.textContent="PHOTO DIAG · plan#"+d.idx+" · "+d.src+" "+d.w+"\u00d7"+d.h+"\ncible "+d.tgt+" · d\u00e9cod\u00e9 "+d.decR+" · "+(d.lag?"\u23f3 en pr\u00e9pa":"\u2713 pr\u00eat")+" · CURRENT "+(d.cur?"pinned":"\u2014")+" · NEXT "+d.nx+"\ncache "+d.nb+" img / "+d.mb+" Mo · decode "+d.ms+" ms · avance "+d.adv+" s · \u00e9vict "+d.ev+" · file "+d.inf; }catch(e){} }, 400); })(); }catch(e){}
+try{ (function(){ var el=null; setInterval(function(){ try{ var d=window.__photoDiag; if(!d) return; if(!el){ el=document.createElement("div"); el.id="photoDiag"; el.style.cssText="position:fixed;left:6px;bottom:96px;z-index:2147483647;max-width:94vw;background:rgba(120,30,140,.95);color:#fff;font:600 12px/1.4 system-ui;padding:8px 11px;border-radius:9px;pointer-events:none;box-shadow:0 2px 14px rgba(0,0,0,.6)"; document.body.appendChild(el); } el.textContent="PHOTO DIAG · plan#"+d.idx+" · "+d.src+" "+d.w+"\u00d7"+d.h+"\ncible "+d.tgt+" · d\u00e9cod\u00e9 "+d.decR+" · "+(d.lag?"\u23f3 en pr\u00e9pa":"\u2713 pr\u00eat")+" · CURRENT "+(d.cur?"pinned":"\u2014")+" · NEXT "+d.nx+"\ncache "+d.nb+" img / "+d.mb+" Mo · decode "+d.ms+" ms "+(window.__bmpResize===false?"(R\u2717)":"(R\u2713)")+" · l\u00e9ger "+(function(){var n=0,t=0;try{for(var i=0;i<PHOTOS.length;i++){if(PHOTOS[i]){t++;if(PHOTOS[i]._dispBlob)n++;}}}catch(e){}return n+"/"+t;})()+" · avance "+d.adv+" s · \u00e9vict "+d.ev+" · file "+d.inf; }catch(e){} }, 400); })(); }catch(e){}
 function studioDeleteFilm(id){ try{ var idx=_filmsIndex().filter(function(f){ return f.id!==id; }); _filmsIndexSave(idx); localStorage.removeItem(_filmKey(id)); }catch(e){} if(_curFilmId===id)_curFilmId=null; try{ renderFilms(); }catch(e){} }
 
 /* ---- UI : galerie de films (overlay injecté) ---- */
