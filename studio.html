@@ -8310,13 +8310,14 @@ function drawGL(time,pulse,srcTex){
   var ut=gl.getUniformLocation(glProg,"uTex"); if(ut) gl.uniform1i(ut,0);
   gl.uniform1f(glU.uTime,time); if(glU.uResolution) gl.uniform2f(glU.uResolution,base.width,base.height);
   var _amt=(typeof window!=="undefined"&&window._gradeAmt!=null)?window._gradeAmt:0.55;   /* option C : intensité du look (0 = Fidèle) */
-  gl.uniform1f(glU.uGrain,G.grain*_amt); gl.uniform1f(glU.uVig,G.vig*_amt);
+  var _sfx=((typeof EXPORTING!=="undefined"&&EXPORTING===true&&window._EXPORT_SOFTFX!==true)?0:1);   /* EXPORT NET : couleur du look conservée, effets qui floutent/bruitent (chromatique, bloom, halation, grain, poussière, scanlines, obturateur) coupés — ils détruisent le détail dans le H.264 ; window._EXPORT_SOFTFX=true pour les garder */
+  gl.uniform1f(glU.uGrain,G.grain*_amt*_sfx); gl.uniform1f(glU.uVig,G.vig*_amt);
   var _cg=null; if(typeof SEGS!=="undefined"&&SEGS.length&&typeof CLIPS!=="undefined"){ for(var _si=0;_si<SEGS.length;_si++){ if(time>=SEGS[_si].start&&time<SEGS[_si].end){ if(SEGS[_si].video&&SEGS[_si].vclip!=null){ _cg=SEGS[_si].vcolor||(CLIPS[SEGS[_si].vclip]&&CLIPS[SEGS[_si].vclip].color); } else if(SEGS[_si].img>=0 && typeof PHOTOS!=='undefined' && PHOTOS[SEGS[_si].img]){ _cg=PHOTOS[SEGS[_si].img]._grade; } break; } } }
   gl.uniform1f(glU.uExpo,G.expo*_amt+(_cg?_cg.expo:0)); gl.uniform1f(glU.uContrast,G.contrast*_amt+(_cg?_cg.contrast:0)); gl.uniform1f(glU.uSat,G.sat*_amt+(_cg?_cg.sat:0));
   gl.uniform1f(glU.uTemp,G.temp*_amt+(_cg?_cg.temp:0)); gl.uniform1f(glU.uLeak,G.leak*_amt); gl.uniform1f(glU.uPulse,pulse||0);
-  gl.uniform1f(glU.uChromatic,(F.chromatic||0)*_amt); gl.uniform1f(glU.uBloom,(F.bloom||0)*_amt); gl.uniform1f(glU.uHalation,(F.halation||0)*_amt);
-  gl.uniform1f(glU.uAnamorphic,(F.anamorphic||0)*_amt); gl.uniform1f(glU.uDust,(F.dust||0)*_amt); gl.uniform1f(glU.uScanlines,(F.scanlines||0)*_amt);
-  gl.uniform1f(glU.uShutter,(F.shutter||0)*_amt); gl.uniform1f(glU.uLensFlare,(F.lensFlare||0)*_amt);
+  gl.uniform1f(glU.uChromatic,(F.chromatic||0)*_amt*_sfx); gl.uniform1f(glU.uBloom,(F.bloom||0)*_amt*_sfx); gl.uniform1f(glU.uHalation,(F.halation||0)*_amt*_sfx);
+  gl.uniform1f(glU.uAnamorphic,(F.anamorphic||0)*_amt); gl.uniform1f(glU.uDust,(F.dust||0)*_amt*_sfx); gl.uniform1f(glU.uScanlines,(F.scanlines||0)*_amt*_sfx);
+  gl.uniform1f(glU.uShutter,(F.shutter||0)*_amt*_sfx); gl.uniform1f(glU.uLensFlare,(F.lensFlare||0)*_amt);
   gl.uniform1f(glU.uFlareX,0.5); gl.uniform1f(glU.uFlareY,0.28);
   if(OVL.on && OVL.ready && ovVid && ovVid.readyState>=2 && !ovVid.paused){
     gl.activeTexture(gl.TEXTURE1); gl.bindTexture(gl.TEXTURE_2D,ovTex);
