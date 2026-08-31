@@ -9208,6 +9208,23 @@ document.getElementById("fPhotos").onchange=function(e){
   for(var k=0;k<Math.min(CONC,total);k++) startNext();
 };
 
+
+  setInterval(function(){
+    if(EXPORTING && typeof _showExportDiag==="function"){
+      var diag=_showExportDiag();
+      var el=document.getElementById("expDiag");
+      if(!el){
+        el=document.createElement("div");
+        el.id="expDiag";
+        el.style.cssText="position:fixed;bottom:20px;left:20px;background:rgba(0,0,0,0.85);color:#0f0;font-family:monospace;font-size:11px;padding:8px;border-radius:4px;max-width:280px;z-index:9999;white-space:pre-wrap;line-height:1.2";
+        document.body.appendChild(el);
+      }
+      el.textContent=diag;
+    } else if(document.getElementById("expDiag")){
+      document.getElementById("expDiag").remove();
+    }
+  }, 500);
+
 /* init */
 /* ===== EXPORT RAPIDE (WebCodecs + mux MP4 + son) ===== */
 function seekClip(el, time){ return new Promise(function(res){
@@ -9361,7 +9378,8 @@ function _showExportResult(blob, outType, ext, DUR, audioAdded, dt){
    automatiquement sur le MediaRecorder temps réel (fiable).
    =================================================================== */
 async function _turboExport(){
-  if(typeof VideoEncoder==="undefined" || typeof VideoFrame==="undefined" || typeof Mp4Muxer==="undefined") return "fail";
+  window.__expDiagStart=Date.now();
+  if(typeof VideoEncoder==="undefined" || typeof VideoFrame==="undefined" || typeof Mp4Muxer==="undefined") { window.__expDiagErr="codec_unavailable"; return "fail"; }
   var W=EXPFMT.w,H=EXPFMT.h,FPS=30;
   var _capPx=((typeof _resCap==="function")?_resCap():1920),_mxWH=Math.max(W,H);   /* plafond : 2560 en Qualité max */
   if(_mxWH>_capPx){ var _scl=_capPx/_mxWH; W=Math.max(2,Math.round(W*_scl/2)*2); H=Math.max(2,Math.round(H*_scl/2)*2); }
@@ -9409,7 +9427,7 @@ async function _turboExport(){
       if((fnum&63)===63){ await new Promise(function(r){ setTimeout(r,0); }); }
     }
     await _expRace(venc.flush(), 25000, "flush"); try{ venc.close(); }catch(_c){}
-  }catch(e){ try{ venc.close(); }catch(_c){} _restore(); if(_aborted||EXPORT_ABORT) return "abort"; return "fail"; }
+  }catch(e){ try{ venc.close(); }catch(_c){} _restore(); window.__expDiagErr=(window.__expDiagErr||"turbo_error: "+e.message); console.log("EXPORT CRASH:", window.__expDiagErr, e); if(_aborted||EXPORT_ABORT) return "abort"; return "fail"; }
   if(useAudio){ try{ _expStage("Turbo : audio\u2026");
     var _srcBuf=(await _buildExportAudio(DUR, Asr))||AUDIOBUF;
     var _Lc=_srcBuf.getChannelData(0), _Rc=(_srcBuf.numberOfChannels>1)?_srcBuf.getChannelData(1):_srcBuf.getChannelData(0);
@@ -9536,6 +9554,18 @@ function studioPreRenderFilm(cb){ try{
   try{ exportStudio(); }catch(e){ window.__preRender=null; if(cb) cb(false,"erreur"); }
 }catch(e){ window.__preRender=null; if(cb) cb(false,"erreur"); } }
 try{ window.studioPreRenderFilm=studioPreRenderFilm; }catch(e){}
+function _showExportDiag(){
+  var txt="EXPORT DIAGNOSTIC:\n";
+  if(window.__expDiagStart) txt+="Start: "+Math.round((Date.now()-window.__expDiagStart)/1000)+"s ago\n";
+  if(window.__expDiagRender) txt+="Last render frame: "+window.__expDiagRender+"\n";
+  if(window.__expDiagPhoto) txt+="Last photo decode: "+window.__expDiagPhoto+"\n";
+  if(window.__expDiagFrame) txt+="Last VideoFrame: "+window.__expDiagFrame+"\n";
+  if(window.__expDiagQueue) txt+="Queue size: "+window.__expDiagQueue+"\n";
+  if(window.__expDiagErr) txt+="ERROR: "+window.__expDiagErr+"\n";
+  if(!EXPORTING && window.__expDiagErr){ txt+="\n→ L'export s'est arrêté. Voir console (F12) pour plus."; }
+  console.log(txt);
+  return txt;
+}
 async function exportStudio(){ try{ _reqWake(); }catch(e){} try{ _hideClipOverlay(); }catch(e){}
   if(EXPORTING){ try{ _expMsg("Un export est déjà en cours\u2026"); }catch(_x){} return; }
   if(!A||!SEGS.length||(!PHOTOS.length && !clipVidReady)){ _expMsg("Charge d'abord une musique + des photos ou des vidéos."); return; }
