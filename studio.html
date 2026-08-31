@@ -9642,13 +9642,16 @@ async function exportStudio(){ try{ _reqWake(); }catch(e){} try{ _hideClipOverla
           for(var _fi=1;_fi<=12;_fi++){ var _ff=1-_fi/12; _sgain.gain.linearRampToValueAtTime(Math.max(0.0001,Math.pow(_ff,0.7)), _fs+_FADE*(_fi/12)); } }
       }catch(e){ try{ audioSrc.start(); }catch(_){} }
     }
-    _hardStop=setTimeout(function(){ try{ if(rec.state!=="inactive")rec.stop(); }catch(e){} }, Math.round(TOT*1000)+700);
+    _hardStop=setTimeout(function(){ try{ if(rec.state==="recording") rec.requestData(); }catch(e){} try{ if(rec.state!=="inactive")rec.stop(); }catch(e){} setTimeout(function(){ if(!done){ _finish(); } }, 4000); }, Math.round(TOT*1000)+700);   /* filet : si onstop ne vient jamais (WebKit), on finalise depuis les morceaux reçus */
 
     var _rafLoop=(typeof requestAnimationFrame==="function");
     (function _loop(){
       if(EXPORT_ABORT){ try{ if(rec.state!=="inactive")rec.stop(); }catch(e){} return; }
       var t=(performance.now()-t0)/1000;
-      if(t>=TOT){ try{ _renderFrameTo(Math.max(0,DUR-0.001)); }catch(e){} return; }
+      if(t>=TOT){ try{ _renderFrameTo(Math.max(0,DUR-0.001)); }catch(e){}
+        try{ var _stF=document.getElementById("expStage"); if(_stF) _stF.textContent="Finalisation\u2026"; }catch(e){}
+        if(!done && (performance.now()-t0)<(TOT*1000+9000)){ if(_rafLoop) requestAnimationFrame(_loop); else setTimeout(_loop,66); }   /* pompe de queue : on continue à peindre jusqu'à la fin réelle de l'enregistreur (les images après stop() sont ignorées) */
+        return; }
       _startExpAudio(); _renderFrameTo(t);
       try{ expShow(Math.min(0.99,t/TOT)); }catch(e){}
       try{ var st=document.getElementById("expStage"); if(st) st.textContent="Enregistrement\u2026 "+Math.round(t)+"/"+Math.round(TOT)+" s"+(_bytes?(" · "+(_bytes/1048576).toFixed(1)+" Mo"):""); }catch(e){}
