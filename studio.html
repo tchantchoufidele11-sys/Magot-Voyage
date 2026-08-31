@@ -8298,6 +8298,7 @@ function initGL(){
   glReady=true; initTransitions(); return true;
 }
 function drawGL(time,pulse,srcTex){
+  try{ window.__lastGLArgs={t:time,p:pulse||0,s:srcTex||null}; }catch(e){}   /* mémo pour la re-présentation d'export (mêmes uniformes = image identique) */
   if(!glReady) return; var G=MOODS[MOOD].grade, F=MOODS[MOOD].fx||{};
   var src=srcTex;
   if(!src){ gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D,glTex); gl.texImage2D(gl.TEXTURE_2D,0,gl.RGBA,gl.RGBA,gl.UNSIGNED_BYTE,base); src=glTex; }
@@ -9324,6 +9325,9 @@ function _showExportResult(blob, outType, ext, DUR, audioAdded, dt){
   try{ window.__wakeHold=true; _reqWake(); }catch(e){}   /* écran allumé pendant l'enregistrement du fichier */
   var _mo=blob.size/1048576, heavy=(_mo>120);
   var url=URL.createObjectURL(blob);
+  try{ (function(){ var _vd=document.createElement("video"); _vd.preload="metadata"; _vd.muted=true;
+    _vd.onloadedmetadata=function(){ try{ var _fd=_vd.duration; var _inf=document.getElementById("expInfo"); if(isFinite(_fd)&&_inf){ var _ok=Math.abs(_fd-DUR)<=3; _inf.textContent=_inf.textContent+" · fichier "+Math.round(_fd)+" s "+(_ok?"\u2713":"\u26a0\ufe0f dur\u00e9e incorrecte"); } }catch(e){} try{ _vd.removeAttribute("src"); _vd.load&&_vd.load(); }catch(e){} };
+    _vd.src=url; })(); }catch(e){}   /* mesure de vérité : durée réelle du fichier lue et affichée */
   var vv=document.getElementById("expVideo"), poster=document.getElementById("expPoster");
   if(vv){ try{ vv.pause(); }catch(e){} vv.removeAttribute("autoplay"); vv.preload="none";
     if(!heavy){ vv.src=url; vv.style.display="block"; } else { try{ vv.removeAttribute("src"); }catch(e){} vv.style.display="none"; } }
@@ -9644,17 +9648,19 @@ async function exportStudio(){ try{ _reqWake(); }catch(e){} try{ _hideClipOverla
     }
     _hardStop=setTimeout(function(){ try{ if(rec.state==="recording") rec.requestData(); }catch(e){} try{ if(rec.state!=="inactive")rec.stop(); }catch(e){} setTimeout(function(){ if(!done){ _finish(); } }, 4000); }, Math.round(TOT*1000)+700);   /* filet : si onstop ne vient jamais (WebKit), on finalise depuis les morceaux reçus */
 
-    var _rafLoop=(typeof requestAnimationFrame==="function");
+    var _rafLoop=(typeof requestAnimationFrame==="function"), _tick=0, _uiN=0, _tailOnce=false;
+    function _represent(){ try{ if(_useGLcap){ var _a=window.__lastGLArgs; if(_a && typeof drawGL==="function"){ drawGL(_a.t,_a.p,(_a.s||((typeof glTex!=="undefined")?glTex:null))); } } else { bctx.drawImage(base,0,0,1,1,0,0,1,1); } }catch(e){} }   /* re-présente le dernier rendu : repeinte réelle pour la capture, coût GPU minime */
     (function _loop(){
       if(EXPORT_ABORT){ try{ if(rec.state!=="inactive")rec.stop(); }catch(e){} return; }
       var t=(performance.now()-t0)/1000;
-      if(t>=TOT){ try{ _renderFrameTo(Math.max(0,DUR-0.001)); }catch(e){}
+      if(t>=TOT){ if(!_tailOnce){ _tailOnce=true; try{ _renderFrameTo(Math.max(0,DUR-0.001)); }catch(e){} } else { _represent(); }
         try{ var _stF=document.getElementById("expStage"); if(_stF) _stF.textContent="Finalisation\u2026"; }catch(e){}
         if(!done && (performance.now()-t0)<(TOT*1000+9000)){ if(_rafLoop) requestAnimationFrame(_loop); else setTimeout(_loop,66); }   /* pompe de queue : on continue à peindre jusqu'à la fin réelle de l'enregistreur (les images après stop() sont ignorées) */
         return; }
-      _startExpAudio(); _renderFrameTo(t);
-      try{ expShow(Math.min(0.99,t/TOT)); }catch(e){}
-      try{ var st=document.getElementById("expStage"); if(st) st.textContent="Enregistrement\u2026 "+Math.round(t)+"/"+Math.round(TOT)+" s"+(_bytes?(" · "+(_bytes/1048576).toFixed(1)+" Mo"):""); }catch(e){}
+      _startExpAudio();
+      if((_tick++&1)===0){ _renderFrameTo(t);
+        if((_uiN++&3)===0){ try{ expShow(Math.min(0.99,t/TOT)); }catch(e){} try{ var st=document.getElementById("expStage"); if(st) st.textContent="Enregistrement\u2026 "+Math.round(t)+"/"+Math.round(TOT)+" s"+(_bytes?(" · "+(_bytes/1048576).toFixed(1)+" Mo"):""); }catch(e){} }
+      } else { _represent(); }
       if(_rafLoop) requestAnimationFrame(_loop); else setTimeout(_loop, Math.max(16,Math.round(1000/FPS)));
     })();
   }catch(e){ _expRestoreMem(); EXPORTING=false; try{ if(_expWatch){clearTimeout(_expWatch);_expWatch=null;} }catch(_w){} _expMsg("Échec export : "+((e&&e.message)||e)); }
