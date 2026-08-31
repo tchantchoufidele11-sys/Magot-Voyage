@@ -1775,7 +1775,7 @@ var _CACHE_MB_CAP=64;   /* cache réduit : à 1200px et décodage ~70ms depuis l
 function _dispPx(){ try{ var h=document.querySelector(".hero"); var w=h?h.clientWidth:0, ht=h?h.clientHeight:0; var lng=Math.max(w,ht)||Math.max((window.screen&&screen.width)||390,(window.screen&&screen.height)||700); return Math.round(lng*Math.max(1,(window.devicePixelRatio||1))); }catch(e){ return 1400; } }
 function _resMax(){ try{ var isTouch=(('ontouchstart' in window)||((navigator.maxTouchPoints||0)>0)); return isTouch?1500:3200; }catch(e){ return 1500; } }   /* mobile 1500 : résolution que l'iPhone décode à TEMPS pendant la lecture ET qui tient dans le cache (au-delà, la photo n'est jamais prête -> on ne voit que le secours mou) */
 function _planZoomMax(sg){ try{ if(sg&&sg.video) return 1.0; var fit=(sg&&sg.img>=0&&typeof PHOTOS!=="undefined"&&PHOTOS[sg.img]&&PHOTOS[sg.img]._fit)||"fit"; return (fit==="fill")?1.12:1.32; }catch(e){ return 1.32; } }
-function _planTargetRes(sg){ return (window._PCAP||1920); }   /* comme l'ancien fichier : TOUTES les photos à pleine résolution 1920 -> net partout, plus de plan « allégé » qui ramollit */
+function _planTargetRes(sg){ var t=(window._PCAP||1920); try{ var p=(sg&&sg.img>=0&&typeof PHOTOS!=="undefined")?PHOTOS[sg.img]:null; if(p){ var n=Math.max(p._srcRes||0,p._w||0,p._h||0); if(n>0&&t>n) t=n; } }catch(e){} return t; }   /* cible plafonnée au NATIF de la photo : les prédicats « à re-décoder ? » deviennent atteignables (plus de re-demandes perpétuelles quand la source < _PCAP) */
 function _photoMB(p){ try{ if(!p||!p.c) return 0; return (p.c.width*p.c.height*4)/1048576; }catch(e){ return 0; } }
 function _cacheMB(){ try{ var m=0; for(var i=0;i<_decLRU.length;i++){ var p=PHOTOS[_decLRU[i]]; if(p&&p.c) m+=_photoMB(p); } return m; }catch(e){ return 0; } }
 function _cacheCount(){ try{ var n=0; for(var i=0;i<_decLRU.length;i++){ var p=PHOTOS[_decLRU[i]]; if(p&&p.c) n++; } return n; }catch(e){ return 0; } }
@@ -8813,7 +8813,7 @@ function studioRemoveClips(ids){ try{ if(!ids||!ids.length) return 0; var s={},n
 function studioRebuild(){ try{ if(A&&(PHOTOS.length||clipVidReady)){ window.USER_ORDER=[]; for(var j=0;j<PHOTOS.length;j++) window.USER_ORDER.push(j); buildPartition(); paintStrip(0); studioSaveLocal(); } }catch(e){} }
 function studioRefreshFromSource(items){ try{
   var map={}; (items||[]).forEach(function(it){ if(it&&!it.video&&it.id!=null&&it.url) map[it.id]=it.url; });
-  var idx=0, cap=(window._PCAP||1920);
+  var idx=0, cap=Math.max((window._PCAP||1920), ((typeof navigator!=="undefined"&&navigator.deviceMemory&&navigator.deviceMemory<4)?1920:2160));   /* la source src: d'export est conservée à la résolution d'export ; l'affichage reste sur le blob léger 1200 */
   function _decode(blob, cb){
     try{ if(typeof createImageBitmap==="function"){ createImageBitmap(blob).then(function(bm){ try{ var sc=Math.min(1,cap/Math.max(bm.width,bm.height,1)); var cv=document.createElement("canvas"); cv.width=Math.max(1,Math.round(bm.width*sc)); cv.height=Math.max(1,Math.round(bm.height*sc)); cv.getContext("2d").drawImage(bm,0,0,cv.width,cv.height); try{ bm.close(); }catch(e){} cb(cv); }catch(e){ try{ bm.close(); }catch(_){} cb(null); } }).catch(function(){ cb(null); }); return; } }catch(e){}
     var im=new Image(), ou=URL.createObjectURL(blob); im.onload=function(){ try{ var sc=Math.min(1,cap/Math.max(im.naturalWidth,im.naturalHeight,1)); var cv=document.createElement("canvas"); cv.width=Math.max(1,Math.round(im.naturalWidth*sc)); cv.height=Math.max(1,Math.round(im.naturalHeight*sc)); cv.getContext("2d").drawImage(im,0,0,cv.width,cv.height); try{ URL.revokeObjectURL(ou); }catch(e){} cb(cv); }catch(e){ try{ URL.revokeObjectURL(ou); }catch(_){} cb(null); } }; im.onerror=function(){ try{ URL.revokeObjectURL(ou); }catch(e){} cb(null); }; im.src=ou;
@@ -8824,7 +8824,7 @@ function studioRefreshFromSource(items){ try{
       _decode(src, function(cv){ if(!cv){ setTimeout(next,20); return; } try{
         try{ p._fb=prerender(cv,_fbRes()); }catch(e){}
         var afterDisp=function(){
-          if(cv.toBlob){ cv.toBlob(function(b){ if(b){ p.c=null; p.img=null; p._durl=null; p._decRes=0;
+          if(cv.toBlob){ cv.toBlob(function(b){ if(b){ p.c=null; p.img=null; p._durl=null; p._decRes=0; try{ p._srcRes=Math.max(cv.width||0,cv.height||0); }catch(e){}
             if(p._dispBlob && p._id && typeof _pput==="function"){ _pput("src:"+p._id, b).then(function(){ p._srcKey="src:"+p._id; p._jpgBlob=null; }).catch(function(){ p._jpgBlob=b; }); }
             else { p._jpgBlob=b; }   /* pas de blob léger -> on garde l'original en mémoire (sécurité) */
           } setTimeout(next,24); },"image/jpeg",0.95); } else setTimeout(next,20);
