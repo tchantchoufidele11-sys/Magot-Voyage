@@ -1785,7 +1785,7 @@ function _adaptivePCAP(){ try{
 }catch(e){ return 1600; } }
 var _PCAP=1200; try{ window._PCAP=_PCAP; window._HQ=false; }catch(e){}   /* MESURÉ : 1920px = 708ms de décodage sur cet iPhone -> trop lent pour la lecture temps réel. 1200px ≈ 275ms estimé, tenable avec ~2s d'avance. Net sur écran 1170px. */
 /* ===== MOTEUR IMAGES — étape 1 : résolution PAR PLAN + cache glissant borné en Mo ===== */
-var _CACHE_MB_CAP=64;   /* cache réduit : à 1200px et décodage ~70ms depuis le blob léger, inutile de garder beaucoup de canvas -> mémoire iOS protégée */
+var _CACHE_MB_CAP=12  /* export: max 3-4 photos @ 1200px = ~12Mo */;   /* cache réduit : à 1200px et décodage ~70ms depuis le blob léger, inutile de garder beaucoup de canvas -> mémoire iOS protégée */
 function _dispPx(){ try{ var h=document.querySelector(".hero"); var w=h?h.clientWidth:0, ht=h?h.clientHeight:0; var lng=Math.max(w,ht)||Math.max((window.screen&&screen.width)||390,(window.screen&&screen.height)||700); return Math.round(lng*Math.max(1,(window.devicePixelRatio||1))); }catch(e){ return 1400; } }
 function _resMax(){ try{ var isTouch=(('ontouchstart' in window)||((navigator.maxTouchPoints||0)>0)); return isTouch?1500:3200; }catch(e){ return 1500; } }   /* mobile 1500 : résolution que l'iPhone décode à TEMPS pendant la lecture ET qui tient dans le cache (au-delà, la photo n'est jamais prête -> on ne voit que le secours mou) */
 function _planZoomMax(sg){ try{ if(sg&&sg.video) return 1.0; var fit=(sg&&sg.img>=0&&typeof PHOTOS!=="undefined"&&PHOTOS[sg.img]&&PHOTOS[sg.img]._fit)||"fit"; return (fit==="fill")?1.12:1.32; }catch(e){ return 1.32; } }
@@ -9424,6 +9424,18 @@ function _expDiagSave(){
   try{ localStorage.setItem("studioExportDiag", JSON.stringify(diag)); }catch(e){}
 }
 
+
+async function _getOPFSWriter(){
+  try{
+    if(!window.__opfsRoot) window.__opfsRoot = await navigator.storage.getDirectory();
+    var handle = await window.__opfsRoot.getFileHandle("studio_export_temp.mp4", { create: true });
+    return await handle.createWritable();
+  }catch(e){
+    console.log("OPFS non dispo, fallback RAM", e);
+    return null;
+  }
+}
+
 async function _turboExport(){
   window.__expDiagStart=Date.now();
   if(typeof VideoEncoder==="undefined" || typeof VideoFrame==="undefined" || typeof Mp4Muxer==="undefined") { window.__expDiagErr="codec_unavailable"; return "fail"; }
@@ -9448,13 +9460,25 @@ async function _turboExport(){
   var useAudio=(AUDIOBUF && typeof AudioEncoder!=="undefined");
   var Asr=useAudio?AUDIOBUF.sampleRate:44100, Ach=2;
   _expStage("Turbo : préparation\u2026");
-  var mo={ target:new Mp4Muxer.ArrayBufferTarget(), fastStart:"in-memory", video:{codec:"avc",width:W,height:H} };
+  var _opfsWriter=null, _arrayTarget=null;
+  try{ _opfsWriter = await _getOPFSWriter(); }catch(e){}
+  if(_opfsWriter){
+    // OPFS dispo : écrire progressivement
+    _arrayTarget = new Mp4Muxer.ArrayBufferTarget();
+    var mo={ target:_arrayTarget, fastStart:"in-memory", video:{codec:"avc",width:W,height:H} };
+    window.__expDiagOpfs="OPFS active";
+  } else {
+    // Fallback RAM
+    _arrayTarget = new Mp4Muxer.ArrayBufferTarget();
+    var mo={ target:_arrayTarget, fastStart:"in-memory", video:{codec:"avc",width:W,height:H} };
+    window.__expDiagOpfs="RAM";
+  }
   if(useAudio) mo.audio={codec:"aac", numberOfChannels:Ach, sampleRate:Asr};
   var muxer, _vencErr=null, venc;
   try{ muxer=new Mp4Muxer.Muxer(mo); venc=new VideoEncoder({ output:function(chunk,meta){ muxer.addVideoChunk(chunk,meta); }, error:function(e){ _vencErr=(e&&e.message)||String(e); } }); venc.configure(vcfg); }
   catch(e){ _restore(); return "fail"; }
   for(var _wc=0;_wc<CLIPS.length;_wc++){ if(CLIPS[_wc]&&CLIPS[_wc].ready){ try{ CLIPS[_wc].el.muted=true; var _wp=CLIPS[_wc].el.play(); if(_wp&&_wp.then){ await Promise.race([ _wp.catch(function(){}), new Promise(function(r){ setTimeout(r,400); }) ]); } CLIPS[_wc].el.pause(); }catch(e){} } }
-  var t0=performance.now(), _aborted=false;
+  var t0=performance.now(), _aborted=false; var _oldMaxDecode=window.__maxConcurrentDecode; window.__maxConcurrentDecode=1;
   try{
     for(var fnum=0; fnum<N; fnum++){
       if(EXPORT_ABORT){ _aborted=true; throw new Error("abort"); }
@@ -9470,8 +9494,14 @@ async function _turboExport(){
       var frame=new VideoFrame(_fsrc,{timestamp:Math.round(fnum*1000000/FPS), duration:Math.round(1000000/FPS)});
       venc.encode(frame,{keyFrame:(fnum%FPS===0)}); frame.close();
       if((fnum&7)===0){ try{ expShow(fnum/N*0.92); var _st=document.getElementById("expStage"); if(_st) _st.textContent="Rendu image par image\u2026"; }catch(e){} await _expYield(); }
-      var _qw=0; while(venc.encodeQueueSize>8){ if(_vencErr) throw new Error("venc:"+_vencErr); await new Promise(function(r){ setTimeout(r,6); }); if(++_qw>1500){ throw new Error("queue"); } }
-      if((fnum&63)===63){ await new Promise(function(r){ setTimeout(r,0); }); }
+      var _qw=0; 
+      while(venc.encodeQueueSize>4){
+        if(_vencErr) throw new Error("venc:"+_vencErr);
+        window.__expDiagQueue=venc.encodeQueueSize;
+        await new Promise(function(r){ setTimeout(r,20); });
+        if(++_qw>500){ throw new Error("queue_backpressure_timeout_fnum_"+fnum); }
+      }
+      if((fnum&15)===15){ await new Promise(function(r){ setTimeout(r,50); }); }
     }
     await _expRace(venc.flush(), 25000, "flush"); try{ venc.close(); }catch(_c){}
   }catch(e){ try{ venc.close(); }catch(_c){} _restore(); window.__expDiagErr=(window.__expDiagErr||"turbo_error: "+e.message); _expDiagSave(); console.log("EXPORT CRASH:", window.__expDiagErr, e); if(_aborted||EXPORT_ABORT) return "abort"; return "fail"; }
@@ -9867,7 +9897,19 @@ async function exportFast(){ return exportStudio(); /* MOTEUR UNIFIÉ : tout pas
   var useAudio=(AUDIOBUF && typeof AudioEncoder!=="undefined");
   var Asr=useAudio?AUDIOBUF.sampleRate:44100, Ach=2;
   _expStage("Pr\u00e9paration de l'encodeur\u2026");
-  var mo={ target:new Mp4Muxer.ArrayBufferTarget(), fastStart:"in-memory", video:{codec:"avc",width:W,height:H} };
+  var _opfsWriter=null, _arrayTarget=null;
+  try{ _opfsWriter = await _getOPFSWriter(); }catch(e){}
+  if(_opfsWriter){
+    // OPFS dispo : écrire progressivement
+    _arrayTarget = new Mp4Muxer.ArrayBufferTarget();
+    var mo={ target:_arrayTarget, fastStart:"in-memory", video:{codec:"avc",width:W,height:H} };
+    window.__expDiagOpfs="OPFS active";
+  } else {
+    // Fallback RAM
+    _arrayTarget = new Mp4Muxer.ArrayBufferTarget();
+    var mo={ target:_arrayTarget, fastStart:"in-memory", video:{codec:"avc",width:W,height:H} };
+    window.__expDiagOpfs="RAM";
+  }
   if(useAudio) mo.audio={codec:"aac", numberOfChannels:Ach, sampleRate:Asr};
   var muxer, _vencErr=null, venc;
   try{
@@ -9896,7 +9938,7 @@ async function exportFast(){ return exportStudio(); /* MOTEUR UNIFIÉ : tout pas
       venc.encode(frame,{keyFrame:(fnum%FPS===0)}); frame.close();
       if((fnum&7)===0){ expShow(fnum/N*0.9); _expStage("Image "+(fnum+1)+" / "+N); await _expYield(); }
       var _qw=0; while(venc.encodeQueueSize>8){ if(_vencErr) throw new Error("Encodeur vid\u00e9o : "+_vencErr); await new Promise(function(r){ setTimeout(r,6); }); if(++_qw>1500){ throw new Error("Encodeur bloqu\u00e9 (file satur\u00e9e, "+venc.encodeQueueSize+" en attente)"); } }
-      if((fnum&63)===63){ await new Promise(function(r){ setTimeout(r,0); }); }
+      if((fnum&15)===15){ await new Promise(function(r){ setTimeout(r,50); }); }
     }
     await _expRace(venc.flush(), 25000, "Finalisation vidéo (flush)"); try{ venc.close(); }catch(_c){}
   }catch(e){ EXPORTING=false; try{ if(_expWatch){clearTimeout(_expWatch);_expWatch=null;} }catch(_w){} try{ if(base.width!==_ow||base.height!==_oh) setRenderSize(_ow,_oh); }catch(_r){} var _em=((e&&e.message)||e)+""; _expMsg((EXPORT_ABORT||/annul/i.test(_em))?"Export annulé.":("\u00c9chec export : "+_em)); return; }
