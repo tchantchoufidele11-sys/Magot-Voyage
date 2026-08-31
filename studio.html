@@ -9225,7 +9225,11 @@ document.getElementById("fPhotos").onchange=function(e){
     }
   }, 500);
 
-/* init */
+/* init */ 
+try{ 
+  if(typeof _showExportCrashDiag==="function") setTimeout(_showExportCrashDiag, 500); 
+}catch(e){}
+
 /* ===== EXPORT RAPIDE (WebCodecs + mux MP4 + son) ===== */
 function seekClip(el, time){ return new Promise(function(res){
   var done=false, fin=function(){ if(!done){ done=true; el.onseeked=null; res(); } };
@@ -9377,6 +9381,49 @@ function _showExportResult(blob, outType, ext, DUR, audioAdded, dt){
    Renvoie "ok" | "abort" | "fail". Sur "fail", exportStudio bascule
    automatiquement sur le MediaRecorder temps réel (fiable).
    =================================================================== */
+
+function _showExportCrashDiag(){
+  try{
+    var diag=localStorage.getItem("studioExportDiag");
+    if(!diag) return;
+    diag=JSON.parse(diag);
+    var el=document.getElementById("exportCrashOverlay");
+    if(!el){
+      el=document.createElement("div");
+      el.id="exportCrashOverlay";
+      el.style.cssText="position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.9);color:#ff6;font-family:monospace;padding:40px;font-size:13px;z-index:9998;overflow:auto;line-height:1.6";
+      document.body.appendChild(el);
+    }
+    var txt="=== EXPORT CRASH DIAGNOSTIC ===\n\n";
+    txt+="L'export s'est arrêté à " + Math.round(diag.percent) + "% \n";
+    txt+="Durée montage: " + Math.round(diag.duration*10)/10 + "s\n";
+    txt+="Frames rendues: " + diag.render + " / " + diag.numFrames + "\n";
+    if(diag.photo!==undefined) txt+="Photo en cours: " + diag.photo + "\n";
+    if(diag.queue) txt+="Queue VideoEncoder: " + diag.queue + "\n";
+    if(diag.error) txt+="\n❌ ERREUR: " + diag.error + "\n";
+    txt+="\nTemps: " + new Date(diag.time).toLocaleTimeString() + "\n";
+    txt+="\n[FERMER]";
+    el.innerHTML="<pre>" + txt + "</pre><button onclick=\"this.parentNode.remove();localStorage.removeItem('studioExportDiag');\" style=\"margin-top:20px;padding:10px 20px;background:#ff6;color:#000;border:none;cursor:pointer;font-size:14px;\">FERMER</button>";
+  }catch(e){}
+}
+
+
+function _expDiagSave(){
+  var diag={
+    start: window.__expDiagStart,
+    render: window.__expDiagRender,
+    photo: window.__expDiagPhoto,
+    frame: window.__expDiagFrame,
+    queue: window.__expDiagQueue,
+    error: window.__expDiagErr,
+    time: Date.now(),
+    duration: MONTAGE_DUR||A.dur||6,
+    numFrames: N||0,
+    percent: (window.__expDiagRender||0) / (N||1) * 100
+  };
+  try{ localStorage.setItem("studioExportDiag", JSON.stringify(diag)); }catch(e){}
+}
+
 async function _turboExport(){
   window.__expDiagStart=Date.now();
   if(typeof VideoEncoder==="undefined" || typeof VideoFrame==="undefined" || typeof Mp4Muxer==="undefined") { window.__expDiagErr="codec_unavailable"; return "fail"; }
@@ -9427,7 +9474,7 @@ async function _turboExport(){
       if((fnum&63)===63){ await new Promise(function(r){ setTimeout(r,0); }); }
     }
     await _expRace(venc.flush(), 25000, "flush"); try{ venc.close(); }catch(_c){}
-  }catch(e){ try{ venc.close(); }catch(_c){} _restore(); window.__expDiagErr=(window.__expDiagErr||"turbo_error: "+e.message); console.log("EXPORT CRASH:", window.__expDiagErr, e); if(_aborted||EXPORT_ABORT) return "abort"; return "fail"; }
+  }catch(e){ try{ venc.close(); }catch(_c){} _restore(); window.__expDiagErr=(window.__expDiagErr||"turbo_error: "+e.message); _expDiagSave(); console.log("EXPORT CRASH:", window.__expDiagErr, e); if(_aborted||EXPORT_ABORT) return "abort"; return "fail"; }
   if(useAudio){ try{ _expStage("Turbo : audio\u2026");
     var _srcBuf=(await _buildExportAudio(DUR, Asr))||AUDIOBUF;
     var _Lc=_srcBuf.getChannelData(0), _Rc=(_srcBuf.numberOfChannels>1)?_srcBuf.getChannelData(1):_srcBuf.getChannelData(0);
