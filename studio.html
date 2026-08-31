@@ -9342,13 +9342,13 @@ function _showExportResult(blob, outType, ext, DUR, audioAdded, dt){
 }
 
 /* ===================================================================
-   TURBO — export WebCodecs HORS temps réel : rapide + 30 i/s fluide.
+   TURBO — export WebCodecs HORS temps réel : durée exacte par construction, 24 i/s.
    Renvoie "ok" | "abort" | "fail". Sur "fail", exportStudio bascule
    automatiquement sur le MediaRecorder temps réel (fiable).
    =================================================================== */
 async function _turboExport(){
   if(typeof VideoEncoder==="undefined" || typeof VideoFrame==="undefined" || typeof Mp4Muxer==="undefined") return "fail";
-  var W=EXPFMT.w,H=EXPFMT.h,FPS=30;
+  var W=EXPFMT.w,H=EXPFMT.h,FPS=24;   /* 24 i/s : durée exacte par construction (n/24 s), 20 % d'images en moins qu'à 30 */
   var _capPx=((typeof _resCap==="function")?_resCap():1920),_mxWH=Math.max(W,H);   /* plafond : 2560 en Qualité max */
   if(_mxWH>_capPx){ var _scl=_capPx/_mxWH; W=Math.max(2,Math.round(W*_scl/2)*2); H=Math.max(2,Math.round(H*_scl/2)*2); }
   var DUR=Math.max(1, Math.min((window.MONTAGE_DUR||A.dur||6), SEGS.length?SEGS[SEGS.length-1].end:(window.MONTAGE_DUR||A.dur||6)));
@@ -9383,14 +9383,14 @@ async function _turboExport(){
       var _t=fnum/FPS;
       var _si=-1; for(var _q=0;_q<SEGS.length;_q++){ if(_t>=SEGS[_q].start && _t<SEGS[_q].end){ _si=_q; break; } }
       var _sg=(_si>=0)?SEGS[_si]:null;
-      if(_sg && _sg.video && _sg.vclip!=null && CLIPS[_sg.vclip] && CLIPS[_sg.vclip].ready){ var _cl=CLIPS[_sg.vclip], _vt=(_sg.vstart||0)+(_t-_sg.start)*(_sg.vspeed||_cl.speed||1); _vt=Math.max(0,Math.min((_cl.dur||0.1)-0.05,_vt)); await seekClip(_cl.el, _vt); }
+      if(_sg && _sg.video && _sg.vclip!=null && CLIPS[_sg.vclip] && CLIPS[_sg.vclip].ready){ var _cl=CLIPS[_sg.vclip], _vt=(_sg.vstart||0)+(_t-_sg.start)*(_sg.vspeed||_cl.speed||1); _vt=Math.max(0,Math.min((_cl.dur||0.1)-0.05,_vt)); if(Math.abs((_cl.el.currentTime||0)-_vt)>0.08){ await seekClip(_cl.el, _vt); } }   /* seek seulement si nécessaire : réutilise l'image courante sous 80 ms d'écart */
       if(_sg && !_sg.video && _sg.img>=0 && PHOTOS[_sg.img] && !PHOTOS[_sg.img].c){ try{ await Promise.race([ ensurePhotoDecodedAsync(_sg.img), new Promise(function(r){ setTimeout(r,2500); }) ]); }catch(e){} }
       renderMontageAt(_t);
       var _fsrc=glReady?gl.canvas:base;
       if(SUBS.length){ try{ if(glReady && gl && gl.canvas) bctx.drawImage(gl.canvas,0,0,base.width,base.height); _drawSubOnCanvas(bctx, base.width, base.height, _subExpTime(_t)); _fsrc=base; }catch(e){} }
       var frame=new VideoFrame(_fsrc,{timestamp:Math.round(fnum*1000000/FPS), duration:Math.round(1000000/FPS)});
       venc.encode(frame,{keyFrame:(fnum%FPS===0)}); frame.close();
-      if((fnum&7)===0){ try{ expShow(fnum/N*0.92); var _st=document.getElementById("expStage"); if(_st) _st.textContent="Rendu image par image\u2026"; }catch(e){} await _expYield(); }
+      if((fnum&7)===0){ try{ window.__expBeat=performance.now(); expShow(fnum/N*0.92); var _st=document.getElementById("expStage"); if(_st) _st.textContent="Rendu image par image\u2026 "+Math.round(fnum/FPS)+"/"+Math.round(DUR)+" s"; }catch(e){} await _expYield(); }
       var _qw=0; while(venc.encodeQueueSize>4){ if(_vencErr) throw new Error("venc:"+_vencErr); await new Promise(function(r){ setTimeout(r,6); }); if(++_qw>1500){ throw new Error("queue"); } }   /* 4 frames en vol max (≈40 Mo) au lieu de 8 (≈80 Mo) */
       if((fnum&15)===15){ await new Promise(function(r){ setTimeout(r,0); }); }
     }
@@ -9528,18 +9528,20 @@ async function exportStudio(){ try{ _reqWake(); }catch(e){} try{ _hideClipOverla
   if(typeof MediaRecorder==="undefined"){ _expMsg("Enregistrement non supporté ici. Ouvre la page dans Safari (\u2197 en bas \u2192 \u00ab Ouvrir dans Safari \u00bb)."); return; }
   stopPlay(); EXPORTING=true; EXPORT_ABORT=false; expShow(0); try{ _expSizeRing(); }catch(e){}
   try{ window.__expSaveDec=_DEC_MAX; window.__expSavePcap=window._PCAP; if(window.__preRender&&window.__preRender.active){ _DEC_MAX=3; window._PCAP=1280; } else { _DEC_MAX=Math.min(_DEC_MAX,4); window._PCAP=((typeof navigator!=="undefined"&&navigator.deviceMemory&&navigator.deviceMemory<4)?1920:2160); }   /* export partage : cible = résolution du canvas d'export -> _decodeFromSrc recharge l'ORIGINAL (mx>1400) au lieu du blob d'affichage 1200 ré-encodé */ for(var _ei=0;_ei<PHOTOS.length;_ei++){ if(PHOTOS[_ei]){ PHOTOS[_ei].c=null; PHOTOS[_ei].img=null; } } _decLRU=[]; }catch(e){}   /* mémoire minimale pendant le rendu temps réel (évite l'accumulation qui tue la page à ~85%) */
-  /* Watchdog global couvrant Turbo + repli : PROPORTIONNEL à la durée du film.
-     (Avant : 300 s fixes -> tout film >~5 min était tué en plein Turbo, sans repli.) */
+  /* Garde-fou racine : détecteur d'INACTIVITÉ (et non minuterie au forfait, qui tuait les
+     longs films). Tant que des images sortent, l'export vit ; 30 s sans progrès = blocage réel. */
   try{ if(_expWatch) clearTimeout(_expWatch); }catch(e){}
-  var _wdDur=1; try{ _wdDur=Math.max(1, Math.min((window.MONTAGE_DUR||A.dur||6), SEGS.length?SEGS[SEGS.length-1].end:(window.MONTAGE_DUR||A.dur||6))); }catch(e){}
-  _expWatch=setTimeout(function(){ if(EXPORTING){ _expForceReset("Export interrompu (trop long)."); } }, Math.max(300000, Math.round(_wdDur*3000)+120000));
+  window.__expBeat=performance.now();
+  _expWatch=setInterval(function(){ try{ if(!EXPORTING){ clearInterval(_expWatch); _expWatch=null; return; } if((performance.now()-(window.__expBeat||0))>30000){ _expForceReset("Export bloqu\u00e9 (aucun progr\u00e8s depuis 30 s)."); } }catch(e){} }, 5000);
   /* 1) TURBO (WebCodecs, image-exacte) : activé AUTOMATIQUEMENT dès qu'il y a des clips vidéo
      (le temps réel y saccade à ~9 i/s). Reste dispo via window._MAGOT_TURBO=true pour le reste. */
-  /* TURBO DÉSACTIVÉ par défaut — VERDICT EMPIRIQUE sur cet iPhone : l'encodeur WebCodecs est
-     plus lent que le temps réel, et avec des clips le seek borné (220 ms/image) rend l'export
-     interminable (~3 %/min vécu comme un blocage). Le temps réel MediaRecorder gère AUSSI les
-     clips, en durée réelle du film. Réactivable si besoin via window._MAGOT_TURBO=true. */
-  if((window._MAGOT_TURBO===true) && typeof VideoEncoder!=="undefined" && typeof VideoFrame!=="undefined" && typeof Mp4Muxer!=="undefined"){
+  /* MOTEUR PAR DÉFAUT : rendu HORS temps réel (WebCodecs). Autopsie du MP4 du 31/08 :
+     l'enregistreur temps réel de Safari horodate à SA cadence (~45 ms/image), pas au mur ->
+     durée structurellement fausse dès que le rendu est lourd (96,5 s puis 86 s pour 158 s, mesurés).
+     Ici timestamp = n/24 s : la durée est exacte PAR CONSTRUCTION. Plus lent que la durée du
+     film (~1,5-2,5x), mais correct. Repli temps réel automatique si le codec échoue.
+     Désactivable via window._MAGOT_TURBO=false. */
+  if((window._MAGOT_TURBO!==false) && typeof VideoEncoder!=="undefined" && typeof VideoFrame!=="undefined" && typeof Mp4Muxer!=="undefined"){
     try{ _expStage("Rendu fluide image par image (un peu plus long)\u2026"); }catch(e){}
     var _tr="fail"; try{ _tr=await _turboExport(); }catch(e){ _tr="fail"; }
     if(_tr==="ok"){ _expRestoreMem(); return; }
@@ -9658,7 +9660,7 @@ async function exportStudio(){ try{ _reqWake(); }catch(e){} try{ _hideClipOverla
         if(!done && (performance.now()-t0)<(TOT*1000+9000)){ if(_rafLoop) requestAnimationFrame(_loop); else setTimeout(_loop,66); }   /* pompe de queue : on continue à peindre jusqu'à la fin réelle de l'enregistreur (les images après stop() sont ignorées) */
         return; }
       _startExpAudio();
-      if((_tick++&1)===0){ _renderFrameTo(t);
+      if((_tick++&1)===0){ _renderFrameTo(t); try{ window.__expBeat=performance.now(); }catch(e){}
         if((_uiN++&3)===0){ try{ expShow(Math.min(0.99,t/TOT)); }catch(e){} try{ var st=document.getElementById("expStage"); if(st) st.textContent="Enregistrement\u2026 "+Math.round(t)+"/"+Math.round(TOT)+" s"+(_bytes?(" · "+(_bytes/1048576).toFixed(1)+" Mo"):""); }catch(e){} }
       } else { _represent(); }
       if(_rafLoop) requestAnimationFrame(_loop); else setTimeout(_loop, Math.max(16,Math.round(1000/FPS)));
