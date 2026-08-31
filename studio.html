@@ -1803,8 +1803,9 @@ function _touchDec(i){ if(typeof PHOTOS==="undefined"||!PHOTOS[i]) return; var k
   }
 }
 function _ensureDecodedP(p,cb,targetRes){ if(!p){ if(cb)cb(null); return; } targetRes=targetRes||(window._PCAP||1600);
+  try{ var _natR=Math.max(p._w||0,p._h||0); if(_natR>0 && targetRes>_natR) targetRes=_natR; }catch(e){}   /* jamais au-delà du natif de la source : évite l'agrandissement en RAM ET la boucle de re-décodage quand la cible dépasse la source */
   if(p.c && (p._decRes||0) >= Math.round(targetRes*0.95)){ if(cb)cb(p.c); return; }   /* résolution actuelle couvre déjà la cible -> AUCUN re-décodage */
-  if(!p._jpgBlob && !p._file){ if(cb)cb(p.c||null); return; }
+  if(!p._jpgBlob && !p._file && !p._srcKey && !p._dispBlob){ if(cb)cb(p.c||null); return; }   /* FIX NETTETÉ : les photos restaurées n'ont plus _jpgBlob (original en IndexedDB via _srcKey) — avant, ce garde les déclarait indécodables -> export entier en SECOURS 540-720 px */
   if(p._decoding){ if((p._decTarget||0)>=targetRes){ if(cb)(p._decCbs=p._decCbs||[]).push(cb); return; } else { if(cb)(p._decCbs=p._decCbs||[]).push(cb); return; } }   /* décodage déjà en cours -> on attend (il se re-vérifiera après) */
   p._decoding=true; p._decTarget=targetRes; window._decInFlight=(window._decInFlight||0)+1; p._decCbs=cb?[cb]:[]; var _t0=(window.performance&&performance.now)?performance.now():Date.now();
   var _fin=false; var _complete=function(c){ if(_fin) return; _fin=true; try{ clearTimeout(_toH); }catch(e){} p._decoding=false; window._decInFlight=Math.max(0,(window._decInFlight||1)-1);
@@ -9279,6 +9280,7 @@ function _expSizeRing(){
 }
 function _expStage(msg){ try{ var e=document.getElementById("expProg"); if(!e) return; var st=document.getElementById("expStage"); if(!st){ st=document.createElement("div"); st.id="expStage"; st.style.cssText="font:600 12px ui-monospace,monospace;color:#9fb0d0;margin-top:8px;min-height:15px"; e.appendChild(st); } st.textContent=msg||""; }catch(_x){} }
 function _expYield(){ return new Promise(function(r){ setTimeout(r,0); }); }
+function _expRestoreMem(){ try{ if(window.__expSaveDec){ _DEC_MAX=window.__expSaveDec; window.__expSaveDec=null; } if(window.__expSavePcap){ window._PCAP=window.__expSavePcap; window.__expSavePcap=null; } if(window.__expSaveCap){ _CACHE_MB_CAP=window.__expSaveCap; window.__expSaveCap=null; } _decLRU=[]; }catch(e){} }
 var _wakeLock=null;
 async function _reqWake(){ try{ if(navigator.wakeLock && navigator.wakeLock.request && !_wakeLock){ _wakeLock=await navigator.wakeLock.request("screen"); document.addEventListener("visibilitychange", _reWake); } }catch(e){} }
 function _reWake(){ try{ if(document.visibilityState==="visible" && EXPORTING && !_wakeLock && navigator.wakeLock){ navigator.wakeLock.request("screen").then(function(w){ _wakeLock=w; }).catch(function(){}); } }catch(e){} }
@@ -9520,7 +9522,7 @@ async function exportStudio(){ try{ _reqWake(); }catch(e){} try{ _hideClipOverla
   if(!A||!SEGS.length||(!PHOTOS.length && !clipVidReady)){ _expMsg("Charge d'abord une musique + des photos ou des vidéos."); return; }
   if(typeof MediaRecorder==="undefined"){ _expMsg("Enregistrement non supporté ici. Ouvre la page dans Safari (\u2197 en bas \u2192 \u00ab Ouvrir dans Safari \u00bb)."); return; }
   stopPlay(); EXPORTING=true; EXPORT_ABORT=false; expShow(0); try{ _expSizeRing(); }catch(e){}
-  try{ window.__expSaveDec=_DEC_MAX; window.__expSavePcap=window._PCAP; if(window.__preRender&&window.__preRender.active){ _DEC_MAX=3; window._PCAP=1280; } else { _DEC_MAX=Math.min(_DEC_MAX,6); } for(var _ei=0;_ei<PHOTOS.length;_ei++){ if(PHOTOS[_ei]){ PHOTOS[_ei].c=null; PHOTOS[_ei].img=null; } } _decLRU=[]; }catch(e){}   /* mémoire minimale pendant le rendu temps réel (évite l'accumulation qui tue la page à ~85%) */
+  try{ window.__expSaveDec=_DEC_MAX; window.__expSavePcap=window._PCAP; if(window.__preRender&&window.__preRender.active){ _DEC_MAX=3; window._PCAP=1280; } else { _DEC_MAX=Math.min(_DEC_MAX,4); window._PCAP=((typeof navigator!=="undefined"&&navigator.deviceMemory&&navigator.deviceMemory<4)?1920:2160); }   /* export partage : cible = résolution du canvas d'export -> _decodeFromSrc recharge l'ORIGINAL (mx>1400) au lieu du blob d'affichage 1200 ré-encodé */ for(var _ei=0;_ei<PHOTOS.length;_ei++){ if(PHOTOS[_ei]){ PHOTOS[_ei].c=null; PHOTOS[_ei].img=null; } } _decLRU=[]; }catch(e){}   /* mémoire minimale pendant le rendu temps réel (évite l'accumulation qui tue la page à ~85%) */
   /* Watchdog global couvrant Turbo + repli : PROPORTIONNEL à la durée du film.
      (Avant : 300 s fixes -> tout film >~5 min était tué en plein Turbo, sans repli.) */
   try{ if(_expWatch) clearTimeout(_expWatch); }catch(e){}
@@ -9532,8 +9534,8 @@ async function exportStudio(){ try{ _reqWake(); }catch(e){} try{ _hideClipOverla
   if((window._MAGOT_TURBO===true || (_hasVidSeg && window._MAGOT_TURBO!==false)) && typeof VideoEncoder!=="undefined" && typeof VideoFrame!=="undefined" && typeof Mp4Muxer!=="undefined"){
     try{ _expStage("Rendu fluide image par image (un peu plus long)\u2026"); }catch(e){}
     var _tr="fail"; try{ _tr=await _turboExport(); }catch(e){ _tr="fail"; }
-    if(_tr==="ok") return;
-    if(_tr==="abort"||EXPORT_ABORT){ EXPORTING=false; try{ if(_expWatch){clearTimeout(_expWatch);_expWatch=null;} }catch(e){} expHide(); return; }
+    if(_tr==="ok"){ _expRestoreMem(); return; }
+    if(_tr==="abort"||EXPORT_ABORT){ _expRestoreMem(); EXPORTING=false; try{ if(_expWatch){clearTimeout(_expWatch);_expWatch=null;} }catch(e){} expHide(); return; }
     /* _tr === "fail" -> on continue en MediaRecorder temps réel (fiable). EXPORTING reste true. */
     try{ _expStage("Bascule mode compatible\u2026"); }catch(e){}
   }
@@ -9567,9 +9569,9 @@ async function exportStudio(){ try{ _reqWake(); }catch(e){} try{ _hideClipOverla
     /* On capture DIRECTEMENT le canvas WebGL : plus de recopie GPU->2D par image (c'était
        le goulot qui plafonnait à ~7 i/s). Repli sur le canvas 2D si pas de WebGL. */
     var capCanvas=(glReady && gl && gl.canvas && typeof gl.canvas.captureStream==="function") ? gl.canvas : base;
-    if(typeof capCanvas.captureStream!=="function"){ EXPORTING=false; try{setRenderSize(_ow,_oh);}catch(e){} _expMsg("Capture non supportée ici. Ouvre la page dans Safari."); return; }
+    if(typeof capCanvas.captureStream!=="function"){ _expRestoreMem(); EXPORTING=false; try{setRenderSize(_ow,_oh);}catch(e){} _expMsg("Capture non supportée ici. Ouvre la page dans Safari."); return; }
     var _useGLcap=(capCanvas!==base);
-    var stream; try{ stream=capCanvas.captureStream(FPS); }catch(e){ EXPORTING=false; try{setRenderSize(_ow,_oh);}catch(_r){} _expMsg("Capture refusée : "+((e&&e.message)||e)+". Essaie dans Safari."); return; }
+    var stream; try{ stream=capCanvas.captureStream(FPS); }catch(e){ _expRestoreMem(); EXPORTING=false; try{setRenderSize(_ow,_oh);}catch(_r){} _expMsg("Capture refusée : "+((e&&e.message)||e)+". Essaie dans Safari."); return; }
 
     _setStage("Audio\u2026"); await _paint();
     var audioCtx=null,audioSrc=null,audioAdded=false,_sgain=null;
@@ -9587,11 +9589,11 @@ async function exportStudio(){ try{ _reqWake(); }catch(e){} try{ _hideClipOverla
     var _vbps=(window.__preRender&&window.__preRender.active)
       ? Math.max(2500000, Math.min(6000000, Math.floor(110*1048576*8/Math.max(1,DUR))))   /* PRÉ-RENDU (lecture) : ~3 Mbit/s, ~110 Mo max même sur un long film -> tient en mémoire, va au bout */
       : Math.max(4000000, Math.min(24000000, Math.floor(180*1048576*8/Math.max(1,DUR))));   /* export partage : plafond RÉEL ~180 Mo (le plancher 12 Mb/s annulait le budget -> 400-850 Mo en RAM sur les longs films = crash iOS) */
-    var rec; try{ rec=new MediaRecorder(stream, mime?{mimeType:mime,videoBitsPerSecond:_vbps}:{videoBitsPerSecond:_vbps}); }catch(e){ try{ rec=new MediaRecorder(stream);}catch(e2){ EXPORTING=false; try{setRenderSize(_ow,_oh);}catch(_r){} _expMsg("MediaRecorder refusé : "+((e2&&e2.message)||e2)); return; } }
+    var rec; try{ rec=new MediaRecorder(stream, mime?{mimeType:mime,videoBitsPerSecond:_vbps}:{videoBitsPerSecond:_vbps}); }catch(e){ try{ rec=new MediaRecorder(stream);}catch(e2){ _expRestoreMem(); EXPORTING=false; try{setRenderSize(_ow,_oh);}catch(_r){} _expMsg("MediaRecorder refusé : "+((e2&&e2.message)||e2)); return; } }
 
     var chunks=[],done=false,_hardStop=null,_bytes=0;
     rec.ondataavailable=function(ev){ if(ev.data&&ev.data.size){ chunks.push(ev.data); _bytes+=ev.data.size; } };
-    function _cleanup(){ try{ if(window.__expSaveDec){ _DEC_MAX=window.__expSaveDec; } if(window.__expSavePcap){ window._PCAP=window.__expSavePcap; } _decLRU=[]; }catch(e){} try{ if(_expWatch){clearTimeout(_expWatch);_expWatch=null;} }catch(e){} try{ if(_hardStop){clearTimeout(_hardStop);_hardStop=null;} }catch(e){} try{ for(var _cc=0;_cc<CLIPS.length;_cc++){ try{ CLIPS[_cc].el.pause(); }catch(_p){} } }catch(e){} try{ audioSrc&&audioSrc.stop(); }catch(e){} try{ audioCtx&&audioCtx.close(); }catch(e){} try{ stream.getTracks().forEach(function(t){try{t.stop();}catch(_){}});}catch(e){} try{ if(base.width!==_ow||base.height!==_oh) setRenderSize(_ow,_oh);}catch(e){} }
+    function _cleanup(){ _expRestoreMem(); try{ if(_expWatch){clearTimeout(_expWatch);_expWatch=null;} }catch(e){} try{ if(_hardStop){clearTimeout(_hardStop);_hardStop=null;} }catch(e){} try{ for(var _cc=0;_cc<CLIPS.length;_cc++){ try{ CLIPS[_cc].el.pause(); }catch(_p){} } }catch(e){} try{ audioSrc&&audioSrc.stop(); }catch(e){} try{ audioCtx&&audioCtx.close(); }catch(e){} try{ stream.getTracks().forEach(function(t){try{t.stop();}catch(_){}});}catch(e){} try{ if(base.width!==_ow||base.height!==_oh) setRenderSize(_ow,_oh);}catch(e){} }
     function _finish(){ if(done)return; done=true; _cleanup();
       var blob=null; try{ blob=new Blob(chunks,{type:outType}); }catch(e){ EXPORTING=false; expHide(); try{ chunks.length=0; }catch(_){} _expMsg("Mémoire insuffisante à la finalisation. Montage trop long : réduis la durée ou la qualité."); return; }
       try{ chunks.length=0; }catch(e){}   /* libère tout de suite la RAM des morceaux (évite le double pic mémoire = crash iOS) */
@@ -9608,6 +9610,7 @@ async function exportStudio(){ try{ _reqWake(); }catch(e){} try{ _hideClipOverla
         else { try{ if(cl.el.paused){ var _pv2=cl.el.play(); if(_pv2&&_pv2.then)_pv2.catch(function(){}); } if(cl.el.playbackRate!==rate) cl.el.playbackRate=rate; if(Math.abs((cl.el.currentTime||0)-want)>0.35) cl.el.currentTime=want; }catch(e){} }
       }
       else { if(_expVidAct>=0){ _expVidAct=-1; for(var _c2=0;_c2<CLIPS.length;_c2++){ try{ CLIPS[_c2].el.pause(); }catch(e){} } } if(sg&&!sg.video&&sg.img>=0&&PHOTOS[sg.img]&&!PHOTOS[sg.img].c){ try{ ensurePhotoDecoded(sg.img); }catch(e){} } }
+      try{ for(var _la=(si>=0?si+1:0); _la<SEGS.length && _la<=(si>=0?si:0)+2; _la++){ var _nsg=SEGS[_la]; if(_nsg && !_nsg.video && _nsg.img>=0 && PHOTOS[_nsg.img] && !PHOTOS[_nsg.img].c && !PHOTOS[_nsg.img]._decoding){ ensurePhotoDecoded(_nsg.img); break; } } }catch(e){}   /* 1 photo d'avance max */
       try{ renderMontageAt(t); }catch(e){}
       if(!_useGLcap && glReady && gl && gl.canvas){ try{ bctx.drawImage(gl.canvas,0,0,base.width,base.height); }catch(e){} }
       try{ _drawSubOnCanvas(bctx, base.width, base.height, _subExpTime(t)); }catch(e){}
@@ -9619,6 +9622,7 @@ async function exportStudio(){ try{ _reqWake(); }catch(e){} try{ _hideClipOverla
     try{ if(_expWatch)clearTimeout(_expWatch); }catch(e){}
     _expWatch=setTimeout(function(){ if(EXPORTING&&!done){ try{ if(rec.state!=="inactive")rec.stop(); }catch(e){} _expForceReset("Export interrompu (trop long)."); } }, (TOT*1000)+90000);
 
+    try{ var _w0=-1; for(var _wq=0;_wq<SEGS.length;_wq++){ if(SEGS[_wq] && !SEGS[_wq].video && SEGS[_wq].img>=0){ _w0=_wq; break; } } if(_w0>=0 && PHOTOS[SEGS[_w0].img] && !PHOTOS[SEGS[_w0].img].c){ _setStage("Pr\u00e9paration de la premi\u00e8re image\u2026"); await Promise.race([ ensurePhotoDecodedAsync(SEGS[_w0].img), new Promise(function(r){ setTimeout(r,3000); }) ]); } }catch(e){}
     _setStage("Enregistrement\u2026"); await _paint();
     if(INTRO>0){ try{ drawSignatureCard("intro",0); }catch(e){} } else { _renderFrameTo(0); }
     try{ rec.start(1000); }catch(e){ try{ rec.start(); }catch(e2){ EXPORTING=false; _cleanup(); _expMsg("Démarrage impossible : "+((e2&&e2.message)||e2)); return; } }
@@ -9645,7 +9649,7 @@ async function exportStudio(){ try{ _reqWake(); }catch(e){} try{ _hideClipOverla
       try{ var st=document.getElementById("expStage"); if(st) st.textContent="Enregistrement\u2026 "+Math.round(t)+"/"+Math.round(TOT)+" s"+(_bytes?(" · "+(_bytes/1048576).toFixed(1)+" Mo"):""); }catch(e){}
       if(_rafLoop) requestAnimationFrame(_loop); else setTimeout(_loop, Math.max(16,Math.round(1000/FPS)));
     })();
-  }catch(e){ EXPORTING=false; try{ if(_expWatch){clearTimeout(_expWatch);_expWatch=null;} }catch(_w){} _expMsg("Échec export : "+((e&&e.message)||e)); }
+  }catch(e){ _expRestoreMem(); EXPORTING=false; try{ if(_expWatch){clearTimeout(_expWatch);_expWatch=null;} }catch(_w){} _expMsg("Échec export : "+((e&&e.message)||e)); }
 }
 
 /* ===================================================================
