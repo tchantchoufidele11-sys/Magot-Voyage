@@ -1741,7 +1741,7 @@ function _mainDecode(p,cb,mx,blob){
 function _decodeChosen(p,cb,mx,blob){
   if(!blob){ if(p._file){ _decodeFromFile(p._file,cb,mx); return; } cb(null); return; }
   /* LECTURE (mx≤1400) -> Worker (décodage hors fil principal) ; repli fil principal si indispo/échec/lenteur */
-  if(mx<=1400 && p._w>0 && p._h>0 && window.__decWorkerOff!==true){
+  if((mx<=1400 || (typeof EXPORTING!=="undefined" && EXPORTING===true)) && p._w>0 && p._h>0 && window.__decWorkerOff!==true){
     var ar=p._w/p._h, rw, rh; if(ar>=1){ rw=mx; rh=Math.max(1,Math.round(mx/ar)); } else { rh=mx; rw=Math.max(1,Math.round(mx*ar)); }
     var used=_workerDecode(blob, rw, rh, function(c){ if(c) cb(c); else _mainDecode(p,cb,mx,blob); }, function(){ _mainDecode(p,cb,mx,blob); });
     if(used) return;
@@ -9549,7 +9549,8 @@ async function exportStudio(){ try{ _reqWake(); }catch(e){} try{ _hideClipOverla
   _setStage("Pr\u00e9paration\u2026"); await _paint();
   try{
     var FPS=30;
-    var W=EXPFMT.w, H=EXPFMT.h, cap=((window.__preRender&&window.__preRender.active)?1600:((typeof navigator!=="undefined"&&navigator.deviceMemory&&navigator.deviceMemory<4)?1920:2160)), mx=Math.max(W,H);   /* pré-rendu (lecture) : 1600px = net écran + encode rapide/fiable ; export partage : 2160px */
+    var W=EXPFMT.w, H=EXPFMT.h, cap=((window.__preRender&&window.__preRender.active)?1600:((typeof navigator!=="undefined"&&navigator.deviceMemory&&navigator.deviceMemory<4)?1920:2160)), mx=Math.max(W,H);
+    try{ var _srcCeil=0; for(var _sc=0;_sc<PHOTOS.length;_sc++){ var _sp2=PHOTOS[_sc]; if(_sp2){ var _n2=Math.max(_sp2._srcRes||0,_sp2._w||0,_sp2._h||0); if(_n2>_srcCeil)_srcCeil=_n2; } } if(_srcCeil>0) cap=Math.min(cap, Math.max(1920,_srcCeil)); }catch(e){}   /* jamais plus grand que la meilleure source du film : pixels interpolés = temps de rendu gaspillé */   /* pré-rendu (lecture) : 1600px = net écran + encode rapide/fiable ; export partage : 2160px */
     if(mx<cap){ var _up=cap/mx; W=Math.round(W*_up/2)*2; H=Math.round(H*_up/2)*2; }
     else if(mx>cap){ var s=cap/mx; W=Math.max(2,Math.round(W*s/2)*2); H=Math.max(2,Math.round(H*s/2)*2); }
     try{ window.__expRes=W+"\u00d7"+H; }catch(e){}
@@ -9575,7 +9576,7 @@ async function exportStudio(){ try{ _reqWake(); }catch(e){} try{ _hideClipOverla
     var capCanvas=(glReady && gl && gl.canvas && typeof gl.canvas.captureStream==="function") ? gl.canvas : base;
     if(typeof capCanvas.captureStream!=="function"){ _expRestoreMem(); EXPORTING=false; try{setRenderSize(_ow,_oh);}catch(e){} _expMsg("Capture non supportée ici. Ouvre la page dans Safari."); return; }
     var _useGLcap=(capCanvas!==base);
-    var stream; try{ stream=capCanvas.captureStream(FPS); }catch(e){ _expRestoreMem(); EXPORTING=false; try{setRenderSize(_ow,_oh);}catch(_r){} _expMsg("Capture refusée : "+((e&&e.message)||e)+". Essaie dans Safari."); return; }
+    var stream; try{ stream=capCanvas.captureStream(); }catch(e){   /* SANS argument : capture à chaque repeinte, horodatage temps réel -> durée du fichier correcte même si le rendu tient moins de 30 i/s (avec 30 fixé, Safari horodatait 1/30 s par image capturée -> vidéo à moitié de la durée) */ _expRestoreMem(); EXPORTING=false; try{setRenderSize(_ow,_oh);}catch(_r){} _expMsg("Capture refusée : "+((e&&e.message)||e)+". Essaie dans Safari."); return; }
 
     _setStage("Audio\u2026"); await _paint();
     var audioCtx=null,audioSrc=null,audioAdded=false,_sgain=null;
@@ -9671,7 +9672,7 @@ async function exportRecorderFallback(){
     if(!srcCanvas || typeof srcCanvas.captureStream!=="function"){ EXPORTING=false; _expMsg("Capture du canvas non supportée (captureStream absent) sur ce navigateur."); return; }
     var FPS=30;
     var DUR=Math.max(1, Math.min((window.MONTAGE_DUR||A.dur||6), SEGS.length?SEGS[SEGS.length-1].end:(window.MONTAGE_DUR||A.dur||6)));
-    var stream=srcCanvas.captureStream(FPS);
+    var stream=srcCanvas.captureStream();   /* même correctif durée que le moteur principal */
     /* --- audio best-effort : on route la musique vers un flux capturable --- */
     var audioCtx=null, audioSrc=null, audioTrackAdded=false;
     try{
