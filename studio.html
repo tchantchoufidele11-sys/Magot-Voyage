@@ -1805,11 +1805,19 @@ function _touchDec(i){ if(typeof PHOTOS==="undefined"||!PHOTOS[i]) return; var k
 function _ensureDecodedP(p,cb,targetRes){ if(!p){ if(cb)cb(null); return; } targetRes=targetRes||(window._PCAP||1600);
   try{ var _natR=Math.max(p._srcRes||0,p._w||0,p._h||0); if(_natR>0 && targetRes>_natR) targetRes=_natR; }catch(e){}   /* jamais au-delà du natif de la source : évite l'agrandissement en RAM ET la boucle de re-décodage quand la cible dépasse la source */
   if(p.c && (p._decRes||0) >= Math.round(targetRes*0.95)){ if(cb)cb(p.c); return; }   /* résolution actuelle couvre déjà la cible -> AUCUN re-décodage */
+  try{ if(p._decFailAt){ var _nw=(window.performance&&performance.now)?performance.now():Date.now(); if((_nw-p._decFailAt)<1200){ if(cb)cb(p.c||null); return; } } }catch(e){}   /* temporisation après échec : empêche la tempête de re-décodages par image */
   if(!p._jpgBlob && !p._file && !p._srcKey && !p._dispBlob){ if(cb)cb(p.c||null); return; }   /* FIX NETTETÉ : les photos restaurées n'ont plus _jpgBlob (original en IndexedDB via _srcKey) — avant, ce garde les déclarait indécodables -> export entier en SECOURS 540-720 px */
   if(p._decoding){ if((p._decTarget||0)>=targetRes){ if(cb)(p._decCbs=p._decCbs||[]).push(cb); return; } else { if(cb)(p._decCbs=p._decCbs||[]).push(cb); return; } }   /* décodage déjà en cours -> on attend (il se re-vérifiera après) */
   p._decoding=true; p._decTarget=targetRes; window._decInFlight=(window._decInFlight||0)+1; p._decCbs=cb?[cb]:[]; var _t0=(window.performance&&performance.now)?performance.now():Date.now();
-  var _fin=false; var _complete=function(c){ if(_fin) return; _fin=true; try{ if(!c){ window.__dbgDecFail=(window.__dbgDecFail||0)+1; window.__dbgLastFail=(window.__dbgLastGet?("get "+(window.__dbgLastGet.has?("ok "+Math.round(window.__dbgLastGet.sz/1024)+"Ko "+window.__dbgLastGet.ty):"VIDE")):"?")+" tgt"+targetRes; } }catch(e){} try{ clearTimeout(_toH); }catch(e){} p._decoding=false; window._decInFlight=Math.max(0,(window._decInFlight||1)-1);
-    if(c){ try{ window.__lastDecodeMs=Math.round(((window.performance&&performance.now)?performance.now():Date.now())-_t0); }catch(e){} p.c=c; p.img=c; p._decRes=Math.max(c.width||0,c.height||0); if(!p._fb){ try{ p._fb=prerender(c,_fbRes()); }catch(e){} } var ix=(typeof PHOTOS!=="undefined")?PHOTOS.indexOf(p):-1; if(ix>=0)_touchDec(ix);
+  var _fin=false; var _complete=function(c){ if(_fin) return; _fin=true; try{ if(!c){ window.__dbgDecFail=(window.__dbgDecFail||0)+1; window.__dbgLastFail=(window.__dbgLastGet?("get "+(window.__dbgLastGet.has?("ok "+Math.round(window.__dbgLastGet.sz/1024)+"Ko "+window.__dbgLastGet.ty):"VIDE")):"?")+" tgt"+targetRes; } }catch(e){}
+    try{ if(!c){   /* ÉCHEC DE DÉCODAGE : on APPREND, au lieu de redemander la même cible à chaque image */
+      p._decFailN=(p._decFailN||0)+1; p._decFailAt=(window.performance&&performance.now)?performance.now():Date.now();
+      var _lastGood=(p._decRes||0);
+      var _ceil=(_lastGood>0 && _lastGood<targetRes) ? _lastGood : Math.max(720, Math.round(targetRes*0.65));
+      p._srcRes=_ceil; if(p._w>_ceil||p._h>_ceil){ var _sc=_ceil/Math.max(p._w||1,p._h||1); }   /* nouveau plafond : la cible retombe sur ce qui décode réellement */
+      p._upTried=0; p._upGot=0;
+    } }catch(e){} try{ clearTimeout(_toH); }catch(e){} p._decoding=false; window._decInFlight=Math.max(0,(window._decInFlight||1)-1);
+    if(c){ try{ window.__lastDecodeMs=Math.round(((window.performance&&performance.now)?performance.now():Date.now())-_t0); }catch(e){} p.c=c; p.img=c; p._decRes=Math.max(c.width||0,c.height||0); p._decFailN=0; p._decFailAt=0; if(!p._fb){ try{ p._fb=prerender(c,_fbRes()); }catch(e){} } var ix=(typeof PHOTOS!=="undefined")?PHOTOS.indexOf(p):-1; if(ix>=0)_touchDec(ix);
       /* décodage lecture (≤1400px) -> on fige une fois un blob d'affichage léger : tous les décodages suivants de cette photo seront ~70ms, quel que soit le support du resize Safari. Le blob original reste pour l'export. */
       if(targetRes<=1400 && !p._dispBlob && !p._dispBusy && c.toBlob){ p._dispBusy=true; try{ c.toBlob(function(b){ p._dispBusy=false; if(b && (b.size||0)>800){ p._dispBlob=b; try{ if(p._id) _pput("disp:"+p._id, b); }catch(e){} } },"image/jpeg",0.9); }catch(e){ p._dispBusy=false; } }
     }
