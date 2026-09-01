@@ -1775,7 +1775,7 @@ var _CACHE_MB_CAP=64;   /* cache réduit : à 1200px et décodage ~70ms depuis l
 function _dispPx(){ try{ var h=document.querySelector(".hero"); var w=h?h.clientWidth:0, ht=h?h.clientHeight:0; var lng=Math.max(w,ht)||Math.max((window.screen&&screen.width)||390,(window.screen&&screen.height)||700); return Math.round(lng*Math.max(1,(window.devicePixelRatio||1))); }catch(e){ return 1400; } }
 function _resMax(){ try{ var isTouch=(('ontouchstart' in window)||((navigator.maxTouchPoints||0)>0)); return isTouch?1500:3200; }catch(e){ return 1500; } }   /* mobile 1500 : résolution que l'iPhone décode à TEMPS pendant la lecture ET qui tient dans le cache (au-delà, la photo n'est jamais prête -> on ne voit que le secours mou) */
 function _planZoomMax(sg){ try{ if(sg&&sg.video) return 1.0; var fit=(sg&&sg.img>=0&&typeof PHOTOS!=="undefined"&&PHOTOS[sg.img]&&PHOTOS[sg.img]._fit)||"fit"; return (fit==="fill")?1.12:1.32; }catch(e){ return 1.32; } }
-function _planTargetRes(sg){ var t=(window._PCAP||1920); try{ var p=(sg&&sg.img>=0&&typeof PHOTOS!=="undefined")?PHOTOS[sg.img]:null; if(p){ var n=Math.max(p._srcRes||0,p._w||0,p._h||0); if(n>0&&t>n) t=n; } }catch(e){} return t; }   /* cible plafonnée au NATIF de la photo : les prédicats « à re-décoder ? » deviennent atteignables (plus de re-demandes perpétuelles quand la source < _PCAP) */
+function _planTargetRes(sg){ var t=(window._PCAP||1920); try{ var p=(sg&&sg.img>=0&&typeof PHOTOS!=="undefined")?PHOTOS[sg.img]:null; if(p && !(p._srcKey && !p._ceilLearned)){ var n=Math.max(p._srcRes||0,p._w||0,p._h||0); if(n>0&&t>n) t=n; } }catch(e){} return t; }   /* cible plafonnée au NATIF de la photo : les prédicats « à re-décoder ? » deviennent atteignables (plus de re-demandes perpétuelles quand la source < _PCAP) */
 function _photoMB(p){ try{ if(!p||!p.c) return 0; return (p.c.width*p.c.height*4)/1048576; }catch(e){ return 0; } }
 function _cacheMB(){ try{ var m=0; for(var i=0;i<_decLRU.length;i++){ var p=PHOTOS[_decLRU[i]]; if(p&&p.c) m+=_photoMB(p); } return m; }catch(e){ return 0; } }
 function _cacheCount(){ try{ var n=0; for(var i=0;i<_decLRU.length;i++){ var p=PHOTOS[_decLRU[i]]; if(p&&p.c) n++; } return n; }catch(e){ return 0; } }
@@ -1803,7 +1803,7 @@ function _touchDec(i){ if(typeof PHOTOS==="undefined"||!PHOTOS[i]) return; var k
   }
 }
 function _ensureDecodedP(p,cb,targetRes){ if(!p){ if(cb)cb(null); return; } targetRes=targetRes||(window._PCAP||1600);
-  try{ var _natR=Math.max(p._srcRes||0,p._w||0,p._h||0); if(_natR>0 && targetRes>_natR) targetRes=_natR; }catch(e){}   /* jamais au-delà du natif de la source : évite l'agrandissement en RAM ET la boucle de re-décodage quand la cible dépasse la source */
+  try{ if(!(p._srcKey && !p._ceilLearned)){ var _natR=Math.max(p._srcRes||0,p._w||0,p._h||0); if(_natR>0 && targetRes>_natR) targetRes=_natR; } }catch(e){}   /* une photo qui a une source haute résolution non encore éprouvée n'est pas plafonnée par les dimensions de son canvas de travail */   /* jamais au-delà du natif de la source : évite l'agrandissement en RAM ET la boucle de re-décodage quand la cible dépasse la source */
   if(p.c && (p._decRes||0) >= Math.round(targetRes*0.95)){ if(cb)cb(p.c); return; }   /* résolution actuelle couvre déjà la cible -> AUCUN re-décodage */
   try{ if(p._decFailAt){ var _nw=(window.performance&&performance.now)?performance.now():Date.now(); if((_nw-p._decFailAt)<1200){ if(cb)cb(p.c||null); return; } } }catch(e){}   /* temporisation après échec : empêche la tempête de re-décodages par image */
   if(!p._jpgBlob && !p._file && !p._srcKey && !p._dispBlob){ if(cb)cb(p.c||null); return; }   /* FIX NETTETÉ : les photos restaurées n'ont plus _jpgBlob (original en IndexedDB via _srcKey) — avant, ce garde les déclarait indécodables -> export entier en SECOURS 540-720 px */
@@ -8757,7 +8757,7 @@ function studioSaveLocal(){ try{
   try{ var proj=studioExportProject(); if(proj){ localStorage.setItem(_filmKey(_curFilmId), JSON.stringify(proj)); if(proj.music&&proj.music.title) f.music=proj.music.title; } }catch(e){}
   _filmsIndexSave(idx);
   /* 3) Blobs photos + musique (protégés) */
-  try{ for(var i=0;i<PHOTOS.length;i++){ var p=PHOTOS[i]; if(p&&p._id){ if(p._srcKey){ (function(_sk,_fk,_pp){ _pget(_sk).then(function(b){ var bb=b||_pp._jpgBlob||_pp._dispBlob; if(bb) _pput(_fk,bb); }).catch(function(){ var bb=_pp._jpgBlob||_pp._dispBlob; if(bb) _pput(_fk,bb); }); })(p._srcKey, _curFilmId+":"+p._id, p); } else if(p._jpgBlob||p._dispBlob){ _pput(_curFilmId+":"+p._id, p._jpgBlob||p._dispBlob); }   /* la copie de film est ce que l'inventaire compte : la sauter mettait film=0 et faisait redemander les 64 photos à chaque ouverture */   /* jamais de photo perdue au film : repli sur le blob de film/affichage si src: manque (c'est cette perte qui régénérait « +ajout » à chaque ouverture) */ } } }catch(e){}
+  try{ for(var i=0;i<PHOTOS.length;i++){ var p=PHOTOS[i]; if(p&&p._id){ if(p._srcKey){ _pput(_curFilmId+":"+p._id, new Blob([JSON.stringify({ref:p._srcKey})],{type:"application/json"})); } else if(p._jpgBlob||p._dispBlob){ _pput(_curFilmId+":"+p._id, p._jpgBlob||p._dispBlob); }   /* RÉFÉRENCE et non copie : réécrire dans IndexedDB un blob qu'on vient d'en lire est refusé par WebKit (276 échecs sur 343 mesurés) — et la source garde sa pleine résolution */   /* jamais de photo perdue au film : repli sur le blob de film/affichage si src: manque (c'est cette perte qui régénérait « +ajout » à chaque ouverture) */ } } }catch(e){}
   try{ for(var _cj=0;_cj<CLIPS.length;_cj++){ if(CLIPS[_cj]&&CLIPS[_cj].file){ _pput(_curFilmId+":clip:"+_cj, CLIPS[_cj].file); } } }catch(e){}
   try{ if(window.__activeMusicFile) _pput(_curFilmId+":music", window.__activeMusicFile); }catch(e){}
   return true;
@@ -8799,7 +8799,7 @@ function studioOpenFilm(id){ try{ stopPlay(); }catch(e){}
   var _rmax=Math.max((window._PCAP||1920), window._PMAX||0);   /* pleine qualité : le cache LRU borne la mémoire ; plancher 1440 = résolution de création, jamais de sous-échantillonnage à la réouverture */
   (function next(){ if(i>=list.length){ _afterOpenFilm(proj); return; } var meta=list[i++];
     try{ setState(_st("Chargement du montage\u2026")+" "+i+"/"+list.length); }catch(e){}
-    _pget(id+":"+meta.id).then(function(b){ if(b){ _restorePhotoFromBlob(meta.id,b,meta,_rmax).then(function(){ setTimeout(next,4); }); } else setTimeout(next,0); }).catch(function(){ setTimeout(next,0); }); })();
+    _pget(id+":"+meta.id).then(function(b){ if(b && b.type==="application/json" && b.size<400){ return b.text().then(function(t){ var r=null; try{ r=JSON.parse(t); }catch(e){} return r&&r.ref ? _pget(r.ref) : null; }); } return b; }).then(function(b){ if(b){ _restorePhotoFromBlob(meta.id,b,meta,_rmax).then(function(){ setTimeout(next,4); }); } else setTimeout(next,0); }).catch(function(){ setTimeout(next,0); }); })();
 }
 function _afterOpenFilm(proj){ try{
   window.USER_ORDER=[]; for(var k=0;k<PHOTOS.length;k++) window.USER_ORDER.push(k);
