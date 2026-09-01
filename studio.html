@@ -1807,6 +1807,7 @@ function _ensureDecodedP(p,cb,targetRes){ if(!p){ if(cb)cb(null); return; } targ
   try{ if(typeof EXPORTING!=="undefined"&&EXPORTING===true&&window.__expTgt&&_srcTrusted&&targetRes<window.__expTgt) targetRes=window.__expTgt; }catch(e){}   /* 1) relèvement export D'ABORD */
   try{ if(!_srcTrusted){ var _natR=Math.max(p._srcRes||0,p._w||0,p._h||0); if(_natR>0 && targetRes>_natR) targetRes=_natR; } }catch(e){}   /* 2) plafond au natif SEULEMENT si pas de source fiable (sinon la source > canvas de travail) */   /* sous export, une photo à source non-éprouvée vise la pleine cible même si son canvas de travail est plus petit */   /* une photo qui a une source haute résolution non encore éprouvée n'est pas plafonnée par les dimensions de son canvas de travail */   /* jamais au-delà du natif de la source : évite l'agrandissement en RAM ET la boucle de re-décodage quand la cible dépasse la source */
   if(p.c && (p._decRes||0) >= Math.round(targetRes*0.95)){ if(cb)cb(p.c); return; }   /* résolution actuelle couvre déjà la cible -> AUCUN re-décodage */
+  try{ if(_srcTrusted && (p._decRes||0) < Math.round(targetRes*0.95) && Math.max(p.c?p.c.width:0,p.c?p.c.height:0) < Math.round(targetRes*0.95)){ /* canvas de lecture trop petit + source fiable -> on force la montée : ne PAS renvoyer le petit canvas */ } }catch(e){}
   try{ if(p._decFailAt){ var _nw=(window.performance&&performance.now)?performance.now():Date.now(); if((_nw-p._decFailAt)<1200){ if(cb)cb(p.c||null); return; } } }catch(e){}   /* temporisation après échec : empêche la tempête de re-décodages par image */
   if(!p._jpgBlob && !p._file && !p._srcKey && !p._dispBlob){ if(cb)cb(p.c||null); return; }   /* FIX NETTETÉ : les photos restaurées n'ont plus _jpgBlob (original en IndexedDB via _srcKey) — avant, ce garde les déclarait indécodables -> export entier en SECOURS 540-720 px */
   if(p._decoding){ if((p._decTarget||0)>=targetRes){ if(cb)(p._decCbs=p._decCbs||[]).push(cb); return; } else { if(cb)(p._decCbs=p._decCbs||[]).push(cb); return; } }   /* décodage déjà en cours -> on attend (il se re-vérifiera après) */
@@ -8775,7 +8776,8 @@ function _restorePhotoFromBlob(id, blob, meta, maxD){ return new Promise(functio
     if(!window._restSeen) window._restSeen={};
     if(id!=null && window._restSeen[_rsig]){ try{ URL.revokeObjectURL(url); }catch(e){} res(false); return; }   /* même id déjà présent -> ignoré (les photos SIMILAIRES avec des ids différents sont conservées) */
     if(id!=null) window._restSeen[_rsig]=1;
-    var p={img:cv,c:cv,url:null,lum:_ft.lum,feat:_ft,_w:cv.width,_h:cv.height,_id:id,_jpgBlob:blob,_srcRes:Math.max(_iw||0,_ih||0),_decRes:Math.max(cv.width||0,cv.height||0)};
+    var _hasHiSrc=false; try{ _hasHiSrc=!!(window.__linkSet && window.__linkSet["src:"+id]); }catch(e){}
+    var p={img:cv,c:cv,url:null,lum:_ft.lum,feat:_ft,_w:cv.width,_h:cv.height,_id:id,_jpgBlob:blob,_srcRes:(_hasHiSrc?0:Math.max(_iw||0,_ih||0)),_decRes:(_hasHiSrc?0:Math.max(cv.width||0,cv.height||0))};   /* si une source haute résolution existe, _decRes=0 -> le premier rendu export re-décode à pleine cible au lieu de garder le canvas de lecture 1248 */
     try{ if(cv.toBlob){ cv.toBlob(function(b){ if(b&&(b.size||0)>800){ p._dispBlob=b; try{ _pput("disp:"+id,b); }catch(e){}
       try{ if(blob && typeof _pput==="function"){ _pput("src:"+id, blob).then(function(){ p._srcKey="src:"+id; p._jpgBlob=null; }).catch(function(){}); } }catch(e){}   /* original -> IndexedDB puis retiré de la mémoire (libère ~1,5 Mo × 64). Rechargé seulement pour l'export. */
     } },"image/jpeg",0.9); } }catch(e){}   /* blob d'affichage léger prêt dès l'ouverture -> lecture rapide immédiate */
@@ -8804,9 +8806,9 @@ function studioOpenFilm(id){ try{ stopPlay(); }catch(e){}
     _pget(id+":"+meta.id).then(function(b){ if(b && b.type==="application/json" && b.size<400){ return b.text().then(function(t){ var r=null; try{ r=JSON.parse(t); }catch(e){} return r&&r.ref ? _pget(r.ref) : null; }); } return b; }).then(function(b){ if(b){ _restorePhotoFromBlob(meta.id,b,meta,_rmax).then(function(){ setTimeout(next,4); }); } else setTimeout(next,0); }).catch(function(){ setTimeout(next,0); }); })();
 }
 function _linkSources(){ try{ if(typeof _pgetKeys!=="function") return; _pgetKeys().then(function(keys){ try{
-  var set={}; for(var i=0;i<keys.length;i++) set[String(keys[i])]=1;
+  var set={}; for(var i=0;i<keys.length;i++) set[String(keys[i])]=1; window.__linkSet=set;
   var n=0; for(var j=0;j<PHOTOS.length;j++){ var p=PHOTOS[j]; if(!p||!p._id) continue;
-    var sk="src:"+p._id; if(set[sk]){ if(p._srcKey!==sk){ p._srcKey=sk; } p._ceilLearned=0; p._decFailN=0; p._decFailAt=0; if((p._srcRes||0)<1920) p._srcRes=0; n++; }   /* efface le plafond rabaissé par un échec passé : une source fraîchement reliée doit pouvoir viser haut à nouveau */
+    var sk="src:"+p._id; if(set[sk]){ if(p._srcKey!==sk){ p._srcKey=sk; } p._ceilLearned=0; p._decFailN=0; p._decFailAt=0; if((p._srcRes||0)<1920) p._srcRes=0; if((p._decRes||0)<1920) p._decRes=0; n++; }   /* efface le plafond rabaissé par un échec passé : une source fraîchement reliée doit pouvoir viser haut à nouveau */
     if(!p._dispBlob && set["disp:"+p._id]) p._dispKey="disp:"+p._id;
   }
   window.__dbgLinked=n;   /* nombre de photos reliées à leur source pleine résolution */
