@@ -1750,7 +1750,7 @@ function _decodeChosen(p,cb,mx,blob){
 }
 function _decodeFromSrc(p,cb,targetRes){ var mx=targetRes||Math.max((window._PCAP||1920),(typeof window!=="undefined"&&window._PMAX)?window._PMAX:0);
   /* EXPORT (mx>1400) et original hors mémoire -> rechargé depuis IndexedDB juste le temps de l'export. */
-  if(mx>1400 && !p._jpgBlob && p._srcKey && typeof _pget==="function"){
+  if(mx>1400 && p._srcKey && typeof _pget==="function"){   /* src: (haute résolution) toujours préférée au-dessus de 1400, même si un _jpgBlob 1200 traîne encore */
     _pget(p._srcKey).then(function(b){ _decodeChosen(p,cb,mx, b||p._dispBlob||null); }).catch(function(){ _decodeChosen(p,cb,mx, p._dispBlob||null); }); return;
   }
   /* LECTURE (mx≤1400) : blob d'affichage léger (~150 Ko, décodage ~70ms). Sinon original s'il est encore là. */
@@ -1815,7 +1815,10 @@ function _ensureDecodedP(p,cb,targetRes){ if(!p){ if(cb)cb(null); return; } targ
     }
     var cbs=p._decCbs||[]; p._decCbs=null; for(var z=0;z<cbs.length;z++){ try{ cbs[z](c); }catch(e){} }
     /* si une cible plus haute a été demandée pendant le décodage, on re-décode vers le haut */
-    try{ if(c && p._decTarget && (p._decRes||0) < Math.round(p._decTarget*0.95) && !p._decoding){ _ensureDecodedP(p,null,p._decTarget); } }catch(e){}
+    try{ if(c && p._decTarget && (p._decRes||0) < Math.round(p._decTarget*0.95) && !p._decoding){
+      if((p._upTried||0) < p._decTarget && (p._decRes||0) > (p._upGot||0)){ p._upTried=p._decTarget; p._upGot=p._decRes||0; _ensureDecodedP(p,null,p._decTarget); }   /* une seule tentative de montée par cible, et seulement si on progresse */
+      else { p._srcRes=Math.max(p._decRes||0, 1); p._w=c.width||p._w; p._h=c.height||p._h; }   /* la source réelle est plus petite que promise : on retient son VRAI plafond (fin de la boucle) */
+    } }catch(e){}
   };
   var _toH=setTimeout(function(){ _complete(null); }, 4500); try{ _decodeFromSrc(p,_complete,targetRes); }catch(e){ _complete(null); } }
 function ensurePhotoDecoded(i,cb,targetRes){ if(typeof PHOTOS==="undefined"||!PHOTOS[i]){ if(cb)cb(null); return; } _ensureDecodedP(PHOTOS[i],cb,targetRes); }
