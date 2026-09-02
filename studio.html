@@ -2239,9 +2239,9 @@ function renderBaseFrame(t){
     if(sg.trans==="crossfade"){ drawSegAt(prev,prev.end-0.001,0,1); bctx.save(); bctx.globalAlpha=a; drawSegAt(sg,t,0,1); bctx.restore(); }
     else if(sg.trans==="flash"){ drawSegAt(sg,t,0,1); bctx.save(); bctx.globalAlpha=Math.max(0,1-a); bctx.fillStyle="#fff"; bctx.fillRect(0,0,Wd,Hd); bctx.restore(); }
     else if(sg.trans==="slide"){ var dir=sg.slideDir||1; drawSegAt(prev,prev.end-0.001,-a*Wd*dir,1); drawSegAt(sg,t,(1-a)*Wd*dir,1); }
-    else if(sg.trans==="zoomblur"){ bctx.save(); bctx.globalAlpha=1-a; drawSegAt(prev,prev.end-0.001,0,1); bctx.restore(); bctx.save(); bctx.globalAlpha=a; drawSegAt(sg,t,0,1.20-0.20*a); bctx.restore(); }
+    else if(sg.trans==="zoomblur"){ bctx.save(); bctx.globalAlpha=1-a; drawSegAt(prev,prev.end-0.001,0,1); bctx.restore(); bctx.save(); bctx.globalAlpha=a; drawSegAt(sg,t,0,1.06-0.06*a); bctx.restore(); }   /* zoom de départ réduit 1.20->1.06 : plus de flou d'entrée (mesuré dans l'export) */
     else if(sg.trans==="whip"){ var dr=sg.slideDir||1, ez=a*a*(3-2*a); drawSegAt(prev,prev.end-0.001,-ez*Wd*1.1*dr,1); bctx.save(); bctx.globalAlpha=0.35; drawSegAt(sg,t,(1-ez)*Wd*0.5*dr,1); bctx.restore(); drawSegAt(sg,t,(1-ez)*Wd*1.1*dr,1); }
-    else if(sg.trans==="zoomthrough"){ bctx.save(); bctx.globalAlpha=1-a; drawSegAt(prev,prev.end-0.001,0,1.0+1.4*a); bctx.restore(); bctx.save(); bctx.globalAlpha=a; drawSegAt(sg,t,0,1.6-0.6*a); bctx.restore(); }
+    else if(sg.trans==="zoomthrough"){ bctx.save(); bctx.globalAlpha=1-a; drawSegAt(prev,prev.end-0.001,0,1.0+0.5*a); bctx.restore(); bctx.save(); bctx.globalAlpha=a; drawSegAt(sg,t,0,1.12-0.12*a); bctx.restore(); }   /* zoom de départ réduit 1.6->1.12 : plus de flou d'entrée */
     else drawSegAt(sg,t,0,1);
   } else {
     drawSegAt(sg,t,0,1);
