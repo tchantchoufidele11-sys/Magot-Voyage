@@ -1742,7 +1742,7 @@ function _fullDecode(p,cb,mx,blob){   /* décode l'image ENTIÈRE (createImageBi
   try{
     if(window.createImageBitmap){
       createImageBitmap(blob).then(function(bm){
-        try{ var w0=bm.width||0, h0=bm.height||0; window.__dbgBmp=w0+"x"+h0; var sc=Math.min(1, mx/Math.max(w0,h0,1));
+        try{ var w0=bm.width||0, h0=bm.height||0; var sc=Math.min(1, mx/Math.max(w0,h0,1));
           var cw=Math.max(1,Math.round(w0*sc)), ch=Math.max(1,Math.round(h0*sc));
           var c=document.createElement("canvas"); c.width=cw; c.height=ch; var cx=c.getContext("2d");
           if(cx){ cx.imageSmoothingEnabled=true; cx.imageSmoothingQuality="high"; cx.drawImage(bm,0,0,cw,ch); }
@@ -8796,7 +8796,6 @@ function studioMarkExported(){ try{ if(!_curFilmId){ studioSaveLocal(); } if(!_c
 
 function _restorePhotoFromBlob(id, blob, meta, maxD){ return new Promise(function(res){ try{ var url=URL.createObjectURL(blob); var im=new Image(); im.onload=function(){ try{
     var _iw=im.naturalWidth||1, _ih=im.naturalHeight||1;
-    try{ if((window.__dbgOrigN||0)<5){ window.__dbgOrigN=(window.__dbgOrigN||0)+1; window.__dbgOrig=_iw+"x"+_ih+"("+Math.round((blob.size||0)/1024)+"Ko)"; } }catch(e){}   /* SONDE : dimension NATIVE de l'original fourni par Magot Voyage, avant toute réduction */
     var _md=Math.max((window._PCAP||1920), maxD||0, window._PMAX||0), _sc=Math.min(1,_md/Math.max(_iw,_ih,1));
     var cv=document.createElement("canvas"); cv.width=Math.max(1,Math.round(_iw*_sc)); cv.height=Math.max(1,Math.round(_ih*_sc)); cv.getContext("2d").drawImage(im,0,0,cv.width,cv.height);
     var _ft=photoFeat(cv); _ft.q=qualityScore(cv); if(meta.skip)_ft.skip=true;
@@ -9631,14 +9630,14 @@ async function exportStudio(){ try{ _reqWake(); }catch(e){} try{ _hideClipOverla
   if(!A||!SEGS.length||(!PHOTOS.length && !clipVidReady)){ _expMsg("Charge d'abord une musique + des photos ou des vidéos."); return; }
   if(typeof MediaRecorder==="undefined"){ _expMsg("Enregistrement non supporté ici. Ouvre la page dans Safari (\u2197 en bas \u2192 \u00ab Ouvrir dans Safari \u00bb)."); return; }
   stopPlay(); EXPORTING=true; EXPORT_ABORT=false; expShow(0); try{ _expSizeRing(); }catch(e){}
-  window.__expTgt=1880;   /* ESSAI 1880 : on vise plus haut. Le prédicat de re-décodage (garde de convergence) accepte le plafond réel si le décodeur ne suit pas -> va au bout sans boucler. Réduire ce nombre par paliers si le fichier est trop lourd/lent. */
+  window.__expTgt=1400;   /* ESSAI 1880 : on vise plus haut. Le prédicat de re-décodage (garde de convergence) accepte le plafond réel si le décodeur ne suit pas -> va au bout sans boucler. Réduire ce nombre par paliers si le fichier est trop lourd/lent. */
   if(window.__srcRefreshBusy || window.__addBusy){   /* fusion Souvenirs (redécodage) OU ajout de photos (qui finit par buildPartition) en arrière-plan : on attend la fin AVANT d'exporter */
     var _wr0=performance.now(); while((window.__srcRefreshBusy || window.__addBusy) && (performance.now()-_wr0)<240000){ if(EXPORT_ABORT){ EXPORTING=false; expHide(); return; }
       try{ window.__expBeat=performance.now(); var _stW=document.getElementById("expStage"); if(_stW) _stW.textContent="Pr\u00e9paration des photos\u2026 "+(window.__addBusy?((window.__addN||0)+"/"+(window.__addTot||0)+" ajout\u00e9es"):((window.__srcRefreshN||0)+"/"+(window.__srcRefreshTot||PHOTOS.length))); }catch(e){}
       await new Promise(function(r){ setTimeout(r,250); }); }
   }
   try{ window.__expSaveDec=_DEC_MAX; window.__expSavePcap=window._PCAP; if(window.__preRender&&window.__preRender.active){ _DEC_MAX=3; window._PCAP=1280; } else { var _expDur=1; try{ _expDur=SEGS.length?SEGS[SEGS.length-1].end:(window.MONTAGE_DUR||60); }catch(e){}
-      _DEC_MAX=Math.min(_DEC_MAX,(_expDur>150?4:6)); window._PCAP=1880; window.__expSaveCap=_CACHE_MB_CAP; _CACHE_MB_CAP=(_expDur>150?56:96); }   /* 2e endroit : _PCAP=1880 pendant l'export (cohérent avec __expTgt) */
+      _DEC_MAX=Math.min(_DEC_MAX,(_expDur>150?4:6)); window._PCAP=1400; window.__expSaveCap=_CACHE_MB_CAP; _CACHE_MB_CAP=(_expDur>150?56:96); }   /* 2e endroit : _PCAP=1880 pendant l'export (cohérent avec __expTgt) */
     /* (__expTgt déjà posé à 1600 en tête d'export — ne PAS le réécrire ici, cette ligne écrasait la valeur et forçait 1920) */   /* films longs : le MP4 en mémoire occupe la place, on rend du cache photos */   /* cible = résolution de SORTIE réelle (décoder à 2160 pour sortir en 1920 gaspillait 27 % de RAM par photo) ; budget cache export 96 Mo */   /* export partage : cible = résolution du canvas d'export -> _decodeFromSrc recharge l'ORIGINAL (mx>1400) au lieu du blob d'affichage 1200 ré-encodé */ for(var _ei=0;_ei<PHOTOS.length;_ei++){ if(PHOTOS[_ei]){ PHOTOS[_ei].c=null; PHOTOS[_ei].img=null; } } _decLRU=[]; }catch(e){}   /* mémoire minimale pendant le rendu temps réel (évite l'accumulation qui tue la page à ~85%) */
   /* Garde-fou racine : détecteur d'INACTIVITÉ (et non minuterie au forfait, qui tuait les
      longs films). Tant que des images sortent, l'export vit ; 30 s sans progrès = blocage réel. */
