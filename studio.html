@@ -9378,6 +9378,7 @@ function _expSizeRing(){
 function _expStage(msg){ try{ var e=document.getElementById("expProg"); if(!e) return; var st=document.getElementById("expStage"); if(!st){ st=document.createElement("div"); st.id="expStage"; st.style.cssText="font:600 12px ui-monospace,monospace;color:#9fb0d0;margin-top:8px;min-height:15px"; e.appendChild(st); } st.textContent=msg||""; }catch(_x){} }
 function _expYield(){ return new Promise(function(r){ setTimeout(r,0); }); }
 function _expRestoreMem(){ try{ window.__pinned=null; window.__expTgt=null; }catch(e){}
+  try{ if(window.__expClipHold){ window.__expClipHold=false; window.__expPrevClip=null; if(typeof CLIPS!=="undefined"){ for(var _ci=0;_ci<CLIPS.length;_ci++){ (function(_c){ try{ if(_c && _c.el && _c._u && _c._unloaded){ _c.el.src=_c._u; _c.el.load(); _c._unloaded=false; } }catch(e){} })(CLIPS[_ci]); } } } }catch(e){}   /* fin d'export : recharge tous les clips pour la lecture */
   try{ var _q=window.__putQueue; window.__putQueue=null; if(_q&&_q.length){ (function _flush(){ if(!_q.length) return; var it=_q.shift(); try{ _pput(it[0],it[1]).catch(function(){}); }catch(e){} setTimeout(_flush,120); })(); } }catch(e){}   /* rejeu différé de la file d'écriture */ try{ if(window.__deferredAdd&&window.__deferredAdd.length){ var _dfa=window.__deferredAdd; window.__deferredAdd=null; setTimeout(function(){ try{ studioAddPhotos(_dfa); }catch(e){} },600); } }catch(e){} try{ if(window.__deferredRefresh){ var _dfi=window.__deferredRefresh; window.__deferredRefresh=null; setTimeout(function(){ try{ studioRefreshFromSource(_dfi); }catch(e){} },800); } }catch(e){} try{ if(window.__expSaveDec){ _DEC_MAX=window.__expSaveDec; window.__expSaveDec=null; } if(window.__expSavePcap){ window._PCAP=window.__expSavePcap; window.__expSavePcap=null; } if(window.__expSaveCap){ _CACHE_MB_CAP=window.__expSaveCap; window.__expSaveCap=null; } _decLRU=[]; }catch(e){} }
 var _wakeLock=null;
 async function _reqWake(){ try{ if(navigator.wakeLock && navigator.wakeLock.request && !_wakeLock){ _wakeLock=await navigator.wakeLock.request("screen"); document.addEventListener("visibilitychange", _reWake); } }catch(e){} }
@@ -9481,7 +9482,13 @@ async function _turboExport(){
       var _t=fnum/FPS;
       var _si=-1; for(var _q=0;_q<SEGS.length;_q++){ if(_t>=SEGS[_q].start && _t<SEGS[_q].end){ _si=_q; break; } }
       var _sg=(_si>=0)?SEGS[_si]:null;
-      if(_sg && _sg.video && _sg.vclip!=null && CLIPS[_sg.vclip] && CLIPS[_sg.vclip].ready){ var _cl=CLIPS[_sg.vclip], _vt=(_sg.vstart||0)+(_t-_sg.start)*(_sg.vspeed||_cl.speed||1); _vt=Math.max(0,Math.min((_cl.dur||0.1)-0.05,_vt)); if(Math.abs((_cl.el.currentTime||0)-_vt)>0.08){ await seekClip(_cl.el, _vt); } }   /* seek seulement si nécessaire : réutilise l'image courante sous 80 ms d'écart */
+      if(_sg && _sg.video && _sg.vclip!=null && CLIPS[_sg.vclip] && CLIPS[_sg.vclip].ready){ var _cl=CLIPS[_sg.vclip], _vt=(_sg.vstart||0)+(_t-_sg.start)*(_sg.vspeed||_cl.speed||1); _vt=Math.max(0,Math.min((_cl.dur||0.1)-0.05,_vt));
+        if(window.__expClipHold){
+          if(_cl._unloaded && _cl._u){ try{ _cl.el.src=_cl._u; _cl.el.load(); _cl._unloaded=false; await new Promise(function(r){ var _d=false,_f=function(){ if(!_d){_d=true; _cl.el.onloadeddata=null; r();} }; _cl.el.onloadeddata=_f; setTimeout(_f,3000); }); }catch(e){} }   /* recharge le clip courant */
+          if(window.__expPrevClip!=null && window.__expPrevClip!==_sg.vclip){ var _pc=CLIPS[window.__expPrevClip]; try{ if(_pc && _pc.el && _pc._u && !_pc._unloaded){ _pc.el.pause(); _pc.el.removeAttribute("src"); _pc.el.load(); _pc._unloaded=true; } }catch(e){} }   /* décharge le clip précédent */
+          window.__expPrevClip=_sg.vclip;
+        }
+        if(Math.abs((_cl.el.currentTime||0)-_vt)>0.08){ await seekClip(_cl.el, _vt); } }   /* seek seulement si nécessaire : réutilise l'image courante sous 80 ms d'écart */
       try{ var _curI=(_sg&&!_sg.video&&_sg.img>=0)?_sg.img:-1, _nxI=-1, _prvI=-1;
         if(_si>=0 && _si+1<SEGS.length && SEGS[_si+1] && !SEGS[_si+1].video && SEGS[_si+1].img>=0) _nxI=SEGS[_si+1].img;
         if(_si>0 && SEGS[_si-1] && !SEGS[_si-1].video && SEGS[_si-1].img>=0) _prvI=SEGS[_si-1].img;
@@ -9637,6 +9644,7 @@ async function exportStudio(){ try{ _reqWake(); }catch(e){} try{ _hideClipOverla
   try{ if(typeof essentia!=="undefined" && essentia){ if(essentia.shutdown) essentia.shutdown(); if(essentia.delete) essentia.delete(); essentia=null; }   /* libère les ~285 Mo d'essentia-wasm (vus dans la console : Heap resize jusqu'à 285 Mo) : les beats sont déjà calculés, l'analyse est inutile pendant l'export -> évite le crash mémoire iOS à 100% */
     try{ if(typeof ESSENTIA_STATE!=="undefined") ESSENTIA_STATE="freed"; }catch(e){}
   }catch(e){}
+  try{ if(typeof CLIPS!=="undefined" && CLIPS.length>2){ window.__expClipHold=true; for(var _ci=0;_ci<CLIPS.length;_ci++){ (function(_c){ try{ if(_c && _c.el && _c._u){ _c.el.pause(); _c.el.removeAttribute("src"); _c.el.load(); _c._unloaded=true; } }catch(e){} })(CLIPS[_ci]); } } }catch(e){}   /* décharge tous les clips vidéo au début de l'export (chacun ~50-100 Mo décodé) : ils seront rechargés un par un juste avant leur tour -> évite 300-600 Mo simultanés qui crashent iOS */
   window.__expTgt=1400;   /* ESSAI 1880 : on vise plus haut. Le prédicat de re-décodage (garde de convergence) accepte le plafond réel si le décodeur ne suit pas -> va au bout sans boucler. Réduire ce nombre par paliers si le fichier est trop lourd/lent. */
   if(window.__srcRefreshBusy || window.__addBusy){   /* fusion Souvenirs (redécodage) OU ajout de photos (qui finit par buildPartition) en arrière-plan : on attend la fin AVANT d'exporter */
     var _wr0=performance.now(); while((window.__srcRefreshBusy || window.__addBusy) && (performance.now()-_wr0)<240000){ if(EXPORT_ABORT){ EXPORTING=false; expHide(); return; }
