@@ -1328,6 +1328,7 @@ function inferMetric(beats,strength){
   return m;
 }
 function analyzeEssentia(sig,sr,dur){
+  if(!essentia){ try{ var env=computeEnv(sig,sr), se=strengthEnergy(env,[]); return {beats:[],dur:dur,bpm:0,conf:0,period:0.5,fps:se.fps,energy:se.energy,strength:se.strength,metric:4,kEnv:env.kEnv,efps:env.fps,engine:"none"}; }catch(e){ return {beats:[],dur:dur,bpm:0,conf:0,period:0.5,engine:"none"}; } }   /* essentia libéré (après un export) -> pas de crash, résultat neutre */
   var beats=[], bpm=0, conf=0;
   var vec=essentia.arrayToVector(sig), r=null;
   try{
@@ -8831,7 +8832,7 @@ function studioOpenFilm(id){ try{ stopPlay(); }catch(e){}
   var _rmax=Math.max((window._PCAP||1920), window._PMAX||0);   /* pleine qualité : le cache LRU borne la mémoire ; plancher 1440 = résolution de création, jamais de sous-échantillonnage à la réouverture */
   (function next(){ if(i>=list.length){ _afterOpenFilm(proj); return; } var meta=list[i++];
     try{ setState(_st("Chargement du montage\u2026")+" "+i+"/"+list.length); }catch(e){}
-    _pget(id+":"+meta.id).then(function(b){ if(b && b.type==="application/json" && b.size<400){ return b.text().then(function(t){ var r=null; try{ r=JSON.parse(t); }catch(e){} return r&&r.ref ? _pget(r.ref) : null; }); } return b; }).then(function(b){ if(b){ _restorePhotoFromBlob(meta.id,b,meta,_rmax).then(function(){ setTimeout(next,4); }); } else setTimeout(next,0); }).catch(function(){ setTimeout(next,0); }); })();
+    _pget(id+":"+meta.id).then(function(b){ if(b && b.type==="application/json" && b.size<400){ return b.text().then(function(t){ var r=null; try{ r=JSON.parse(t); }catch(e){} if(!(r&&r.ref)) return null; return _pget(r.ref).then(function(sb){ if(sb) return sb; return _pget("disp:"+id).catch(function(){ return null; }); }).catch(function(){ return _pget("disp:"+id).catch(function(){ return null; }); }); }); } return b; }).then(function(b){ if(b){ _restorePhotoFromBlob(meta.id,b,meta,_rmax).then(function(){ setTimeout(next,4); }); } else setTimeout(next,0); }).catch(function(){ setTimeout(next,0); }); })();   /* repli si la source référencée est absente : disp: (léger) -> jamais de photo perdue -> +ajout ne revient plus */
 }
 function _linkSources(){ try{ if(typeof _pgetKeys!=="function") return; _pgetKeys().then(function(keys){ try{
   var set={}; for(var i=0;i<keys.length;i++) set[String(keys[i])]=1; window.__linkSet=set;
@@ -9378,6 +9379,7 @@ function _expSizeRing(){
 function _expStage(msg){ try{ var e=document.getElementById("expProg"); if(!e) return; var st=document.getElementById("expStage"); if(!st){ st=document.createElement("div"); st.id="expStage"; st.style.cssText="font:600 12px ui-monospace,monospace;color:#9fb0d0;margin-top:8px;min-height:15px"; e.appendChild(st); } st.textContent=msg||""; }catch(_x){} }
 function _expYield(){ return new Promise(function(r){ setTimeout(r,0); }); }
 function _expRestoreMem(){ try{ window.__pinned=null; window.__expTgt=null; }catch(e){}
+  try{ if(window.__essentiaFreed){ window.__essentiaFreed=false; if(typeof EssentiaWASM!=="undefined" && typeof Essentia!=="undefined"){ EssentiaWASM().then(function(w){ try{ essentia=new Essentia(w); ESSENTIA_STATE="ok"; }catch(e){} }).catch(function(){}); } } }catch(e){}   /* recharge essentia après l'export pour les analyses futures */
   try{ if(window.__expClipHold){ window.__expClipHold=false; window.__expPrevClip=null; if(typeof CLIPS!=="undefined"){ for(var _ci=0;_ci<CLIPS.length;_ci++){ (function(_c){ try{ if(_c && _c.el && _c._u && _c._unloaded){ _c.el.src=_c._u; _c.el.load(); _c._unloaded=false; } }catch(e){} })(CLIPS[_ci]); } } } }catch(e){}   /* fin d'export : recharge tous les clips pour la lecture */
   try{ var _q=window.__putQueue; window.__putQueue=null; if(_q&&_q.length){ (function _flush(){ if(!_q.length) return; var it=_q.shift(); try{ _pput(it[0],it[1]).catch(function(){}); }catch(e){} setTimeout(_flush,120); })(); } }catch(e){}   /* rejeu différé de la file d'écriture */ try{ if(window.__deferredAdd&&window.__deferredAdd.length){ var _dfa=window.__deferredAdd; window.__deferredAdd=null; setTimeout(function(){ try{ studioAddPhotos(_dfa); }catch(e){} },600); } }catch(e){} try{ if(window.__deferredRefresh){ var _dfi=window.__deferredRefresh; window.__deferredRefresh=null; setTimeout(function(){ try{ studioRefreshFromSource(_dfi); }catch(e){} },800); } }catch(e){} try{ if(window.__expSaveDec){ _DEC_MAX=window.__expSaveDec; window.__expSaveDec=null; } if(window.__expSavePcap){ window._PCAP=window.__expSavePcap; window.__expSavePcap=null; } if(window.__expSaveCap){ _CACHE_MB_CAP=window.__expSaveCap; window.__expSaveCap=null; } _decLRU=[]; }catch(e){} }
 var _wakeLock=null;
@@ -9641,8 +9643,7 @@ async function exportStudio(){ try{ _reqWake(); }catch(e){} try{ _hideClipOverla
   if(!A||!SEGS.length||(!PHOTOS.length && !clipVidReady)){ _expMsg("Charge d'abord une musique + des photos ou des vidéos."); return; }
   if(typeof MediaRecorder==="undefined"){ _expMsg("Enregistrement non supporté ici. Ouvre la page dans Safari (\u2197 en bas \u2192 \u00ab Ouvrir dans Safari \u00bb)."); return; }
   stopPlay(); EXPORTING=true; EXPORT_ABORT=false; expShow(0); try{ _expSizeRing(); }catch(e){}
-  try{ if(typeof essentia!=="undefined" && essentia){ if(essentia.shutdown) essentia.shutdown(); if(essentia.delete) essentia.delete(); essentia=null; }   /* libère les ~285 Mo d'essentia-wasm (vus dans la console : Heap resize jusqu'à 285 Mo) : les beats sont déjà calculés, l'analyse est inutile pendant l'export -> évite le crash mémoire iOS à 100% */
-    try{ if(typeof ESSENTIA_STATE!=="undefined") ESSENTIA_STATE="freed"; }catch(e){}
+  try{ if(typeof essentia!=="undefined" && essentia && !window.__essentiaFreed){ if(essentia.shutdown) essentia.shutdown(); if(essentia.delete) essentia.delete(); essentia=null; window.__essentiaFreed=true; }   /* libère les ~285 Mo d'essentia-wasm pendant l'export (crash iOS 100%) ; rechargé à la fin via _expRestoreMem */
   }catch(e){}
   try{ if(typeof CLIPS!=="undefined" && CLIPS.length>2){ window.__expClipHold=true; for(var _ci=0;_ci<CLIPS.length;_ci++){ (function(_c){ try{ if(_c && _c.el && _c._u){ _c.el.pause(); _c.el.removeAttribute("src"); _c.el.load(); _c._unloaded=true; } }catch(e){} })(CLIPS[_ci]); } } }catch(e){}   /* décharge tous les clips vidéo au début de l'export (chacun ~50-100 Mo décodé) : ils seront rechargés un par un juste avant leur tour -> évite 300-600 Mo simultanés qui crashent iOS */
   window.__expTgt=1400;   /* ESSAI 1880 : on vise plus haut. Le prédicat de re-décodage (garde de convergence) accepte le plafond réel si le décodeur ne suit pas -> va au bout sans boucler. Réduire ce nombre par paliers si le fichier est trop lourd/lent. */
