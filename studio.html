@@ -2193,7 +2193,7 @@ function drawSegAt(sg,t,ox,smul){
   var mv=sg.move||"zoomIn";
   var _fitEarly=isVid?((_clip&&_clip._fit)||"fit"):((sg.img>=0&&PHOTOS[sg.img]&&PHOTOS[sg.img]._fit)||"fit");
   var _isFill=(_fitEarly==="fill");
-  var baseZ=_isFill?1.03:1.06, amp=M.kb*(isVid?0.35:1)*(_isFill?0.45:1), panA=Wd*0.07*(_isFill?0.3:1);   /* rempli : mouvement doux, cadrage centré stable -> l'image reste cadrée comme prise */
+  var baseZ=_isFill?1.02:1.03, amp=Math.min(0.08, M.kb)*(isVid?0.35:1)*(_isFill?0.45:1), panA=Wd*0.06*(_isFill?0.3:1);   /* Ken Burns ADOUCI : zoom de base 1.06->1.03 + amplitude bornée à 0.08 -> les photos restent nettes (le zoom fort ramollissait le milieu de plan, mesuré) */
   if(window._HQ && !isVid){ baseZ=_isFill?1.006:1.02; amp*=0.5; panA*=0.6; }   /* Qualité max : quasi pas de zoom -> l'image reste à sa netteté native */
   if(isVid){ baseZ=1.0; amp=0; panA=0; }   /* VIDÉO : aucun Ken Burns -> elle joue telle qu'elle a été filmée, sans recadrage ni mouvement ajouté (comme CapCut) */
   var zoom, dx=0, dy=0;
