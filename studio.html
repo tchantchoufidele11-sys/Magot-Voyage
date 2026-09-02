@@ -1738,8 +1738,30 @@ function _mainDecode(p,cb,mx,blob){
   }
   _decodeFromSrcFull(p,cb,mx,blob);
 }
+function _fullDecode(p,cb,mx,blob){   /* décode l'image ENTIÈRE (createImageBitmap sans resizeWidth : NON plafonné par iOS ~1200) puis réduit à mx sur canvas 2D */
+  try{
+    if(window.createImageBitmap){
+      createImageBitmap(blob).then(function(bm){
+        try{ var w0=bm.width||0, h0=bm.height||0; var sc=Math.min(1, mx/Math.max(w0,h0,1));
+          var cw=Math.max(1,Math.round(w0*sc)), ch=Math.max(1,Math.round(h0*sc));
+          var c=document.createElement("canvas"); c.width=cw; c.height=ch; var cx=c.getContext("2d");
+          if(cx){ cx.imageSmoothingEnabled=true; cx.imageSmoothingQuality="high"; cx.drawImage(bm,0,0,cw,ch); }
+          try{ bm.close&&bm.close(); }catch(e){}
+          try{ window.__dbgFull=(window.__dbgFull||0)+1; }catch(e){}
+          cb(cx?c:null);
+        }catch(e){ try{ bm.close&&bm.close(); }catch(_){}; _mainDecode(p,cb,mx,blob); }
+      }).catch(function(){ _mainDecode(p,cb,mx,blob); });
+      return true;
+    }
+  }catch(e){}
+  return false;
+}
 function _decodeChosen(p,cb,mx,blob){
   if(!blob){ if(p._file){ _decodeFromFile(p._file,cb,mx); return; } cb(null); return; }
+  /* EXPORT + haute cible : décodage ENTIER pour dépasser le plafond ~1200 du resize iOS */
+  if(mx>1400 && (typeof EXPORTING!=="undefined" && EXPORTING===true) && window.__fullDecodeOff!==true){
+    if(_fullDecode(p,cb,mx,blob)) return;
+  }
   /* LECTURE (mx≤1400) -> Worker (décodage hors fil principal) ; repli fil principal si indispo/échec/lenteur */
   if((mx<=1400 || (typeof EXPORTING!=="undefined" && EXPORTING===true)) && p._w>0 && p._h>0 && window.__decWorkerOff!==true){
     var ar=p._w/p._h, rw, rh; if(ar>=1){ rw=mx; rh=Math.max(1,Math.round(mx/ar)); } else { rh=mx; rw=Math.max(1,Math.round(mx*ar)); }
@@ -1777,7 +1799,7 @@ var _CACHE_MB_CAP=64;   /* cache réduit : à 1200px et décodage ~70ms depuis l
 function _dispPx(){ try{ var h=document.querySelector(".hero"); var w=h?h.clientWidth:0, ht=h?h.clientHeight:0; var lng=Math.max(w,ht)||Math.max((window.screen&&screen.width)||390,(window.screen&&screen.height)||700); return Math.round(lng*Math.max(1,(window.devicePixelRatio||1))); }catch(e){ return 1400; } }
 function _resMax(){ try{ var isTouch=(('ontouchstart' in window)||((navigator.maxTouchPoints||0)>0)); return isTouch?1500:3200; }catch(e){ return 1500; } }   /* mobile 1500 : résolution que l'iPhone décode à TEMPS pendant la lecture ET qui tient dans le cache (au-delà, la photo n'est jamais prête -> on ne voit que le secours mou) */
 function _planZoomMax(sg){ try{ if(sg&&sg.video) return 1.0; var fit=(sg&&sg.img>=0&&typeof PHOTOS!=="undefined"&&PHOTOS[sg.img]&&PHOTOS[sg.img]._fit)||"fit"; return (fit==="fill")?1.12:1.32; }catch(e){ return 1.32; } }
-function _planTargetRes(sg){ var _exp=(typeof EXPORTING!=="undefined"&&EXPORTING===true); var t=((_exp&&window.__expTgt)?window.__expTgt:(window._PCAP||1920)); try{ var p=(sg&&sg.img>=0&&typeof PHOTOS!=="undefined")?PHOTOS[sg.img]:null; if(p){ if(_exp && window.__expTgt && p._srcKey){ t=window.__expTgt; }   /* photo avec source src: -> vise la pleine cible d'export, sans se laisser plafonner par un _srcRes rabaissé jadis */ else { var n=Math.max(p._srcRes||0,p._w||0,p._h||0); if(n>0 && t>n) t=n; } } }catch(e){} return t; }   /* cible = __expTgt sous export (sinon _PCAP), plafonnée au natif. Simple, jamais au-dessus du décodable. */   /* sous export : cible figée __expTgt, pas _PCAP (qu'un rebuild remet à 1200) */   /* cible plafonnée au NATIF de la photo : les prédicats « à re-décoder ? » deviennent atteignables (plus de re-demandes perpétuelles quand la source < _PCAP) */
+function _planTargetRes(sg){ var _exp=(typeof EXPORTING!=="undefined"&&EXPORTING===true); var t=((_exp&&window.__expTgt)?window.__expTgt:(window._PCAP||1920)); try{ var p=(sg&&sg.img>=0&&typeof PHOTOS!=="undefined")?PHOTOS[sg.img]:null; if(p){ if(_exp && window.__expTgt && p._srcKey && !p._ceilLearned){ t=window.__expTgt; }   /* source src: pas encore éprouvée -> vise la pleine cible */ else { var n=Math.max(p._srcRes||0,p._w||0,p._h||0); if(n>0 && t>n) t=n; }   /* sinon (ou plafond déjà appris) : borne au réel -> jamais de boucle */ } }catch(e){} return t; }   /* cible = __expTgt sous export (sinon _PCAP), plafonnée au natif. Simple, jamais au-dessus du décodable. */   /* sous export : cible figée __expTgt, pas _PCAP (qu'un rebuild remet à 1200) */   /* cible plafonnée au NATIF de la photo : les prédicats « à re-décoder ? » deviennent atteignables (plus de re-demandes perpétuelles quand la source < _PCAP) */
 function _photoMB(p){ try{ if(!p||!p.c) return 0; return (p.c.width*p.c.height*4)/1048576; }catch(e){ return 0; } }
 function _cacheMB(){ try{ var m=0; for(var i=0;i<_decLRU.length;i++){ var p=PHOTOS[_decLRU[i]]; if(p&&p.c) m+=_photoMB(p); } return m; }catch(e){ return 0; } }
 function _cacheCount(){ try{ var n=0; for(var i=0;i<_decLRU.length;i++){ var p=PHOTOS[_decLRU[i]]; if(p&&p.c) n++; } return n; }catch(e){ return 0; } }
@@ -1830,7 +1852,7 @@ function _ensureDecodedP(p,cb,targetRes){ if(!p){ if(cb)cb(null); return; } targ
     /* si une cible plus haute a été demandée pendant le décodage, on re-décode vers le haut */
     try{ if(c && p._decTarget && (p._decRes||0) < Math.round(p._decTarget*0.95) && !p._decoding){
       if((p._upTried||0) < p._decTarget && (p._decRes||0) > (p._upGot||0)){ p._upTried=p._decTarget; p._upGot=p._decRes||0; _ensureDecodedP(p,null,p._decTarget); }   /* une seule tentative de montée par cible, et seulement si on progresse */
-      else { p._srcRes=Math.max(p._decRes||0, 1); p._w=c.width||p._w; p._h=c.height||p._h; }   /* la source réelle est plus petite que promise : on retient son VRAI plafond (fin de la boucle) */
+      else { p._srcRes=Math.max(p._decRes||0, 1); p._ceilLearned=1; p._w=c.width||p._w; p._h=c.height||p._h; }   /* plafond réel atteint : on le grave (_ceilLearned) -> _planTargetRes borne au réel, fin définitive de la boucle */
     } }catch(e){}
   };
   var _toH=setTimeout(function(){ _complete(null); }, ((typeof EXPORTING!=="undefined"&&EXPORTING===true)?15000:4500));   /* sous export, un décodage lourd doit pouvoir prendre son temps : 4,5 s le déclarait en échec à tort et rabaissait le plafond de la photo */ try{ _decodeFromSrc(p,_complete,targetRes); }catch(e){ _complete(null); } }
