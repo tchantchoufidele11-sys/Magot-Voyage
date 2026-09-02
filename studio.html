@@ -9292,7 +9292,7 @@ function seekClip(el, time){ return new Promise(function(res){
   var useR=(typeof el.requestVideoFrameCallback==="function");
   el.onseeked=function(){ if(useR){ try{ el.requestVideoFrameCallback(function(){ fin(); }); }catch(e){ fin(); } } else { setTimeout(fin,16); } };
   try{ el.currentTime=time; }catch(e){ fin(); }
-  setTimeout(fin,220);
+  setTimeout(fin, (typeof EXPORTING!=="undefined"&&EXPORTING===true)?600:220);   /* export : 600 ms pour laisser un clip lourd se positionner (220 ms tronquait -> images figées/désync) */
 }); }
 function makeASC(sampleRate, channels){ var m={96000:0,88200:1,64000:2,48000:3,44100:4,32000:5,24000:6,22050:7,16000:8,12000:9,11025:10,8000:11,7350:12}; var fi=(m[sampleRate]!=null)?m[sampleRate]:4; var b0=(2<<3)|(fi>>1); var b1=((fi&1)<<7)|((channels&15)<<3); return new Uint8Array([b0,b1]); }
 function setRenderSize(w,h){
@@ -9495,10 +9495,12 @@ async function _turboExport(){
       var frame=new VideoFrame(_fsrc,{timestamp:Math.round(fnum*1000000/FPS), duration:Math.round(1000000/FPS)});
       venc.encode(frame,{keyFrame:(fnum%FPS===0)}); frame.close();
       if((fnum&7)===0){ try{ window.__expBeat=performance.now(); expShow(fnum/N*0.92); var _st=document.getElementById("expStage"); if(_st) _st.textContent="Rendu image par image\u2026 "+Math.round(fnum/FPS)+"/"+Math.round(DUR)+" s"; }catch(e){} await _expYield(); }
-      var _qw=0; while(venc.encodeQueueSize>4){ if(_vencErr) throw new Error("venc:"+_vencErr); await new Promise(function(r){ setTimeout(r,6); }); if(++_qw>1500){ throw new Error("queue"); } }   /* 4 frames en vol max (≈40 Mo) au lieu de 8 (≈80 Mo) */
-      if((fnum&15)===15){ await new Promise(function(r){ setTimeout(r,0); }); }
+      var _qCap=(_sg&&_sg.video)?2:4;   /* file plus courte sur les clips vidéo (frames plus lourdes -> moins de mémoire accumulée, évite le crash ~80%) */
+      var _qw=0; while(venc.encodeQueueSize>_qCap){ if(_vencErr) throw new Error("venc:"+_vencErr); await new Promise(function(r){ setTimeout(r,6); }); if(++_qw>1500){ throw new Error("queue"); } }   /* 4 frames en vol max (≈40 Mo) au lieu de 8 (≈80 Mo) */
+      if((_sg&&_sg.video) ? ((fnum&7)===7) : ((fnum&15)===15)){ await new Promise(function(r){ setTimeout(r,0); }); }   /* respiration plus fréquente sur les clips vidéo (laisse iOS libérer la mémoire de décodage vidéo) */
     }
-    await _expRace(venc.flush(), 25000, "flush"); try{ venc.close(); }catch(_c){}
+    var _flushMs=Math.max(25000, Math.round(DUR*1000)+15000);   /* flush proportionnel : ne coupe plus les dernières images des films longs avec clips (durée complète) */
+    await _expRace(venc.flush(), _flushMs, "flush"); try{ venc.close(); }catch(_c){}
   }catch(e){ try{ venc.close(); }catch(_c){} _restore(); if(_aborted||EXPORT_ABORT) return "abort"; return "fail"; }
   if(useAudio){ try{ _expStage("Turbo : audio\u2026");
     var _srcBuf=(await _buildExportAudio(DUR, Asr))||AUDIOBUF;
