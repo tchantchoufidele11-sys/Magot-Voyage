@@ -9513,6 +9513,7 @@ async function _turboExport(){
     aenc.configure({codec:"mp4a.40.2", sampleRate:Asr, numberOfChannels:Ach, bitrate:128000});
     for(var off=0; off<tot; off+=1024){ var n=Math.min(1024,tot-off); var data=new Float32Array(n*2); data.set(Lc.subarray(off,off+n),0); data.set(Rc.subarray(off,off+n),n); var ad=new AudioData({format:"f32-planar",sampleRate:Asr,numberOfFrames:n,numberOfChannels:2,timestamp:Math.round(off*1000000/Asr),data:data}); aenc.encode(ad); ad.close(); }
     await _expRace(aenc.flush(), 20000, "aflush"); try{ aenc.close(); }catch(_c){}
+    try{ Lc=null; Rc=null; _srcBuf=null; }catch(_f){}   /* libère les buffers audio (~90 Mo) AVANT la finalisation du MP4 : évite la coexistence audio+MP4+muxer qui crashait à 100% */
   }catch(e){} }
   var blob; try{ _expStage("Turbo : finalisation\u2026"); expShow(0.98); muxer.finalize(); blob=new Blob([muxer.target.buffer],{type:"video/mp4"}); try{ muxer.target.buffer=null; }catch(_b){} }   /* le tampon en mémoire est relâché dès que le Blob existe : les deux ne coexistent plus (pic divisé par ~2 à la finalisation) */
   catch(e){ _restore(); return "fail"; }
