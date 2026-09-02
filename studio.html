@@ -9634,6 +9634,9 @@ async function exportStudio(){ try{ _reqWake(); }catch(e){} try{ _hideClipOverla
   if(!A||!SEGS.length||(!PHOTOS.length && !clipVidReady)){ _expMsg("Charge d'abord une musique + des photos ou des vidéos."); return; }
   if(typeof MediaRecorder==="undefined"){ _expMsg("Enregistrement non supporté ici. Ouvre la page dans Safari (\u2197 en bas \u2192 \u00ab Ouvrir dans Safari \u00bb)."); return; }
   stopPlay(); EXPORTING=true; EXPORT_ABORT=false; expShow(0); try{ _expSizeRing(); }catch(e){}
+  try{ if(typeof essentia!=="undefined" && essentia){ if(essentia.shutdown) essentia.shutdown(); if(essentia.delete) essentia.delete(); essentia=null; }   /* libère les ~285 Mo d'essentia-wasm (vus dans la console : Heap resize jusqu'à 285 Mo) : les beats sont déjà calculés, l'analyse est inutile pendant l'export -> évite le crash mémoire iOS à 100% */
+    try{ if(typeof ESSENTIA_STATE!=="undefined") ESSENTIA_STATE="freed"; }catch(e){}
+  }catch(e){}
   window.__expTgt=1400;   /* ESSAI 1880 : on vise plus haut. Le prédicat de re-décodage (garde de convergence) accepte le plafond réel si le décodeur ne suit pas -> va au bout sans boucler. Réduire ce nombre par paliers si le fichier est trop lourd/lent. */
   if(window.__srcRefreshBusy || window.__addBusy){   /* fusion Souvenirs (redécodage) OU ajout de photos (qui finit par buildPartition) en arrière-plan : on attend la fin AVANT d'exporter */
     var _wr0=performance.now(); while((window.__srcRefreshBusy || window.__addBusy) && (performance.now()-_wr0)<240000){ if(EXPORT_ABORT){ EXPORTING=false; expHide(); return; }
