@@ -1751,9 +1751,7 @@ function _decodeChosen(p,cb,mx,blob){
 function _decodeFromSrc(p,cb,targetRes){ var mx=targetRes||Math.max((window._PCAP||1920),(typeof window!=="undefined"&&window._PMAX)?window._PMAX:0);
   /* EXPORT (mx>1400) et original hors mémoire -> rechargé depuis IndexedDB juste le temps de l'export. */
   if(mx>1400 && p._srcKey && typeof _pget==="function"){   /* src: (haute résolution) toujours préférée au-dessus de 1400, même si un _jpgBlob 1200 traîne encore */
-    _pget(p._srcKey).then(function(b){ var _bb=b||p._dispBlob||null;
-      try{ if(_bb && window.createImageBitmap && !window.__dbgNativeDone){ window.__dbgNativeDone=1; createImageBitmap(_bb).then(function(nb){ try{ window.__dbgNative=(nb.width||0)+"x"+(nb.height||0); if(nb.close)nb.close(); }catch(e){} }).catch(function(){ window.__dbgNative="ERR"; }); } }catch(e){}
-      _decodeChosen(p,cb,mx, _bb); }).catch(function(){ _decodeChosen(p,cb,mx, p._dispBlob||null); }); return;
+    _pget(p._srcKey).then(function(b){ _decodeChosen(p,cb,mx, b||p._dispBlob||null); }).catch(function(){ _decodeChosen(p,cb,mx, p._dispBlob||null); }); return;
   }
   /* LECTURE (mx≤1400) : blob d'affichage léger (~150 Ko, décodage ~70ms). Sinon original s'il est encore là. */
   var blob=(mx<=1400 && p._dispBlob) ? p._dispBlob : (p._jpgBlob || p._dispBlob);
@@ -1777,7 +1775,7 @@ var _CACHE_MB_CAP=64;   /* cache réduit : à 1200px et décodage ~70ms depuis l
 function _dispPx(){ try{ var h=document.querySelector(".hero"); var w=h?h.clientWidth:0, ht=h?h.clientHeight:0; var lng=Math.max(w,ht)||Math.max((window.screen&&screen.width)||390,(window.screen&&screen.height)||700); return Math.round(lng*Math.max(1,(window.devicePixelRatio||1))); }catch(e){ return 1400; } }
 function _resMax(){ try{ var isTouch=(('ontouchstart' in window)||((navigator.maxTouchPoints||0)>0)); return isTouch?1500:3200; }catch(e){ return 1500; } }   /* mobile 1500 : résolution que l'iPhone décode à TEMPS pendant la lecture ET qui tient dans le cache (au-delà, la photo n'est jamais prête -> on ne voit que le secours mou) */
 function _planZoomMax(sg){ try{ if(sg&&sg.video) return 1.0; var fit=(sg&&sg.img>=0&&typeof PHOTOS!=="undefined"&&PHOTOS[sg.img]&&PHOTOS[sg.img]._fit)||"fit"; return (fit==="fill")?1.12:1.32; }catch(e){ return 1.32; } }
-function _planTargetRes(sg){ var _dbg=""; var _exp=(typeof EXPORTING!=="undefined"&&EXPORTING===true); var t=((_exp&&window.__expTgt)?window.__expTgt:(window._PCAP||1920)); _dbg=(_exp&&window.__expTgt)?("expTgt="+t):("PCAP="+t); try{ var p=(sg&&sg.img>=0&&typeof PHOTOS!=="undefined")?PHOTOS[sg.img]:null; if(p){ var _hasSrc=!!(p._srcKey && (p._srcRes||0)>=1400); if(_exp && window.__expTgt && _hasSrc){ var _nn=Math.max(p._srcRes||0,p._w||0,p._h||0); t=(_nn>0)?Math.min(window.__expTgt,_nn):window.__expTgt; _dbg+=" [SRC->"+t+"]"; }   /* FIX 2% : cible bornée au natif CONNU de la source -> le prédicat « décodée ? » devient atteignable, fin des re-décodages par image (source 1440 visait 1920 à jamais) */ else { var _trust=!(p._srcKey && !p._ceilLearned); if(!_trust){ var n=Math.max(p._srcRes||0,p._w||0,p._h||0); if(n>0&&t>n){ t=n; _dbg+=" ->NATIF"+n; } } } _dbg+=" srcKey="+(p._srcKey?"o":"n")+" learn="+(p._ceilLearned?1:0)+" srcRes="+(p._srcRes||0)+" wh="+(p._w||0)+"x"+(p._h||0); } }catch(e){ _dbg+=" ERR"; } try{ window.__dbgTgt=_dbg+" ==>"+t; }catch(e){} return t; }   /* sous export, une photo avec source réelle (srcRes>=1400) vise __expTgt sans condition */   /* sous export : cible figée __expTgt, pas _PCAP (qu'un rebuild remet à 1200) */   /* cible plafonnée au NATIF de la photo : les prédicats « à re-décoder ? » deviennent atteignables (plus de re-demandes perpétuelles quand la source < _PCAP) */
+function _planTargetRes(sg){ var _dbg=""; var _exp=(typeof EXPORTING!=="undefined"&&EXPORTING===true); var t=((_exp&&window.__expTgt)?window.__expTgt:(window._PCAP||1920)); _dbg=(_exp&&window.__expTgt)?("expTgt="+t):("PCAP="+t); try{ var p=(sg&&sg.img>=0&&typeof PHOTOS!=="undefined")?PHOTOS[sg.img]:null; if(p){ var _hasSrc=!!(p._srcKey && (p._srcRes||0)>=1400); if(_exp && window.__expTgt && _hasSrc){ t=Math.min(t,window.__expTgt); _dbg+=" [SRC->"+t+"]"; } else { var _trust=!(p._srcKey && !p._ceilLearned); if(!_trust){ var n=Math.max(p._srcRes||0,p._w||0,p._h||0); if(n>0&&t>n){ t=n; _dbg+=" ->NATIF"+n; } } } _dbg+=" srcKey="+(p._srcKey?"o":"n")+" learn="+(p._ceilLearned?1:0)+" srcRes="+(p._srcRes||0)+" wh="+(p._w||0)+"x"+(p._h||0); } }catch(e){ _dbg+=" ERR"; } try{ window.__dbgTgt=_dbg+" ==>"+t; }catch(e){} return t; }   /* sous export, une photo avec source réelle (srcRes>=1400) vise __expTgt sans condition */   /* sous export : cible figée __expTgt, pas _PCAP (qu'un rebuild remet à 1200) */   /* cible plafonnée au NATIF de la photo : les prédicats « à re-décoder ? » deviennent atteignables (plus de re-demandes perpétuelles quand la source < _PCAP) */
 function _photoMB(p){ try{ if(!p||!p.c) return 0; return (p.c.width*p.c.height*4)/1048576; }catch(e){ return 0; } }
 function _cacheMB(){ try{ var m=0; for(var i=0;i<_decLRU.length;i++){ var p=PHOTOS[_decLRU[i]]; if(p&&p.c) m+=_photoMB(p); } return m; }catch(e){ return 0; } }
 function _cacheCount(){ try{ var n=0; for(var i=0;i<_decLRU.length;i++){ var p=PHOTOS[_decLRU[i]]; if(p&&p.c) n++; } return n; }catch(e){ return 0; } }
@@ -1806,7 +1804,7 @@ function _touchDec(i){ if(typeof PHOTOS==="undefined"||!PHOTOS[i]) return; var k
 }
 function _ensureDecodedP(p,cb,targetRes){ if(!p){ if(cb)cb(null); return; } targetRes=targetRes||(window._PCAP||1600);
   var _srcTrusted=(p._srcKey && !p._ceilLearned);   /* source haute résolution disponible et non éprouvée en échec */
-  try{ if(typeof EXPORTING!=="undefined"&&EXPORTING===true&&window.__expTgt&&_srcTrusted&&targetRes<window.__expTgt){ var _nx2=Math.max(p._srcRes||0,p._w||0,p._h||0); targetRes=(_nx2>0)?Math.min(window.__expTgt,_nx2):window.__expTgt; } }catch(e){}   /* 1) relèvement export D'ABORD — borné au natif connu (même famille que le FIX 2% de _planTargetRes) */
+  try{ if(typeof EXPORTING!=="undefined"&&EXPORTING===true&&window.__expTgt&&_srcTrusted&&targetRes<window.__expTgt) targetRes=window.__expTgt; }catch(e){}   /* 1) relèvement export D'ABORD */
   try{ if(!_srcTrusted){ var _natR=Math.max(p._srcRes||0,p._w||0,p._h||0); if(_natR>0 && targetRes>_natR) targetRes=_natR; } }catch(e){}   /* 2) plafond au natif SEULEMENT si pas de source fiable (sinon la source > canvas de travail) */   /* sous export, une photo à source non-éprouvée vise la pleine cible même si son canvas de travail est plus petit */   /* une photo qui a une source haute résolution non encore éprouvée n'est pas plafonnée par les dimensions de son canvas de travail */   /* jamais au-delà du natif de la source : évite l'agrandissement en RAM ET la boucle de re-décodage quand la cible dépasse la source */
   if(p.c && (p._decRes||0) >= Math.round(targetRes*0.95)){ if(cb)cb(p.c); return; }   /* résolution actuelle couvre déjà la cible -> AUCUN re-décodage */
   try{ if(_srcTrusted && (p._decRes||0) < Math.round(targetRes*0.95) && Math.max(p.c?p.c.width:0,p.c?p.c.height:0) < Math.round(targetRes*0.95)){ /* canvas de lecture trop petit + source fiable -> on force la montée : ne PAS renvoyer le petit canvas */ } }catch(e){}
@@ -1815,6 +1813,7 @@ function _ensureDecodedP(p,cb,targetRes){ if(!p){ if(cb)cb(null); return; } targ
   if(p._decoding){ if((p._decTarget||0)>=targetRes){ if(cb)(p._decCbs=p._decCbs||[]).push(cb); return; } else { if(cb)(p._decCbs=p._decCbs||[]).push(cb); return; } }   /* décodage déjà en cours -> on attend (il se re-vérifiera après) */
   p._decoding=true; p._decTarget=targetRes; window._decInFlight=(window._decInFlight||0)+1; p._decCbs=cb?[cb]:[]; var _t0=(window.performance&&performance.now)?performance.now():Date.now();
   var _fin=false; var _complete=function(c){ if(_fin) return; _fin=true; try{ if(!c){ window.__dbgDecFail=(window.__dbgDecFail||0)+1; window.__dbgLastFail=(window.__dbgLastGet?("get "+(window.__dbgLastGet.has?("ok "+Math.round(window.__dbgLastGet.sz/1024)+"Ko "+window.__dbgLastGet.ty):"VIDE")):"?")+" tgt"+targetRes; } }catch(e){}
+    try{ if(c && window.__expTgt){ var _got=Math.max(c.width||0,c.height||0); if(_got>0){ p._decRes=_got; if(_got < Math.round(window.__expTgt*0.95)){ p._srcRes=_got; p._ceilLearned=1; } } } }catch(e){}   /* SOUS EXPORT : on accepte la résolution obtenue (même < cible) et on grave le plafond -> plus jamais de re-décodage en boucle, l'export va TOUJOURS au bout */
     try{ if(!c){   /* ÉCHEC DE DÉCODAGE : on APPREND, au lieu de redemander la même cible à chaque image */
       p._decFailN=(p._decFailN||0)+1; p._decFailAt=(window.performance&&performance.now)?performance.now():Date.now(); p._ceilLearned=1;
       var _lastGood=(p._decRes||0);
@@ -9431,7 +9430,7 @@ async function _turboExport(){
   try{ muxer=new Mp4Muxer.Muxer(mo); venc=new VideoEncoder({ output:function(chunk,meta){ muxer.addVideoChunk(chunk,meta); }, error:function(e){ _vencErr=(e&&e.message)||String(e); } }); venc.configure(vcfg); }
   catch(e){ _restore(); return "fail"; }
   for(var _wc=0;_wc<CLIPS.length;_wc++){ if(CLIPS[_wc]&&CLIPS[_wc].ready){ try{ CLIPS[_wc].el.muted=true; var _wp=CLIPS[_wc].el.play(); if(_wp&&_wp.then){ await Promise.race([ _wp.catch(function(){}), new Promise(function(r){ setTimeout(r,400); }) ]); } CLIPS[_wc].el.pause(); }catch(e){} } }
-  var t0=performance.now(), _aborted=false; window.__tvSeg=null;
+  var t0=performance.now(), _aborted=false;
   try{
     for(var fnum=0; fnum<N; fnum++){
       if(EXPORT_ABORT){ _aborted=true; throw new Error("abort"); }
@@ -9439,26 +9438,7 @@ async function _turboExport(){
       var _t=fnum/FPS;
       var _si=-1; for(var _q=0;_q<SEGS.length;_q++){ if(_t>=SEGS[_q].start && _t<SEGS[_q].end){ _si=_q; break; } }
       var _sg=(_si>=0)?SEGS[_si]:null;
-      if(_sg && _sg.video && _sg.vclip!=null && CLIPS[_sg.vclip] && CLIPS[_sg.vclip].ready){ var _cl=CLIPS[_sg.vclip], _rate=(_sg.vspeed||_cl.speed||1), _vt=(_sg.vstart||0)+(_t-_sg.start)*_rate; _vt=Math.max(0,Math.min((_cl.dur||0.1)-0.05,_vt));
-        /* RACINE DU « bloqué à 2 % » : un seek d'HTMLVideoElement coûte 50-220 ms sur iOS et la
-           boucle en demandait ~un par image (24/s) -> 2 à 5 s de mur PAR SECONDE de clip, la barre
-           restait des minutes sous 2-3 % dès le premier plan vidéo (déjà mesuré en v845).
-           Désormais le clip est LU en vraie lecture (play) et la boucle se cale sur sa progression :
-           zéro seek par image, un plan vidéo coûte ~sa durée réelle, la barre avance visiblement. */
-        if(window.__tvSeg!==_si){ window.__tvSeg=_si;
-          for(var _oc=0;_oc<CLIPS.length;_oc++){ if(_oc!==_sg.vclip){ try{ CLIPS[_oc].el.pause(); }catch(_p){} } }
-          try{ _cl.el.muted=true; if(_cl.el.playbackRate!==_rate) _cl.el.playbackRate=_rate; }catch(_e){}
-          if(Math.abs((_cl.el.currentTime||0)-_vt)>0.08){ await seekClip(_cl.el, _vt); }   /* UN seul seek : à l'entrée du plan */
-          try{ var _pp=_cl.el.play(); if(_pp&&_pp.then) _pp.catch(function(){}); }catch(_e){}
-        } else {
-          var _dl=performance.now()+320;   /* attente BORNÉE (~8 images de marge) : jamais un gel */
-          while(((_cl.el.currentTime||0) < _vt-0.021) && !_cl.el.paused && performance.now()<_dl){ if(EXPORT_ABORT) break; await new Promise(function(r){ setTimeout(r,8); }); }
-          if((_cl.el.paused && (_cl.el.currentTime||0) < _vt-0.1) || Math.abs((_cl.el.currentTime||0)-_vt)>0.5){   /* lecture calée (rare) : rattrapage par un seul seek */
-            await seekClip(_cl.el, _vt); try{ var _p2=_cl.el.play(); if(_p2&&_p2.then) _p2.catch(function(){}); }catch(_e){}
-          }
-        }
-      }
-      else if(window.__tvSeg!=null){ window.__tvSeg=null; for(var _pc2=0;_pc2<CLIPS.length;_pc2++){ try{ CLIPS[_pc2].el.pause(); }catch(_p){} } }   /* sortie de plan vidéo : rien ne continue à jouer pendant les photos */
+      if(_sg && _sg.video && _sg.vclip!=null && CLIPS[_sg.vclip] && CLIPS[_sg.vclip].ready){ var _cl=CLIPS[_sg.vclip], _vt=(_sg.vstart||0)+(_t-_sg.start)*(_sg.vspeed||_cl.speed||1); _vt=Math.max(0,Math.min((_cl.dur||0.1)-0.05,_vt)); if(Math.abs((_cl.el.currentTime||0)-_vt)>0.08){ await seekClip(_cl.el, _vt); } }   /* seek seulement si nécessaire : réutilise l'image courante sous 80 ms d'écart */
       try{ var _curI=(_sg&&!_sg.video&&_sg.img>=0)?_sg.img:-1, _nxI=-1, _prvI=-1;
         if(_si>=0 && _si+1<SEGS.length && SEGS[_si+1] && !SEGS[_si+1].video && SEGS[_si+1].img>=0) _nxI=SEGS[_si+1].img;
         if(_si>0 && SEGS[_si-1] && !SEGS[_si-1].video && SEGS[_si-1].img>=0) _prvI=SEGS[_si-1].img;
@@ -9476,8 +9456,7 @@ async function _turboExport(){
       if((fnum&15)===15){ await new Promise(function(r){ setTimeout(r,0); }); }
     }
     await _expRace(venc.flush(), 25000, "flush"); try{ venc.close(); }catch(_c){}
-    try{ for(var _pe=0;_pe<CLIPS.length;_pe++){ try{ CLIPS[_pe].el.pause(); }catch(_x){} } }catch(_e){}
-  }catch(e){ try{ venc.close(); }catch(_c){} try{ for(var _pf=0;_pf<CLIPS.length;_pf++){ try{ CLIPS[_pf].el.pause(); }catch(_x){} } }catch(_e){} _restore(); if(_aborted||EXPORT_ABORT) return "abort"; return "fail"; }
+  }catch(e){ try{ venc.close(); }catch(_c){} _restore(); if(_aborted||EXPORT_ABORT) return "abort"; return "fail"; }
   if(useAudio){ try{ _expStage("Turbo : audio\u2026");
     var _srcBuf=(await _buildExportAudio(DUR, Asr))||AUDIOBUF;
     var _Lc=_srcBuf.getChannelData(0), _Rc=(_srcBuf.numberOfChannels>1)?_srcBuf.getChannelData(1):_srcBuf.getChannelData(0);
@@ -9609,7 +9588,7 @@ async function exportStudio(){ try{ _reqWake(); }catch(e){} try{ _hideClipOverla
   if(!A||!SEGS.length||(!PHOTOS.length && !clipVidReady)){ _expMsg("Charge d'abord une musique + des photos ou des vidéos."); return; }
   if(typeof MediaRecorder==="undefined"){ _expMsg("Enregistrement non supporté ici. Ouvre la page dans Safari (\u2197 en bas \u2192 \u00ab Ouvrir dans Safari \u00bb)."); return; }
   stopPlay(); EXPORTING=true; EXPORT_ABORT=false; expShow(0); try{ _expSizeRing(); }catch(e){}
-  window.__expTgt=(window._HQ?2560:1920);   /* POSÉ TOUT DE SUITE : avant l'await de préparation, sinon le rendu tourne avec __expTgt=null -> cible retombe à PCAP=1200 (cause racine du 1200 à l'export) */
+  window.__expTgt=1600;   /* ESSAI 1600 : compromis netteté/stabilité. Garde anti-boucle assoupli (voir _complete) pour aller au bout même si le décodeur rend un peu moins. */
   if(window.__srcRefreshBusy || window.__addBusy){   /* fusion Souvenirs (redécodage) OU ajout de photos (qui finit par buildPartition) en arrière-plan : on attend la fin AVANT d'exporter */
     var _wr0=performance.now(); while((window.__srcRefreshBusy || window.__addBusy) && (performance.now()-_wr0)<240000){ if(EXPORT_ABORT){ EXPORTING=false; expHide(); return; }
       try{ window.__expBeat=performance.now(); var _stW=document.getElementById("expStage"); if(_stW) _stW.textContent="Pr\u00e9paration des photos\u2026 "+(window.__addBusy?((window.__addN||0)+"/"+(window.__addTot||0)+" ajout\u00e9es"):((window.__srcRefreshN||0)+"/"+(window.__srcRefreshTot||PHOTOS.length))); }catch(e){}
