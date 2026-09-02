@@ -1751,7 +1751,9 @@ function _decodeChosen(p,cb,mx,blob){
 function _decodeFromSrc(p,cb,targetRes){ var mx=targetRes||Math.max((window._PCAP||1920),(typeof window!=="undefined"&&window._PMAX)?window._PMAX:0);
   /* EXPORT (mx>1400) et original hors mémoire -> rechargé depuis IndexedDB juste le temps de l'export. */
   if(mx>1400 && p._srcKey && typeof _pget==="function"){   /* src: (haute résolution) toujours préférée au-dessus de 1400, même si un _jpgBlob 1200 traîne encore */
-    _pget(p._srcKey).then(function(b){ _decodeChosen(p,cb,mx, b||p._dispBlob||null); }).catch(function(){ _decodeChosen(p,cb,mx, p._dispBlob||null); }); return;
+    _pget(p._srcKey).then(function(b){ var _bb=b||p._dispBlob||null;
+      try{ if(_bb && window.createImageBitmap && (window.__dbgNativeN||0)<3){ window.__dbgNativeN=(window.__dbgNativeN||0)+1; createImageBitmap(_bb).then(function(nb){ try{ window.__dbgNative=(nb.width||0)+"x"+(nb.height||0)+"("+Math.round((_bb.size||0)/1024)+"Ko)"; if(nb.close)nb.close(); }catch(e){} }).catch(function(){ window.__dbgNative="ERR"; }); } }catch(e){}
+      _decodeChosen(p,cb,mx, _bb); }).catch(function(){ _decodeChosen(p,cb,mx, p._dispBlob||null); }); return;
   }
   /* LECTURE (mx≤1400) : blob d'affichage léger (~150 Ko, décodage ~70ms). Sinon original s'il est encore là. */
   var blob=(mx<=1400 && p._dispBlob) ? p._dispBlob : (p._jpgBlob || p._dispBlob);
