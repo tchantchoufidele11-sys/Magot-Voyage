@@ -9961,7 +9961,6 @@ function ensureTripFilm(tr){ try{
 }catch(e){ _hlFilmBusy=false; } }
 function openStudio(tr,version,autoplay,empty){ if(empty){ tr=null; } else { tr=tr||souvTrip()||null; } _studioTrip=tr;   /* empty = Studio vierge (écran d’accueil), pas de film chargé */
   try{ var _hf=document.querySelector('iframe[name="mv-headless"]'); if(_hf) _hf.remove(); _hlFilmBusy=false; }catch(e){}   /* stop toute construction en arrière-plan */
-  try{ var _ovX=document.getElementById("studioOverlay"); if(_ovX){ var _frX=_ovX.querySelector("#studioFrame"); var _wX=_frX&&_frX.contentWindow; if(_wX && typeof _wX._studioResetAll==="function"){ _wX._studioResetAll(); } } }catch(e){}   /* VIDE l'écran du studio TOUT DE SUITE (ancien film + musique) avant de charger le nouveau -> plus d'ancien montage visible pendant le chargement */
   let ov=document.getElementById("studioOverlay");
   const backLbl=({fr:"Retour",en:"Back",es:"Volver",it:"Indietro",de:"Zur\u00fcck"})[_studioLang()]||"Retour";
   if(!ov){ ov=document.createElement("div"); ov.id="studioOverlay"; ov.className="studio-ov";
@@ -9990,6 +9989,8 @@ function openStudio(tr,version,autoplay,empty){ if(empty){ tr=null; } else { tr=
 }
 function closeStudio(){ const ov=document.getElementById("studioOverlay");
   try{ var _fr=ov&&ov.querySelector("#studioFrame"); var _w=_fr&&_fr.contentWindow; if(_w&&typeof _w.studioStop==="function") _w.studioStop(); }catch(e){}
+  try{ var _fr2=ov&&ov.querySelector("#studioFrame"); var _w2=_fr2&&_fr2.contentWindow; if(_w2&&typeof _w2._studioResetAll==="function") _w2._studioResetAll(); }catch(e){}   /* RETOUR : on vide COMPLÈTEMENT le studio (photos, musique, clips, écran) -> à la prochaine ouverture, seul le nouveau film apparaît, jamais l'ancien pendant le chargement */
+  try{ _studioLoadedId=null; }catch(e){}   /* oublie le film courant : la prochaine ouverture rechargera proprement */
   if(ov) ov.classList.remove("show"); document.documentElement.classList.remove("studio-open"); }
 function openMontage(tr,version,autoplay){ tr=tr||souvTrip()||null; return openStudio(tr,version,autoplay); /* --- ancien moteur inline désactivé : Studio Magot prend le relais --- */ _mvState.style=""; _mvState.pace=1; _mvState.soft=false; _mvState.grade="natural"; _mvState.fx=""; _mvState.overlay=""; _mvState.overlayTr=""; if(_mvState.overlayInt==null) _mvState.overlayInt=0.55; try{ overlayCatalog(); }catch(e){} let _dir=null;
   if(version==="director"){ _dir=mvApplyDirector(tr); } else if(version) mvApplyVersion(version);
