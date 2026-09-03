@@ -9961,6 +9961,7 @@ function ensureTripFilm(tr){ try{
 }catch(e){ _hlFilmBusy=false; } }
 function openStudio(tr,version,autoplay,empty){ if(empty){ tr=null; } else { tr=tr||souvTrip()||null; } _studioTrip=tr;   /* empty = Studio vierge (écran d’accueil), pas de film chargé */
   try{ var _hf=document.querySelector('iframe[name="mv-headless"]'); if(_hf) _hf.remove(); _hlFilmBusy=false; }catch(e){}   /* stop toute construction en arrière-plan */
+  try{ var _ovX=document.getElementById("studioOverlay"); if(_ovX){ var _frX=_ovX.querySelector("#studioFrame"); var _wX=_frX&&_frX.contentWindow; if(_wX && typeof _wX._studioResetAll==="function"){ _wX._studioResetAll(); } } }catch(e){}   /* VIDE l'écran du studio TOUT DE SUITE (ancien film + musique) avant de charger le nouveau -> plus d'ancien montage visible pendant le chargement */
   let ov=document.getElementById("studioOverlay");
   const backLbl=({fr:"Retour",en:"Back",es:"Volver",it:"Indietro",de:"Zur\u00fcck"})[_studioLang()]||"Retour";
   if(!ov){ ov=document.createElement("div"); ov.id="studioOverlay"; ov.className="studio-ov";
