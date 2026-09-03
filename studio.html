@@ -8821,7 +8821,7 @@ function _restorePhotoFromBlob(id, blob, meta, maxD){ return new Promise(functio
     try{ URL.revokeObjectURL(url); }catch(e){} res(true);
   }catch(e){ res(false); } }; im.onerror=function(){ res(false); }; im.src=url; }catch(e){ res(false); } }); }
 
-function _studioResetAll(){   /* remet le studio à un état PROPRE : photos, séquence, musique, clips, signature, interface — pour qu'un film n'hérite jamais de l'ancien */
+function _studioResetAll(){   /* remet le studio à un état PROPRE */
   try{ stopPlay(); }catch(e){}
   try{ PHOTOS.forEach(function(p){ try{URL.revokeObjectURL(p.url);}catch(e){} }); }catch(e){}
   PHOTOS=[]; SEGS=[]; _PSEQ=0; stripDirty=true;
