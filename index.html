@@ -9903,6 +9903,7 @@ async function studioFeed(w, tr){ if(!w||!tr) return;
   let items=[], sig=null;
   try{ const _r=await Promise.all([studioBuildItems(tr), magotSignText(tr).catch(function(){return null;})]); items=_r[0]||[]; sig=_r[1]; }catch(e){ items=[]; }
   if(!items.length) return;   /* rien à monter : le Studio garde son écran d\u2019accueil */
+  try{ if(typeof w._studioResetAll==="function") w._studioResetAll(); }catch(e){}   /* POINT 1 : studio propre AVANT l'auto-montage (sinon l'ancien film/musique restait) */
   var _aimood=(sig&&sig.mood||"").toLowerCase(); var _mood=(_aimood==="cinema"||_aimood==="doux"||_aimood==="dynamique"||_aimood==="voyage")?_aimood:"voyage"; try{ w.studioAutoMontage({ items, mood:_mood, sign:true, signText:(sig||undefined), dayMarkers:true, project:("trip:"+tr.id), autoplay:false }); }catch(e){}
   /* format d\u2019origine par défaut (best-effort) */
   setTimeout(()=>{ try{

@@ -8600,8 +8600,7 @@ function studioAutoMontage(input){
   input=input||{};
   var items=(input.items||[]).slice();
   items.sort(function(a,b){ var da=(a.day!=null?a.day:1e9), db=(b.day!=null?b.day:1e9); if(da!==db) return da-db; return ((a.time||0)-(b.time||0)); });
-  try{ stopPlay(); }catch(e){}
-  PHOTOS=[]; SEGS=[]; _PSEQ=0; try{ var te=document.getElementById("thumbs"); if(te) te.innerHTML=""; }catch(e){}
+  try{ _studioResetAll(); }catch(e){ try{ stopPlay(); PHOTOS=[]; SEGS=[]; _PSEQ=0; }catch(_e){} }   /* reset COMPLET (photos+musique+clips) : un nouveau montage ne garde jamais l'ancien */
   try{ document.getElementById("empty").style.display="none"; }catch(e){}
   try{ setState("Préparation du montage…"); }catch(e){}
   var idx=0;
