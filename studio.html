@@ -2232,11 +2232,11 @@ function renderBaseFrame(t){
   bctx.fillStyle="#000"; bctx.fillRect(0,0,Wd,Hd);
   if(idx<0) return {strongPulse:0};
   var sg=SEGS[idx], prev=SEGS[idx-1], into=t-sg.start;
-  var TRmap={crossfade:0.35, flash:0.22, slide:0.30, zoomblur:0.28, whip:0.18, zoomthrough:0.34};
-  var TR=Math.min(TRmap[sg.trans]||0, (sg.end-sg.start)*0.45);
+  var TRmap={crossfade:0.16, flash:0.14, slide:0.18, zoomblur:0.14, whip:0.12, zoomthrough:0.16};   /* transitions RACCOURCIES : le mélange flou d'entrée devient quasi imperceptible (chaque plan est net presque tout de suite) */
+  var TR=Math.min(TRmap[sg.trans]||0, (sg.end-sg.start)*0.30);
   if(prev && TR>0 && into<TR){
     var a=into/TR;
-    if(sg.trans==="crossfade"){ drawSegAt(prev,prev.end-0.001,0,1); bctx.save(); bctx.globalAlpha=a; drawSegAt(sg,t,0,1); bctx.restore(); }
+    if(sg.trans==="crossfade"){ var _ac=Math.min(1, a*1.8); drawSegAt(prev,prev.end-0.001,0,1); bctx.save(); bctx.globalAlpha=_ac; drawSegAt(sg,t,0,1); bctx.restore(); }   /* opacité montée 1.8× plus vite : le nouveau plan est net presque immédiatement, plus de fondu flou prolongé */
     else if(sg.trans==="flash"){ drawSegAt(sg,t,0,1); bctx.save(); bctx.globalAlpha=Math.max(0,1-a); bctx.fillStyle="#fff"; bctx.fillRect(0,0,Wd,Hd); bctx.restore(); }
     else if(sg.trans==="slide"){ var dir=sg.slideDir||1; drawSegAt(prev,prev.end-0.001,-a*Wd*dir,1); drawSegAt(sg,t,(1-a)*Wd*dir,1); }
     else if(sg.trans==="zoomblur"){ bctx.save(); bctx.globalAlpha=1-a; drawSegAt(prev,prev.end-0.001,0,1); bctx.restore(); bctx.save(); bctx.globalAlpha=a; drawSegAt(sg,t,0,1.06-0.06*a); bctx.restore(); }   /* zoom de départ réduit 1.20->1.06 : plus de flou d'entrée (mesuré dans l'export) */
