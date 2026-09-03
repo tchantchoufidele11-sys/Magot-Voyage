@@ -8822,10 +8822,26 @@ function _restorePhotoFromBlob(id, blob, meta, maxD){ return new Promise(functio
     try{ URL.revokeObjectURL(url); }catch(e){} res(true);
   }catch(e){ res(false); } }; im.onerror=function(){ res(false); }; im.src=url; }catch(e){ res(false); } }); }
 
-function studioOpenFilm(id){ try{ stopPlay(); }catch(e){}
+function _studioResetAll(){   /* remet le studio à un état PROPRE : photos, séquence, musique, clips, signature, interface — pour qu'un film n'hérite jamais de l'ancien */
+  try{ stopPlay(); }catch(e){}
+  try{ PHOTOS.forEach(function(p){ try{URL.revokeObjectURL(p.url);}catch(e){} }); }catch(e){}
+  PHOTOS=[]; SEGS=[]; _PSEQ=0; stripDirty=true;
+  try{ A=null; AUDIOBUF=null; pausedOffset=0; }catch(e){}   /* musique : buffer et état remis à zéro */
+  try{ window.LOOP_ON=0; window.MULTI=0; window.MUSIC_DUR=0; window.LOOP_START=0; window.LOOP_END=0; }catch(e){}
+  try{ if(typeof CLIPS!=="undefined"){ CLIPS.forEach(function(c){ try{ c.el.pause(); if(c.el._u) URL.revokeObjectURL(c.el._u); c.el.remove(); }catch(e){} }); CLIPS.length=0; } clipVidReady=false; VIDACT=-1; }catch(e){}
+  try{ _hideClipOverlay(); }catch(e){}
+  try{ window.USER_ORDER=null; window.SIGN_TEXT=null; window._restSeen={}; window.__activeMusicFile=null; }catch(e){}
+  try{ if(typeof SIGN!=="undefined"){ SIGN.on=false; } }catch(e){}
+  try{ var _sm=document.getElementById("srcMus"); if(_sm)_sm.textContent="Choisir"; var _sp=document.getElementById("srcPho"); if(_sp)_sp.textContent="Ajouter"; var _sv=document.getElementById("srcVid"); if(_sv)_sv.textContent="Optionnel"; }catch(e){}
+  try{ var te=document.getElementById("thumbs"); if(te) te.innerHTML=""; }catch(e){}
+  try{ if(bctx&&base) bctx.clearRect(0,0,base.width,base.height); }catch(e){}
+}
+try{ window._studioResetAll=_studioResetAll; }catch(e){}
+function studioOpenFilm(id){
   var proj=null; try{ proj=JSON.parse(localStorage.getItem(_filmKey(id))||"null"); }catch(e){}
   if(!proj){ return; }
-  _curFilmId=id; PHOTOS=[]; SEGS=[]; _PSEQ=0; window._restSeen={}; try{ var te=document.getElementById("thumbs"); if(te) te.innerHTML=""; }catch(e){}
+  _studioResetAll();   /* nettoyage COMPLET avant de charger le nouveau film (fini l'ancienne musique/les anciens clips qui restaient) */
+  _curFilmId=id; window._restSeen={}; try{ document.getElementById("thumbs").innerHTML=""; }catch(e){}
   try{ document.getElementById("empty").style.display="none"; }catch(e){}
   try{ closeFilms(); setState("Chargement du montage\u2026"); }catch(e){}
   var list=proj.photos||[], i=0;
