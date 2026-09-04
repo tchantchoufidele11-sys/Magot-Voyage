@@ -8440,7 +8440,7 @@ function _parseLRC(txt){ SUBS=[]; if(!txt) return 0; var ls=String(txt).split(/\
 function _subAt(t){ if(!SUBS.length) return ""; var cur=""; for(var i=0;i<SUBS.length;i++){ if(SUBS[i].t<=t+0.02) cur=SUBS[i].text; else break; } return cur; }
 function _musicTimeNow(){ /* temps DANS la musique (pour caler les paroles) */
   try{ if(window.LOOP_ON){ var md=(window.MUSIC_DUR||(A?A.dur:0))||0; var mt=montageNow(); return md>0?(mt%md):mt; } return (audioEl?audioEl.currentTime:montageNow()); }catch(e){ return montageNow(); } }
-function _updateSub(){ return; /* karaoké désactivé */ try{ if(!_subEl){ var h=document.querySelector(".hero"); if(!h) return; _subEl=document.createElement("div"); _subEl.id="karaokeSub"; _subEl.style.cssText="position:absolute;left:0;right:0;bottom:12%;text-align:center;padding:0 8%;z-index:16;pointer-events:none;font:700 clamp(15px,4.4vw,26px)/1.32 'Playfair Display',Georgia,serif;color:#fff;text-shadow:0 2px 10px rgba(0,0,0,.85),0 0 3px rgba(0,0,0,.9);opacity:0;transition:opacity .25s"; h.appendChild(_subEl); }
+function _updateSub(){ if(window._LYRICS_ON!==true){ if(_subEl)_subEl.style.opacity="0"; return; } try{ if(!_subEl){ var h=document.querySelector(".hero"); if(!h) return; _subEl=document.createElement("div"); _subEl.id="karaokeSub"; _subEl.style.cssText="position:absolute;left:0;right:0;bottom:12%;text-align:center;padding:0 8%;z-index:16;pointer-events:none;font:700 clamp(15px,4.4vw,26px)/1.32 'Playfair Display',Georgia,serif;color:#fff;text-shadow:0 2px 10px rgba(0,0,0,.85),0 0 3px rgba(0,0,0,.9);opacity:0;transition:opacity .25s"; h.appendChild(_subEl); }
   if(!SUBS.length || !playing){ _subEl.style.opacity="0"; return; }
   var line=_subAt(_musicTimeNow());
   if(line!==_subLast){ _subLast=line; _subEl.textContent=line; }
@@ -8448,7 +8448,7 @@ function _updateSub(){ return; /* karaoké désactivé */ try{ if(!_subEl){ var 
 }catch(e){} }
 try{ window.studioSetLyrics=function(lrc){ var n=_parseLRC(lrc); try{ setState(n?("Karaok\u00e9 : "+n+" lignes charg\u00e9es."):"Paroles vid\u00e9es."); }catch(e){} return n; }; window._SUBS=function(){ return SUBS; }; }catch(e){}
 function _subExpTime(t){ try{ if(window.LOOP_ON){ var md=(window.MUSIC_DUR||(A?A.dur:0))||1; return t%md; } return t; }catch(e){ return t; } }
-function _drawSubOnCanvas(cx, W, H, mt){ try{ if(!SUBS.length||!cx) return; var line=_subAt(mt); if(!line) return;
+function _drawSubOnCanvas(cx, W, H, mt){ try{ if(window._LYRICS_ON!==true) return; if(!SUBS.length||!cx) return; var line=_subAt(mt); if(!line) return;
   cx.save(); var fs=Math.max(14,Math.round(H*0.042)); cx.font="700 "+fs+"px 'Playfair Display',Georgia,serif"; cx.textAlign="center"; cx.textBaseline="bottom";
   var maxW=W*0.86, words=line.split(" "), lns=[], cur=""; for(var i=0;i<words.length;i++){ var tst=cur?(cur+" "+words[i]):words[i]; if(cx.measureText(tst).width>maxW && cur){ lns.push(cur); cur=words[i]; } else cur=tst; } if(cur) lns.push(cur);
   var lh=fs*1.32, base=H*0.90; for(var j=lns.length-1;j>=0;j--){ var ty=base-(lns.length-1-j)*lh; cx.shadowColor="rgba(0,0,0,.85)"; cx.shadowBlur=fs*0.45; cx.shadowOffsetX=0; cx.shadowOffsetY=2; cx.fillStyle="#ffffff"; cx.fillText(lns[j], W/2, ty); }
@@ -9161,9 +9161,17 @@ function _toggleFilmsMenu(anchor){
       +'<button class="fm-i" data-a="save" style="'+_bs+'">\uD83D\uDCBE '+_st("Enregistrer le montage")+'</button>'
       +'<button class="fm-i" data-a="new" style="'+_bs+';color:#e6c15a">\u2728 '+_st("Nouveau montage")+'</button>'
       +'<button class="fm-i" data-a="tuto" style="'+_bs+'">\uD83E\uDDED '+_st("Revoir le tutoriel")+'</button>'
-      +'<button class="fm-i" data-a="prerender" style="'+_bs+';color:#7ad0a0">\uD83C\uDFAC Pr\u00e9-rendre le film (test)</button>';
+      +'<button class="fm-i" data-a="lyrics" style="'+_bs+';color:'+(window._LYRICS_ON===true?"#7ad0a0":"#f4f7fc")+'">\uD83C\uDFA4 '+(window._LYRICS_ON===true?_st("Paroles : activées"):_st("Paroles : désactivées"))+'</button>'
+;
     document.body.appendChild(m);
     Array.prototype.forEach.call(m.querySelectorAll(".fm-i"), function(it){ it.onclick=function(ev){ ev.stopPropagation(); var a=it.getAttribute("data-a"); m.style.display="none";
+      if(a==="lyrics"){ try{
+        if(window._LYRICS_ON!==true && !window.__hasLyrics){ setState(_st("Pas de paroles disponibles pour cette musique.")); return; }
+        window._LYRICS_ON = (window._LYRICS_ON!==true);
+        try{ window.__studioDirty=true; }catch(e){}
+        setState(window._LYRICS_ON?_st("\uD83C\uDFA4 Paroles activées"):_st("Paroles désactivées"));
+        try{ if(A&&(PHOTOS.length||clipVidReady)){ var _wp=playing, _po=(playing?montageNow():pausedOffset)||0; buildPartition(); if(_wp){ stopPlay(); startPlay(); } } }catch(e){}
+      }catch(e){} return; }
       if(a==="open"){ try{ openFilms(); }catch(e){} }
       else if(a==="save"){ try{ if(!PHOTOS.length && !clipVidReady){ setState(_st("Rien \u00e0 enregistrer pour l\'instant.")); return; } studioSaveLocal(); setState(_st("\u2713 Montage enregistr\u00e9 dans \u00ab Mes films \u00bb.")); }catch(e){} }
       else if(a==="new"){ var _nm=function(){ try{ if(PHOTOS.length||clipVidReady) studioSaveLocal(); }catch(e){} try{ _curFilmId=null; document.getElementById("clear").click(); setState(_st("Nouveau montage \u2014 ajoute des photos et une musique.")); }catch(e){} }; if(typeof window._studioConfirm==="function") window._studioConfirm("Enregistrer le montage en cours puis repartir \u00e0 z\u00e9ro ?","Nouveau",_nm); else if(confirm("Enregistrer le montage en cours puis repartir \u00e0 z\u00e9ro ?")) _nm(); }
@@ -9430,7 +9438,7 @@ function _expSizeRing(){
 }
 function _expStage(msg){ try{ var e=document.getElementById("expProg"); if(!e) return; var st=document.getElementById("expStage"); if(!st){ st=document.createElement("div"); st.id="expStage"; st.style.cssText="font:600 12px ui-monospace,monospace;color:#9fb0d0;margin-top:8px;min-height:15px"; e.appendChild(st); } st.textContent=msg||""; }catch(_x){} }
 function _expYield(){ return new Promise(function(r){ setTimeout(r,0); }); }
-function _expRestoreMem(){ try{ window.__pinned=null; window.__expTgt=null; }catch(e){}
+function _expRestoreMem(){ try{ if(!playing) _memGuardStop(); }catch(e){} try{ window.__pinned=null; window.__expTgt=null; }catch(e){}
   try{ if(window.__essentiaFreed){ window.__essentiaFreed=false; if(typeof EssentiaWASM!=="undefined" && typeof Essentia!=="undefined"){ EssentiaWASM().then(function(w){ try{ essentia=new Essentia(w); ESSENTIA_STATE="ok"; }catch(e){} }).catch(function(){}); } } }catch(e){}   /* recharge essentia après l'export pour les analyses futures */
   try{ if(window.__expClipHold){ window.__expClipHold=false; window.__expPrevClip=null; if(typeof CLIPS!=="undefined"){ for(var _ci=0;_ci<CLIPS.length;_ci++){ (function(_c){ try{ if(_c && _c.el && _c._u && _c._unloaded){ _c.el.src=_c._u; _c.el.load(); _c._unloaded=false; } }catch(e){} })(CLIPS[_ci]); } } } }catch(e){}   /* fin d'export : recharge tous les clips pour la lecture */
   try{ var _q=window.__putQueue; window.__putQueue=null; if(_q&&_q.length){ (function _flush(){ if(!_q.length) return; var it=_q.shift(); try{ _pput(it[0],it[1]).catch(function(){}); }catch(e){} setTimeout(_flush,120); })(); } }catch(e){}   /* rejeu différé de la file d'écriture */ try{ if(window.__deferredAdd&&window.__deferredAdd.length){ var _dfa=window.__deferredAdd; window.__deferredAdd=null; setTimeout(function(){ try{ studioAddPhotos(_dfa); }catch(e){} },600); } }catch(e){} try{ if(window.__deferredRefresh){ var _dfi=window.__deferredRefresh; window.__deferredRefresh=null; setTimeout(function(){ try{ studioRefreshFromSource(_dfi); }catch(e){} },800); } }catch(e){} try{ if(window.__expSaveDec){ _DEC_MAX=window.__expSaveDec; window.__expSaveDec=null; } if(window.__expSavePcap){ window._PCAP=window.__expSavePcap; window.__expSavePcap=null; } if(window.__expSaveCap){ _CACHE_MB_CAP=window.__expSaveCap; window.__expSaveCap=null; } _decLRU=[]; }catch(e){} }
@@ -9695,6 +9703,7 @@ async function exportStudio(){ try{ _reqWake(); }catch(e){} try{ _hideClipOverla
   if(!A||!SEGS.length||(!PHOTOS.length && !clipVidReady)){ _expMsg("Charge d'abord une musique + des photos ou des vidéos."); return; }
   if(typeof MediaRecorder==="undefined"){ _expMsg("Enregistrement non supporté ici. Ouvre la page dans Safari (\u2197 en bas \u2192 \u00ab Ouvrir dans Safari \u00bb)."); return; }
   stopPlay(); EXPORTING=true; EXPORT_ABORT=false; expShow(0); try{ _expSizeRing(); }catch(e){}
+  try{ _memGuardStart(); }catch(e){}   /* gardien mémoire actif pendant l'export/pré-rendu (évite le crash sur gros films) */
   try{ if(typeof essentia!=="undefined" && essentia && !window.__essentiaFreed){ if(essentia.shutdown) essentia.shutdown(); if(essentia.delete) essentia.delete(); essentia=null; window.__essentiaFreed=true; }   /* libère les ~285 Mo d'essentia-wasm pendant l'export (crash iOS 100%) ; rechargé à la fin via _expRestoreMem */
   }catch(e){}
   try{ if(typeof CLIPS!=="undefined" && CLIPS.length>2){ window.__expClipHold=true; for(var _ci=0;_ci<CLIPS.length;_ci++){ (function(_c){ try{ if(_c && _c.el && _c._u){ _c.el.pause(); _c.el.removeAttribute("src"); _c.el.load(); _c._unloaded=true; } }catch(e){} })(CLIPS[_ci]); } } }catch(e){}   /* décharge tous les clips vidéo au début de l'export (chacun ~50-100 Mo décodé) : ils seront rechargés un par un juste avant leur tour -> évite 300-600 Mo simultanés qui crashent iOS */
@@ -10523,6 +10532,7 @@ essentiaReady.then(function(ok){ if(!ok && !A){ /* silencieux : le repli se fait
   try{ window._studioAutoPickMusic=_studioAutoPickMusic; window._studioModeHasMusic=_studioModeHasMusic; window._modeLabel=_modeLabel; }catch(e){}
   function useTrack(t){
     if(_mLoading) return; stopPreview();
+    try{ var _lrc=t&&(t.lyrics||t.lrc); if(_lrc && typeof studioSetLyrics==="function"){ studioSetLyrics(_lrc); window.__hasLyrics=true; } else { try{ if(typeof _parseLRC==="function") _parseLRC(""); }catch(e){} window.__hasLyrics=false; } }catch(e){}   /* charge les paroles de la piste si dispo (le worker les a écrites dans music_catalog.lyrics) */
     LIB_ACTIVE=t.id; TRACKS=[]; window.MULTI=0;
     _mLoading=true; t.loading=true; renderLib();
     var sm=$("srcMus"); if(sm) sm.textContent=t.title;
