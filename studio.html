@@ -8470,7 +8470,7 @@ function _openLangPicker(){
   bg.style.cssText="position:fixed;inset:0;z-index:100050;background:rgba(0,0,0,.62);backdrop-filter:blur(4px);display:flex;align-items:flex-end;justify-content:center;font-family:system-ui,-apple-system,sans-serif";
   var card=document.createElement("div");
   card.style.cssText="width:100%;max-width:520px;background:#0f0e0d;border:1px solid #282622;border-radius:22px 22px 0 0;padding:8px 10px 22px;max-height:78vh;overflow:auto;box-shadow:0 -10px 50px rgba(0,0,0,.7)";
-  var head="<div style=\"text-align:center;padding:12px 0 6px\"><div style=\"width:40px;height:4px;background:#3a3733;border-radius:3px;margin:0 auto 12px\"></div><div style=\"color:#f4f7fc;font:700 17px system-ui\">\uD83C\uDF10 "+_st("Langue des paroles")+"</div><div style=\"color:#8a93a6;font:500 12.5px system-ui;margin-top:3px\">"+_st("Traduction synchronisée au rythme")+" \u00b7 v934</div></div>";
+  var head="<div style=\"text-align:center;padding:12px 0 6px\"><div style=\"width:40px;height:4px;background:#3a3733;border-radius:3px;margin:0 auto 12px\"></div><div style=\"color:#f4f7fc;font:700 17px system-ui\">\uD83C\uDF10 "+_st("Langue des paroles")+"</div><div style=\"color:#8a93a6;font:500 12.5px system-ui;margin-top:3px\">"+_st("Traduction synchronisée au rythme")+" \u00b7 v935</div></div>";
   var rows="";
   for(var i=0;i<window._LYRICS_LANGS.length;i++){ var code=window._LYRICS_LANGS[i][0], name=window._LYRICS_LANGS[i][1], fl=_LANG_FLAGS[code]||"\uD83C\uDF10", on=(window._LYRICS_LANG===code);
     rows+="<button class=\"lang-opt\" data-l=\""+code+"\" style=\"display:flex;align-items:center;gap:13px;width:100%;text-align:left;background:"+(on?"rgba(122,208,160,.14)":"none")+";border:1px solid "+(on?"rgba(122,208,160,.5)":"transparent")+";color:#f4f7fc;font:600 15.5px system-ui;padding:14px 15px;border-radius:13px;cursor:pointer;margin:3px 0\"><span style=\"font-size:22px\">"+fl+"</span><span style=\"flex:1\">"+name+"</span>"+(on?"<span style=\"color:#7ad0a0;font-size:18px\">\u2713</span>":"")+"</button>";
@@ -8478,25 +8478,32 @@ function _openLangPicker(){
   card.innerHTML=head+rows;
   bg.appendChild(card);
   bg.addEventListener("click",function(e){ if(e.target===bg) bg.remove(); });
-  Array.prototype.forEach.call(card.querySelectorAll(".lang-opt"),function(b){ b.onclick=function(){ var lg=b.getAttribute("data-l"); try{ setState("\uD83C\uDF10 \u2192 "+lg); }catch(e){} bg.remove(); studioTranslateLyrics(lg); try{ window.__studioDirty=true; }catch(e){} }; });
+  Array.prototype.forEach.call(card.querySelectorAll(".lang-opt"),function(b){ b.onclick=function(){ var lg=b.getAttribute("data-l"); try{ setState("\uD83C\uDF10 \u2192 "+lg); _lyrToast("\uD83C\uDF10 \u2192 "+lg); }catch(e){} bg.remove(); studioTranslateLyrics(lg); try{ window.__studioDirty=true; }catch(e){} }; });
   document.body.appendChild(bg);
 }
 try{ window._openLangPicker=_openLangPicker; }catch(e){}
+function _lyrToast(msg, ms){ try{ var el=document.getElementById("lyrToast");
+  if(!el){ el=document.createElement("div"); el.id="lyrToast";
+    el.style.cssText="position:fixed;left:50%;bottom:34px;transform:translateX(-50%);z-index:100060;background:#0f1523;border:1px solid #2b3450;color:#f4f7fc;font:600 13.5px system-ui;padding:11px 18px;border-radius:12px;box-shadow:0 10px 30px rgba(0,0,0,.55);max-width:86vw;text-align:center;pointer-events:none;transition:opacity .25s";
+    document.body.appendChild(el); }
+  el.textContent=msg; el.style.opacity="1";
+  clearTimeout(el._t); el._t=setTimeout(function(){ el.style.opacity="0"; }, ms||4000);
+}catch(e){} }
 function studioTranslateLyrics(lang){
   try{
     if(lang==="orig"){ if(window.__origLRC){ _parseLRC(window.__origLRC); window._LYRICS_LANG="orig"; try{ if(A&&(PHOTOS.length||clipVidReady)) buildPartition(); }catch(e){} } return; }
-    if(!window.__origLRC){ setState(_st("Aucune parole à traduire.")); return; }
+    if(!window.__origLRC){ setState(_st("Aucune parole à traduire.")); _lyrToast(_st("Aucune parole à traduire.")); return; }
     /* FIX v933 : LIB/LIB_ACTIVE vivent dans l'IIFE de la façade (autre bloc <script>) -> ReferenceError
        avalée par le try/catch : la fonction sortait en silence AVANT setState/fetch. On passe par le
        global publié window.__activeMusicMeta ; catId reste optionnel (la traduction marche du LRC seul). */
     var catId=null; try{ var _am=window.__activeMusicMeta; if(_am&&_am.catId!=null) catId=_am.catId; }catch(e){}
-    var base=_workerBase(); if(!base){ setState(_st("Service de traduction indisponible.")); return; }
-    setState("\uD83C\uDF10 "+_st("Traduction en cours…"));
+    var base=_workerBase(); if(!base){ setState(_st("Service de traduction indisponible.")); _lyrToast(_st("Service de traduction indisponible.")); return; }
+    setState("\uD83C\uDF10 "+_st("Traduction en cours…")); _lyrToast("\uD83C\uDF10 "+_st("Traduction en cours…"), 20000);
     fetch(base+"/lyrics/translate",{ method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify({ id:catId, lang:lang, lrc:(window.__origLRC||"") }) })
       .then(function(r){ return r.json(); })
-      .then(function(d){ if(d&&d.lrc){ _parseLRC(d.lrc); window._LYRICS_LANG=lang; window._LYRICS_ON=true; setState("\uD83C\uDFA4 "+_st("Paroles traduites")); try{ if(A&&(PHOTOS.length||clipVidReady)) buildPartition(); }catch(e){} } else { setState(_st("Échec de la traduction.")+((d&&d.error)?(" ("+d.error+")"):"")); } })
-      .catch(function(){ setState(_st("Échec de la traduction.")+" (r\u00e9seau)"); });
-  }catch(e){ try{ setState(_st("Échec de la traduction.")+" ("+((e&&e.message)||e)+")"); }catch(_e){} }
+      .then(function(d){ if(d&&d.lrc){ _parseLRC(d.lrc); window._LYRICS_LANG=lang; window._LYRICS_ON=true; setState("\uD83C\uDFA4 "+_st("Paroles traduites")); _lyrToast("\uD83C\uDFA4 "+_st("Paroles traduites")); try{ if(A&&(PHOTOS.length||clipVidReady)) buildPartition(); }catch(e){} } else { var _r=_st("Échec de la traduction.")+((d&&d.error)?(" ("+d.error+(d.detail?(" : "+String(d.detail).slice(0,120)):"")+")"):""); setState(_r); _lyrToast(_r, 9000); } })
+      .catch(function(){ var _r=_st("Échec de la traduction.")+" (r\u00e9seau/CORS)"; setState(_r); _lyrToast(_r, 9000); });
+  }catch(e){ try{ var _r2=_st("Échec de la traduction.")+" ("+((e&&e.message)||e)+")"; setState(_r2); _lyrToast(_r2, 9000); }catch(_e){} }
 }
 try{ window.studioTranslateLyrics=studioTranslateLyrics; }catch(e){}
 try{ window.studioSetLyrics=function(lrc){ try{ window.__origLRC=lrc; window._LYRICS_LANG="orig"; }catch(e){} var n=_parseLRC(lrc); try{ setState(n?("Karaok\u00e9 : "+n+" lignes charg\u00e9es."):"Paroles vid\u00e9es."); }catch(e){} return n; }; window._SUBS=function(){ return SUBS; }; }catch(e){}
