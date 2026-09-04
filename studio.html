@@ -8434,7 +8434,28 @@ function _audioLat(){ try{ if(WA.on && ctx){ var l=(ctx.outputLatency!=null)?ctx
 function visualTime(){ return montageNow() + ((window.LOOP_ON||window.MULTI)?0:LEAD) - _audioLat() + curSync(); }
 /* ===== KARAOKÉ : paroles synchronisées (format LRC) ===== */
 var SUBS=[], _subEl=null, _subLast="";
+function _readEmbeddedLyrics(blob, cb){ try{
+  blob.arrayBuffer().then(function(ab){ try{
+    var u8=new Uint8Array(ab); var txt="";
+    /* cherche un frame ID3 "USLT" (Unsynchronised lyrics) ou "SYLT" */
+    var dec=new TextDecoder("utf-8"); var raw=dec.decode(u8.subarray(0, Math.min(u8.length, 300000)));
+    var m=raw.indexOf("USLT");
+    if(m>=0){ var seg=raw.substring(m+4, m+8000); var nl=seg.replace(/[\x00-\x08\x0b-\x1f]/g," ").replace(/\s{2,}/g,"\n").trim(); if(nl.length>20){ cb(nl); return; } }
+    /* fallback : chaîne "lyrics" en clair (certains encodages) */
+    var m2=raw.toLowerCase().indexOf("lyrics");
+    if(m2>=0){ var seg2=raw.substring(m2+6, m2+8000).replace(/[\x00-\x08\x0b-\x1f]/g," ").replace(/\s{2,}/g,"\n").trim(); if(seg2.length>20){ cb(seg2); return; } }
+    cb(null);
+  }catch(e){ cb(null); } }).catch(function(){ cb(null); });
+}catch(e){ cb(null); } }
 function _parseLRC(txt){ SUBS=[]; if(!txt) return 0; var ls=String(txt).split(/\r?\n/);
+  var _hasTiming=/\[\d+:\d+/.test(String(txt));
+  if(!_hasTiming){   /* texte brut sans minutage (paroles embarquées MP3) -> réparties sur la durée de la musique */
+    var _lines=[]; for(var _k=0;_k<ls.length;_k++){ var _t=ls[_k].replace(/\[[^\]]*\]/g,"").trim(); if(_t) _lines.push(_t); }   /* retire les [Verse], [Chorus]... */
+    if(!_lines.length) return 0;
+    var _md=(window.MUSIC_DUR||(A?A.dur:0))||_lines.length*3; var _intro=_md*0.04, _span=Math.max(1,_md-_intro-2);
+    for(var _j=0;_j<_lines.length;_j++){ SUBS.push({ t:_intro+_span*(_j/_lines.length), text:_lines[_j] }); }
+    return SUBS.length;
+  }
   for(var i=0;i<ls.length;i++){ var m=ls[i].match(/^\s*\[(\d+):(\d+(?:[.:]\d+)?)\]\s*(.*)$/); if(m){ var sec=parseInt(m[1],10)*60+parseFloat(String(m[2]).replace(":",".")); var tx=(m[3]||"").trim(); SUBS.push({t:sec, text:tx}); } }
   SUBS.sort(function(a,b){ return a.t-b.t; }); return SUBS.length; }
 function _subAt(t){ if(!SUBS.length) return ""; var cur=""; for(var i=0;i<SUBS.length;i++){ if(SUBS[i].t<=t+0.02) cur=SUBS[i].text; else break; } return cur; }
@@ -10532,7 +10553,13 @@ essentiaReady.then(function(ok){ if(!ok && !A){ /* silencieux : le repli se fait
   try{ window._studioAutoPickMusic=_studioAutoPickMusic; window._studioModeHasMusic=_studioModeHasMusic; window._modeLabel=_modeLabel; }catch(e){}
   function useTrack(t){
     if(_mLoading) return; stopPreview();
-    try{ var _lrc=t&&(t.lyrics||t.lrc); if(_lrc && typeof studioSetLyrics==="function"){ studioSetLyrics(_lrc); window.__hasLyrics=true; } else { try{ if(typeof _parseLRC==="function") _parseLRC(""); }catch(e){} window.__hasLyrics=false; } }catch(e){}   /* charge les paroles de la piste si dispo (le worker les a écrites dans music_catalog.lyrics) */
+    try{ var _lrc=t&&(t.lyrics||t.lrc);
+      if(_lrc && typeof studioSetLyrics==="function"){ studioSetLyrics(_lrc); window.__hasLyrics=(SUBS&&SUBS.length>0); }
+      else { window.__hasLyrics=false; try{ _parseLRC(""); }catch(e){}
+        /* pas de paroles au catalogue -> tenter les paroles EMBARQUÉES du fichier MP3 */
+        try{ var _blob=t&&(t._file||t._dlblob); if(_blob){ _readEmbeddedLyrics(_blob, function(lr){ if(lr){ studioSetLyrics(lr); window.__hasLyrics=(SUBS&&SUBS.length>0); try{ if(A&&(PHOTOS.length||clipVidReady)) buildPartition(); }catch(e){} } }); } }catch(e){}
+      }
+    }catch(e){}   /* charge les paroles : catalogue d'abord, puis tag embarqué du MP3 */
     LIB_ACTIVE=t.id; TRACKS=[]; window.MULTI=0;
     _mLoading=true; t.loading=true; renderLib();
     var sm=$("srcMus"); if(sm) sm.textContent=t.title;
