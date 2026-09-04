@@ -8460,7 +8460,24 @@ function _updateSub(){ if(window._LYRICS_ON!==true){ if(_subEl)_subEl.style.opac
   if(line!==_subLast){ _subLast=line; _subEl.textContent=line; }
   _subEl.style.opacity=line?"1":"0";
 }catch(e){} }
-try{ window.studioSetLyrics=function(lrc){ var n=_parseLRC(lrc); try{ setState(n?("Karaok\u00e9 : "+n+" lignes charg\u00e9es."):"Paroles vid\u00e9es."); }catch(e){} return n; }; window._SUBS=function(){ return SUBS; }; }catch(e){}
+window._LYRICS_LANGS=[["orig","Original"],["fr","Français"],["en","English"],["es","Español"],["it","Italiano"],["de","Deutsch"],["pt","Português"],["nl","Nederlands"],["ar","العربية"],["zh","中文"],["ja","日本語"],["ru","Русский"],["tr","Türkçe"]];
+window._LYRICS_LANG="orig"; window.__origLRC="";
+function _workerBase(){ try{ return (window.parent&&window.parent.WORKER_URL)||window.WORKER_URL||""; }catch(e){ return ""; } }
+function studioTranslateLyrics(lang){
+  try{
+    if(lang==="orig"){ if(window.__origLRC){ _parseLRC(window.__origLRC); window._LYRICS_LANG="orig"; try{ if(A&&(PHOTOS.length||clipVidReady)) buildPartition(); }catch(e){} } return; }
+    var mid=(LIB_ACTIVE!=null)?String(LIB_ACTIVE):""; var track=null; for(var i=0;i<LIB.length;i++){ if(String(LIB[i].id)===mid){ track=LIB[i]; break; } }
+    var catId=track&&track.catId; if(catId==null){ setState(_st("Traduction indisponible pour cette musique.")); return; }
+    var base=_workerBase(); if(!base){ setState(_st("Service de traduction indisponible.")); return; }
+    setState("\uD83C\uDF10 "+_st("Traduction en cours…"));
+    fetch(base+"/lyrics/translate",{ method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify({ id:catId, lang:lang, lrc:(window.__origLRC||"") }) })
+      .then(function(r){ return r.json(); })
+      .then(function(d){ if(d&&d.lrc){ _parseLRC(d.lrc); window._LYRICS_LANG=lang; window._LYRICS_ON=true; setState("\uD83C\uDFA4 "+_st("Paroles traduites")); try{ if(A&&(PHOTOS.length||clipVidReady)) buildPartition(); }catch(e){} } else { setState(_st("Échec de la traduction.")); } })
+      .catch(function(){ setState(_st("Échec de la traduction.")); });
+  }catch(e){}
+}
+try{ window.studioTranslateLyrics=studioTranslateLyrics; }catch(e){}
+try{ window.studioSetLyrics=function(lrc){ try{ window.__origLRC=lrc; window._LYRICS_LANG="orig"; }catch(e){} var n=_parseLRC(lrc); try{ setState(n?("Karaok\u00e9 : "+n+" lignes charg\u00e9es."):"Paroles vid\u00e9es."); }catch(e){} return n; }; window._SUBS=function(){ return SUBS; }; }catch(e){}
 function _subExpTime(t){ try{ if(window.LOOP_ON){ var md=(window.MUSIC_DUR||(A?A.dur:0))||1; return t%md; } return t; }catch(e){ return t; } }
 function _drawSubOnCanvas(cx, W, H, mt){ try{ if(window._LYRICS_ON!==true) return; if(!SUBS.length||!cx) return; var line=_subAt(mt); if(!line) return;
   cx.save(); var fs=Math.max(14,Math.round(H*0.042)); cx.font="700 "+fs+"px 'Playfair Display',Georgia,serif"; cx.textAlign="center"; cx.textBaseline="bottom";
@@ -9175,15 +9192,22 @@ function _toggleFilmsMenu(anchor){
       +'<button class="fm-i" data-a="save" style="'+_bs+'">\uD83D\uDCBE '+_st("Enregistrer le montage")+'</button>'
       +'<button class="fm-i" data-a="new" style="'+_bs+';color:#e6c15a">\u2728 '+_st("Nouveau montage")+'</button>'
       +'<button class="fm-i" data-a="tuto" style="'+_bs+'">\uD83E\uDDED '+_st("Revoir le tutoriel")+'</button>'
-      +'<button class="fm-i" data-a="lyrics" style="'+_bs+';color:'+(window._LYRICS_ON===true?"#7ad0a0":"#f4f7fc")+'">\uD83C\uDFA4 '+(window._LYRICS_ON===true?_st("Paroles : activées"):_st("Paroles : désactivées"))+'</button>'
+      +'<button class="fm-i" data-a="lyrics" style="'+_bs+';color:'+(window._LYRICS_ON===true?"#7ad0a0":"#f4f7fc")+'">\uD83C\uDFA4 '+_st("Lyrique")+'  <span style="float:right;font-size:.82em;opacity:.85;color:'+(window._LYRICS_ON===true?"#7ad0a0":"#8a93a6")+'">'+(window._LYRICS_ON===true?"\u25CF "+_st("activé"):"\u25CB "+_st("désactivé"))+'</span></button>'
+      +(window.__hasLyrics?('<button class="fm-i" data-a="lyrlang" style="'+_bs+'">\uD83C\uDF10 '+_st("Langue des paroles")+'  <span style="float:right;font-size:.82em;opacity:.7">'+((function(){ for(var _l=0;_l<window._LYRICS_LANGS.length;_l++){ if(window._LYRICS_LANGS[_l][0]===window._LYRICS_LANG) return window._LYRICS_LANGS[_l][1]; } return "Original"; })())+' \u203A</span></button>'):"")
 ;
     document.body.appendChild(m);
     Array.prototype.forEach.call(m.querySelectorAll(".fm-i"), function(it){ it.onclick=function(ev){ ev.stopPropagation(); var a=it.getAttribute("data-a"); m.style.display="none";
+      if(a==="lyrlang"){ try{
+        var _opts=window._LYRICS_LANGS, _msg=_st("Choisis la langue des paroles :")+"\n";
+        for(var _i=0;_i<_opts.length;_i++){ _msg+="\n"+(_i+1)+". "+_opts[_i][1]; }
+        var _ch=prompt(_msg, "1");
+        if(_ch!=null){ var _n=parseInt(_ch,10); if(_n>=1&&_n<=_opts.length){ var _lg=_opts[_n-1][0]; studioTranslateLyrics(_lg); try{ window.__studioDirty=true; }catch(e){} } }
+      }catch(e){} return; }
       if(a==="lyrics"){ try{
         if(window._LYRICS_ON!==true && !window.__hasLyrics){ setState(_st("Pas de paroles disponibles pour cette musique.")); return; }
         window._LYRICS_ON = (window._LYRICS_ON!==true);
         try{ window.__studioDirty=true; }catch(e){}
-        setState(window._LYRICS_ON?_st("\uD83C\uDFA4 Paroles activées"):_st("Paroles désactivées"));
+        setState(window._LYRICS_ON?_st("\uD83C\uDFA4 Lyrique activé"):_st("Lyrique désactivé"));
         try{ if(A&&(PHOTOS.length||clipVidReady)){ var _wp=playing, _po=(playing?montageNow():pausedOffset)||0; buildPartition(); if(_wp){ stopPlay(); startPlay(); } } }catch(e){}
       }catch(e){} return; }
       if(a==="open"){ try{ openFilms(); }catch(e){} }
