@@ -8473,12 +8473,12 @@ function _openLangPicker(){
   var head="<div style=\"text-align:center;padding:12px 0 6px\"><div style=\"width:40px;height:4px;background:#3a3733;border-radius:3px;margin:0 auto 12px\"></div><div style=\"color:#f4f7fc;font:700 17px system-ui\">\uD83C\uDF10 "+_st("Langue des paroles")+"</div><div style=\"color:#8a93a6;font:500 12.5px system-ui;margin-top:3px\">"+_st("Traduction synchronisée au rythme")+"</div></div>";
   var rows="";
   for(var i=0;i<window._LYRICS_LANGS.length;i++){ var code=window._LYRICS_LANGS[i][0], name=window._LYRICS_LANGS[i][1], fl=_LANG_FLAGS[code]||"\uD83C\uDF10", on=(window._LYRICS_LANG===code);
-    rows+="<button class=\"lang-opt\" data-l=\""+code+"\" style=\"display:flex;align-items:center;gap:13px;width:100%;text-align:left;background:"+(on?"rgba(122,208,160,.14)":"none")+";border:1px solid "+(on?"rgba(122,208,160,.5)":"transparent")+";color:#f4f7fc;font:600 15.5px system-ui;padding:14px 15px;border-radius:13px;cursor:pointer;margin:3px 0\"><span style=\"font-size:22px\">"+fl+"</span><span style=\"flex:1\">"+name+"</span>"+(on?"<span style=\"color:#7ad0a0;font-size:18px\">\u2713</span>":"")+"</button>";
+    rows+="<button class=\"lang-opt\" data-l=\""+code+"\" style=\"display:flex;align-items:center;gap:13px;width:100%;text-align:left;background:"+(on?"rgba(122,208,160,.14)":"none")+";border:1px solid "+(on?"rgba(122,208,160,.5)":"transparent")+";color:#f4f7fc;font:600 15.5px system-ui;padding:14px 15px;border-radius:13px;cursor:pointer;margin:3px 0\"><span style=\"pointer-events:none;font-size:22px\">"+fl+"</span><span style=\"pointer-events:none;flex:1\">"+name+"</span>"+(on?"<span style=\"pointer-events:none;color:#7ad0a0;font-size:18px\">\u2713</span>":"")+"</button>";
   }
   card.innerHTML=head+rows;
   bg.appendChild(card);
   bg.addEventListener("click",function(e){ if(e.target===bg) bg.remove(); });
-  Array.prototype.forEach.call(card.querySelectorAll(".lang-opt"),function(b){ b.onclick=function(){ var lg=b.getAttribute("data-l"); bg.remove(); studioTranslateLyrics(lg); try{ window.__studioDirty=true; }catch(e){} }; });
+  card.addEventListener("click", function(ev){ var b=ev.target; while(b && b!==card && !(b.classList&&b.classList.contains("lang-opt"))) b=b.parentNode; if(b&&b.classList&&b.classList.contains("lang-opt")){ var lg=b.getAttribute("data-l"); bg.remove(); studioTranslateLyrics(lg); try{ window.__studioDirty=true; }catch(e){} } });
   document.body.appendChild(bg);
 }
 try{ window._openLangPicker=_openLangPicker; }catch(e){}
