@@ -8462,7 +8462,7 @@ function _updateSub(){ if(window._LYRICS_ON!==true){ if(_subEl)_subEl.style.opac
 }catch(e){} }
 window._LYRICS_LANGS=[["orig","Original"],["fr","Français"],["en","English"],["es","Español"],["it","Italiano"],["de","Deutsch"],["pt","Português"],["nl","Nederlands"],["ar","العربية"],["zh","中文"],["ja","日本語"],["ru","Русский"],["tr","Türkçe"]];
 window._LYRICS_LANG="orig"; window.__origLRC="";
-function _workerBase(){ try{ return (window.parent&&window.parent.WORKER_URL)||window.WORKER_URL||""; }catch(e){ return ""; } }
+function _workerBase(){ var DEF="https://magot-voyage-api.fidelevictoire01.workers.dev"; try{ var u=(window.parent&&window.parent.WORKER_URL)||window.WORKER_URL||DEF; return String(u).replace(/\/+$/,""); }catch(e){ return DEF; } }   /* FIX traduction : WORKER_URL n'existait pas en page autonome -> base vide -> « Service de traduction indisponible » ; repli sur l'URL du worker + slash final retiré */
 var _LANG_FLAGS={orig:"\uD83C\uDFB5",fr:"\uD83C\uDDEB\uD83C\uDDF7",en:"\uD83C\uDDEC\uD83C\uDDE7",es:"\uD83C\uDDEA\uD83C\uDDF8",it:"\uD83C\uDDEE\uD83C\uDDF9",de:"\uD83C\uDDE9\uD83C\uDDEA",pt:"\uD83C\uDDF5\uD83C\uDDF9",nl:"\uD83C\uDDF3\uD83C\uDDF1",ar:"\uD83C\uDDF8\uD83C\uDDE6",zh:"\uD83C\uDDE8\uD83C\uDDF3",ja:"\uD83C\uDDEF\uD83C\uDDF5",ru:"\uD83C\uDDF7\uD83C\uDDFA",tr:"\uD83C\uDDF9\uD83C\uDDF7"};
 function _openLangPicker(){
   try{ var old=document.getElementById("langPicker"); if(old) old.remove(); }catch(e){}
@@ -8473,12 +8473,12 @@ function _openLangPicker(){
   var head="<div style=\"text-align:center;padding:12px 0 6px\"><div style=\"width:40px;height:4px;background:#3a3733;border-radius:3px;margin:0 auto 12px\"></div><div style=\"color:#f4f7fc;font:700 17px system-ui\">\uD83C\uDF10 "+_st("Langue des paroles")+"</div><div style=\"color:#8a93a6;font:500 12.5px system-ui;margin-top:3px\">"+_st("Traduction synchronisée au rythme")+"</div></div>";
   var rows="";
   for(var i=0;i<window._LYRICS_LANGS.length;i++){ var code=window._LYRICS_LANGS[i][0], name=window._LYRICS_LANGS[i][1], fl=_LANG_FLAGS[code]||"\uD83C\uDF10", on=(window._LYRICS_LANG===code);
-    rows+="<button class=\"lang-opt\" data-l=\""+code+"\" style=\"display:flex;align-items:center;gap:13px;width:100%;text-align:left;background:"+(on?"rgba(122,208,160,.14)":"none")+";border:1px solid "+(on?"rgba(122,208,160,.5)":"transparent")+";color:#f4f7fc;font:600 15.5px system-ui;padding:14px 15px;border-radius:13px;cursor:pointer;margin:3px 0\"><span style=\"pointer-events:none;font-size:22px\">"+fl+"</span><span style=\"pointer-events:none;flex:1\">"+name+"</span>"+(on?"<span style=\"pointer-events:none;color:#7ad0a0;font-size:18px\">\u2713</span>":"")+"</button>";
+    rows+="<button class=\"lang-opt\" data-l=\""+code+"\" style=\"display:flex;align-items:center;gap:13px;width:100%;text-align:left;background:"+(on?"rgba(122,208,160,.14)":"none")+";border:1px solid "+(on?"rgba(122,208,160,.5)":"transparent")+";color:#f4f7fc;font:600 15.5px system-ui;padding:14px 15px;border-radius:13px;cursor:pointer;margin:3px 0\"><span style=\"font-size:22px\">"+fl+"</span><span style=\"flex:1\">"+name+"</span>"+(on?"<span style=\"color:#7ad0a0;font-size:18px\">\u2713</span>":"")+"</button>";
   }
   card.innerHTML=head+rows;
   bg.appendChild(card);
   bg.addEventListener("click",function(e){ if(e.target===bg) bg.remove(); });
-  card.addEventListener("click", function(ev){ var b=ev.target; while(b && b!==card && !(b.classList&&b.classList.contains("lang-opt"))) b=b.parentNode; if(b&&b.classList&&b.classList.contains("lang-opt")){ var lg=b.getAttribute("data-l"); bg.remove(); studioTranslateLyrics(lg); try{ window.__studioDirty=true; }catch(e){} } });
+  Array.prototype.forEach.call(card.querySelectorAll(".lang-opt"),function(b){ b.onclick=function(){ var lg=b.getAttribute("data-l"); bg.remove(); studioTranslateLyrics(lg); try{ window.__studioDirty=true; }catch(e){} }; });
   document.body.appendChild(bg);
 }
 try{ window._openLangPicker=_openLangPicker; }catch(e){}
@@ -8489,12 +8489,11 @@ function studioTranslateLyrics(lang){
     var mid=(LIB_ACTIVE!=null)?String(LIB_ACTIVE):""; var track=null; for(var i=0;i<LIB.length;i++){ if(String(LIB[i].id)===mid){ track=LIB[i]; break; } }
     var catId=(track&&track.catId!=null)?track.catId:null;   /* optionnel : la traduction marche à partir du LRC seul */
     var base=_workerBase(); if(!base){ setState(_st("Service de traduction indisponible.")); return; }
-    setState("\uD83C\uDF10 vers "+base.slice(-30)+" lrc:"+(window.__origLRC?window.__origLRC.length:0));
+    setState("\uD83C\uDF10 "+_st("Traduction en cours…"));
     fetch(base+"/lyrics/translate",{ method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify({ id:catId, lang:lang, lrc:(window.__origLRC||"") }) })
-      .then(function(r){ return r.text(); })
-      .then(function(txt){ var d=null; try{ d=JSON.parse(txt); }catch(e){}
-        if(d&&d.lrc){ _parseLRC(d.lrc); window._LYRICS_LANG=lang; window._LYRICS_ON=true; setState("\uD83C\uDFA4 "+_st("Paroles traduites")); try{ if(A&&(PHOTOS.length||clipVidReady)) buildPartition(); }catch(e){} } else { setState("TR:"+String(txt).slice(0,120)); } })
-      .catch(function(e){ setState("TR-ERR:"+((e&&e.message)||e)); });
+      .then(function(r){ return r.json(); })
+      .then(function(d){ if(d&&d.lrc){ _parseLRC(d.lrc); window._LYRICS_LANG=lang; window._LYRICS_ON=true; setState("\uD83C\uDFA4 "+_st("Paroles traduites")); try{ if(A&&(PHOTOS.length||clipVidReady)) buildPartition(); }catch(e){} } else { setState(_st("Échec de la traduction.")+((d&&d.error)?(" ("+d.error+")"):"")); } })
+      .catch(function(){ setState(_st("Échec de la traduction.")+" (r\u00e9seau)"); });
   }catch(e){}
 }
 try{ window.studioTranslateLyrics=studioTranslateLyrics; }catch(e){}
