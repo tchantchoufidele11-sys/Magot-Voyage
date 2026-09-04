@@ -8448,14 +8448,7 @@ function _readEmbeddedLyrics(blob, cb){ try{
   }catch(e){ cb(null); } }).catch(function(){ cb(null); });
 }catch(e){ cb(null); } }
 function _parseLRC(txt){ SUBS=[]; if(!txt) return 0; var ls=String(txt).split(/\r?\n/);
-  var _hasTiming=/\[\d+:\d+/.test(String(txt));
-  if(!_hasTiming){   /* texte brut sans minutage (paroles embarquées MP3) -> réparties sur la durée de la musique */
-    var _lines=[]; for(var _k=0;_k<ls.length;_k++){ var _t=ls[_k].replace(/\[[^\]]*\]/g,"").trim(); if(_t) _lines.push(_t); }   /* retire les [Verse], [Chorus]... */
-    if(!_lines.length) return 0;
-    var _md=(window.MUSIC_DUR||(A?A.dur:0))||_lines.length*3; var _intro=_md*0.04, _span=Math.max(1,_md-_intro-2);
-    for(var _j=0;_j<_lines.length;_j++){ SUBS.push({ t:_intro+_span*(_j/_lines.length), text:_lines[_j] }); }
-    return SUBS.length;
-  }
+  /* KARAOKÉ = LRC minuté uniquement (pas de texte étalé au hasard). Si aucun minutage -> pas d'affichage. */
   for(var i=0;i<ls.length;i++){ var m=ls[i].match(/^\s*\[(\d+):(\d+(?:[.:]\d+)?)\]\s*(.*)$/); if(m){ var sec=parseInt(m[1],10)*60+parseFloat(String(m[2]).replace(":",".")); var tx=(m[3]||"").trim(); SUBS.push({t:sec, text:tx}); } }
   SUBS.sort(function(a,b){ return a.t-b.t; }); return SUBS.length; }
 function _subAt(t){ if(!SUBS.length) return ""; var cur=""; for(var i=0;i<SUBS.length;i++){ if(SUBS[i].t<=t+0.02) cur=SUBS[i].text; else break; } return cur; }
@@ -10554,11 +10547,8 @@ essentiaReady.then(function(ok){ if(!ok && !A){ /* silencieux : le repli se fait
   function useTrack(t){
     if(_mLoading) return; stopPreview();
     try{ var _lrc=t&&(t.lyrics||t.lrc);
-      if(_lrc && typeof studioSetLyrics==="function"){ studioSetLyrics(_lrc); window.__hasLyrics=(SUBS&&SUBS.length>0); }
-      else { window.__hasLyrics=false; try{ _parseLRC(""); }catch(e){}
-        /* pas de paroles au catalogue -> tenter les paroles EMBARQUÉES du fichier MP3 */
-        try{ var _blob=t&&(t._file||t._dlblob); if(_blob){ _readEmbeddedLyrics(_blob, function(lr){ if(lr){ studioSetLyrics(lr); window.__hasLyrics=(SUBS&&SUBS.length>0); try{ if(A&&(PHOTOS.length||clipVidReady)) buildPartition(); }catch(e){} } }); } }catch(e){}
-      }
+      if(_lrc && typeof window.studioSetLyrics==="function"){ window.studioSetLyrics(_lrc); window.__hasLyrics=(SUBS&&SUBS.length>0); }
+      else { window.__hasLyrics=false; try{ _parseLRC(""); }catch(e){} }
     }catch(e){}   /* charge les paroles : catalogue d'abord, puis tag embarqué du MP3 */
     LIB_ACTIVE=t.id; TRACKS=[]; window.MULTI=0;
     _mLoading=true; t.loading=true; renderLib();
