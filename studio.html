@@ -8486,15 +8486,17 @@ function studioTranslateLyrics(lang){
   try{
     if(lang==="orig"){ if(window.__origLRC){ _parseLRC(window.__origLRC); window._LYRICS_LANG="orig"; try{ if(A&&(PHOTOS.length||clipVidReady)) buildPartition(); }catch(e){} } return; }
     if(!window.__origLRC){ setState(_st("Aucune parole à traduire.")); return; }
-    var mid=(LIB_ACTIVE!=null)?String(LIB_ACTIVE):""; var track=null; for(var i=0;i<LIB.length;i++){ if(String(LIB[i].id)===mid){ track=LIB[i]; break; } }
-    var catId=(track&&track.catId!=null)?track.catId:null;   /* optionnel : la traduction marche à partir du LRC seul */
+    /* FIX v933 : LIB/LIB_ACTIVE vivent dans l'IIFE de la façade (autre bloc <script>) -> ReferenceError
+       avalée par le try/catch : la fonction sortait en silence AVANT setState/fetch. On passe par le
+       global publié window.__activeMusicMeta ; catId reste optionnel (la traduction marche du LRC seul). */
+    var catId=null; try{ var _am=window.__activeMusicMeta; if(_am&&_am.catId!=null) catId=_am.catId; }catch(e){}
     var base=_workerBase(); if(!base){ setState(_st("Service de traduction indisponible.")); return; }
     setState("\uD83C\uDF10 "+_st("Traduction en cours…"));
     fetch(base+"/lyrics/translate",{ method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify({ id:catId, lang:lang, lrc:(window.__origLRC||"") }) })
       .then(function(r){ return r.json(); })
       .then(function(d){ if(d&&d.lrc){ _parseLRC(d.lrc); window._LYRICS_LANG=lang; window._LYRICS_ON=true; setState("\uD83C\uDFA4 "+_st("Paroles traduites")); try{ if(A&&(PHOTOS.length||clipVidReady)) buildPartition(); }catch(e){} } else { setState(_st("Échec de la traduction.")+((d&&d.error)?(" ("+d.error+")"):"")); } })
       .catch(function(){ setState(_st("Échec de la traduction.")+" (r\u00e9seau)"); });
-  }catch(e){}
+  }catch(e){ try{ setState(_st("Échec de la traduction.")+" ("+((e&&e.message)||e)+")"); }catch(_e){} }
 }
 try{ window.studioTranslateLyrics=studioTranslateLyrics; }catch(e){}
 try{ window.studioSetLyrics=function(lrc){ try{ window.__origLRC=lrc; window._LYRICS_LANG="orig"; }catch(e){} var n=_parseLRC(lrc); try{ setState(n?("Karaok\u00e9 : "+n+" lignes charg\u00e9es."):"Paroles vid\u00e9es."); }catch(e){} return n; }; window._SUBS=function(){ return SUBS; }; }catch(e){}
@@ -10601,7 +10603,7 @@ essentiaReady.then(function(ok){ if(!ok && !A){ /* silencieux : le repli se fait
     prepareTrack(t, function(ok){ _mLoading=false; t.loading=false;
       if(!ok){ renderLib(); return; }
       try{ AUDIOBUF=t._buf; A=t._A; setMusicEl(t._file); }catch(e){}
-      try{ window.__activeMusicFile=t._file||null; window.__activeMusicMeta={ id:t.id, title:t.title, url:t.url||null, type:t.type||null, cover:t.cover||null }; }catch(e){}
+      try{ window.__activeMusicFile=t._file||null; window.__activeMusicMeta={ id:t.id, catId:(t.catId!=null?t.catId:null), title:t.title, url:t.url||null, type:t.type||null, cover:t.cover||null }; }catch(e){}
       var _wasAuto=!!window._musicAuto; window._musicAuto=false;
       try{ var _cat=String(t.type||"").toLowerCase(); if(!_wasAuto && ["cinema","doux","voyage","dynamique"].indexOf(_cat)>=0 && typeof MOOD!=="undefined" && _cat!==MOOD){ MOOD=_cat; try{ _applyMoodUI(_cat); }catch(e){} } }catch(e){}   /* choix utilisateur : le mode suit la piste */
       try{ if(typeof finishAnalyze==="function") finishAnalyze(); }catch(e){}
