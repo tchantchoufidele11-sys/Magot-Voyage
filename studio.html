@@ -8489,11 +8489,12 @@ function studioTranslateLyrics(lang){
     var mid=(LIB_ACTIVE!=null)?String(LIB_ACTIVE):""; var track=null; for(var i=0;i<LIB.length;i++){ if(String(LIB[i].id)===mid){ track=LIB[i]; break; } }
     var catId=(track&&track.catId!=null)?track.catId:null;   /* optionnel : la traduction marche à partir du LRC seul */
     var base=_workerBase(); if(!base){ setState(_st("Service de traduction indisponible.")); return; }
-    setState("\uD83C\uDF10 "+_st("Traduction en cours…"));
+    setState("\uD83C\uDF10 vers "+base.slice(-30)+" lrc:"+(window.__origLRC?window.__origLRC.length:0));
     fetch(base+"/lyrics/translate",{ method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify({ id:catId, lang:lang, lrc:(window.__origLRC||"") }) })
-      .then(function(r){ return r.json(); })
-      .then(function(d){ if(d&&d.lrc){ _parseLRC(d.lrc); window._LYRICS_LANG=lang; window._LYRICS_ON=true; setState("\uD83C\uDFA4 "+_st("Paroles traduites")); try{ if(A&&(PHOTOS.length||clipVidReady)) buildPartition(); }catch(e){} } else { setState(_st("Échec de la traduction.")); } })
-      .catch(function(){ setState(_st("Échec de la traduction.")); });
+      .then(function(r){ return r.text(); })
+      .then(function(txt){ var d=null; try{ d=JSON.parse(txt); }catch(e){}
+        if(d&&d.lrc){ _parseLRC(d.lrc); window._LYRICS_LANG=lang; window._LYRICS_ON=true; setState("\uD83C\uDFA4 "+_st("Paroles traduites")); try{ if(A&&(PHOTOS.length||clipVidReady)) buildPartition(); }catch(e){} } else { setState("TR:"+String(txt).slice(0,120)); } })
+      .catch(function(e){ setState("TR-ERR:"+((e&&e.message)||e)); });
   }catch(e){}
 }
 try{ window.studioTranslateLyrics=studioTranslateLyrics; }catch(e){}
