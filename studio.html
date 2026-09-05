@@ -8452,13 +8452,10 @@ function _parseLRC(txt){ SUBS=[]; if(!txt) return 0; var ls=String(txt).split(/\
   for(var i=0;i<ls.length;i++){ var m=ls[i].match(/^\s*\[(\d+):(\d+(?:[.:]\d+)?)\]\s*(.*)$/); if(m){ var sec=parseInt(m[1],10)*60+parseFloat(String(m[2]).replace(":",".")); var tx=(m[3]||"").trim(); SUBS.push({t:sec, text:tx}); } }
   SUBS.sort(function(a,b){ return a.t-b.t; }); return SUBS.length; }
 function _subAt(t){ if(!SUBS.length) return ""; var cur=""; for(var i=0;i<SUBS.length;i++){ if(SUBS[i].t<=t+0.02) cur=SUBS[i].text; else break; } return cur; }
-function _musicTimeNow(){ /* temps DANS la musique (pour caler les paroles) */
+function _musicTimeNow(){ /* temps DANS la musique (pour caler les paroles) — calage simple, sans compensation ajoutée */
   try{
-    var lat=(typeof _audioLat==="function"?_audioLat():0)||0;   /* latence de sortie : le son entendu est en retard sur l'horloge */
-    if(window.LOOP_ON){ /* la boucle rejoue une RÉGION (LOOP_START..LOOP_END) : audioAt donne la vraie position audio, pas temps%durée */
-      return audioAt(Math.max(0, montageNow() - lat));
-    }
-    if(window.MULTI){ var md=(window.MUSIC_DUR||(A?A.dur:0))||0; var mt2=Math.max(0, montageNow()-lat); return md>0?(mt2%md):mt2; }
+    if(window.LOOP_ON){ return audioAt(montageNow()); }   /* boucle : vraie position audio (audioAt gère la région rejouée) */
+    if(window.MULTI){ var md=(window.MUSIC_DUR||(A?A.dur:0))||0; var mt2=montageNow(); return md>0?(mt2%md):mt2; }
     return (audioEl?audioEl.currentTime:montageNow());
   }catch(e){ return montageNow(); } }
 var _subDimKey="";
@@ -8506,9 +8503,8 @@ function _ensureCues(){ try{
       var frac=segs[sI].length/totalC, segT0=acc, segT1=(sI===segs.length-1? t1 : acc+frac*(t1-t0)); if(segT1<=segT0) segT1=segT0+0.3; acc=segT1;
       /* timing par mot pondéré par les SYLLABES (une note ≈ une syllabe -> plus fidèle au chant que les lettres) */
       var sw=segs[sI].split(/\s+/), syl=[], wc=0; for(var a=0;a<sw.length;a++){ var sc=_sylCount(sw[a]); syl.push(sc); wc+=sc; } if(wc<=0) wc=1;
-      var LEADW=0.07;   /* léger anticipé : le mot s'allume ~70 ms avant l'attaque, comme les karaokés pros (compense l'impression de retard) */
       var wt=[], wacc=segT0;
-      for(var a2=0;a2<sw.length;a2++){ wt.push({w:sw[a2], t:Math.max(segT0, wacc-LEADW)}); wacc+=(syl[a2]/wc)*(segT1-segT0); }
+      for(var a2=0;a2<sw.length;a2++){ wt.push({w:sw[a2], t:wacc}); wacc+=(syl[a2]/wc)*(segT1-segT0); }
       _CUES.push({t:segT0,tEnd:segT1,words:wt,text:segs[sI]});
     }
   }
@@ -8523,8 +8519,7 @@ function _updateSub(){ if(window._LYRICS_ON!==true){ if(_subEl)_subEl.style.opac
   try{ var _hh=document.querySelector(".hero"), _cc=document.getElementById("base"); if(_hh){ var key=((_cc&&_cc.width)||0)+"x"+((_cc&&_cc.height)||0)+"x"+_hh.clientWidth+"x"+_hh.clientHeight; if(key!==_subDimKey){ _subDimKey=key; _sizeSub(); } } }catch(e){}
   if(!SUBS.length || !playing){ _subEl.style.opacity="0"; return; }
   _ensureCues();
-  var _lead=(typeof window._SUB_LEAD==="number")?window._SUB_LEAD:0.18;   /* anticipé sous-titre (s) : compense le retard résiduel iOS + transitions ; réglable via window._SUB_LEAD */
-  var _mt=_musicTimeNow()+_lead; var _ci=_cueIdxAt(_mt); var _cue=(_ci>=0)?_CUES[_ci]:null;
+  var _mt=_musicTimeNow(); var _ci=_cueIdxAt(_mt); var _cue=(_ci>=0)?_CUES[_ci]:null;   /* calage exact, sans anticipé ajouté */
   if(!_cue || !_cue.words.length){ _subEl.style.opacity="0"; _subCueRef=null; return; }
   if(_cue!==_subCueRef){ _subCueRef=_cue;
     var _html=""; for(var _wi=0;_wi<_cue.words.length;_wi++){ _html+='<span class="kw" style="transition:color .06s">'+_escHtml(_cue.words[_wi].w)+"</span>"+(_wi<_cue.words.length-1?" ":""); }
@@ -8544,7 +8539,7 @@ function _openLangPicker(){
   bg.style.cssText="position:fixed;inset:0;z-index:100050;background:rgba(0,0,0,.62);backdrop-filter:blur(4px);display:flex;align-items:flex-end;justify-content:center;font-family:system-ui,-apple-system,sans-serif";
   var card=document.createElement("div");
   card.style.cssText="width:100%;max-width:520px;background:#0f0e0d;border:1px solid #282622;border-radius:22px 22px 0 0;padding:8px 10px 22px;max-height:78vh;overflow:auto;box-shadow:0 -10px 50px rgba(0,0,0,.7)";
-  var head="<div style=\"text-align:center;padding:12px 0 6px\"><div style=\"width:40px;height:4px;background:#3a3733;border-radius:3px;margin:0 auto 12px\"></div><div style=\"color:#f4f7fc;font:700 17px system-ui\">\uD83C\uDF10 "+_st("Langue des paroles")+"</div><div style=\"color:#8a93a6;font:500 12.5px system-ui;margin-top:3px\">"+_st("Traduction synchronisée au rythme")+" \u00b7 v945</div></div>";
+  var head="<div style=\"text-align:center;padding:12px 0 6px\"><div style=\"width:40px;height:4px;background:#3a3733;border-radius:3px;margin:0 auto 12px\"></div><div style=\"color:#f4f7fc;font:700 17px system-ui\">\uD83C\uDF10 "+_st("Langue des paroles")+"</div><div style=\"color:#8a93a6;font:500 12.5px system-ui;margin-top:3px\">"+_st("Traduction synchronisée au rythme")+" \u00b7 v947</div></div>";
   var rows="";
   for(var i=0;i<window._LYRICS_LANGS.length;i++){ var code=window._LYRICS_LANGS[i][0], name=window._LYRICS_LANGS[i][1], fl=_LANG_FLAGS[code]||"\uD83C\uDF10", on=(window._LYRICS_LANG===code);
     rows+="<button class=\"lang-opt\" data-l=\""+code+"\" style=\"display:flex;align-items:center;gap:13px;width:100%;text-align:left;background:"+(on?"rgba(122,208,160,.14)":"none")+";border:1px solid "+(on?"rgba(122,208,160,.5)":"transparent")+";color:#f4f7fc;font:600 15.5px system-ui;padding:14px 15px;border-radius:13px;cursor:pointer;margin:3px 0\"><span style=\"font-size:22px\">"+fl+"</span><span style=\"flex:1\">"+name+"</span>"+(on?"<span style=\"color:#7ad0a0;font-size:18px\">\u2713</span>":"")+"</button>";
@@ -8584,7 +8579,7 @@ function studioTranslateLyrics(lang, force){
 try{ window.studioTranslateLyrics=studioTranslateLyrics; }catch(e){}
 try{ window.studioRetranslate=function(){ var lg=(window._LYRICS_LANG&&window._LYRICS_LANG!=="orig")?window._LYRICS_LANG:null; if(!lg){ _lyrToast(_st("Choisis d'abord une langue.")); return; } _lyrToast("\uD83D\uDD01 "+_st("Re-traduction…"), 20000); studioTranslateLyrics(lg, true); }; }catch(e){}
 try{ window.studioSetLyrics=function(lrc){ try{ window.__origLRC=lrc; window._LYRICS_LANG="orig"; }catch(e){} var n=_parseLRC(lrc); try{ setState(n?("Karaok\u00e9 : "+n+" lignes charg\u00e9es."):"Paroles vid\u00e9es."); }catch(e){} return n; }; window._SUBS=function(){ return SUBS; }; }catch(e){}
-function _subExpTime(t){ try{ var _l=(typeof window._SUB_LEAD==="number")?window._SUB_LEAD:0.18; t=t+_l; if(window.LOOP_ON){ return audioAt(t); } return t; }catch(e){ return t; } }
+function _subExpTime(t){ try{ if(window.LOOP_ON){ return audioAt(t); } return t; }catch(e){ return t; } }   /* calage exact, sans anticipé */
 function _rrPath(cx,x,y,w,h,r){ r=Math.min(r,h/2,w/2); cx.beginPath(); cx.moveTo(x+r,y); cx.lineTo(x+w-r,y); cx.arcTo(x+w,y,x+w,y+r,r); cx.lineTo(x+w,y+h-r); cx.arcTo(x+w,y+h,x+w-r,y+h,r); cx.lineTo(x+r,y+h); cx.arcTo(x,y+h,x,y+h-r,r); cx.lineTo(x,y+r); cx.arcTo(x,y,x+r,y,r); cx.closePath(); }
 function _drawSubOnCanvas(cx, W, H, mt){ try{ if(window._LYRICS_ON!==true) return; if(!SUBS.length||!cx) return;
   _ensureCues(); var ci=_cueIdxAt(mt); var cue=(ci>=0)?_CUES[ci]:null; if(!cue||!cue.words.length) return;
@@ -9039,8 +9034,17 @@ function _afterOpenFilm(proj){ try{ _linkSources(); }catch(e){} try{
     _clipsP=Promise.all(proj.clips.map(function(cm){ return _pget(_curFilmId+":clip:"+cm.idx).then(function(cb){ if(!cb) return; return _addClipFromBlob(cb,{day:cm.day,cap:cm.cap}).then(function(){ var _cl=CLIPS[CLIPS.length-1]; if(_cl){ if(cm.trimStart!=null)_cl.trimStart=cm.trimStart; if(cm.speed)_cl.speed=cm.speed; if(cm.color)_cl.color=cm.color; _cl.sound=!!cm.sound; if(cm.bal!=null)_cl.bal=cm.bal; } }); }).catch(function(){}); }));
   }
   _clipsP.then(function(){
-    try{ if(proj.music && proj.music.lyrics && typeof window.studioSetLyrics==="function"){ window.studioSetLyrics(proj.music.lyrics); window.__hasLyrics=(SUBS&&SUBS.length>0); } }catch(e){}   /* recharge les paroles du film enregistré -> Lyrique dispo sans repasser par la bibliothèque */
-    try{ if((!window.__origLRC || !String(window.__origLRC).trim()) && typeof window.__ensureActiveLyrics==="function"){ setTimeout(function(){ try{ window.__ensureActiveLyrics(proj.music&&proj.music.title); }catch(e){} }, 800); } }catch(e){}   /* film sans paroles stockées -> retrouver celles du catalogue */
+    /* poser l'identité de la musique du film pour que la récupération auto des paroles fonctionne */
+    try{ if(proj.music){ window.__activeMusicMeta={ id:(proj.music.id!=null?proj.music.id:null), catId:(proj.music.catId!=null?proj.music.catId:null), title:proj.music.title||null, url:proj.music.url||null, type:proj.music.type||null, cover:proj.music.cover||null }; } }catch(e){}
+    try{ if(proj.music && proj.music.lyrics && typeof window.studioSetLyrics==="function"){ window.studioSetLyrics(proj.music.lyrics); window.__hasLyrics=(SUBS&&SUBS.length>0); } }catch(e){}   /* recharge les paroles du film enregistré */
+    /* Si le film n'avait pas de paroles stockées : les retrouver au catalogue, en RÉ-ESSAYANT
+       jusqu'à ce que le catalogue soit chargé (il arrive en asynchrone). */
+    try{ if(!window.__origLRC || !String(window.__origLRC).trim()){
+      var _lyrTries=0; var _lyrIv=setInterval(function(){ _lyrTries++;
+        var got=false; try{ if(typeof window.__ensureActiveLyrics==="function") got=window.__ensureActiveLyrics(proj.music&&proj.music.title); }catch(e){}
+        if(got || _lyrTries>=15){ clearInterval(_lyrIv); }
+      }, 400);
+    } }catch(e){}
     _pget(_curFilmId+":music").then(function(mb){ if(mb && window.__loadMusicBlob){ window.__loadMusicBlob(mb,(proj.music&&proj.music.title)||"Musique"); var n=0,_iv=setInterval(function(){ n++; if(A && (PHOTOS.length||clipVidReady)){ clearInterval(_iv); try{ buildPartition(); paintStrip(0); try{ for(var _pd=0;_pd<Math.min(PHOTOS.length,14);_pd++) ensurePhotoDecoded(_pd); renderMontageAt(0); }catch(_e){} var _cc=CLIPS.filter(function(c){return c.ready;}).length; setState(_st("Montage rechargé")+" ("+PHOTOS.length+" photos"+(_cc?(", "+_cc+" clips"):"")+")."); }catch(e){} } else if(n>90){ clearInterval(_iv); } },200); }
       else { try{ if(PHOTOS.length||clipVidReady){ buildPartition(); paintStrip(0); setState(PHOTOS.length+" photos"+(clipVidReady?" + clips":"")+" recharg\u00e9s \u00b7 remets une musique."); } }catch(e){} } }).catch(function(){});
   });
