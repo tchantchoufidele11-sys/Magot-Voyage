@@ -8454,10 +8454,32 @@ function _parseLRC(txt){ SUBS=[]; if(!txt) return 0; var ls=String(txt).split(/\
 function _subAt(t){ if(!SUBS.length) return ""; var cur=""; for(var i=0;i<SUBS.length;i++){ if(SUBS[i].t<=t+0.02) cur=SUBS[i].text; else break; } return cur; }
 function _musicTimeNow(){ /* temps DANS la musique (pour caler les paroles) */
   try{ if(window.LOOP_ON){ var md=(window.MUSIC_DUR||(A?A.dur:0))||0; var mt=montageNow(); return md>0?(mt%md):mt; } return (audioEl?audioEl.currentTime:montageNow()); }catch(e){ return montageNow(); } }
-function _updateSub(){ if(window._LYRICS_ON!==true){ if(_subEl)_subEl.style.opacity="0"; return; } try{ if(!_subEl){ var h=document.querySelector(".hero"); if(!h) return; _subEl=document.createElement("div"); _subEl.id="karaokeSub"; _subEl.style.cssText="position:absolute;left:0;right:0;bottom:8.5%;text-align:center;padding:0 5%;z-index:16;pointer-events:none;opacity:0;transition:opacity .2s";
+var _subDimKey="";
+/* Dimensionne le sous-titre d'aperçu sur la ZONE VIDÉO RÉELLEMENT AFFICHÉE (pas sur la largeur de l'écran).
+   base.width/height donnent l'aspect du format courant ; le hero donne la taille du cadre ; on calcule
+   la zone visible après object-fit:contain (letterbox), puis fs = 3,6% de sa hauteur — comme l'export.
+   Résultat : ça colle à 9:16, 4:5, 1:1, 16:9, Ciné… sans jamais déborder. */
+function _sizeSub(){ try{ if(!_subEl||!_subEl._box) return; var h=document.querySelector(".hero"); if(!h) return;
+  var hw=h.clientWidth, hh=h.clientHeight; if(!(hw>10&&hh>10)) return;
+  var c=document.getElementById("base"); var iw=(c&&c.width)||hw, ih=(c&&c.height)||hh; if(!(iw>0&&ih>0)){ iw=hw; ih=hh; }
+  // largeur rendue de l'élément canvas (height:100% du hero, width auto, plafonnée à 100%)
+  var elW=Math.min(hw, iw*(hh/ih)), elH=hh;
+  // zone vidéo visible après contain
+  var sc=Math.min(elW/iw, elH/ih), dispW=iw*sc, dispH=ih*sc;
+  var scale=(typeof window._SUB_SCALE==="number"&&window._SUB_SCALE>0)?window._SUB_SCALE:0.036;
+  var fs=Math.max(11, Math.round(dispH*scale));
+  _subEl._box.style.font="700 "+fs+"px/1.5 'Inter','Helvetica Neue',system-ui,-apple-system,sans-serif";
+  _subEl.style.width=Math.round(dispW*0.94)+"px"; _subEl.style.left="50%"; _subEl.style.right="auto"; _subEl.style.transform="translateX(-50%)"; _subEl.style.paddingLeft="0"; _subEl.style.paddingRight="0";
+  // remonter le sous-titre au-dessus du bas de la zone vidéo (identique en proportion à l'export : ~9% du bas)
+  _subEl.style.bottom=Math.round((hh-dispH)/2 + dispH*0.06)+"px"; _subEl.style.top="auto";
+}catch(e){} }
+function _updateSub(){ if(window._LYRICS_ON!==true){ if(_subEl)_subEl.style.opacity="0"; return; } try{ if(!_subEl){ var h=document.querySelector(".hero"); if(!h) return; _subEl=document.createElement("div"); _subEl.id="karaokeSub"; _subEl.style.cssText="position:absolute;left:50%;right:auto;bottom:9%;text-align:center;z-index:16;pointer-events:none;opacity:0;transition:opacity .2s;transform:translateX(-50%)";
     var _sb=document.createElement("span"); _sb.className="ks-box";
-    _sb.style.cssText="display:inline;background:rgba(8,8,8,.62);color:#fff;font:700 clamp(17px,4.7vw,27px)/1.6 'Inter','Helvetica Neue',system-ui,-apple-system,sans-serif;padding:.14em .48em;border-radius:8px;-webkit-box-decoration-break:clone;box-decoration-break:clone;letter-spacing:.2px;text-shadow:0 1px 2px rgba(0,0,0,.55)";
-    _subEl.appendChild(_sb); _subEl._box=_sb; h.appendChild(_subEl); }
+    _sb.style.cssText="display:inline;background:rgba(8,8,8,.62);color:#fff;font:700 20px/1.5 'Inter','Helvetica Neue',system-ui,-apple-system,sans-serif;padding:.14em .48em;border-radius:8px;-webkit-box-decoration-break:clone;box-decoration-break:clone;letter-spacing:.2px;text-shadow:0 1px 2px rgba(0,0,0,.55)";
+    _subEl.appendChild(_sb); _subEl._box=_sb; h.appendChild(_subEl); _sizeSub();
+    try{ if(window.ResizeObserver){ var _ro=new ResizeObserver(function(){ _sizeSub(); }); _ro.observe(h); } window.addEventListener("resize", _sizeSub); }catch(e){} }
+  // re-dimensionner si le format a changé (base.width/height varient) ou si le cadre a bougé
+  try{ var _hh=document.querySelector(".hero"), _cc=document.getElementById("base"); if(_hh){ var key=((_cc&&_cc.width)||0)+"x"+((_cc&&_cc.height)||0)+"x"+_hh.clientWidth+"x"+_hh.clientHeight; if(key!==_subDimKey){ _subDimKey=key; _sizeSub(); } } }catch(e){}
   if(!SUBS.length || !playing){ _subEl.style.opacity="0"; return; }
   var line=_subAt(_musicTimeNow());
   if(line!==_subLast){ _subLast=line; if(_subEl._box) _subEl._box.textContent=line; else _subEl.textContent=line; }
@@ -8473,7 +8495,7 @@ function _openLangPicker(){
   bg.style.cssText="position:fixed;inset:0;z-index:100050;background:rgba(0,0,0,.62);backdrop-filter:blur(4px);display:flex;align-items:flex-end;justify-content:center;font-family:system-ui,-apple-system,sans-serif";
   var card=document.createElement("div");
   card.style.cssText="width:100%;max-width:520px;background:#0f0e0d;border:1px solid #282622;border-radius:22px 22px 0 0;padding:8px 10px 22px;max-height:78vh;overflow:auto;box-shadow:0 -10px 50px rgba(0,0,0,.7)";
-  var head="<div style=\"text-align:center;padding:12px 0 6px\"><div style=\"width:40px;height:4px;background:#3a3733;border-radius:3px;margin:0 auto 12px\"></div><div style=\"color:#f4f7fc;font:700 17px system-ui\">\uD83C\uDF10 "+_st("Langue des paroles")+"</div><div style=\"color:#8a93a6;font:500 12.5px system-ui;margin-top:3px\">"+_st("Traduction synchronisée au rythme")+" \u00b7 v937</div></div>";
+  var head="<div style=\"text-align:center;padding:12px 0 6px\"><div style=\"width:40px;height:4px;background:#3a3733;border-radius:3px;margin:0 auto 12px\"></div><div style=\"color:#f4f7fc;font:700 17px system-ui\">\uD83C\uDF10 "+_st("Langue des paroles")+"</div><div style=\"color:#8a93a6;font:500 12.5px system-ui;margin-top:3px\">"+_st("Traduction synchronisée au rythme")+" \u00b7 v938</div></div>";
   var rows="";
   for(var i=0;i<window._LYRICS_LANGS.length;i++){ var code=window._LYRICS_LANGS[i][0], name=window._LYRICS_LANGS[i][1], fl=_LANG_FLAGS[code]||"\uD83C\uDF10", on=(window._LYRICS_LANG===code);
     rows+="<button class=\"lang-opt\" data-l=\""+code+"\" style=\"display:flex;align-items:center;gap:13px;width:100%;text-align:left;background:"+(on?"rgba(122,208,160,.14)":"none")+";border:1px solid "+(on?"rgba(122,208,160,.5)":"transparent")+";color:#f4f7fc;font:600 15.5px system-ui;padding:14px 15px;border-radius:13px;cursor:pointer;margin:3px 0\"><span style=\"font-size:22px\">"+fl+"</span><span style=\"flex:1\">"+name+"</span>"+(on?"<span style=\"color:#7ad0a0;font-size:18px\">\u2713</span>":"")+"</button>";
