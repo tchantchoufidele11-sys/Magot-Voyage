@@ -8447,9 +8447,22 @@ function _readEmbeddedLyrics(blob, cb){ try{
     cb(null);
   }catch(e){ cb(null); } }).catch(function(){ cb(null); });
 }catch(e){ cb(null); } }
+function _lrcParseTag(mm){ var p=String(mm).split(":"); return parseInt(p[0],10)*60+parseFloat(p[1]); }
 function _parseLRC(txt){ SUBS=[]; if(!txt) return 0; var ls=String(txt).split(/\r?\n/);
-  /* KARAOKÉ = LRC minuté uniquement (pas de texte étalé au hasard). Si aucun minutage -> pas d'affichage. */
-  for(var i=0;i<ls.length;i++){ var m=ls[i].match(/^\s*\[(\d+):(\d+(?:[.:]\d+)?)\]\s*(.*)$/); if(m){ var sec=parseInt(m[1],10)*60+parseFloat(String(m[2]).replace(":",".")); var tx=(m[3]||"").trim(); SUBS.push({t:sec, text:tx}); } }
+  /* KARAOKÉ = LRC minuté. Gère le LRC ENRICHI : <mm:ss.xx>mot par mot (timing réel WhisperX). */
+  for(var i=0;i<ls.length;i++){ var m=ls[i].match(/^\s*\[(\d+):(\d+(?:[.:]\d+)?)\]\s*(.*)$/); if(!m) continue;
+    var sec=parseInt(m[1],10)*60+parseFloat(String(m[2]).replace(":",".")); var body=(m[3]||"");
+    // chercher des tags de mot <mm:ss.xx>mot
+    var wtags=[], re=/<(\d+:\d+(?:\.\d+)?)>\s*([^<]+)/g, mm;
+    while((mm=re.exec(body))){ var wt=_lrcParseTag(mm[1]); var ww=(mm[2]||"").trim(); if(ww) wtags.push({w:ww, t:wt}); }
+    if(wtags.length){ // ligne enrichie : texte = concat des mots, + timing réel par mot
+      var tx=wtags.map(function(x){return x.w;}).join(" ");
+      SUBS.push({t:sec, text:tx, wtimes:wtags});
+    } else {
+      var tx2=body.replace(/<[^>]*>/g,"").trim();   // sécurité : retire d'éventuels tags orphelins
+      SUBS.push({t:sec, text:tx2});
+    }
+  }
   SUBS.sort(function(a,b){ return a.t-b.t; }); return SUBS.length; }
 function _subAt(t){ if(!SUBS.length) return ""; var cur=""; for(var i=0;i<SUBS.length;i++){ if(SUBS[i].t<=t+0.02) cur=SUBS[i].text; else break; } return cur; }
 function _musicTimeNow(){ /* temps DANS la musique (pour caler les paroles) — calage simple, sans compensation ajoutée */
@@ -8494,6 +8507,18 @@ function _ensureCues(){ try{
   for(var i=0;i<SUBS.length;i++){
     var t0=SUBS[i].t, t1=(i+1<SUBS.length? SUBS[i+1].t : t0+3.2); if(t1<=t0) t1=t0+0.6;
     var text=(SUBS[i].text||"").trim(); if(!text){ _CUES.push({t:t0,tEnd:t1,words:[],text:""}); continue; }
+    // TIMING RÉEL PAR MOT (LRC enrichi WhisperX) : on découpe en cues <=2 lignes en gardant les vrais temps.
+    if(SUBS[i].wtimes && SUBS[i].wtimes.length){
+      var wl=SUBS[i].wtimes, segw=[], curw=[], curc=0;
+      for(var wi=0;wi<wl.length;wi++){ var add=(curw.length?1:0)+wl[wi].w.length; if(curc+add>MAXC && curw.length){ segw.push(curw); curw=[]; curc=0; add=wl[wi].w.length; } curw.push(wl[wi]); curc+=add; }
+      if(curw.length) segw.push(curw);
+      for(var sj=0;sj<segw.length;sj++){ var grp=segw[sj];
+        var gT0=grp[0].t, gT1=(sj+1<segw.length? segw[sj+1][0].t : t1); if(gT1<=gT0) gT1=gT0+0.4;
+        var gw=grp.map(function(x){ return {w:x.w, t:x.t}; });
+        _CUES.push({t:gT0, tEnd:gT1, words:gw, text:grp.map(function(x){return x.w;}).join(" "), real:true});
+      }
+      continue;
+    }
     var words=text.split(/\s+/), segs=[], cur="";
     for(var w=0;w<words.length;w++){ var cand=cur?(cur+" "+words[w]):words[w]; if(cand.length>MAXC && cur){ segs.push(cur); cur=words[w]; } else cur=cand; }
     if(cur) segs.push(cur);
@@ -8525,7 +8550,7 @@ function _updateSub(){ if(window._LYRICS_ON!==true){ if(_subEl)_subEl.style.opac
     var _html=""; for(var _wi=0;_wi<_cue.words.length;_wi++){ _html+='<span class="kw" style="transition:color .06s">'+_escHtml(_cue.words[_wi].w)+"</span>"+(_wi<_cue.words.length-1?" ":""); }
     if(_subEl._box){ _subEl._box.innerHTML=_html; _subWordEls=_subEl._box.querySelectorAll(".kw"); }
   }
-  var _kar=(window._SUB_KARAOKE===true);   /* surlignage mot-à-mot désactivé par défaut : l'estimation dérivait. Réactivable (window._SUB_KARAOKE=true) le jour d'un alignement par mot (GPU). */
+  var _kar=(window._SUB_KARAOKE===true) || (_cue && _cue.real===true);   /* mot-à-mot AUTO quand timing réel par mot (LRC enrichi WhisperX) ; sinon désactivé (estimation dérivait). window._SUB_KARAOKE=false force l'arrêt. */
   for(var _k=0;_k<_subWordEls.length;_k++){ var _wt=(_cue.words[_k]?_cue.words[_k].t:0); _subWordEls[_k].style.color=(!_kar || _wt<=_mt+0.02)?"#fff":"rgba(255,255,255,.42)"; }
   _subEl.style.opacity="1";
 }catch(e){} }
@@ -8539,7 +8564,7 @@ function _openLangPicker(){
   bg.style.cssText="position:fixed;inset:0;z-index:100050;background:rgba(0,0,0,.62);backdrop-filter:blur(4px);display:flex;align-items:flex-end;justify-content:center;font-family:system-ui,-apple-system,sans-serif";
   var card=document.createElement("div");
   card.style.cssText="width:100%;max-width:520px;background:#0f0e0d;border:1px solid #282622;border-radius:22px 22px 0 0;padding:8px 10px 22px;max-height:78vh;overflow:auto;box-shadow:0 -10px 50px rgba(0,0,0,.7)";
-  var head="<div style=\"text-align:center;padding:12px 0 6px\"><div style=\"width:40px;height:4px;background:#3a3733;border-radius:3px;margin:0 auto 12px\"></div><div style=\"color:#f4f7fc;font:700 17px system-ui\">\uD83C\uDF10 "+_st("Langue des paroles")+"</div><div style=\"color:#8a93a6;font:500 12.5px system-ui;margin-top:3px\">"+_st("Traduction synchronisée au rythme")+" \u00b7 v947</div></div>";
+  var head="<div style=\"text-align:center;padding:12px 0 6px\"><div style=\"width:40px;height:4px;background:#3a3733;border-radius:3px;margin:0 auto 12px\"></div><div style=\"color:#f4f7fc;font:700 17px system-ui\">\uD83C\uDF10 "+_st("Langue des paroles")+"</div><div style=\"color:#8a93a6;font:500 12.5px system-ui;margin-top:3px\">"+_st("Traduction synchronisée au rythme")+" \u00b7 v948</div></div>";
   var rows="";
   for(var i=0;i<window._LYRICS_LANGS.length;i++){ var code=window._LYRICS_LANGS[i][0], name=window._LYRICS_LANGS[i][1], fl=_LANG_FLAGS[code]||"\uD83C\uDF10", on=(window._LYRICS_LANG===code);
     rows+="<button class=\"lang-opt\" data-l=\""+code+"\" style=\"display:flex;align-items:center;gap:13px;width:100%;text-align:left;background:"+(on?"rgba(122,208,160,.14)":"none")+";border:1px solid "+(on?"rgba(122,208,160,.5)":"transparent")+";color:#f4f7fc;font:600 15.5px system-ui;padding:14px 15px;border-radius:13px;cursor:pointer;margin:3px 0\"><span style=\"font-size:22px\">"+fl+"</span><span style=\"flex:1\">"+name+"</span>"+(on?"<span style=\"color:#7ad0a0;font-size:18px\">\u2713</span>":"")+"</button>";
@@ -8601,7 +8626,7 @@ function _drawSubOnCanvas(cx, W, H, mt){ try{ if(window._LYRICS_ON!==true) retur
     var boxBottom=baseBottom-k*(boxH+gap), boxTop=boxBottom-boxH, boxW=lineW+padX*2, boxX=W/2-boxW/2;
     cx.fillStyle="rgba(8,8,8,.62)"; _rrPath(cx,boxX,boxTop,boxW,boxH,rad); cx.fill();
     var x=boxX+padX, yc=boxTop+boxH/2+fs*0.02;
-    for(var a2=0;a2<L.length;a2++){ var word=L[a2]; cx.fillStyle=((window._SUB_KARAOKE!==true) || word.t<=mt+0.02)?"#ffffff":"rgba(255,255,255,.5)"; cx.fillText(word.w, x, yc); x+=word.width+spaceW; }
+    for(var a2=0;a2<L.length;a2++){ var word=L[a2]; var _karX=(window._SUB_KARAOKE===true)||(cue&&cue.real===true); cx.fillStyle=(!_karX || word.t<=mt+0.02)?"#ffffff":"rgba(255,255,255,.5)"; cx.fillText(word.w, x, yc); x+=word.width+spaceW; }
   }
   cx.restore(); }catch(e){} }
 function loop(){
