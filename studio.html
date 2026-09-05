@@ -8564,7 +8564,7 @@ function _openLangPicker(){
   bg.style.cssText="position:fixed;inset:0;z-index:100050;background:rgba(0,0,0,.62);backdrop-filter:blur(4px);display:flex;align-items:flex-end;justify-content:center;font-family:system-ui,-apple-system,sans-serif";
   var card=document.createElement("div");
   card.style.cssText="width:100%;max-width:520px;background:#0f0e0d;border:1px solid #282622;border-radius:22px 22px 0 0;padding:8px 10px 22px;max-height:78vh;overflow:auto;box-shadow:0 -10px 50px rgba(0,0,0,.7)";
-  var head="<div style=\"text-align:center;padding:12px 0 6px\"><div style=\"width:40px;height:4px;background:#3a3733;border-radius:3px;margin:0 auto 12px\"></div><div style=\"color:#f4f7fc;font:700 17px system-ui\">\uD83C\uDF10 "+_st("Langue des paroles")+"</div><div style=\"color:#8a93a6;font:500 12.5px system-ui;margin-top:3px\">"+_st("Traduction synchronisée au rythme")+" \u00b7 v953</div></div>";
+  var head="<div style=\"text-align:center;padding:12px 0 6px\"><div style=\"width:40px;height:4px;background:#3a3733;border-radius:3px;margin:0 auto 12px\"></div><div style=\"color:#f4f7fc;font:700 17px system-ui\">\uD83C\uDF10 "+_st("Langue des paroles")+"</div><div style=\"color:#8a93a6;font:500 12.5px system-ui;margin-top:3px\">"+_st("Traduction synchronisée au rythme")+" \u00b7 v954</div></div>";
   var rows="";
   for(var i=0;i<window._LYRICS_LANGS.length;i++){ var code=window._LYRICS_LANGS[i][0], name=window._LYRICS_LANGS[i][1], fl=_LANG_FLAGS[code]||"\uD83C\uDF10", on=(window._LYRICS_LANG===code);
     rows+="<button class=\"lang-opt\" data-l=\""+code+"\" style=\"display:flex;align-items:center;gap:13px;width:100%;text-align:left;background:"+(on?"rgba(122,208,160,.14)":"none")+";border:1px solid "+(on?"rgba(122,208,160,.5)":"transparent")+";color:#f4f7fc;font:600 15.5px system-ui;padding:14px 15px;border-radius:13px;cursor:pointer;margin:3px 0\"><span style=\"font-size:22px\">"+fl+"</span><span style=\"flex:1\">"+name+"</span>"+(on?"<span style=\"color:#7ad0a0;font-size:18px\">\u2713</span>":"")+"</button>";
@@ -9354,7 +9354,7 @@ function _toggleFilmsMenu(anchor){
       +'<button class="fm-i" data-a="tuto" style="'+_bs+'">\uD83E\uDDED '+_st("Revoir le tutoriel")+'</button>'
       +'<button class="fm-i" data-a="diag" style="'+_bs+';color:#c9a44a">\uD83D\uDD0D Diagnostic paroles</button>'
       +'<button class="fm-i" data-a="lyrics" style="width:100%;text-align:left;background:none;border:0;color:#f4f7fc;font:600 15px system-ui;padding:13px 14px;border-radius:11px;cursor:pointer;display:flex;align-items:center;gap:10px"><span style="pointer-events:none">\uD83C\uDFA4</span><span style="flex:1;pointer-events:none">'+_st("Lyrique")+'</span><span id="lyrTrack" style="pointer-events:none;display:inline-block;width:46px;height:27px;border-radius:14px;background:'+(window._LYRICS_ON===true?"#7ad0a0":"#3a3733")+';position:relative;transition:background .2s;flex:none"><span id="lyrKnob" style="position:absolute;top:3px;left:'+(window._LYRICS_ON===true?"22px":"3px")+';width:21px;height:21px;border-radius:50%;background:#fff;transition:left .2s;box-shadow:0 1px 3px rgba(0,0,0,.4)"></span></span></button>'
-      +(window.__hasLyrics?('<button class="fm-i" data-a="lyrlang" style="'+_bs+'">\uD83C\uDF10 '+_st("Langue des paroles")+'  <span style="float:right;font-size:.82em;opacity:.7">'+((function(){ for(var _l=0;_l<window._LYRICS_LANGS.length;_l++){ if(window._LYRICS_LANGS[_l][0]===window._LYRICS_LANG) return window._LYRICS_LANGS[_l][1]; } return "Original"; })())+' \u203A</span></button>'):"")
+      +((window.__hasLyrics || (window._SUBS && window._SUBS().length>0))?('<button class="fm-i" data-a="lyrlang" style="'+_bs+'">\uD83C\uDF10 '+_st("Langue des paroles")+'  <span style="float:right;font-size:.82em;opacity:.7">'+((function(){ for(var _l=0;_l<window._LYRICS_LANGS.length;_l++){ if(window._LYRICS_LANGS[_l][0]===window._LYRICS_LANG) return window._LYRICS_LANGS[_l][1]; } return "Original"; })())+' \u203A</span></button>'):"")
 ;
     document.body.appendChild(m);
     Array.prototype.forEach.call(m.querySelectorAll(".fm-i"), function(it){ it.onclick=function(ev){ ev.stopPropagation(); var a=it.getAttribute("data-a"); if(a!=="lyrics"){ m.style.display="none"; }   /* le toggle Lyrique garde le menu ouvert pour montrer la bascule */
@@ -9362,7 +9362,8 @@ function _toggleFilmsMenu(anchor){
         var am=window.__activeMusicMeta||{};
         var libN=0, libLyr=0, libTitles=[];
         try{ if(typeof LIB!=="undefined"){ for(var _i=0;_i<LIB.length;_i++){ var _t=LIB[_i]; if(_t&&_t.remote){ libN++; if(_t.lyrics||_t.lrc) libLyr++; if(libTitles.length<6) libTitles.push(_t.title+(( _t.lyrics||_t.lrc)?"[LRC]":"")); } } } }catch(e){}
-        var msg="MUSIQUE ACTIVE\n titre: "+(am.title||"(vide)")+"\n catId: "+(am.catId!=null?am.catId:"(vide)")
+        var _sn=0; try{ _sn=(window._SUBS?window._SUBS().length:0); }catch(e){}
+        var msg="VERSION v953+\n SUBS chargés: "+_sn+"\n\nMUSIQUE ACTIVE\n titre: "+(am.title||"(vide)")+"\n catId: "+(am.catId!=null?am.catId:"(vide)")
           +"\n\nÉTAT PAROLES\n hasLyrics: "+window.__hasLyrics+"\n origLRC: "+((window.__origLRC||"").slice(0,30)||"(vide)")
           +"\n\nCATALOGUE\n pistes: "+libN+" | avec paroles: "+libLyr
           +"\n titres: "+(libTitles.join(", ")||"(catalogue vide)")
@@ -9371,8 +9372,10 @@ function _toggleFilmsMenu(anchor){
       }catch(e){ try{ alert("diag err: "+e); }catch(_e){} } return; }
       if(a==="lyrlang"){ try{ _openLangPicker(); }catch(e){} return; }
       if(a==="lyrics"){ try{
-        if(window._LYRICS_ON!==true && !window.__hasLyrics){ try{ if(typeof window.__ensureActiveLyrics==="function") window.__ensureActiveLyrics(); }catch(e){} }
-        if(window._LYRICS_ON!==true && !window.__hasLyrics){ setState(_st("Pas de paroles disponibles pour cette musique.")); return; }
+        var _haveSubs=function(){ return !!(window._SUBS && window._SUBS().length>0); };
+        if(window._LYRICS_ON!==true && !window.__hasLyrics && !_haveSubs()){ try{ if(typeof window.__ensureActiveLyrics==="function") window.__ensureActiveLyrics(); }catch(e){} }
+        if(window._LYRICS_ON!==true && !window.__hasLyrics && !_haveSubs()){ setState(_st("Pas de paroles disponibles pour cette musique.")); return; }
+        if(_haveSubs()) window.__hasLyrics=true;
         window._LYRICS_ON = (window._LYRICS_ON!==true);
         try{ window.__studioDirty=true; }catch(e){}
         var _on=window._LYRICS_ON;
