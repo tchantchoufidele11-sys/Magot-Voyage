@@ -8453,7 +8453,14 @@ function _parseLRC(txt){ SUBS=[]; if(!txt) return 0; var ls=String(txt).split(/\
   SUBS.sort(function(a,b){ return a.t-b.t; }); return SUBS.length; }
 function _subAt(t){ if(!SUBS.length) return ""; var cur=""; for(var i=0;i<SUBS.length;i++){ if(SUBS[i].t<=t+0.02) cur=SUBS[i].text; else break; } return cur; }
 function _musicTimeNow(){ /* temps DANS la musique (pour caler les paroles) */
-  try{ if(window.LOOP_ON){ var md=(window.MUSIC_DUR||(A?A.dur:0))||0; var mt=montageNow(); return md>0?(mt%md):mt; } return (audioEl?audioEl.currentTime:montageNow()); }catch(e){ return montageNow(); } }
+  try{
+    var lat=(typeof _audioLat==="function"?_audioLat():0)||0;   /* latence de sortie : le son entendu est en retard sur l'horloge */
+    if(window.LOOP_ON){ /* la boucle rejoue une RÉGION (LOOP_START..LOOP_END) : audioAt donne la vraie position audio, pas temps%durée */
+      return audioAt(Math.max(0, montageNow() - lat));
+    }
+    if(window.MULTI){ var md=(window.MUSIC_DUR||(A?A.dur:0))||0; var mt2=Math.max(0, montageNow()-lat); return md>0?(mt2%md):mt2; }
+    return (audioEl?audioEl.currentTime:montageNow());
+  }catch(e){ return montageNow(); } }
 var _subDimKey="";
 /* Dimensionne le sous-titre d'aperçu sur la ZONE VIDÉO RÉELLEMENT AFFICHÉE (pas sur la largeur de l'écran).
    base.width/height donnent l'aspect du format courant ; le hero donne la taille du cadre ; on calcule
@@ -8467,7 +8474,7 @@ function _sizeSub(){ try{ if(!_subEl||!_subEl._box) return; var h=document.query
   // zone vidéo visible après contain
   var sc=Math.min(elW/iw, elH/ih), dispW=iw*sc, dispH=ih*sc;
   var scale=(typeof window._SUB_SCALE==="number"&&window._SUB_SCALE>0)?window._SUB_SCALE:0.036;
-  var fs=Math.max(11, Math.round(dispH*scale));
+  var fs=Math.min(20, Math.max(11, Math.round(dispH*scale)));   /* plafond 20 px (demande utilisateur) */
   _subEl._box.style.font="700 "+fs+"px/1.5 'Inter','Helvetica Neue',system-ui,-apple-system,sans-serif";
   _subEl.style.width=Math.round(dispW*0.94)+"px"; _subEl.style.left="50%"; _subEl.style.right="auto"; _subEl.style.transform="translateX(-50%)"; _subEl.style.paddingLeft="0"; _subEl.style.paddingRight="0";
   // remonter le sous-titre au-dessus du bas de la zone vidéo (identique en proportion à l'export : ~9% du bas)
@@ -8495,7 +8502,7 @@ function _openLangPicker(){
   bg.style.cssText="position:fixed;inset:0;z-index:100050;background:rgba(0,0,0,.62);backdrop-filter:blur(4px);display:flex;align-items:flex-end;justify-content:center;font-family:system-ui,-apple-system,sans-serif";
   var card=document.createElement("div");
   card.style.cssText="width:100%;max-width:520px;background:#0f0e0d;border:1px solid #282622;border-radius:22px 22px 0 0;padding:8px 10px 22px;max-height:78vh;overflow:auto;box-shadow:0 -10px 50px rgba(0,0,0,.7)";
-  var head="<div style=\"text-align:center;padding:12px 0 6px\"><div style=\"width:40px;height:4px;background:#3a3733;border-radius:3px;margin:0 auto 12px\"></div><div style=\"color:#f4f7fc;font:700 17px system-ui\">\uD83C\uDF10 "+_st("Langue des paroles")+"</div><div style=\"color:#8a93a6;font:500 12.5px system-ui;margin-top:3px\">"+_st("Traduction synchronisée au rythme")+" \u00b7 v938</div></div>";
+  var head="<div style=\"text-align:center;padding:12px 0 6px\"><div style=\"width:40px;height:4px;background:#3a3733;border-radius:3px;margin:0 auto 12px\"></div><div style=\"color:#f4f7fc;font:700 17px system-ui\">\uD83C\uDF10 "+_st("Langue des paroles")+"</div><div style=\"color:#8a93a6;font:500 12.5px system-ui;margin-top:3px\">"+_st("Traduction synchronisée au rythme")+" \u00b7 v939</div></div>";
   var rows="";
   for(var i=0;i<window._LYRICS_LANGS.length;i++){ var code=window._LYRICS_LANGS[i][0], name=window._LYRICS_LANGS[i][1], fl=_LANG_FLAGS[code]||"\uD83C\uDF10", on=(window._LYRICS_LANG===code);
     rows+="<button class=\"lang-opt\" data-l=\""+code+"\" style=\"display:flex;align-items:center;gap:13px;width:100%;text-align:left;background:"+(on?"rgba(122,208,160,.14)":"none")+";border:1px solid "+(on?"rgba(122,208,160,.5)":"transparent")+";color:#f4f7fc;font:600 15.5px system-ui;padding:14px 15px;border-radius:13px;cursor:pointer;margin:3px 0\"><span style=\"font-size:22px\">"+fl+"</span><span style=\"flex:1\">"+name+"</span>"+(on?"<span style=\"color:#7ad0a0;font-size:18px\">\u2713</span>":"")+"</button>";
@@ -8532,7 +8539,7 @@ function studioTranslateLyrics(lang){
 }
 try{ window.studioTranslateLyrics=studioTranslateLyrics; }catch(e){}
 try{ window.studioSetLyrics=function(lrc){ try{ window.__origLRC=lrc; window._LYRICS_LANG="orig"; }catch(e){} var n=_parseLRC(lrc); try{ setState(n?("Karaok\u00e9 : "+n+" lignes charg\u00e9es."):"Paroles vid\u00e9es."); }catch(e){} return n; }; window._SUBS=function(){ return SUBS; }; }catch(e){}
-function _subExpTime(t){ try{ if(window.LOOP_ON){ var md=(window.MUSIC_DUR||(A?A.dur:0))||1; return t%md; } return t; }catch(e){ return t; } }
+function _subExpTime(t){ try{ if(window.LOOP_ON){ return audioAt(t); } return t; }catch(e){ return t; } }
 function _drawSubOnCanvas(cx, W, H, mt){ try{ if(window._LYRICS_ON!==true) return; if(!SUBS.length||!cx) return; var line=_subAt(mt); if(!line) return;
   cx.save();
   /* Sous-titre type YouTube : taille ~3,6% de la hauteur (réglable via window._SUB_SCALE), sans-serif, boîte noire semi-transparente derrière chaque ligne. */
