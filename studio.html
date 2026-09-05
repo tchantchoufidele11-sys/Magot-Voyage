@@ -8564,7 +8564,7 @@ function _openLangPicker(){
   bg.style.cssText="position:fixed;inset:0;z-index:100050;background:rgba(0,0,0,.62);backdrop-filter:blur(4px);display:flex;align-items:flex-end;justify-content:center;font-family:system-ui,-apple-system,sans-serif";
   var card=document.createElement("div");
   card.style.cssText="width:100%;max-width:520px;background:#0f0e0d;border:1px solid #282622;border-radius:22px 22px 0 0;padding:8px 10px 22px;max-height:78vh;overflow:auto;box-shadow:0 -10px 50px rgba(0,0,0,.7)";
-  var head="<div style=\"text-align:center;padding:12px 0 6px\"><div style=\"width:40px;height:4px;background:#3a3733;border-radius:3px;margin:0 auto 12px\"></div><div style=\"color:#f4f7fc;font:700 17px system-ui\">\uD83C\uDF10 "+_st("Langue des paroles")+"</div><div style=\"color:#8a93a6;font:500 12.5px system-ui;margin-top:3px\">"+_st("Traduction synchronisée au rythme")+" \u00b7 v950</div></div>";
+  var head="<div style=\"text-align:center;padding:12px 0 6px\"><div style=\"width:40px;height:4px;background:#3a3733;border-radius:3px;margin:0 auto 12px\"></div><div style=\"color:#f4f7fc;font:700 17px system-ui\">\uD83C\uDF10 "+_st("Langue des paroles")+"</div><div style=\"color:#8a93a6;font:500 12.5px system-ui;margin-top:3px\">"+_st("Traduction synchronisée au rythme")+" \u00b7 v951</div></div>";
   var rows="";
   for(var i=0;i<window._LYRICS_LANGS.length;i++){ var code=window._LYRICS_LANGS[i][0], name=window._LYRICS_LANGS[i][1], fl=_LANG_FLAGS[code]||"\uD83C\uDF10", on=(window._LYRICS_LANG===code);
     rows+="<button class=\"lang-opt\" data-l=\""+code+"\" style=\"display:flex;align-items:center;gap:13px;width:100%;text-align:left;background:"+(on?"rgba(122,208,160,.14)":"none")+";border:1px solid "+(on?"rgba(122,208,160,.5)":"transparent")+";color:#f4f7fc;font:600 15.5px system-ui;padding:14px 15px;border-radius:13px;cursor:pointer;margin:3px 0\"><span style=\"font-size:22px\">"+fl+"</span><span style=\"flex:1\">"+name+"</span>"+(on?"<span style=\"color:#7ad0a0;font-size:18px\">\u2713</span>":"")+"</button>";
@@ -8941,7 +8941,7 @@ function _filmKey(id){ return "studioMagotFilm:"+id; }
 function _newFilmId(){ return "f"+Date.now().toString(36)+Math.floor(Math.random()*1e4).toString(36); }
 function _filmThumb(){ try{ for(var i=0;i<PHOTOS.length;i++){ var p=PHOTOS[i]; if(p&&p.c&&!(p.feat&&p.feat.skip)){ var w=200,h=Math.max(1,Math.round(w*(p.c.height||1)/(p.c.width||1))); var cv=document.createElement("canvas"); cv.width=w; cv.height=h; cv.getContext("2d").drawImage(p.c,0,0,w,h); return cv.toDataURL("image/jpeg",0.6); } } }catch(e){} return null; }
 
-function _projMusic(){ try{ if(!A) return null; var m=(window.__activeMusicMeta)?{ id:window.__activeMusicMeta.id, title:window.__activeMusicMeta.title, url:window.__activeMusicMeta.url, type:window.__activeMusicMeta.type, cover:window.__activeMusicMeta.cover }:{}; m.mst=(window.MSTART||0); if(window.MULTI&&typeof MIX!=="undefined"&&MIX) m.mix=MIX.slice(); try{ if(window.__origLRC) m.lyrics=window.__origLRC; }catch(e){} return m; }catch(e){ return null; } }
+function _projMusic(){ try{ if(!A) return null; var m=(window.__activeMusicMeta)?{ id:window.__activeMusicMeta.id, catId:(window.__activeMusicMeta.catId!=null?window.__activeMusicMeta.catId:null), title:window.__activeMusicMeta.title, url:window.__activeMusicMeta.url, type:window.__activeMusicMeta.type, cover:window.__activeMusicMeta.cover }:{}; m.mst=(window.MSTART||0); if(window.MULTI&&typeof MIX!=="undefined"&&MIX) m.mix=MIX.slice(); try{ if(window.__origLRC) m.lyrics=window.__origLRC; }catch(e){} return m; }catch(e){ return null; } }
 function studioExportProject(){
   var proj={ v:1, mood:MOOD, dayMarkers:(window.DAY_MARKERS!==false), sign:{ on:!!(typeof SIGN!=="undefined"&&SIGN.on), text:(window.SIGN_TEXT||null) }, music:_projMusic(), photos:[] };
   for(var i=0;i<PHOTOS.length;i++){ var p=PHOTOS[i]; if(!p||!p._id) continue;
@@ -9069,8 +9069,8 @@ function _afterOpenFilm(proj){ try{ _linkSources(); }catch(e){} try{
     try{ if(!window.__origLRC || !String(window.__origLRC).trim()){
       var _lyrTries=0; var _lyrIv=setInterval(function(){ _lyrTries++;
         var got=false; try{ if(typeof window.__ensureActiveLyrics==="function") got=window.__ensureActiveLyrics(proj.music&&proj.music.title); }catch(e){}
-        if(got || _lyrTries>=15){ clearInterval(_lyrIv); }
-      }, 400);
+        if(got || _lyrTries>=40){ clearInterval(_lyrIv); }   /* jusqu'à ~20 s : laisse le catalogue arriver (mobile) */
+      }, 500);
     } }catch(e){}
     _pget(_curFilmId+":music").then(function(mb){ if(mb && window.__loadMusicBlob){ window.__loadMusicBlob(mb,(proj.music&&proj.music.title)||"Musique"); var n=0,_iv=setInterval(function(){ n++; if(A && (PHOTOS.length||clipVidReady)){ clearInterval(_iv); try{ buildPartition(); paintStrip(0); try{ for(var _pd=0;_pd<Math.min(PHOTOS.length,14);_pd++) ensurePhotoDecoded(_pd); renderMontageAt(0); }catch(_e){} var _cc=CLIPS.filter(function(c){return c.ready;}).length; setState(_st("Montage rechargé")+" ("+PHOTOS.length+" photos"+(_cc?(", "+_cc+" clips"):"")+")."); }catch(e){} } else if(n>90){ clearInterval(_iv); } },200); }
       else { try{ if(PHOTOS.length||clipVidReady){ buildPartition(); paintStrip(0); setState(PHOTOS.length+" photos"+(clipVidReady?" + clips":"")+" recharg\u00e9s \u00b7 remets une musique."); } }catch(e){} } }).catch(function(){});
@@ -9343,7 +9343,7 @@ function _toggleFilmsMenu(anchor){
   var m=document.getElementById("filmsMenu");
   if(m && m.style.display!=="none"){ m.style.display="none"; return; }
   try{ if(m){ m.remove(); m=null; } }catch(e){}   /* reconstruire à chaque ouverture pour refléter l'état à jour (paroles dispo, activé/désactivé, langue) */
-  try{ if(typeof window.__ensureActiveLyrics==="function") window.__ensureActiveLyrics(); }catch(e){}   /* paroles auto pour la musique active */
+  try{ if(typeof window.__ensureActiveLyrics==="function"){ var _g=window.__ensureActiveLyrics(); if(!_g){ var _mt=0; var _mi=setInterval(function(){ _mt++; var ok=false; try{ ok=window.__ensureActiveLyrics(); }catch(e){} if(ok||_mt>=6){ clearInterval(_mi); try{ if(ok && typeof _rebuildMenu==="function") _rebuildMenu(); }catch(e){} } }, 400); } } }catch(e){}   /* paroles auto + ré-essais si le catalogue charge encore */
   if(!m){
     m=document.createElement("div"); m.id="filmsMenu";
     m.style.cssText="position:fixed;z-index:9002;background:#0f0e0d;border:1px solid #282622;border-radius:16px;padding:7px;min-width:236px;box-shadow:0 -6px 40px rgba(0,0,0,.6)";
