@@ -8530,7 +8530,8 @@ function _updateSub(){ if(window._LYRICS_ON!==true){ if(_subEl)_subEl.style.opac
     var _html=""; for(var _wi=0;_wi<_cue.words.length;_wi++){ _html+='<span class="kw" style="transition:color .06s">'+_escHtml(_cue.words[_wi].w)+"</span>"+(_wi<_cue.words.length-1?" ":""); }
     if(_subEl._box){ _subEl._box.innerHTML=_html; _subWordEls=_subEl._box.querySelectorAll(".kw"); }
   }
-  for(var _k=0;_k<_subWordEls.length;_k++){ var _wt=(_cue.words[_k]?_cue.words[_k].t:0); _subWordEls[_k].style.color=(_wt<=_mt+0.02)?"#fff":"rgba(255,255,255,.42)"; }
+  var _kar=(window._SUB_KARAOKE===true);   /* surlignage mot-à-mot désactivé par défaut : l'estimation dérivait. Réactivable (window._SUB_KARAOKE=true) le jour d'un alignement par mot (GPU). */
+  for(var _k=0;_k<_subWordEls.length;_k++){ var _wt=(_cue.words[_k]?_cue.words[_k].t:0); _subWordEls[_k].style.color=(!_kar || _wt<=_mt+0.02)?"#fff":"rgba(255,255,255,.42)"; }
   _subEl.style.opacity="1";
 }catch(e){} }
 window._LYRICS_LANGS=[["orig","Original"],["fr","Français"],["en","English"],["es","Español"],["it","Italiano"],["de","Deutsch"],["pt","Português"],["nl","Nederlands"],["ar","العربية"],["zh","中文"],["ja","日本語"],["ru","Русский"],["tr","Türkçe"]];
@@ -8543,7 +8544,7 @@ function _openLangPicker(){
   bg.style.cssText="position:fixed;inset:0;z-index:100050;background:rgba(0,0,0,.62);backdrop-filter:blur(4px);display:flex;align-items:flex-end;justify-content:center;font-family:system-ui,-apple-system,sans-serif";
   var card=document.createElement("div");
   card.style.cssText="width:100%;max-width:520px;background:#0f0e0d;border:1px solid #282622;border-radius:22px 22px 0 0;padding:8px 10px 22px;max-height:78vh;overflow:auto;box-shadow:0 -10px 50px rgba(0,0,0,.7)";
-  var head="<div style=\"text-align:center;padding:12px 0 6px\"><div style=\"width:40px;height:4px;background:#3a3733;border-radius:3px;margin:0 auto 12px\"></div><div style=\"color:#f4f7fc;font:700 17px system-ui\">\uD83C\uDF10 "+_st("Langue des paroles")+"</div><div style=\"color:#8a93a6;font:500 12.5px system-ui;margin-top:3px\">"+_st("Traduction synchronisée au rythme")+" \u00b7 v944</div></div>";
+  var head="<div style=\"text-align:center;padding:12px 0 6px\"><div style=\"width:40px;height:4px;background:#3a3733;border-radius:3px;margin:0 auto 12px\"></div><div style=\"color:#f4f7fc;font:700 17px system-ui\">\uD83C\uDF10 "+_st("Langue des paroles")+"</div><div style=\"color:#8a93a6;font:500 12.5px system-ui;margin-top:3px\">"+_st("Traduction synchronisée au rythme")+" \u00b7 v945</div></div>";
   var rows="";
   for(var i=0;i<window._LYRICS_LANGS.length;i++){ var code=window._LYRICS_LANGS[i][0], name=window._LYRICS_LANGS[i][1], fl=_LANG_FLAGS[code]||"\uD83C\uDF10", on=(window._LYRICS_LANG===code);
     rows+="<button class=\"lang-opt\" data-l=\""+code+"\" style=\"display:flex;align-items:center;gap:13px;width:100%;text-align:left;background:"+(on?"rgba(122,208,160,.14)":"none")+";border:1px solid "+(on?"rgba(122,208,160,.5)":"transparent")+";color:#f4f7fc;font:600 15.5px system-ui;padding:14px 15px;border-radius:13px;cursor:pointer;margin:3px 0\"><span style=\"font-size:22px\">"+fl+"</span><span style=\"flex:1\">"+name+"</span>"+(on?"<span style=\"color:#7ad0a0;font-size:18px\">\u2713</span>":"")+"</button>";
@@ -8605,7 +8606,7 @@ function _drawSubOnCanvas(cx, W, H, mt){ try{ if(window._LYRICS_ON!==true) retur
     var boxBottom=baseBottom-k*(boxH+gap), boxTop=boxBottom-boxH, boxW=lineW+padX*2, boxX=W/2-boxW/2;
     cx.fillStyle="rgba(8,8,8,.62)"; _rrPath(cx,boxX,boxTop,boxW,boxH,rad); cx.fill();
     var x=boxX+padX, yc=boxTop+boxH/2+fs*0.02;
-    for(var a2=0;a2<L.length;a2++){ var word=L[a2]; cx.fillStyle=(word.t<=mt+0.02)?"#ffffff":"rgba(255,255,255,.5)"; cx.fillText(word.w, x, yc); x+=word.width+spaceW; }
+    for(var a2=0;a2<L.length;a2++){ var word=L[a2]; cx.fillStyle=((window._SUB_KARAOKE!==true) || word.t<=mt+0.02)?"#ffffff":"rgba(255,255,255,.5)"; cx.fillText(word.w, x, yc); x+=word.width+spaceW; }
   }
   cx.restore(); }catch(e){} }
 function loop(){
@@ -9039,6 +9040,7 @@ function _afterOpenFilm(proj){ try{ _linkSources(); }catch(e){} try{
   }
   _clipsP.then(function(){
     try{ if(proj.music && proj.music.lyrics && typeof window.studioSetLyrics==="function"){ window.studioSetLyrics(proj.music.lyrics); window.__hasLyrics=(SUBS&&SUBS.length>0); } }catch(e){}   /* recharge les paroles du film enregistré -> Lyrique dispo sans repasser par la bibliothèque */
+    try{ if((!window.__origLRC || !String(window.__origLRC).trim()) && typeof window.__ensureActiveLyrics==="function"){ setTimeout(function(){ try{ window.__ensureActiveLyrics(proj.music&&proj.music.title); }catch(e){} }, 800); } }catch(e){}   /* film sans paroles stockées -> retrouver celles du catalogue */
     _pget(_curFilmId+":music").then(function(mb){ if(mb && window.__loadMusicBlob){ window.__loadMusicBlob(mb,(proj.music&&proj.music.title)||"Musique"); var n=0,_iv=setInterval(function(){ n++; if(A && (PHOTOS.length||clipVidReady)){ clearInterval(_iv); try{ buildPartition(); paintStrip(0); try{ for(var _pd=0;_pd<Math.min(PHOTOS.length,14);_pd++) ensurePhotoDecoded(_pd); renderMontageAt(0); }catch(_e){} var _cc=CLIPS.filter(function(c){return c.ready;}).length; setState(_st("Montage rechargé")+" ("+PHOTOS.length+" photos"+(_cc?(", "+_cc+" clips"):"")+")."); }catch(e){} } else if(n>90){ clearInterval(_iv); } },200); }
       else { try{ if(PHOTOS.length||clipVidReady){ buildPartition(); paintStrip(0); setState(PHOTOS.length+" photos"+(clipVidReady?" + clips":"")+" recharg\u00e9s \u00b7 remets une musique."); } }catch(e){} } }).catch(function(){});
   });
@@ -9310,6 +9312,7 @@ function _toggleFilmsMenu(anchor){
   var m=document.getElementById("filmsMenu");
   if(m && m.style.display!=="none"){ m.style.display="none"; return; }
   try{ if(m){ m.remove(); m=null; } }catch(e){}   /* reconstruire à chaque ouverture pour refléter l'état à jour (paroles dispo, activé/désactivé, langue) */
+  try{ if(typeof window.__ensureActiveLyrics==="function") window.__ensureActiveLyrics(); }catch(e){}   /* paroles auto pour la musique active */
   if(!m){
     m=document.createElement("div"); m.id="filmsMenu";
     m.style.cssText="position:fixed;z-index:9002;background:#0f0e0d;border:1px solid #282622;border-radius:16px;padding:7px;min-width:236px;box-shadow:0 -6px 40px rgba(0,0,0,.6)";
@@ -9325,6 +9328,7 @@ function _toggleFilmsMenu(anchor){
     Array.prototype.forEach.call(m.querySelectorAll(".fm-i"), function(it){ it.onclick=function(ev){ ev.stopPropagation(); var a=it.getAttribute("data-a"); if(a!=="lyrics"){ m.style.display="none"; }   /* le toggle Lyrique garde le menu ouvert pour montrer la bascule */
       if(a==="lyrlang"){ try{ _openLangPicker(); }catch(e){} return; }
       if(a==="lyrics"){ try{
+        if(window._LYRICS_ON!==true && !window.__hasLyrics){ try{ if(typeof window.__ensureActiveLyrics==="function") window.__ensureActiveLyrics(); }catch(e){} }
         if(window._LYRICS_ON!==true && !window.__hasLyrics){ setState(_st("Pas de paroles disponibles pour cette musique.")); return; }
         window._LYRICS_ON = (window._LYRICS_ON!==true);
         try{ window.__studioDirty=true; }catch(e){}
@@ -10850,6 +10854,23 @@ essentiaReady.then(function(ok){ if(!ok && !A){ /* silencieux : le repli se fait
     }catch(e){} }
     _loadCatalog();
     try{ window.__reloadCatalog=function(){ try{ for(var i=LIB.length-1;i>=0;i--){ if(LIB[i]&&LIB[i].remote&&LIB[i].catId!=null) LIB.splice(i,1); } }catch(e){} _loadCatalog(); }; }catch(e){}
+    /* Retrouve automatiquement les paroles du CATALOGUE pour la musique active (sans repasser par la
+       bibliothèque). Apparie par catId, puis url, puis titre. Charge le LRC et active __hasLyrics. */
+    try{ window.__ensureActiveLyrics=function(hintTitle){ try{
+      var am=window.__activeMusicMeta||{}; var want=null;
+      for(var i=0;i<LIB.length;i++){ var t=LIB[i]; if(!t) continue;
+        if((am.catId!=null && t.catId==am.catId) || (am.url && t.url && t.url===am.url) ||
+           (am.title && t.title && String(t.title).toLowerCase()===String(am.title).toLowerCase()) ||
+           (hintTitle && t.title && String(t.title).toLowerCase()===String(hintTitle).toLowerCase())){ want=t; break; } }
+      if(want){ var lrc=want.lyrics||want.lrc||"";
+        if(lrc && typeof window.studioSetLyrics==="function"){
+          var cur=String(window.__origLRC||"");
+          if(!cur.trim() || cur!==lrc){ window.studioSetLyrics(lrc); }
+          window.__hasLyrics=!!(window._SUBS && window._SUBS().length>0);
+          return true;
+        }
+      }
+    }catch(e){} return false; }; }catch(e){}
   }
   /* import & lecture pilotés par addImport()/useTrack() -> pas de dépendance à l'événement change du moteur */
 
