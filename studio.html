@@ -8485,6 +8485,12 @@ function _escHtml(x){ return String(x).replace(/&/g,"&amp;").replace(/</g,"&lt;"
 /* Découpe chaque ligne LRC en segments courts (<= ~46 car -> tient en 2 lignes) et répartit le temps
    de la ligne sur les segments, puis le temps du segment sur ses mots (proportionnel à la longueur).
    -> permet la limite 2 lignes ET le surlignage mot par mot (karaoké, timing estimé). */
+function _sylCount(w){ try{ if(!w) return 1; var x=String(w).toLowerCase().replace(/[^a-zà-ÿ]/g,""); if(!x) return 1;
+  /* approx : nombre de groupes de voyelles ; « e » final muet retiré ; jamais < 1 */
+  var m=x.match(/[aeiouyàâäéèêëîïôöùûü]+/g); var n=m?m.length:1;
+  if(x.length>2 && /[^aeiouyàâäéèêëîïôöùûü]e$/.test(x)) n=Math.max(1,n-1);
+  return Math.max(1,n);
+}catch(e){ return 1; } }
 function _ensureCues(){ try{
   var sig=SUBS.length? (SUBS.length+"|"+SUBS[0].t+"|"+SUBS[SUBS.length-1].t+"|"+((SUBS[0].text||"").slice(0,14))+"|"+((SUBS[SUBS.length-1].text||"").slice(0,14))) : "";
   if(sig===_cueSig && _CUES.length) return; _cueSig=sig; _CUES=[]; var MAXC=46;
@@ -8498,9 +8504,11 @@ function _ensureCues(){ try{
     var acc=t0;
     for(var sI=0;sI<segs.length;sI++){
       var frac=segs[sI].length/totalC, segT0=acc, segT1=(sI===segs.length-1? t1 : acc+frac*(t1-t0)); if(segT1<=segT0) segT1=segT0+0.3; acc=segT1;
-      var sw=segs[sI].split(/\s+/), wc=0; for(var a=0;a<sw.length;a++) wc+=sw[a].length+1; if(wc<=0) wc=1;
+      /* timing par mot pondéré par les SYLLABES (une note ≈ une syllabe -> plus fidèle au chant que les lettres) */
+      var sw=segs[sI].split(/\s+/), syl=[], wc=0; for(var a=0;a<sw.length;a++){ var sc=_sylCount(sw[a]); syl.push(sc); wc+=sc; } if(wc<=0) wc=1;
+      var LEADW=0.07;   /* léger anticipé : le mot s'allume ~70 ms avant l'attaque, comme les karaokés pros (compense l'impression de retard) */
       var wt=[], wacc=segT0;
-      for(var a2=0;a2<sw.length;a2++){ wt.push({w:sw[a2], t:wacc}); wacc+=((sw[a2].length+1)/wc)*(segT1-segT0); }
+      for(var a2=0;a2<sw.length;a2++){ wt.push({w:sw[a2], t:Math.max(segT0, wacc-LEADW)}); wacc+=(syl[a2]/wc)*(segT1-segT0); }
       _CUES.push({t:segT0,tEnd:segT1,words:wt,text:segs[sI]});
     }
   }
@@ -8534,13 +8542,15 @@ function _openLangPicker(){
   bg.style.cssText="position:fixed;inset:0;z-index:100050;background:rgba(0,0,0,.62);backdrop-filter:blur(4px);display:flex;align-items:flex-end;justify-content:center;font-family:system-ui,-apple-system,sans-serif";
   var card=document.createElement("div");
   card.style.cssText="width:100%;max-width:520px;background:#0f0e0d;border:1px solid #282622;border-radius:22px 22px 0 0;padding:8px 10px 22px;max-height:78vh;overflow:auto;box-shadow:0 -10px 50px rgba(0,0,0,.7)";
-  var head="<div style=\"text-align:center;padding:12px 0 6px\"><div style=\"width:40px;height:4px;background:#3a3733;border-radius:3px;margin:0 auto 12px\"></div><div style=\"color:#f4f7fc;font:700 17px system-ui\">\uD83C\uDF10 "+_st("Langue des paroles")+"</div><div style=\"color:#8a93a6;font:500 12.5px system-ui;margin-top:3px\">"+_st("Traduction synchronisée au rythme")+" \u00b7 v940</div></div>";
+  var head="<div style=\"text-align:center;padding:12px 0 6px\"><div style=\"width:40px;height:4px;background:#3a3733;border-radius:3px;margin:0 auto 12px\"></div><div style=\"color:#f4f7fc;font:700 17px system-ui\">\uD83C\uDF10 "+_st("Langue des paroles")+"</div><div style=\"color:#8a93a6;font:500 12.5px system-ui;margin-top:3px\">"+_st("Traduction synchronisée au rythme")+" \u00b7 v942</div></div>";
   var rows="";
   for(var i=0;i<window._LYRICS_LANGS.length;i++){ var code=window._LYRICS_LANGS[i][0], name=window._LYRICS_LANGS[i][1], fl=_LANG_FLAGS[code]||"\uD83C\uDF10", on=(window._LYRICS_LANG===code);
     rows+="<button class=\"lang-opt\" data-l=\""+code+"\" style=\"display:flex;align-items:center;gap:13px;width:100%;text-align:left;background:"+(on?"rgba(122,208,160,.14)":"none")+";border:1px solid "+(on?"rgba(122,208,160,.5)":"transparent")+";color:#f4f7fc;font:600 15.5px system-ui;padding:14px 15px;border-radius:13px;cursor:pointer;margin:3px 0\"><span style=\"font-size:22px\">"+fl+"</span><span style=\"flex:1\">"+name+"</span>"+(on?"<span style=\"color:#7ad0a0;font-size:18px\">\u2713</span>":"")+"</button>";
   }
-  card.innerHTML=head+rows;
+  var retr="<button id=\"lyrRetr\" style=\"display:flex;align-items:center;justify-content:center;gap:9px;width:100%;background:none;border:1px dashed #3a3733;color:#c9a44a;font:600 13.5px system-ui;padding:12px;border-radius:13px;cursor:pointer;margin:10px 0 2px\">\u21bb "+_st("Re-traduire (forcer, ignore le cache)")+"</button>";
+  card.innerHTML=head+rows+retr;
   bg.appendChild(card);
+  try{ var _rb=card.querySelector("#lyrRetr"); if(_rb){ _rb.onclick=function(){ var lg=(window._LYRICS_LANG&&window._LYRICS_LANG!=="orig")?window._LYRICS_LANG:null; bg.remove(); if(!lg){ _lyrToast(_st("Choisis d'abord une langue.")); return; } _lyrToast("\u21bb "+_st("Re-traduction…"), 20000); studioTranslateLyrics(lg, true); try{ window.__studioDirty=true; }catch(e){} }; } }catch(e){}
   bg.addEventListener("click",function(e){ if(e.target===bg) bg.remove(); });
   Array.prototype.forEach.call(card.querySelectorAll(".lang-opt"),function(b){ b.onclick=function(){ var lg=b.getAttribute("data-l"); try{ setState("\uD83C\uDF10 \u2192 "+lg); _lyrToast("\uD83C\uDF10 \u2192 "+lg); }catch(e){} bg.remove(); studioTranslateLyrics(lg); try{ window.__studioDirty=true; }catch(e){} }; });
   document.body.appendChild(bg);
@@ -8553,7 +8563,7 @@ function _lyrToast(msg, ms){ try{ var el=document.getElementById("lyrToast");
   el.textContent=msg; el.style.opacity="1";
   clearTimeout(el._t); el._t=setTimeout(function(){ el.style.opacity="0"; }, ms||4000);
 }catch(e){} }
-function studioTranslateLyrics(lang){
+function studioTranslateLyrics(lang, force){
   try{
     if(lang==="orig"){ if(window.__origLRC){ _parseLRC(window.__origLRC); window._LYRICS_LANG="orig"; try{ if(A&&(PHOTOS.length||clipVidReady)) buildPartition(); }catch(e){} } return; }
     if(!window.__origLRC){ setState(_st("Aucune parole à traduire.")); _lyrToast(_st("Aucune parole à traduire.")); return; }
@@ -8563,13 +8573,14 @@ function studioTranslateLyrics(lang){
     var catId=null; try{ var _am=window.__activeMusicMeta; if(_am&&_am.catId!=null) catId=_am.catId; }catch(e){}
     var base=_workerBase(); if(!base){ setState(_st("Service de traduction indisponible.")); _lyrToast(_st("Service de traduction indisponible.")); return; }
     setState("\uD83C\uDF10 "+_st("Traduction en cours…")); _lyrToast("\uD83C\uDF10 "+_st("Traduction en cours…"), 20000);
-    fetch(base+"/lyrics/translate",{ method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify({ id:catId, lang:lang, lrc:(window.__origLRC||"") }) })
+    fetch(base+"/lyrics/translate",{ method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify({ id:catId, lang:lang, lrc:(window.__origLRC||""), force:(force===true) }) })
       .then(function(r){ return r.json(); })
       .then(function(d){ if(d&&d.lrc){ _parseLRC(d.lrc); window._LYRICS_LANG=lang; window._LYRICS_ON=true; setState("\uD83C\uDFA4 "+_st("Paroles traduites")); _lyrToast("\uD83C\uDFA4 "+_st("Paroles traduites")); try{ if(A&&(PHOTOS.length||clipVidReady)) buildPartition(); }catch(e){} } else { var _r=_st("Échec de la traduction.")+((d&&d.error)?(" ("+d.error+(d.detail?(" : "+String(d.detail).slice(0,220)):"")+")"):""); setState(_r); _lyrToast(_r, 11000); } })
       .catch(function(){ var _r=_st("Échec de la traduction.")+" (r\u00e9seau/CORS)"; setState(_r); _lyrToast(_r, 9000); });
   }catch(e){ try{ var _r2=_st("Échec de la traduction.")+" ("+((e&&e.message)||e)+")"; setState(_r2); _lyrToast(_r2, 9000); }catch(_e){} }
 }
 try{ window.studioTranslateLyrics=studioTranslateLyrics; }catch(e){}
+try{ window.studioRetranslate=function(){ var lg=(window._LYRICS_LANG&&window._LYRICS_LANG!=="orig")?window._LYRICS_LANG:null; if(!lg){ _lyrToast(_st("Choisis d'abord une langue.")); return; } _lyrToast("\uD83D\uDD01 "+_st("Re-traduction…"), 20000); studioTranslateLyrics(lg, true); }; }catch(e){}
 try{ window.studioSetLyrics=function(lrc){ try{ window.__origLRC=lrc; window._LYRICS_LANG="orig"; }catch(e){} var n=_parseLRC(lrc); try{ setState(n?("Karaok\u00e9 : "+n+" lignes charg\u00e9es."):"Paroles vid\u00e9es."); }catch(e){} return n; }; window._SUBS=function(){ return SUBS; }; }catch(e){}
 function _subExpTime(t){ try{ if(window.LOOP_ON){ return audioAt(t); } return t; }catch(e){ return t; } }
 function _rrPath(cx,x,y,w,h,r){ r=Math.min(r,h/2,w/2); cx.beginPath(); cx.moveTo(x+r,y); cx.lineTo(x+w-r,y); cx.arcTo(x+w,y,x+w,y+r,r); cx.lineTo(x+w,y+h-r); cx.arcTo(x+w,y+h,x+w-r,y+h,r); cx.lineTo(x+r,y+h); cx.arcTo(x,y+h,x,y+h-r,r); cx.lineTo(x,y+r); cx.arcTo(x,y,x+r,y,r); cx.closePath(); }
