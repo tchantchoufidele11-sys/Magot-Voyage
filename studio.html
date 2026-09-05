@@ -8514,7 +8514,7 @@ function _ensureCues(){ try{
   }
 }catch(e){} }
 function _cueIdxAt(t){ if(!_CUES.length) return -1; var idx=-1; for(var i=0;i<_CUES.length;i++){ if(_CUES[i].t<=t+0.02) idx=i; else break; } return idx; }
-function _updateSub(){ if(window._LYRICS_ON!==true){ if(_subEl)_subEl.style.opacity="0"; return; } try{ if(!_subEl){ var h=document.querySelector(".hero"); if(!h) return; _subEl=document.createElement("div"); _subEl.id="karaokeSub"; _subEl.style.cssText="position:absolute;left:50%;right:auto;bottom:9%;text-align:center;z-index:16;pointer-events:none;opacity:0;transition:opacity .2s;transform:translateX(-50%)";
+function _updateSub(){ if(window._LYRICS_ON!==true){ if(_subEl)_subEl.style.opacity="0"; return; } try{ if(!_subEl){ var h=document.querySelector(".hero"); if(!h) return; _subEl=document.createElement("div"); _subEl.id="karaokeSub"; _subEl.style.cssText="position:absolute;left:50%;right:auto;bottom:9%;text-align:center;z-index:16;pointer-events:none;opacity:0;transition:opacity .1s;transform:translateX(-50%)";
     var _sb=document.createElement("span"); _sb.className="ks-box";
     _sb.style.cssText="display:inline;background:rgba(8,8,8,.62);color:#fff;font:700 20px/1.5 'Inter','Helvetica Neue',system-ui,-apple-system,sans-serif;padding:.14em .48em;border-radius:8px;-webkit-box-decoration-break:clone;box-decoration-break:clone;letter-spacing:.2px;text-shadow:0 1px 2px rgba(0,0,0,.55)";
     _subEl.appendChild(_sb); _subEl._box=_sb; h.appendChild(_subEl); _sizeSub();
@@ -8523,10 +8523,11 @@ function _updateSub(){ if(window._LYRICS_ON!==true){ if(_subEl)_subEl.style.opac
   try{ var _hh=document.querySelector(".hero"), _cc=document.getElementById("base"); if(_hh){ var key=((_cc&&_cc.width)||0)+"x"+((_cc&&_cc.height)||0)+"x"+_hh.clientWidth+"x"+_hh.clientHeight; if(key!==_subDimKey){ _subDimKey=key; _sizeSub(); } } }catch(e){}
   if(!SUBS.length || !playing){ _subEl.style.opacity="0"; return; }
   _ensureCues();
-  var _mt=_musicTimeNow(); var _ci=_cueIdxAt(_mt); var _cue=(_ci>=0)?_CUES[_ci]:null;
+  var _lead=(typeof window._SUB_LEAD==="number")?window._SUB_LEAD:0.18;   /* anticipé sous-titre (s) : compense le retard résiduel iOS + transitions ; réglable via window._SUB_LEAD */
+  var _mt=_musicTimeNow()+_lead; var _ci=_cueIdxAt(_mt); var _cue=(_ci>=0)?_CUES[_ci]:null;
   if(!_cue || !_cue.words.length){ _subEl.style.opacity="0"; _subCueRef=null; return; }
   if(_cue!==_subCueRef){ _subCueRef=_cue;
-    var _html=""; for(var _wi=0;_wi<_cue.words.length;_wi++){ _html+='<span class="kw" style="transition:color .12s">'+_escHtml(_cue.words[_wi].w)+"</span>"+(_wi<_cue.words.length-1?" ":""); }
+    var _html=""; for(var _wi=0;_wi<_cue.words.length;_wi++){ _html+='<span class="kw" style="transition:color .06s">'+_escHtml(_cue.words[_wi].w)+"</span>"+(_wi<_cue.words.length-1?" ":""); }
     if(_subEl._box){ _subEl._box.innerHTML=_html; _subWordEls=_subEl._box.querySelectorAll(".kw"); }
   }
   for(var _k=0;_k<_subWordEls.length;_k++){ var _wt=(_cue.words[_k]?_cue.words[_k].t:0); _subWordEls[_k].style.color=(_wt<=_mt+0.02)?"#fff":"rgba(255,255,255,.42)"; }
@@ -8542,7 +8543,7 @@ function _openLangPicker(){
   bg.style.cssText="position:fixed;inset:0;z-index:100050;background:rgba(0,0,0,.62);backdrop-filter:blur(4px);display:flex;align-items:flex-end;justify-content:center;font-family:system-ui,-apple-system,sans-serif";
   var card=document.createElement("div");
   card.style.cssText="width:100%;max-width:520px;background:#0f0e0d;border:1px solid #282622;border-radius:22px 22px 0 0;padding:8px 10px 22px;max-height:78vh;overflow:auto;box-shadow:0 -10px 50px rgba(0,0,0,.7)";
-  var head="<div style=\"text-align:center;padding:12px 0 6px\"><div style=\"width:40px;height:4px;background:#3a3733;border-radius:3px;margin:0 auto 12px\"></div><div style=\"color:#f4f7fc;font:700 17px system-ui\">\uD83C\uDF10 "+_st("Langue des paroles")+"</div><div style=\"color:#8a93a6;font:500 12.5px system-ui;margin-top:3px\">"+_st("Traduction synchronisée au rythme")+" \u00b7 v943</div></div>";
+  var head="<div style=\"text-align:center;padding:12px 0 6px\"><div style=\"width:40px;height:4px;background:#3a3733;border-radius:3px;margin:0 auto 12px\"></div><div style=\"color:#f4f7fc;font:700 17px system-ui\">\uD83C\uDF10 "+_st("Langue des paroles")+"</div><div style=\"color:#8a93a6;font:500 12.5px system-ui;margin-top:3px\">"+_st("Traduction synchronisée au rythme")+" \u00b7 v944</div></div>";
   var rows="";
   for(var i=0;i<window._LYRICS_LANGS.length;i++){ var code=window._LYRICS_LANGS[i][0], name=window._LYRICS_LANGS[i][1], fl=_LANG_FLAGS[code]||"\uD83C\uDF10", on=(window._LYRICS_LANG===code);
     rows+="<button class=\"lang-opt\" data-l=\""+code+"\" style=\"display:flex;align-items:center;gap:13px;width:100%;text-align:left;background:"+(on?"rgba(122,208,160,.14)":"none")+";border:1px solid "+(on?"rgba(122,208,160,.5)":"transparent")+";color:#f4f7fc;font:600 15.5px system-ui;padding:14px 15px;border-radius:13px;cursor:pointer;margin:3px 0\"><span style=\"font-size:22px\">"+fl+"</span><span style=\"flex:1\">"+name+"</span>"+(on?"<span style=\"color:#7ad0a0;font-size:18px\">\u2713</span>":"")+"</button>";
@@ -8582,7 +8583,7 @@ function studioTranslateLyrics(lang, force){
 try{ window.studioTranslateLyrics=studioTranslateLyrics; }catch(e){}
 try{ window.studioRetranslate=function(){ var lg=(window._LYRICS_LANG&&window._LYRICS_LANG!=="orig")?window._LYRICS_LANG:null; if(!lg){ _lyrToast(_st("Choisis d'abord une langue.")); return; } _lyrToast("\uD83D\uDD01 "+_st("Re-traduction…"), 20000); studioTranslateLyrics(lg, true); }; }catch(e){}
 try{ window.studioSetLyrics=function(lrc){ try{ window.__origLRC=lrc; window._LYRICS_LANG="orig"; }catch(e){} var n=_parseLRC(lrc); try{ setState(n?("Karaok\u00e9 : "+n+" lignes charg\u00e9es."):"Paroles vid\u00e9es."); }catch(e){} return n; }; window._SUBS=function(){ return SUBS; }; }catch(e){}
-function _subExpTime(t){ try{ if(window.LOOP_ON){ return audioAt(t); } return t; }catch(e){ return t; } }
+function _subExpTime(t){ try{ var _l=(typeof window._SUB_LEAD==="number")?window._SUB_LEAD:0.18; t=t+_l; if(window.LOOP_ON){ return audioAt(t); } return t; }catch(e){ return t; } }
 function _rrPath(cx,x,y,w,h,r){ r=Math.min(r,h/2,w/2); cx.beginPath(); cx.moveTo(x+r,y); cx.lineTo(x+w-r,y); cx.arcTo(x+w,y,x+w,y+r,r); cx.lineTo(x+w,y+h-r); cx.arcTo(x+w,y+h,x+w-r,y+h,r); cx.lineTo(x+r,y+h); cx.arcTo(x,y+h,x,y+h-r,r); cx.lineTo(x,y+r); cx.arcTo(x,y,x+r,y,r); cx.closePath(); }
 function _drawSubOnCanvas(cx, W, H, mt){ try{ if(window._LYRICS_ON!==true) return; if(!SUBS.length||!cx) return;
   _ensureCues(); var ci=_cueIdxAt(mt); var cue=(ci>=0)?_CUES[ci]:null; if(!cue||!cue.words.length) return;
