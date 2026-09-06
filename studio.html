@@ -1242,9 +1242,11 @@ function renderPlanToBuffer(dur, sr){
 function analyzeBufferInto(buf, cb){ try{ essentiaReady.then(function(ok){ if(ok){ setTimeout(function(){ try{ toMono44(buf,function(sig,sr){ var An; try{ An=analyzeEssentia(sig,sr,buf.duration); }catch(e){ An=analyzeCustom(buf); } cb(An); }); }catch(e){ cb(analyzeCustom(buf)); } }, 20); } else { setTimeout(function(){ cb(analyzeCustom(buf)); }, 20); } }); }catch(e){ try{ cb(analyzeCustom(buf)); }catch(e2){ cb(null); } } }
 
 var CLIPS=[], clipVidReady=false, VIDACT=-1;
-window.STUDIO_VERSION="v1000";
-var VIDEO_POOL_V2=false;                 // reste false jusqu'à validation du laboratoire iPhone
-var MAX_VIDEO_CLIPS=VIDEO_POOL_V2?30:6; // plafond de sécurité temporaire
+window.STUDIO_VERSION="v1001";
+var VIDEO_POOL_V2=false;
+window.MAX_VIDEO_CLIPS=10;              // palier de test (était 6)
+window.VIDEO_SOURCE_WINDOW=3;          // fenêtre de sources attachées en lecture (ne pas changer)
+var MAX_VIDEO_CLIPS=window.MAX_VIDEO_CLIPS;   // alias local (compat)
 window.VIDSOUND=false; window.VIDBAL=0.6; window.VEXCL=[]; window.VIDDENS=1; window.VMOVR={}; /* son des vidéos OFF par défaut ; équilibre musique<->vidéo (0=musique .. 1=vidéo) */
 function _gV(b){ b=Math.max(0,Math.min(1,(b==null?0.6:b))); return b; }
 function _gM(b){ b=Math.max(0,Math.min(1,(b==null?0.6:b))); return 1-b; }
@@ -8965,7 +8967,7 @@ function _openLangPicker(){
   bg.style.cssText="position:fixed;inset:0;z-index:100050;background:rgba(0,0,0,.62);backdrop-filter:blur(4px);display:flex;align-items:flex-end;justify-content:center;font-family:system-ui,-apple-system,sans-serif";
   var card=document.createElement("div");
   card.style.cssText="width:100%;max-width:520px;background:#0f0e0d;border:1px solid #282622;border-radius:22px 22px 0 0;padding:8px 10px 22px;max-height:78vh;overflow:auto;box-shadow:0 -10px 50px rgba(0,0,0,.7)";
-  var head="<div style=\"text-align:center;padding:12px 0 6px\"><div style=\"width:40px;height:4px;background:#3a3733;border-radius:3px;margin:0 auto 12px\"></div><div style=\"color:#f4f7fc;font:700 17px system-ui\">\uD83C\uDF10 "+_st("Langue des paroles")+"</div><div style=\"color:#8a93a6;font:500 12.5px system-ui;margin-top:3px\">"+_st("Traduction synchronisée au rythme")+" \u00b7 v1000</div></div>";
+  var head="<div style=\"text-align:center;padding:12px 0 6px\"><div style=\"width:40px;height:4px;background:#3a3733;border-radius:3px;margin:0 auto 12px\"></div><div style=\"color:#f4f7fc;font:700 17px system-ui\">\uD83C\uDF10 "+_st("Langue des paroles")+"</div><div style=\"color:#8a93a6;font:500 12.5px system-ui;margin-top:3px\">"+_st("Traduction synchronisée au rythme")+" \u00b7 v1001</div></div>";
   var rows="";
   for(var i=0;i<window._LYRICS_LANGS.length;i++){ var code=window._LYRICS_LANGS[i][0], name=window._LYRICS_LANGS[i][1], fl=_LANG_FLAGS[code]||"\uD83C\uDF10", on=(window._LYRICS_LANG===code);
     rows+="<button class=\"lang-opt\" data-l=\""+code+"\" style=\"display:flex;align-items:center;gap:13px;width:100%;text-align:left;background:"+(on?"rgba(122,208,160,.14)":"none")+";border:1px solid "+(on?"rgba(122,208,160,.5)":"transparent")+";color:#f4f7fc;font:600 15.5px system-ui;padding:14px 15px;border-radius:13px;cursor:pointer;margin:3px 0\"><span style=\"font-size:22px\">"+fl+"</span><span style=\"flex:1\">"+name+"</span>"+(on?"<span style=\"color:#7ad0a0;font-size:18px\">\u2713</span>":"")+"</button>";
@@ -9082,9 +9084,9 @@ function _syncClipWindow(curIdx){
     if(_sg&&_sg.video&&_sg.vclip!=null) _want[_sg.vclip]=1;                 /* clip courant */
     /* les DEUX prochains clips vidéo distincts (fenêtre avant, GPT) */
     var _found=0;
-    for(var _n=curIdx+1;_n<SEGS.length && _found<2;_n++){ var _s2=SEGS[_n]; if(_s2&&_s2.video&&_s2.vclip!=null && !_want[_s2.vclip]){ _want[_s2.vclip]=1; _found++; } }
+    var _winN=(window.VIDEO_SOURCE_WINDOW||3); for(var _n=curIdx+1;_n<SEGS.length && _found<(_winN-1);_n++){ var _s2=SEGS[_n]; if(_s2&&_s2.video&&_s2.vclip!=null && !_want[_s2.vclip]){ _want[_s2.vclip]=1; _found++; } }
     /* limiter à 3 max */
-    var _keys=Object.keys(_want); if(_keys.length>3){ _want={}; for(var _k=0;_k<3;_k++) _want[_keys[_k]]=1; }
+    var _win=window.VIDEO_SOURCE_WINDOW||3; var _keys=Object.keys(_want); if(_keys.length>_win){ _want={}; for(var _k=0;_k<_win;_k++) _want[_keys[_k]]=1; }
     for(var _ci=0;_ci<CLIPS.length;_ci++){ var _c=CLIPS[_ci]; if(!_c||!_c.el) continue;
       var _hasSrc=_clipHasAttachedSource(_c);
       if(_want[_ci]){
@@ -9112,7 +9114,7 @@ function _syncClipWindow(curIdx){
     var _after=_videoWindowSnapshot();
     window.__VWIN.postNow=_after.attached;
     window.__VWIN.postMax=Math.max(window.__VWIN.postMax||0,_after.attached);
-    if(_after.attached>3) window.__VWIN.syncErr=(window.__VWIN.syncErr||0)+1;
+    if(_after.attached>window.VIDEO_SOURCE_WINDOW) window.__VWIN.syncErr=(window.__VWIN.syncErr||0)+1;
   }catch(e){}
 }
 function loop(){ try{ window.__MMT_BOTTOM_CAP_TOP=null; }catch(e){}
@@ -9275,13 +9277,13 @@ document.getElementById("clear").onclick=function(){ stopPlay(); PHOTOS.forEach(
    =================================================================== */
 /* Ajoute un clip vidéo depuis un blob (utilisé par l'auto-montage). Résout quand le clip est prêt. */
 function _addClipFromBlob(blob, meta){ return new Promise(function(res){ try{
-  if(!blob || CLIPS.length>=MAX_VIDEO_CLIPS){ res(false); return; }
+  if(!blob || CLIPS.length>=window.MAX_VIDEO_CLIPS){ res(false); return; }
   var v=document.createElement("video"); v.muted=true; v.setAttribute("playsinline",""); v.setAttribute("webkit-playsinline","");
   v.style.cssText="position:fixed;left:0;bottom:0;width:128px;height:72px;opacity:0.02;pointer-events:none;z-index:-1";
   var u=URL.createObjectURL(blob); v.src=u; v._u=u;
   var clip={el:v, dur:0, ready:false, file:blob, thumb:null, sound:false, bal:0.6, color:{expo:0,contrast:0,sat:0,temp:0}, preset:0, trimStart:null, speed:1, _day:(meta&&meta.day!=null?meta.day:null), _cap:(meta&&meta.cap)||null, _mid:(meta&&meta.id!=null?meta.id:null)};
   CLIPS.push(clip); document.body.appendChild(v); v.load();
-  var done=false, fin=function(){ if(done)return; done=true; res(true); };
+  var done=false, fin=function(){ if(done)return; done=true; res(clip); };
   v.onloadedmetadata=function(){ clip.dur=v.duration||0; clip.ready=(clip.dur>0.5); clipVidReady=CLIPS.some(function(c){return c.ready;}); if(clip.ready && typeof genThumb==="function"){ try{ genThumb(clip); }catch(e){} } fin(); };
   v.onerror=function(){ clip.ready=false; clipVidReady=CLIPS.some(function(c){return c.ready;}); fin(); };
   setTimeout(fin, 8000);
@@ -9560,7 +9562,18 @@ function _afterOpenFilm(proj){ try{ _linkSources(); }catch(e){} try{
   var _clipsP=Promise.resolve();
   if(proj.clips && proj.clips.length){
     try{ setState(_st("Chargement du montage\u2026")+" (clips)"); }catch(e){}
-    _clipsP=Promise.all(proj.clips.map(function(cm){ return _pget(_curFilmId+":clip:"+cm.idx).then(function(cb){ if(!cb) return; return _addClipFromBlob(cb,{day:cm.day,cap:cm.cap}).then(function(){ var _cl=CLIPS[CLIPS.length-1]; if(_cl){ if(cm.trimStart!=null)_cl.trimStart=cm.trimStart; if(cm.speed)_cl.speed=cm.speed; if(cm.color)_cl.color=cm.color; _cl.sound=!!cm.sound; if(cm.bal!=null)_cl.bal=cm.bal; } }); }).catch(function(){}); }));
+    var _clipsToRestore=(proj.clips||[]).slice(0, window.MAX_VIDEO_CLIPS);   /* borne le nombre restauré */
+    _clipsP=Promise.all(_clipsToRestore.map(function(cm){ return _pget(_curFilmId+":clip:"+cm.idx).then(function(cb){ if(!cb) return null; return _addClipFromBlob(cb,{day:cm.day,cap:cm.cap}).then(function(clip){
+      /* CORRECTION BUG : on applique les réglages au clip RÉELLEMENT créé (pas CLIPS[length-1] qui peut être le mauvais en parallèle) */
+      if(!clip || clip===false) return null;
+      if(cm.trimStart!=null) clip.trimStart=cm.trimStart;
+      if(cm.trimEnd!=null) clip.trimEnd=cm.trimEnd;
+      if(cm.speed) clip.speed=cm.speed;
+      if(cm.color) clip.color=cm.color;
+      clip.sound=!!cm.sound;
+      if(cm.bal!=null) clip.bal=cm.bal;
+      return clip;
+    }); }).catch(function(){ return null; }); }));
   }
   _clipsP.then(function(){
     /* poser l'identité de la musique du film pour que la récupération auto des paroles fonctionne */
@@ -10077,8 +10090,9 @@ function finishAnalyze(){
 
 document.getElementById("pickVideo").onclick=function(){ document.getElementById("fVideo").click(); };
 document.getElementById("fVideo").onchange=function(e){ var files=Array.prototype.slice.call(e.target.files||[]); e.target.value=""; if(!files.length) return;
+  var _remaining=Math.max(0, window.MAX_VIDEO_CLIPS-CLIPS.length); files=files.slice(0,_remaining);
   files.forEach(function(fl){
-    if(CLIPS.length>=MAX_VIDEO_CLIPS){ if(typeof setState==="function") setState("Maximum "+MAX_VIDEO_CLIPS+" clips vidéo pendant la validation du nouveau moteur."); return; }
+    if(CLIPS.length>=window.MAX_VIDEO_CLIPS){ if(typeof setState==="function") setState("Maximum "+window.MAX_VIDEO_CLIPS+" clips vidéo."); return; }
     var v=document.createElement("video"); v.muted=true; v.setAttribute("playsinline",""); v.setAttribute("webkit-playsinline","");
     v.style.cssText="position:fixed;left:0;bottom:0;width:128px;height:72px;opacity:0.02;pointer-events:none;z-index:-1";
     var u=URL.createObjectURL(fl); v.src=u; v._u=u;
