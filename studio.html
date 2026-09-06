@@ -8630,7 +8630,7 @@ function _openLangPicker(){
   bg.style.cssText="position:fixed;inset:0;z-index:100050;background:rgba(0,0,0,.62);backdrop-filter:blur(4px);display:flex;align-items:flex-end;justify-content:center;font-family:system-ui,-apple-system,sans-serif";
   var card=document.createElement("div");
   card.style.cssText="width:100%;max-width:520px;background:#0f0e0d;border:1px solid #282622;border-radius:22px 22px 0 0;padding:8px 10px 22px;max-height:78vh;overflow:auto;box-shadow:0 -10px 50px rgba(0,0,0,.7)";
-  var head="<div style=\"text-align:center;padding:12px 0 6px\"><div style=\"width:40px;height:4px;background:#3a3733;border-radius:3px;margin:0 auto 12px\"></div><div style=\"color:#f4f7fc;font:700 17px system-ui\">\uD83C\uDF10 "+_st("Langue des paroles")+"</div><div style=\"color:#8a93a6;font:500 12.5px system-ui;margin-top:3px\">"+_st("Traduction synchronisée au rythme")+" \u00b7 v960</div></div>";
+  var head="<div style=\"text-align:center;padding:12px 0 6px\"><div style=\"width:40px;height:4px;background:#3a3733;border-radius:3px;margin:0 auto 12px\"></div><div style=\"color:#f4f7fc;font:700 17px system-ui\">\uD83C\uDF10 "+_st("Langue des paroles")+"</div><div style=\"color:#8a93a6;font:500 12.5px system-ui;margin-top:3px\">"+_st("Traduction synchronisée au rythme")+" \u00b7 v962</div></div>";
   var rows="";
   for(var i=0;i<window._LYRICS_LANGS.length;i++){ var code=window._LYRICS_LANGS[i][0], name=window._LYRICS_LANGS[i][1], fl=_LANG_FLAGS[code]||"\uD83C\uDF10", on=(window._LYRICS_LANG===code);
     rows+="<button class=\"lang-opt\" data-l=\""+code+"\" style=\"display:flex;align-items:center;gap:13px;width:100%;text-align:left;background:"+(on?"rgba(122,208,160,.14)":"none")+";border:1px solid "+(on?"rgba(122,208,160,.5)":"transparent")+";color:#f4f7fc;font:600 15.5px system-ui;padding:14px 15px;border-radius:13px;cursor:pointer;margin:3px 0\"><span style=\"font-size:22px\">"+fl+"</span><span style=\"flex:1\">"+name+"</span>"+(on?"<span style=\"color:#7ad0a0;font-size:18px\">\u2713</span>":"")+"</button>";
@@ -10667,6 +10667,16 @@ essentiaReady.then(function(ok){ if(!ok && !A){ /* silencieux : le repli se fait
   }
   /* Envoie l'audio + les paroles collées au worker : il transcrit pour les TEMPS puis y plante le vrai TEXTE,
      et stocke le LRC corrigé dans music_catalog.lyrics. Karaoké + traduction utilisent alors les vrais mots. */
+  function _adminSecret(){
+    try{
+      var k=window.__ADMIN_SECRET;
+      if(k) return k;
+      k=(window.prompt&&window.prompt("Cl\u00e9 admin (pour enregistrer les paroles) :"))||"";
+      k=String(k).trim();
+      if(k){ window.__ADMIN_SECRET=k; }   // gardée pour la session uniquement (jamais dans le fichier)
+      return k;
+    }catch(e){ return ""; }
+  }
   function _studioSetLyrics(track, official){
     try{
       var base=(function(){ try{ return (window.parent&&window.parent.WORKER_URL)||window.WORKER_URL||"https://magot-voyage-api.fidelevictoire01.workers.dev"; }catch(e){ return "https://magot-voyage-api.fidelevictoire01.workers.dev"; } })().replace(/\/+$/,"");
@@ -10674,9 +10684,10 @@ essentiaReady.then(function(ok){ if(!ok && !A){ /* silencieux : le repli se fait
       if(!id){ setState(_st("Musique non publi\u00e9e (pas d'identifiant).")); return; }
       if(!url){ setState(_st("Audio introuvable pour la transcription.")); return; }
       setState("\uD83C\uDFA4 "+_st("Calage des paroles en cours\u2026"));
-      fetch(base+"/lyrics/transcribe",{ method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify({ id:id, url:url, official:(official||"") }) })
+      var _sec=_adminSecret(); if(!_sec){ setState(_st("Cl\u00e9 admin requise pour enregistrer les paroles.")); return; }
+      fetch(base+"/lyrics/transcribe",{ method:"POST", headers:{"Content-Type":"application/json","X-Admin-Secret":_sec}, body:JSON.stringify({ id:id, url:url, official:(official||"") }) })
         .then(function(r){ return r.json(); })
-        .then(function(d){ if(d&&d.lrc){ track.lyrics=d.lrc; setState("\u2713 "+_st("Paroles enregistr\u00e9es et cal\u00e9es.")); try{ if(typeof window.__reloadCatalog==="function") window.__reloadCatalog(); }catch(e){} } else { setState(_st("\u00c9chec du calage.")+((d&&d.error)?(" ("+d.error+")"):"")); } })
+        .then(function(d){ if(d&&d.lrc){ track.lyrics=d.lrc; setState("\u2713 "+_st("Paroles enregistr\u00e9es et cal\u00e9es.")); try{ if(typeof window.__reloadCatalog==="function") window.__reloadCatalog(); }catch(e){} } else if(d&&d.error==="admin_requis"){ try{ window.__ADMIN_SECRET=""; }catch(e){} setState(_st("Cl\u00e9 admin refus\u00e9e. R\u00e9essaie.")); } else { setState(_st("\u00c9chec du calage.")+((d&&d.error)?(" ("+d.error+")"):"")); } })
         .catch(function(){ setState(_st("\u00c9chec r\u00e9seau (paroles).")); });
     }catch(e){}
   }
@@ -11036,8 +11047,8 @@ essentiaReady.then(function(ok){ if(!ok && !A){ /* silencieux : le repli se fait
   function _resetCapSizeToSub(p){ try{ if(p && p._capSize!=null && Math.abs(p._capSize-1)>0.001){ p._capSize=1; } }catch(e){} }
   function openTextEditor(i){
     var p=PHOTOS[i]; if(!p) return;
-    var STYLES=[["auto","Style : Auto"],["title","Titre"],["voyageor","Odyss\u00e9e Or"],["voyagebleu","Cin\u00e9 Bleu"],["voyageviolet","N\u00e9on Violet"],["voyagesommet","Sommet Or"],["voyagerouge","Studio Rouge"],["cinema","Cin\u00e9ma"],["elegant","\u00c9l\u00e9gant"],["band","Bande info"],["broadcast","Bulletin TV"],["documentary","Documentaire"],["subtitle","Sous-titre"],["box","Encadr\u00e9"],["line","Ligne"],["voyage","Voyage"],["doux","Doux"],["dynamique","Dynamique"],["karaoke","Mot par mot"],["credits","G\u00e9n\u00e9rique"],["flash","Flash or"],["flashv","Flash violet"]];
-    var ANIMS=[["auto","Anim : Auto"],["none","Aucune"],["fade","Fondu"],["up","Monter"],["down","Descendre"],["slide","Glisser"],["zoom","Zoom"],["beat","Zoom rythm\u00e9"],["word","Mot \u00e0 mot"],["type","Machine"]];
+    var STYLES=[["auto","Style : Auto"],["title","Titre"],["cinema","Cin\u00e9ma"],["subtitle","Sous-titre"],["voyageor","Voyage"],["documentary","Documentaire"],["band","Bande info"],["credits","G\u00e9n\u00e9rique"]];
+    var ANIMS=[["auto","Anim : Auto"],["none","Aucune"],["fade","Fondu"],["zoom","Zoom"],["slide","Glisser"],["type","Machine"]];
     var FONTS=[["","Police : Syst\u00e8me"],['"Times New Roman",Times,serif',"Times New Roman"],['"Poppins",system-ui,sans-serif',"Poppins"],['"Playfair Display",Georgia,serif',"Playfair Display"],['"Montserrat",system-ui,sans-serif',"Montserrat"],['"Raleway",system-ui,sans-serif',"Raleway"],['"DM Serif Display",Georgia,serif',"DM Serif"],['"Lora",Georgia,serif',"Lora"],['"Caveat","Snell Roundhand",cursive',"Caveat"]];
     var POSIT=[["bottom","Position : Bas"],["mid","Milieu"],["top","Haut"]];
     var ALIGN=[["center","Align : Centre"],["left","Gauche"],["right","Droite"]];
@@ -11158,7 +11169,7 @@ essentiaReady.then(function(ok){ if(!ok && !A){ /* silencieux : le repli se fait
   function openStyleMenu(i, anchorEl){
     var p=PHOTOS[i]; if(!p) return;
     var cur=p._capStyle||"auto";
-    var opts=[["auto","Auto (mode)"],["cinema","Cin\u00e9ma"],["doux","Doux"],["voyage","Voyage"],["dynamique","Dynamique"],["band","Bande info"],["documentary","Documentaire"],["subtitle","Sous-titre"],["box","Encadr\u00e9"],["line","Ligne"],["title","Titre"],["elegant","\u00c9l\u00e9gant"],["karaoke","Mot par mot"],["credits","G\u00e9n\u00e9rique"],["broadcast","Bulletin TV"],["flash","Flash or"],["flashv","Flash violet"]];
+    var opts=[["auto","Auto (mode)"],["title","Titre"],["cinema","Cin\u00e9ma"],["subtitle","Sous-titre"],["voyageor","Voyage"],["documentary","Documentaire"],["band","Bande info"],["credits","G\u00e9n\u00e9rique"]];
     var ex=document.getElementById("styleDD"); if(ex) ex.remove();
     var exb=document.getElementById("styleDDbd"); if(exb) exb.remove();
     var bd=document.createElement("div"); bd.id="styleDDbd"; bd.className="style-dd-bd"; document.body.appendChild(bd);
