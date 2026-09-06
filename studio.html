@@ -1973,9 +1973,14 @@ function _mmtDraw(ctx,opt){
   var GOLD=(opt.band||_GOLD), WHITE=(opt.fill||_WHITE);
   var FF=(opt.font||"-apple-system,'SF Pro Display',system-ui,sans-serif"); var _szM=(+opt.sizeMul>0?+opt.sizeMul:1);
   /* TAILLES basées sur le PETIT COTE -> identiques en 9:16, 16:9, 4:5, 1:1 */
-  var fs=Math.max(13,Math.round(S*(role==="title"?0.058:0.047)*_szM));
+  var _subScale=(typeof window!=="undefined"&&typeof window._SUB_SCALE==="number"&&window._SUB_SCALE>0)?window._SUB_SCALE:0.036;
+  var _cmtFs=Math.max(13,Math.round(H*_subScale*_szM));   /* taille commentaire = sous-titre */
+  var fs=(role==="comment")?_cmtFs:(role==="title"?Math.max(_cmtFs,Math.round(S*0.058*_szM)):Math.max(13,Math.round(S*0.047*_szM)));   /* commentaires = sous-titre ; titres jamais plus petits que les commentaires */
   var small=Math.max(11,Math.round(fs*0.52));
-  var lh=fs*1.22, _cpos=(opt.pos||"bottom"), bottom=(_cpos==="top"?Math.round(H*0.17):(_cpos==="mid"?Math.round(H*0.5):H-Math.round(H*0.072))), beat=(opt.beat||0);
+  var _cpos=(opt.pos||"bottom");
+  var _subOn=false; try{ _subOn=(window._LYRICS_ON===true) && window._SUBS && window._SUBS().length>0; }catch(e){}
+  var _subLift=(_subOn && _cpos!=="top" && _cpos!=="mid")?Math.round(H*0.145):0;   /* remonte les commentaires au-dessus de la bande de sous-titres */
+  var lh=fs*1.22, bottom=(_cpos==="top"?Math.round(H*0.17):(_cpos==="mid"?Math.round(H*0.5):H-Math.round(H*0.072)-_subLift)), beat=(opt.beat||0);
   var colText=S*0.86, colCard=S*0.76;
   var i,yy,g,lines,blockH,wmax=0,cy,left,boxW,boxH,tx,topY;
   ctx.save(); ctx.globalAlpha=alpha; ctx.textBaseline="alphabetic";
@@ -2121,7 +2126,7 @@ function _mmtDraw(ctx,opt){
     ctx.restore(); return;
   }
   if(st.kind==="travel"){
-    var eyeb="\u25C6 CARNET DE VOYAGE";
+    var eyeb=(opt.dayNum!=null)?("\u25C6 JOUR "+opt.dayNum):"\u25C6 CARNET DE VOYAGE";   /* jour fusionné dans la légende */
     cy=bottom-blockH*0.5; left=S*0.075; boxW=Math.min(W*0.9,wmax+fs*1.8); boxH=blockH+fs*1.55;
     topY=cy-boxH/2-fs*0.4; _scrimTo(ctx,W,H,topY,alpha*0.6);
     ctx.translate(dx,dy);
@@ -2163,12 +2168,12 @@ function _mmtDraw(ctx,opt){
   _soft(ctx,fs,0.34); _lines(ctx,lines,0,-blockH/2+fs*0.82,lh,fs,_ual,WHITE,_STK);
   ctx.restore();
 }
-function drawCaption(ctx,Wd,Hd,text,ox,into,dur,abs,style,anim,fill,band,font,sizeMul,pos,align){
+function drawCaption(ctx,Wd,Hd,text,ox,into,dur,abs,style,anim,fill,band,font,sizeMul,pos,align,dayNum){
   if(!text) return;
   var be=0,bt=0;
   if(typeof A!=="undefined"&&A&&A.beats&&A.beats.length){ var segS=abs-into, segE=segS+dur; for(var bk=0;bk<A.beats.length;bk++){ var bb=A.beats[bk]; if(bb>=segS-0.001 && bb<=segE+0.001){ bt++; if(bb<=abs+0.001) be++; } } }
   ctx.save(); if(ox) ctx.translate(ox,0);
-  _mmtDraw(ctx,{text:text,width:Wd,height:Hd,time:into,duration:dur,mood:(typeof MOOD!=="undefined"?MOOD:"cinema"),style:(style||"auto"),anim:(anim||"auto"),role:"comment",beat:capBeatPulse(abs),beatsElapsed:be,beatsTotal:bt,fill:fill,band:band,font:font,sizeMul:sizeMul,pos:pos,align:align});
+  _mmtDraw(ctx,{text:text,width:Wd,height:Hd,time:into,duration:dur,mood:(typeof MOOD!=="undefined"?MOOD:"cinema"),style:(style||"auto"),anim:(anim||"auto"),role:"comment",beat:capBeatPulse(abs),beatsElapsed:be,beatsTotal:bt,fill:fill,band:band,font:font,sizeMul:sizeMul,pos:pos,align:align,dayNum:dayNum});
   ctx.restore();
 }
 
@@ -2213,19 +2218,33 @@ function drawSegAt(sg,t,ox,smul){
   bctx.drawImage(img,-wf/2,-hf/2,wf,hf);
   if(_shp){ try{ bctx.filter="none"; }catch(e){} }
   bctx.restore();
-  if(sg && sg.img>=0 && PHOTOS[sg.img] && PHOTOS[sg.img]._cap){ var _cp=(""+PHOTOS[sg.img]._cap).trim(); if(_cp){ try{ var _cs=PHOTOS[sg.img]._capStyle||(typeof window!=="undefined"&&window.CAPPRESET)||"auto"; var _ca=PHOTOS[sg.img]._capAnim||(typeof window!=="undefined"&&window.CAPANIM)||"auto"; drawCaption(bctx,Wd,Hd,_cp,ox,(t-sg.start),(sg.end-sg.start),t,_cs,_ca,PHOTOS[sg.img]._capColor,PHOTOS[sg.img]._capBand,PHOTOS[sg.img]._capFont,PHOTOS[sg.img]._capSize,PHOTOS[sg.img]._capPos,PHOTOS[sg.img]._capAlign); }catch(_ce){} } }
-  if(sg && sg._dayStart!=null && (typeof window==="undefined"||window.DAY_MARKERS!==false)){ try{ drawDayMarker(bctx,Wd,Hd,sg._dayStart,(t-sg.start)); }catch(_de){} }
+  var _dayN=(sg && sg._dayStart!=null)?sg._dayStart:null;
+  var _hasCap=!!(sg && sg.img>=0 && PHOTOS[sg.img] && PHOTOS[sg.img]._cap && (""+PHOTOS[sg.img]._cap).trim());
+  if(_hasCap){ var _cp=(""+PHOTOS[sg.img]._cap).trim(); try{ var _cs=PHOTOS[sg.img]._capStyle||(typeof window!=="undefined"&&window.CAPPRESET)||"auto"; var _ca=PHOTOS[sg.img]._capAnim||(typeof window!=="undefined"&&window.CAPANIM)||"auto"; drawCaption(bctx,Wd,Hd,_cp,ox,(t-sg.start),(sg.end-sg.start),t,_cs,_ca,PHOTOS[sg.img]._capColor,PHOTOS[sg.img]._capBand,PHOTOS[sg.img]._capFont,PHOTOS[sg.img]._capSize,PHOTOS[sg.img]._capPos,PHOTOS[sg.img]._capAlign,_dayN); }catch(_ce){} }
+  /* chip "JOUR N" en bas seulement si la 1re photo du jour n'a PAS de légende (sinon fusionné ci-dessus) */
+  if(_dayN!=null && !_hasCap && (typeof window==="undefined"||window.DAY_MARKERS!==false)){ try{ drawDayMarker(bctx,Wd,Hd,_dayN,(t-sg.start)); }catch(_de){} }
 }
 /* Repère de chapitre "JOUR N" : haut de l'image, en fondu, sur la 1re photo de chaque journée. */
+/* Chip "JOUR N" en BAS (à la place de la légende), relevé au-dessus de la bande de sous-titres. */
 function drawDayMarker(ctx,Wd,Hd,day,into){
   var HOLD=2.6; if(into>HOLD||into<0) return;
   var a=1; if(into<0.4) a=into/0.4; else if(into>HOLD-0.6) a=Math.max(0,(HOLD-into)/0.6); a=Math.max(0,Math.min(1,a));
-  var S=Wd/1080, cx=Wd/2, y=Hd*0.12;
-  ctx.save(); ctx.globalAlpha=a; ctx.textAlign="center"; ctx.textBaseline="middle";
-  var g=ctx.createLinearGradient(0,0,0,y+70*S); g.addColorStop(0,"rgba(0,0,0,0.5)"); g.addColorStop(1,"rgba(0,0,0,0)");
-  ctx.fillStyle=g; ctx.fillRect(0,0,Wd,y+70*S);
-  ctx.fillStyle="#f4bd4a"; ctx.font="700 "+(15*S)+"px system-ui,-apple-system,sans-serif";
-  ctx.fillText("\u2014  JOUR  "+day+"  \u2014", cx, y);
+  var subOn=false; try{ subOn=(window._LYRICS_ON===true)&&window._SUBS&&window._SUBS().length>0; }catch(e){}
+  var lift=subOn?Math.round(Hd*0.145):0;
+  var fs=Math.max(13,Math.round(Hd*0.036)), left=Math.round(Math.min(Wd,Hd)*0.075);
+  var txt="\u25C6 JOUR "+day;
+  ctx.save(); ctx.globalAlpha=a; ctx.textAlign="left"; ctx.textBaseline="middle";
+  ctx.font="700 "+Math.round(fs*0.92)+"px system-ui,-apple-system,sans-serif";
+  var tw=ctx.measureText(txt).width, padX=fs*0.7, padY=fs*0.4;
+  var boxW=tw+padX*2, boxH=fs+padY*2;
+  var cyc=Hd-Math.round(Hd*0.072)-lift-boxH*0.5, boxX=left, boxTop=cyc-boxH/2;
+  ctx.fillStyle="rgba(8,8,8,.55)";
+  var r=Math.min(fs*0.3,boxH/2);
+  ctx.beginPath(); ctx.moveTo(boxX+r,boxTop); ctx.lineTo(boxX+boxW-r,boxTop); ctx.arcTo(boxX+boxW,boxTop,boxX+boxW,boxTop+r,r);
+  ctx.lineTo(boxX+boxW,boxTop+boxH-r); ctx.arcTo(boxX+boxW,boxTop+boxH,boxX+boxW-r,boxTop+boxH,r);
+  ctx.lineTo(boxX+r,boxTop+boxH); ctx.arcTo(boxX,boxTop+boxH,boxX,boxTop+boxH-r,r);
+  ctx.lineTo(boxX,boxTop+r); ctx.arcTo(boxX,boxTop,boxX+r,boxTop,r); ctx.closePath(); ctx.fill();
+  ctx.fillStyle="#f4bd4a"; ctx.fillText(txt, boxX+padX, cyc);
   ctx.restore();
 }
 function renderBaseFrame(t){
@@ -8564,7 +8583,7 @@ function _openLangPicker(){
   bg.style.cssText="position:fixed;inset:0;z-index:100050;background:rgba(0,0,0,.62);backdrop-filter:blur(4px);display:flex;align-items:flex-end;justify-content:center;font-family:system-ui,-apple-system,sans-serif";
   var card=document.createElement("div");
   card.style.cssText="width:100%;max-width:520px;background:#0f0e0d;border:1px solid #282622;border-radius:22px 22px 0 0;padding:8px 10px 22px;max-height:78vh;overflow:auto;box-shadow:0 -10px 50px rgba(0,0,0,.7)";
-  var head="<div style=\"text-align:center;padding:12px 0 6px\"><div style=\"width:40px;height:4px;background:#3a3733;border-radius:3px;margin:0 auto 12px\"></div><div style=\"color:#f4f7fc;font:700 17px system-ui\">\uD83C\uDF10 "+_st("Langue des paroles")+"</div><div style=\"color:#8a93a6;font:500 12.5px system-ui;margin-top:3px\">"+_st("Traduction synchronisée au rythme")+" \u00b7 v955</div></div>";
+  var head="<div style=\"text-align:center;padding:12px 0 6px\"><div style=\"width:40px;height:4px;background:#3a3733;border-radius:3px;margin:0 auto 12px\"></div><div style=\"color:#f4f7fc;font:700 17px system-ui\">\uD83C\uDF10 "+_st("Langue des paroles")+"</div><div style=\"color:#8a93a6;font:500 12.5px system-ui;margin-top:3px\">"+_st("Traduction synchronisée au rythme")+" \u00b7 v957</div></div>";
   var rows="";
   for(var i=0;i<window._LYRICS_LANGS.length;i++){ var code=window._LYRICS_LANGS[i][0], name=window._LYRICS_LANGS[i][1], fl=_LANG_FLAGS[code]||"\uD83C\uDF10", on=(window._LYRICS_LANG===code);
     rows+="<button class=\"lang-opt\" data-l=\""+code+"\" style=\"display:flex;align-items:center;gap:13px;width:100%;text-align:left;background:"+(on?"rgba(122,208,160,.14)":"none")+";border:1px solid "+(on?"rgba(122,208,160,.5)":"transparent")+";color:#f4f7fc;font:600 15.5px system-ui;padding:14px 15px;border-radius:13px;cursor:pointer;margin:3px 0\"><span style=\"font-size:22px\">"+fl+"</span><span style=\"flex:1\">"+name+"</span>"+(on?"<span style=\"color:#7ad0a0;font-size:18px\">\u2713</span>":"")+"</button>";
