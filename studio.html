@@ -2048,14 +2048,16 @@ function _mmtDraw(ctx,opt){
   var _subOn=false; try{ _subOn=(window._LYRICS_ON===true) && window._SUBS && window._SUBS().length>0; }catch(e){}
   var _subLift=0;
   if(_subOn && _cpos!=="top" && _cpos!=="mid"){
-    var _rows=_mmtKaraokeRows(ctx,W,H,+opt.absTime||0);
-    if(_rows>0){
-      var _karaokeFs=Math.max(20,Math.round(H*_subScale));
-      var _karaokeBoxH=_karaokeFs*1.44, _karaokeGap=_karaokeFs*0.16;
-      var _karaokeTop=H*0.91-(_rows*_karaokeBoxH)-(Math.max(0,_rows-1)*_karaokeGap);
-      var _captionBaseBottom=H-H*0.072, _wantedCaptionBottom=_karaokeTop-H*0.018;
-      _subLift=Math.max(0,Math.round(_captionBaseBottom-_wantedCaptionBottom));
-    }
+    /* ESPACEMENT FIXE (plus de recalcul permanent qui fait "danser" le texte) :
+       - sans traduction (LANG=orig) : le karaoké mot-à-mot tient sur 1 ligne -> écart fixe 1 ligne
+       - avec traduction active : on réserve l'espace pour 2 lignes -> écart fixe 2 lignes */
+    var _trOn=false; try{ _trOn=(window._LYRICS_LANG && window._LYRICS_LANG!=="orig"); }catch(e){}
+    var _rows=_trOn?2:1;
+    var _karaokeFs=Math.max(20,Math.round(H*_subScale));
+    var _karaokeBoxH=_karaokeFs*1.44, _karaokeGap=_karaokeFs*0.16;
+    var _karaokeTop=H*0.91-(_rows*_karaokeBoxH)-(Math.max(0,_rows-1)*_karaokeGap);
+    var _captionBaseBottom=H-H*0.072, _wantedCaptionBottom=_karaokeTop-H*0.018;
+    _subLift=Math.max(0,Math.round(_captionBaseBottom-_wantedCaptionBottom));
   }
   var lh=fs*1.22, bottom=(_cpos==="top"?Math.round(H*0.17):(_cpos==="mid"?Math.round(H*0.5):H-Math.round(H*0.072)-_subLift)), beat=(opt.beat||0);
   var colText=S*0.86, colCard=S*0.76;
@@ -2095,11 +2097,18 @@ function _mmtDraw(ctx,opt){
   }
   /* ---------- Générique façon film : centré, renvoi à la ligne, remonte ---------- */
   if(st.kind==="credits"){
-    ctx.font=st.weight+" "+fs+"px "+FF;
-    lines=_mmtWrap(ctx,text,S*0.80,12); var clh=fs*1.5; blockH=lines.length*clh;
-    var prog=_mmtClamp(time/Math.max(0.2,duration),0,1);
-    var y0=(H+fs*1.2)+((-blockH-fs*0.8)-(H+fs*1.2))*prog;
-    ctx.textAlign="center"; _soft(ctx,fs,0.45); _lines(ctx,lines,W/2,y0,clh,fs,"center",WHITE,_STK);
+    /* Générique (spec maquette) : texte centré fixe à 0.52 x H, petit, trait doré au-dessus, léger voile */
+    var _crFs=Math.round(H*0.026);
+    ctx.save(); ctx.globalAlpha=alpha;
+    ctx.fillStyle="rgba(9,13,20,0.38)"; ctx.fillRect(0,0,W,H);   /* voile général discret */
+    ctx.font="500 "+_crFs+"px "+FF;
+    var _crLines=_mmtWrap(ctx,text,W*0.72,12), _crLh=_crFs*1.55, _crBlockH=_crLines.length*_crLh;
+    var _crCy=H*0.52;
+    /* trait doré centré au-dessus du bloc */
+    _noSh(ctx); ctx.fillStyle="#D3A33B"; var _crAcW=W*0.10, _crAcH=Math.max(2,H*0.0031);
+    ctx.fillRect(W/2-_crAcW/2, _crCy-_crBlockH/2-_crFs*0.6, _crAcW, _crAcH);
+    ctx.textAlign="center"; _soft(ctx,_crFs,0.42);
+    _lines(ctx,_crLines,W/2,_crCy-_crBlockH/2+_crFs*0.82,_crLh,_crFs,"center","#F7F5F0","rgba(0,0,0,0.45)");
     ctx.restore(); return;
   }
   /* ---------- BROADCAST : chyron, hauteur fixe (petit côté) ---------- */
@@ -2254,14 +2263,17 @@ function _mmtDraw(ctx,opt){
     ctx.restore(); return;
   }
   if(st.kind==="title"){
-    var _titleFs=Math.round(fs*1.42);
-    ctx.font="760 "+_titleFs+"px "+FF;
-    var _titleLines=_mmtWrap(ctx,text,W*0.78,3);
+    var _titleFs=Math.round(H*0.052);                 /* spec : 0.052 x H */
+    ctx.font="700 "+_titleFs+"px "+FF;
+    var _titleLines=_mmtWrap(ctx,text,W*0.82,3);
     var _titleLh=_titleFs*1.12, _titleBlockH=_titleLines.length*_titleLh;
-    var _titleY=H*0.38, _titleScale=0.985+0.015*ein;
-    ctx.translate(W/2,_titleY); ctx.scale(_titleScale,_titleScale); ctx.textAlign="center";
+    var _titleY=H*0.38, _titleScale=0.985+0.015*ein;   /* centre à 0.38 x H, échelle douce */
+    ctx.save(); ctx.globalAlpha=alpha; ctx.translate(W/2,_titleY); ctx.scale(_titleScale,_titleScale); ctx.textAlign="center";
     _soft(ctx,_titleFs,0.42);
-    _lines(ctx,_titleLines,0,-_titleBlockH/2+_titleFs*0.82,_titleLh,_titleFs,"center","#F8F7F3","rgba(0,0,0,0.46)");
+    _lines(ctx,_titleLines,0,-_titleBlockH/2+_titleFs*0.82,_titleLh,_titleFs,"center","#F7F5F0","rgba(0,0,0,0.52)");
+    /* trait doré centré sous le titre (spec : largeur 0.137 x W) */
+    _noSh(ctx); ctx.fillStyle="#D3A33B"; var _acW=W*0.137, _acH=Math.max(2,H*0.0031);
+    ctx.fillRect(-_acW/2, _titleBlockH/2+_titleFs*0.30, _acW, _acH);
     ctx.restore(); return;
   }
   if(st.kind==="box"){
