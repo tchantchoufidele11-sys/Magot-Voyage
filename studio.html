@@ -2008,6 +2008,26 @@ function _softBg(){}
 /* lignes de texte : contour sombre fin + remplissage (net, façon CapCut/iMovie) */
 function _lines(ctx,arr,x,y0,lh,fs,align,fill,stroke){ ctx.textAlign=align||"left"; if(stroke){ ctx.lineJoin="round"; try{ctx.miterLimit=2;}catch(e){} } for(var i=0;i<arr.length;i++){ if(stroke){ ctx.lineWidth=Math.max(1.5,fs*0.058); ctx.strokeStyle=stroke; ctx.strokeText(arr[i],x,y0); } ctx.fillStyle=fill; ctx.fillText(arr[i],x,y0); y0+=lh; } }
 var _STK="rgba(3,7,12,.5)";
+function _mmtSubMaxRows(W,H){
+  try{
+    if(typeof window._SUB_MAXROWS==="number" && window._SUB_MAXROWS>0 && window.__SUB_MAXROWS_W===W) return window._SUB_MAXROWS;
+    if(!SUBS || !SUBS.length) return 1;
+    var scale=(typeof window._SUB_SCALE==="number" && window._SUB_SCALE>0)?window._SUB_SCALE:0.036;
+    var kfs=Math.max(20,Math.round(H*scale));
+    var cvs=document.createElement("canvas"), cx=cvs.getContext("2d");
+    cx.font="700 "+kfs+"px "+(typeof FF!=="undefined"?FF:"system-ui,sans-serif");
+    var maxW=W*0.90, maxRows=1;
+    for(var i=0;i<SUBS.length;i++){
+      var words=String(SUBS[i].text||"").split(/\s+/).filter(Boolean), rows=1, cur=0, spW=cx.measureText(" ").width;
+      for(var j=0;j<words.length;j++){ var ww=cx.measureText(words[j]).width, add=(cur>0?spW:0)+ww;
+        if(cur>0 && cur+add>maxW){ rows++; cur=ww; } else { cur+=add; } }
+      if(rows>maxRows) maxRows=rows;
+    }
+    maxRows=Math.min(2,maxRows);
+    window._SUB_MAXROWS=maxRows; window.__SUB_MAXROWS_W=W;
+    return maxRows;
+  }catch(e){ return 1; }
+}
 function _mmtKaraokeRows(ctx,W,H,mt){
   try{
     if(window._LYRICS_ON!==true || !window._SUBS || !window._SUBS().length) return 0;
@@ -2037,7 +2057,12 @@ function _mmtDraw(ctx,opt){
   var TR=Math.max(0.12,Math.min(st.transition,duration*0.42));
   var pin=_mmtClamp(time/TR,0,1), pout=_mmtClamp((duration-time)/TR,0,1), ein=_mmtEoc(pin);
   var alpha=Math.min(ein,_mmtEoc(pout)); if(st.kind==="credits") alpha=1; if(alpha<=0.01) return;
-  var GOLD=(opt.band||_GOLD), WHITE=(opt.fill||_WHITE);
+  var GOLD=(opt.band||_GOLD);
+  /* Lisibilité : si aucune couleur ou couleur trop sombre enregistrée, on force un blanc cassé lisible. */
+  var WHITE=(function(){ var c=opt.fill; if(!c) return _WHITE;
+    try{ var m=String(c).replace("#","").match(/^([0-9a-f]{2})([0-9a-f]{2})([0-9a-f]{2})$/i);
+      if(m){ var lum=(parseInt(m[1],16)*0.299+parseInt(m[2],16)*0.587+parseInt(m[3],16)*0.114); if(lum<90) return _WHITE; } }catch(e){}
+    return c; })();
   var FF=(opt.font||"-apple-system,'SF Pro Display',system-ui,sans-serif"); var _szM=(+opt.sizeMul>0?+opt.sizeMul:1);
   /* TAILLES basées sur le PETIT COTE -> identiques en 9:16, 16:9, 4:5, 1:1 */
   var _subScale=(typeof window!=="undefined"&&typeof window._SUB_SCALE==="number"&&window._SUB_SCALE>0)?window._SUB_SCALE:0.036;
@@ -2048,16 +2073,12 @@ function _mmtDraw(ctx,opt){
   var _subOn=false; try{ _subOn=(window._LYRICS_ON===true) && window._SUBS && window._SUBS().length>0; }catch(e){}
   var _subLift=0;
   if(_subOn && _cpos!=="top" && _cpos!=="mid"){
-    /* ESPACEMENT FIXE (plus de recalcul permanent qui fait "danser" le texte) :
-       - sans traduction (LANG=orig) : le karaoké mot-à-mot tient sur 1 ligne -> écart fixe 1 ligne
-       - avec traduction active : on réserve l'espace pour 2 lignes -> écart fixe 2 lignes */
-    var _trOn=false; try{ _trOn=(window._LYRICS_LANG && window._LYRICS_LANG!=="orig"); }catch(e){}
-    var _rows=_trOn?2:1;
-    var _karaokeFs=Math.max(20,Math.round(H*_subScale));
-    var _karaokeBoxH=_karaokeFs*1.44, _karaokeGap=_karaokeFs*0.16;
-    var _karaokeTop=H*0.91-(_rows*_karaokeBoxH)-(Math.max(0,_rows-1)*_karaokeGap);
-    var _captionBaseBottom=H-H*0.072, _wantedCaptionBottom=_karaokeTop-H*0.018;
-    _subLift=Math.max(0,Math.round(_captionBaseBottom-_wantedCaptionBottom));
+    /* Remontée dynamique de la LÉGENDE selon le nb de lignes du karaoké AFFICHÉ à cet instant.
+       Le sous-titre karaoké, lui, ne bouge pas (il reste à H*0.91). */
+    var _subRows=_mmtKaraokeRows(ctx,W,H,+opt.absTime||0);
+    if(_subRows===1) _subLift=Math.round(H*0.088);
+    else if(_subRows>=2) _subLift=Math.round(H*0.145);
+    else _subLift=0;   /* aucune parole affichée -> pas de remontée */
   }
   var lh=fs*1.22, bottom=(_cpos==="top"?Math.round(H*0.17):(_cpos==="mid"?Math.round(H*0.5):H-Math.round(H*0.072)-_subLift)), beat=(opt.beat||0);
   var colText=S*0.86, colCard=S*0.76;
@@ -8595,7 +8616,7 @@ function _readEmbeddedLyrics(blob, cb){ try{
   }catch(e){ cb(null); } }).catch(function(){ cb(null); });
 }catch(e){ cb(null); } }
 function _lrcParseTag(mm){ var p=String(mm).split(":"); return parseInt(p[0],10)*60+parseFloat(p[1]); }
-function _parseLRC(txt){ SUBS=[]; if(!txt) return 0; var ls=String(txt).split(/\r?\n/);
+function _parseLRC(txt){ SUBS=[]; try{ window._SUB_MAXROWS=null; }catch(e){} if(!txt) return 0; var ls=String(txt).split(/\r?\n/);
   /* KARAOKÉ = LRC minuté. Gère le LRC ENRICHI : <mm:ss.xx>mot par mot (timing réel WhisperX). */
   for(var i=0;i<ls.length;i++){ var m=ls[i].match(/^\s*\[(\d+):(\d+(?:[.:]\d+)?)\]\s*(.*)$/); if(!m) continue;
     var sec=parseInt(m[1],10)*60+parseFloat(String(m[2]).replace(":",".")); var body=(m[3]||"");
