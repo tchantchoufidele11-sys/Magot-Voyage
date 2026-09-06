@@ -1242,6 +1242,8 @@ function renderPlanToBuffer(dur, sr){
 function analyzeBufferInto(buf, cb){ try{ essentiaReady.then(function(ok){ if(ok){ setTimeout(function(){ try{ toMono44(buf,function(sig,sr){ var An; try{ An=analyzeEssentia(sig,sr,buf.duration); }catch(e){ An=analyzeCustom(buf); } cb(An); }); }catch(e){ cb(analyzeCustom(buf)); } }, 20); } else { setTimeout(function(){ cb(analyzeCustom(buf)); }, 20); } }); }catch(e){ try{ cb(analyzeCustom(buf)); }catch(e2){ cb(null); } } }
 
 var CLIPS=[], clipVidReady=false, VIDACT=-1;
+var VIDEO_POOL_V2=false;                 // reste false jusqu'à validation du laboratoire iPhone
+var MAX_VIDEO_CLIPS=VIDEO_POOL_V2?30:6; // plafond de sécurité temporaire
 window.VIDSOUND=false; window.VIDBAL=0.6; window.VEXCL=[]; window.VIDDENS=1; window.VMOVR={}; /* son des vidéos OFF par défaut ; équilibre musique<->vidéo (0=musique .. 1=vidéo) */
 function _gV(b){ b=Math.max(0,Math.min(1,(b==null?0.6:b))); return b; }
 function _gM(b){ b=Math.max(0,Math.min(1,(b==null?0.6:b))); return 1-b; }
@@ -1586,7 +1588,7 @@ function buildPartition(){
   bdur=Math.max(1,Math.min(bdur, avail - _iD - _oD));   /* no-op quand la décision de boucle est correcte ; garde-fou */
   var pStart=MST+_iD, pEnd=pStart+bdur, wEnd=pEnd+_oD;   /* la musique joue sur TOUT : intro + photos + outro */
   window.MONTAGE_DUR=wEnd; window.MSTART_EFF=MST; window.SIGN_PS=pStart; window.SIGN_PE=pEnd;
-  try{ window.__VWIN={attMax:0,playMax:0,att:0,play:0}; }catch(e){}   /* reset mesures video window à chaque montage */
+  try{ window.__VWIN={preMax:0,postMax:0,postNow:0,playMax:0,playNow:0,calls:0,loads:0,unloads:0,unloadConfirmed:0,unloadFailed:0,syncErr:0}; }catch(e){}   /* reset mesures video window */
   try{
     var _montageEnd=wEnd, _mediaEnd=(window.SIGN_PE||wEnd);
     var _gEnd=beats.length?beats[beats.length-1]:0, _beatStep=_mediaBeatP(beats);
@@ -1704,15 +1706,18 @@ function buildPartition(){
         var _availSrc=Math.max(0.3,(_te-_ts));                     /* matière vidéo disponible (secondes source) */
         var _maxPlan=_availSrc/_spd;                                /* durée MAX du plan à cette vitesse (borne dure) */
         var _hardEnd=_cur+_maxPlan;                                 /* JAMAIS dépasser : sinon gel/rejeu */
-        var _wanted=Math.min(_vt, _maxPlan);                        /* clip court -> tout ; clip long -> cible */
-        var _rawEnd=_cur+_wanted;
-        /* caler sur le beat le plus proche, MAIS interdit tout candidat au-delà de _hardEnd */
-        var _snap=_rawEnd, _bd3=0.35;
-        for(var _bb=0;_bb<beats.length;_bb++){ var _bt=beats[_bb]; if(_bt<=_cur+0.4) continue; if(_bt>_hardEnd) break; var _dd3=Math.abs(_bt-_rawEnd); if(_dd3<_bd3){ _bd3=_dd3; _snap=_bt; } }
-        var _en2=Math.min(_snap, _hardEnd);                        /* borne dure : la fin ne dépasse jamais la matière source */
-        /* garde-fou anti-dépassement (marge 0.02s) */
-        var _consumed=(_en2-_cur)*_spd; if(_consumed > _availSrc+0.02){ _en2=_cur+_availSrc/_spd; }
-        if(_en2-_cur < 0.4) _en2=_cur+Math.min(0.4,_maxPlan);      /* plan minimal, jamais > matière dispo */
+        var _en2;
+        if(_maxPlan <= _vt+0.05){
+          /* CLIP COURT : joue ENTIÈREMENT (pas de calage sur beat qui le raccourcirait). GPT point 7 */
+          _en2=_cur+_maxPlan;
+        } else {
+          /* clip long : extrait de la cible, calé sur le beat le plus proche SANS dépasser _hardEnd */
+          var _rawEnd=_cur+_vt, _snap=_rawEnd, _bd3=0.35;
+          for(var _bb=0;_bb<beats.length;_bb++){ var _bt=beats[_bb]; if(_bt<=_cur+0.4) continue; if(_bt>_hardEnd) break; var _dd3=Math.abs(_bt-_rawEnd); if(_dd3<_bd3){ _bd3=_dd3; _snap=_bt; } }
+          _en2=Math.min(_snap, _hardEnd);
+          var _consumed=(_en2-_cur)*_spd; if(_consumed > _availSrc+0.02){ _en2=_cur+_availSrc/_spd; }
+        }
+        if(_en2-_cur < 0.4) _en2=_cur+Math.min(0.4,_maxPlan);
         _newSegs.push({ start:_cur, end:_en2, strong:(_eAt(_cur)>0.55), e:_eAt(_cur), video:true, vclip:_rc[_gp2] });
         _cur=_en2;
       }
@@ -1857,7 +1862,7 @@ function buildPartition(){
       var _pM=(_cv.photos&&_cv.photos.missing&&_cv.photos.missing.length)?(" MANQUE "+_cv.photos.missing.join(",")):" OK";
       var _cM=(_cv.clips&&_cv.clips.missing&&_cv.clips.missing.length)?(" MANQUE "+_cv.clips.missing.join(",")):" OK";
       var _txt="DIAGNOSTIC MONTAGE\n"
-        +"Version : v979 - music-grid-1\n"
+        +"Version : v992 - pool-diag\n"
         +"Photos : "+((_cv.photos&&_cv.photos.placed)||0)+"/"+((_cv.photos&&_cv.photos.need)||0)+_pM+"\n"
         +"Clips : "+((_cv.clips&&_cv.clips.placed)||0)+"/"+((_cv.clips&&_cv.clips.need)||0)+_cM+"\n"
         +"Duree medias : "+(_cv.pDur||0)+"s photos + "+(_cv.vDur||0)+"s videos\n"
@@ -8888,7 +8893,7 @@ function _openLangPicker(){
   bg.style.cssText="position:fixed;inset:0;z-index:100050;background:rgba(0,0,0,.62);backdrop-filter:blur(4px);display:flex;align-items:flex-end;justify-content:center;font-family:system-ui,-apple-system,sans-serif";
   var card=document.createElement("div");
   card.style.cssText="width:100%;max-width:520px;background:#0f0e0d;border:1px solid #282622;border-radius:22px 22px 0 0;padding:8px 10px 22px;max-height:78vh;overflow:auto;box-shadow:0 -10px 50px rgba(0,0,0,.7)";
-  var head="<div style=\"text-align:center;padding:12px 0 6px\"><div style=\"width:40px;height:4px;background:#3a3733;border-radius:3px;margin:0 auto 12px\"></div><div style=\"color:#f4f7fc;font:700 17px system-ui\">\uD83C\uDF10 "+_st("Langue des paroles")+"</div><div style=\"color:#8a93a6;font:500 12.5px system-ui;margin-top:3px\">"+_st("Traduction synchronisée au rythme")+" \u00b7 v988</div></div>";
+  var head="<div style=\"text-align:center;padding:12px 0 6px\"><div style=\"width:40px;height:4px;background:#3a3733;border-radius:3px;margin:0 auto 12px\"></div><div style=\"color:#f4f7fc;font:700 17px system-ui\">\uD83C\uDF10 "+_st("Langue des paroles")+"</div><div style=\"color:#8a93a6;font:500 12.5px system-ui;margin-top:3px\">"+_st("Traduction synchronisée au rythme")+" \u00b7 v992</div></div>";
   var rows="";
   for(var i=0;i<window._LYRICS_LANGS.length;i++){ var code=window._LYRICS_LANGS[i][0], name=window._LYRICS_LANGS[i][1], fl=_LANG_FLAGS[code]||"\uD83C\uDF10", on=(window._LYRICS_LANG===code);
     rows+="<button class=\"lang-opt\" data-l=\""+code+"\" style=\"display:flex;align-items:center;gap:13px;width:100%;text-align:left;background:"+(on?"rgba(122,208,160,.14)":"none")+";border:1px solid "+(on?"rgba(122,208,160,.5)":"transparent")+";color:#f4f7fc;font:600 15.5px system-ui;padding:14px 15px;border-radius:13px;cursor:pointer;margin:3px 0\"><span style=\"font-size:22px\">"+fl+"</span><span style=\"flex:1\">"+name+"</span>"+(on?"<span style=\"color:#7ad0a0;font-size:18px\">\u2713</span>":"")+"</button>";
@@ -8958,43 +8963,65 @@ function _drawSubOnCanvas(cx, W, H, mt){ try{ if(window._LYRICS_ON!==true) retur
 /* FENÊTRE DE SOURCES VIDÉO (anti-crash mémoire iOS) : garde AU PLUS 3 clips avec une source
    attachée (courant + suivant distinct + précédent pendant transition). Les autres sont déchargés
    (removeAttribute src + load). On choisit d'après SEGS (timeline), pas l'ordre de CLIPS. */
+function _clipHasAttachedSource(clip){
+  try{ return !!(clip && clip.el && clip.el.hasAttribute("src") && String(clip.el.getAttribute("src")||"").trim()); }catch(e){ return false; }
+}
+function _videoWindowSnapshot(){
+  var attached=0, active=0, empty=0;
+  for(var i=0;i<CLIPS.length;i++){ var clip=CLIPS[i]; if(!clip||!clip.el) continue;
+    if(_clipHasAttachedSource(clip)) attached++;
+    if(_clipHasAttachedSource(clip) && !clip.el.paused && !clip.el.ended) active++;
+    if(!_clipHasAttachedSource(clip) && clip.el.networkState===0 && clip.el.readyState===0) empty++;
+  }
+  return { attached:attached, active:active, empty:empty };
+}
 function _syncClipWindow(curIdx){
   try{
     if(typeof SEGS==="undefined" || !SEGS || !CLIPS.length) return;
+    if(!window.__VWIN) window.__VWIN={attMax:0,playMax:0,att:0,play:0,loads:0,unloads:0,calls:0,poolMax:0,syncErr:0};
+    window.__VWIN.calls=(window.__VWIN.calls||0)+1;
+    var _before=_videoWindowSnapshot();
+    window.__VWIN.preMax=Math.max(window.__VWIN.preMax||0,_before.attached);
     var _want={};
     var _sg=(curIdx>=0&&curIdx<SEGS.length)?SEGS[curIdx]:null;
-    if(_sg&&_sg.video&&_sg.vclip!=null) _want[_sg.vclip]=1;   /* clip courant */
-    /* prochain clip vidéo distinct */
-    for(var _n=curIdx+1;_n<SEGS.length;_n++){ var _s2=SEGS[_n]; if(_s2&&_s2.video&&_s2.vclip!=null && !_want[_s2.vclip]){ _want[_s2.vclip]=1; break; } }
-    /* clip précédent (utile pendant une transition sortante) */
-    for(var _p=curIdx-1;_p>=0;_p--){ var _s3=SEGS[_p]; if(_s3&&_s3.video&&_s3.vclip!=null){ _want[_s3.vclip]=1; break; } }
+    if(_sg&&_sg.video&&_sg.vclip!=null) _want[_sg.vclip]=1;                 /* clip courant */
+    /* les DEUX prochains clips vidéo distincts (fenêtre avant, GPT) */
+    var _found=0;
+    for(var _n=curIdx+1;_n<SEGS.length && _found<2;_n++){ var _s2=SEGS[_n]; if(_s2&&_s2.video&&_s2.vclip!=null && !_want[_s2.vclip]){ _want[_s2.vclip]=1; _found++; } }
     /* limiter à 3 max */
     var _keys=Object.keys(_want); if(_keys.length>3){ _want={}; for(var _k=0;_k<3;_k++) _want[_keys[_k]]=1; }
     for(var _ci=0;_ci<CLIPS.length;_ci++){ var _c=CLIPS[_ci]; if(!_c||!_c.el) continue;
-      var _hasSrc=!!(_c.el.currentSrc||_c.el.getAttribute("src"));
+      var _hasSrc=_clipHasAttachedSource(_c);
       if(_want[_ci]){
-        /* doit être chargé : recharger si déchargé */
-        if(_c._unloaded && _c._u){ try{ _c.el.src=_c._u; _c.el.load(); _c._unloaded=false; }catch(e){} }
+        if(_c._unloaded || !_hasSrc){ if(_c._u){ try{
+          _c._sourceEpoch=(_c._sourceEpoch||0)+1; _c.loadState="loading";
+          _c.el.src=_c._u; _c.el.load(); _c._unloaded=false; window.__VWIN.loads=(window.__VWIN.loads||0)+1;
+          (function(clip,epoch){ var ready=function(){ if(clip._sourceEpoch!==epoch) return; clip.loadState="ready"; }; clip.el.addEventListener("loadeddata",ready,{once:true}); })(_c,_c._sourceEpoch);
+        }catch(e){ _c.loadState="error"; } } }
       } else {
-        /* pas dans la fenêtre : décharger pour libérer le décodeur/mémoire */
-        if(_hasSrc && _c.ready && _c._u){ try{ _c.el.pause(); if(!_c._u){ _c._u=_c.el.currentSrc||_c.el.src; } _c.el.removeAttribute("src"); _c.el.load(); _c._unloaded=true; }catch(e){} }
+        /* pas dans la fenêtre : décharger — SANS exiger ready (GPT) ; sauvegarder _u avant retrait */
+        if(_hasSrc){ try{
+          if(!_c._u){ _c._u=_c.el.getAttribute("src")||_c.el.currentSrc||""; }
+          _c._sourceEpoch=(_c._sourceEpoch||0)+1; var _epoch=_c._sourceEpoch;
+          _c.el.pause(); _c.el.removeAttribute("src"); _c.el.load(); _c._unloaded=true; _c.loadState="unloaded";
+          window.__VWIN.unloads=(window.__VWIN.unloads||0)+1;
+          (function(clip,epoch){ setTimeout(function(){ if(clip._sourceEpoch!==epoch) return;
+            var released=!_clipHasAttachedSource(clip) && clip.el.networkState===0 && clip.el.readyState===0;
+            if(released) window.__VWIN.unloadConfirmed=(window.__VWIN.unloadConfirmed||0)+1;
+            else window.__VWIN.unloadFailed=(window.__VWIN.unloadFailed||0)+1;
+          },120); })(_c,_epoch);
+        }catch(e){ window.__VWIN.unloadFailed=(window.__VWIN.unloadFailed||0)+1; } }
       }
     }
+    /* CONTRÔLE DUR (via hasAttribute, pas currentSrc) */
+    var _after=_videoWindowSnapshot();
+    window.__VWIN.postNow=_after.attached;
+    window.__VWIN.postMax=Math.max(window.__VWIN.postMax||0,_after.attached);
+    if(_after.attached>3) window.__VWIN.syncErr=(window.__VWIN.syncErr||0)+1;
   }catch(e){}
 }
 function loop(){ try{ window.__MMT_BOTTOM_CAP_TOP=null; }catch(e){}
-  /* ÉCHANTILLONNEUR VIDEO WINDOW : capte les MAXIMUMS (le pic), pas l'instantané (GPT) */
-  try{ if(typeof CLIPS!=="undefined" && CLIPS.length){
-    var _W=window.__VWIN||(window.__VWIN={attMax:0,playMax:0,att:0,play:0});
-    var _a=0,_p=0;
-    for(var _vs=0;_vs<CLIPS.length;_vs++){ var _c=CLIPS[_vs]; if(!_c||!_c.el) continue;
-      if((_c.el.currentSrc||_c.el.getAttribute("src"))) _a++;
-      if(!_c.el.paused && !_c.el.ended) _p++;
-    }
-    _W.att=_a; _W.play=_p;
-    if(_a>_W.attMax) _W.attMax=_a;
-    if(_p>_W.playMax) _W.playMax=_p;
-  } }catch(e){}
+
   if(!playing) return;
   try{
   if(window.LOOP_ON && !WA.on && audioEl){ var _le=window.LOOP_END||window.MUSIC_DUR||(A?A.dur:0); if(_le>0 && audioEl.currentTime>=_le-0.06){ try{ audioEl.currentTime=window.LOOP_START||0; }catch(e){} } }
@@ -9004,6 +9031,8 @@ function loop(){ try{ window.__MMT_BOTTOM_CAP_TOP=null; }catch(e){}
   if(window.MULTI){ var _cti=_curPlanTrackIdx(); if(_cti!==window._lastCti){ window._lastCti=_cti; try{ updateBadge(); }catch(e){} try{ if(typeof syncLabel==="function") syncLabel(); }catch(e){} } }
   var idx=-1; for(var i=0;i<SEGS.length;i++){ if(t>=SEGS[i].start && t<SEGS[i].end){ idx=i; break; } }
   if(idx<0 && SEGS.length) idx=(t<SEGS[0].start)?0:SEGS.length-1;
+  try{ if(window.__clipWindowSeg!==idx){ window.__clipWindowSeg=idx; _syncClipWindow(idx); } }catch(e){}   /* POOL : sync fenêtre sources */
+  try{ var _snap=_videoWindowSnapshot(); var _W=window.__VWIN; if(_W){ _W.postNow=_snap.attached; _W.playNow=_snap.active; _W.postMax=Math.max(_W.postMax||0,_snap.attached); _W.playMax=Math.max(_W.playMax||0,_snap.active); } }catch(e){}
   var sg=(idx>=0)?SEGS[idx]:null, prev=(idx>0)?SEGS[idx-1]:null, into=sg?(t-sg.start):0;
   if(sg&&sg.sign){ try{ _hideClipOverlay(); }catch(e){} if(VIDACT>=0){ VIDACT=-1; for(var _c2s=0;_c2s<CLIPS.length;_c2s++){ try{ CLIPS[_c2s].el.pause(); }catch(e){} } } try{ drawSignatureCard(sg.sign, (t-sg.start)/Math.max(0.1,sg.end-sg.start)); }catch(e){} try{ paintStrip(t); }catch(e){} raf=requestAnimationFrame(loop); return; }
   /* Option A */
@@ -9028,7 +9057,7 @@ function loop(){ try{ window.__MMT_BOTTOM_CAP_TOP=null; }catch(e){}
   var inTrans=(sg&&next&&TRd>0&&t>=preStart&&t<next.start);
   var trProg=inTrans?((t-preStart)/TRd):0;
   if(sg && sg.video && sg.vclip!=null && CLIPS[sg.vclip] && CLIPS[sg.vclip].ready){ var _clA=CLIPS[sg.vclip];
-    if(VIDACT!==idx){ VIDACT=idx; for(var _c=0;_c<CLIPS.length;_c++){ if(_c!==sg.vclip){ try{ CLIPS[_c].el.pause(); }catch(e){} } } try{ _syncClipWindow(idx); }catch(e){} try{ _clA.el.muted=true; _clA.el.playbackRate=(sg.vspeed||_clA.speed||1); if(Math.abs((_clA.el.currentTime||0)-(sg.vstart||0))>0.18) _clA.el.currentTime=sg.vstart||0; }catch(e){} var _pv=_clA.el.play(); if(_pv&&_pv.then) _pv.catch(function(){}); }
+    if(VIDACT!==idx){ VIDACT=idx; for(var _c=0;_c<CLIPS.length;_c++){ if(_c!==sg.vclip){ try{ CLIPS[_c].el.pause(); }catch(e){} } } try{ _clA.el.muted=true; _clA.el.playbackRate=(sg.vspeed||_clA.speed||1); if(Math.abs((_clA.el.currentTime||0)-(sg.vstart||0))>0.18) _clA.el.currentTime=sg.vstart||0; }catch(e){} var _pv=_clA.el.play(); if(_pv&&_pv.then) _pv.catch(function(){}); }
   } else { if(VIDACT>=0){ VIDACT=-1; for(var _c2=0;_c2<CLIPS.length;_c2++){ try{ CLIPS[_c2].el.pause(); }catch(e){} } } }
   try{ if(typeof SEGS!=="undefined"&&SEGS&&idx>=0){ var _primed=0; for(var _pi2=idx+1; _pi2<SEGS.length && (SEGS[_pi2].start-t)<2.8 && _primed<3; _pi2++){ var _ps=SEGS[_pi2]; if(_ps.video&&_ps.vclip!=null&&_ps.vclip!==sg.vclip&&CLIPS[_ps.vclip]&&CLIPS[_ps.vclip].ready){ var _pe=CLIPS[_ps.vclip].el; if(_pe.paused && Math.abs((_pe.currentTime||0)-(_ps.vstart||0))>0.12){ _pe.muted=true; try{ _pe.currentTime=_ps.vstart||0; }catch(_e){} } _primed++; } } } }catch(e){}
   var strongPulse=(sg&&sg.strong&&into<0.10)?(1-into/0.10):0;
@@ -9071,6 +9100,7 @@ function startPlay(){
   if(!PHOTOS.length && !clipVidReady){ setState(_st("Ajoute des photos ou des vid\u00e9os.")); return; }
   if(!audioEl){ setState("Musique non chargée."); return; }
   buildPartition();
+  try{ window.__clipWindowSeg=-1; }catch(e){}
   try{ masterVol(1); }catch(e){}
   try{ if(ctx&&ctx.state==="suspended"&&ctx.resume) ctx.resume(); }catch(e){}
   try{ var _wMax=Math.min(CLIPS.length,3), _wDone=0; for(var _wc=0;_wc<CLIPS.length && _wDone<_wMax;_wc++){ if(CLIPS[_wc]&&CLIPS[_wc].ready){ var _we=CLIPS[_wc].el; try{ _we.muted=true; _we.preload="auto"; }catch(_e){} var _wp=_we.play(); if(_wp&&_wp.then){ _wp.then(function(){}).catch(function(){}); } _we.pause(); _wDone++; } } }catch(e){}
@@ -9138,7 +9168,7 @@ document.getElementById("clear").onclick=function(){ stopPlay(); PHOTOS.forEach(
    =================================================================== */
 /* Ajoute un clip vidéo depuis un blob (utilisé par l'auto-montage). Résout quand le clip est prêt. */
 function _addClipFromBlob(blob, meta){ return new Promise(function(res){ try{
-  if(!blob || CLIPS.length>=10){ res(false); return; }
+  if(!blob || CLIPS.length>=MAX_VIDEO_CLIPS){ res(false); return; }
   var v=document.createElement("video"); v.muted=true; v.setAttribute("playsinline",""); v.setAttribute("webkit-playsinline","");
   v.style.cssText="position:fixed;left:0;bottom:0;width:128px;height:72px;opacity:0.02;pointer-events:none;z-index:-1";
   var u=URL.createObjectURL(blob); v.src=u; v._u=u;
@@ -9736,7 +9766,7 @@ function _toggleFilmsMenu(anchor){
             var _maxPlanDur=Math.max.apply(null,_byCd[_ck]); var _over=((_maxPlanDur*_spdC)>_availC+0.05);
             _clipInfo+="\n  Clip "+(parseInt(_ck)+1)+" : source "+_src+"s, extrait ~"+_ex+"s x"+_ap+(_over?" DEPASSEMENT!":" ok"); }
         }catch(e){}
-        var msg="DIAGNOSTIC MONTAGE — v979\n\n"
+        var msg="DIAGNOSTIC MONTAGE — v992\n\n"
           +"Photos : "+((_cv.photos&&_cv.photos.placed)||0)+"/"+((_cv.photos&&_cv.photos.need)||0)+_pM+"\n"
           +"Clips : "+((_cv.clips&&_cv.clips.placed)||0)+"/"+((_cv.clips&&_cv.clips.need)||0)+_cM+"\n"
           +"Plans totaux : "+_nSeg+" (dont "+_nVid+" vidéo)\n"
@@ -9748,18 +9778,17 @@ function _toggleFilmsMenu(anchor){
           +"Grille fin : "+(_md.gridEnd||0)+"s · Plan fin : "+(_md.planEnd||0)+"s\n"
           +"Audio couvre le film : "+(_md.audioCoversFilm?"OUI":"NON")+"\n"
           +"Grille couvre les coupes : "+(_md.gridCoversCuts?"OUI":"NON")
-          +"\n\nVIDEO WINDOW (pic depuis ouverture)\n"+(function(){ try{
-            var _W=window.__VWIN||{attMax:0,playMax:0,att:0,play:0};
-            var _attNow=0,_playNow=0;
-            for(var _vi=0;_vi<CLIPS.length;_vi++){ var _c=CLIPS[_vi]; if(!_c||!_c.el) continue;
-              if((_c.el.currentSrc||_c.el.getAttribute("src"))) _attNow++;
-              if(!_c.el.paused && !_c.el.ended) _playNow++;
-            }
+          +"\n\nVIDEO WINDOW\n"+(function(){ try{
+            var _W=window.__VWIN||{};
             return "Clips au total : "+CLIPS.length+"\n"
-              +"Sources attachées MAX : "+_W.attMax+(_W.attMax>3?" TROP(>3)!":" ok")+"\n"
-              +"Sources attachées maintenant : "+_attNow+"\n"
-              +"Lecteurs actifs MAX : "+_W.playMax+(_W.playMax>2?" TROP!":" ok")+"\n"
-              +"Lecteurs actifs maintenant : "+_playNow;
+              +"Sources avant pool MAX : "+(_W.preMax||0)+"\n"
+              +"Sources après pool maintenant : "+(_W.postNow||0)+"\n"
+              +"Sources après pool MAX : "+(_W.postMax||0)+((_W.postMax||0)>3?" ECHEC":" OK")+"\n"
+              +"Lecteurs actifs MAX : "+(_W.playMax||0)+"\n"
+              +"Déchargements demandés : "+(_W.unloads||0)+"\n"
+              +"Déchargements confirmés : "+(_W.unloadConfirmed||0)+"\n"
+              +"Déchargements échoués : "+(_W.unloadFailed||0)+"\n"
+              +"Violations fenêtre : "+(_W.syncErr||0);
           }catch(e){ return "(indispo: "+e+")"; } })();
         alert(msg);
       }catch(e){ try{ alert("diag montage err: "+e); }catch(_e){} } return; }
@@ -9924,7 +9953,7 @@ function finishAnalyze(){
 document.getElementById("pickVideo").onclick=function(){ document.getElementById("fVideo").click(); };
 document.getElementById("fVideo").onchange=function(e){ var files=Array.prototype.slice.call(e.target.files||[]); e.target.value=""; if(!files.length) return;
   files.forEach(function(fl){
-    if(CLIPS.length>=10){ if(typeof setState==="function") setState("Maximum 10 clips vidéo (limite iOS des décodeurs)."); return; }
+    if(CLIPS.length>=MAX_VIDEO_CLIPS){ if(typeof setState==="function") setState("Maximum "+MAX_VIDEO_CLIPS+" clips vidéo pendant la validation du nouveau moteur."); return; }
     var v=document.createElement("video"); v.muted=true; v.setAttribute("playsinline",""); v.setAttribute("webkit-playsinline","");
     v.style.cssText="position:fixed;left:0;bottom:0;width:128px;height:72px;opacity:0.02;pointer-events:none;z-index:-1";
     var u=URL.createObjectURL(fl); v.src=u; v._u=u;
