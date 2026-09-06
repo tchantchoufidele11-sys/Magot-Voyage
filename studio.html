@@ -1688,9 +1688,36 @@ function buildPartition(){
   /* VIDÉO — placement PRO */
   if(clipVidReady && SEGS.length>=1){
     var _rc=[]; for(var _c=0;_c<CLIPS.length;_c++){ if(CLIPS[_c].ready) _rc.push(_c); }
-    if(_rc.length && _nP===0){   /* _nP = photos NON écartées : si tu écartes toutes les photos, on passe bien en vidéo-only */
-      /* VIDÉO-ONLY : round-robin des clips -> chacun avance régulièrement, aucun bout repris */
-      for(var _s=0;_s<SEGS.length;_s++){ SEGS[_s].video=true; SEGS[_s].vclip=_rc[_s % _rc.length]; }
+    if(_rc.length && _nP===0){   /* VIDÉO-ONLY */
+      /* RÈGLE : 1 clip = 1 plan (EXACTEMENT N plans pour N clips, AUCUNE répétition par défaut).
+         Durée du plan = min(durée utilisable du clip / vitesse, cible du mode).
+         La timeline s'adapte à la somme de ces durées ; la musique reboucle ou fond (elle NE commande PAS le nb de plans).
+         Chaque fin de plan est calée sur le beat le plus proche pour rester musical. */
+      var _vt=({cinema:3.4,doux:4.0,dynamique:2.2,voyage:3.0})[MOOD]||3.0;
+      var _newSegs=[], _cur=pStart;
+      for(var _gp2=0; _gp2<_rc.length; _gp2++){
+        var _cl=CLIPS[_rc[_gp2]];
+        var _spd=Math.max(0.5,(_cl&&_cl.speed)||1);
+        var _ts=(_cl&&_cl.trimStart!=null)?_cl.trimStart:0;
+        var _te=(_cl&&_cl.trimEnd!=null)?_cl.trimEnd:((_cl&&_cl.dur)||_vt);
+        var _availSrc=Math.max(0.3,(_te-_ts));                     /* matière vidéo disponible (secondes source) */
+        var _maxPlan=_availSrc/_spd;                                /* durée MAX du plan à cette vitesse (borne dure) */
+        var _hardEnd=_cur+_maxPlan;                                 /* JAMAIS dépasser : sinon gel/rejeu */
+        var _wanted=Math.min(_vt, _maxPlan);                        /* clip court -> tout ; clip long -> cible */
+        var _rawEnd=_cur+_wanted;
+        /* caler sur le beat le plus proche, MAIS interdit tout candidat au-delà de _hardEnd */
+        var _snap=_rawEnd, _bd3=0.35;
+        for(var _bb=0;_bb<beats.length;_bb++){ var _bt=beats[_bb]; if(_bt<=_cur+0.4) continue; if(_bt>_hardEnd) break; var _dd3=Math.abs(_bt-_rawEnd); if(_dd3<_bd3){ _bd3=_dd3; _snap=_bt; } }
+        var _en2=Math.min(_snap, _hardEnd);                        /* borne dure : la fin ne dépasse jamais la matière source */
+        /* garde-fou anti-dépassement (marge 0.02s) */
+        var _consumed=(_en2-_cur)*_spd; if(_consumed > _availSrc+0.02){ _en2=_cur+_availSrc/_spd; }
+        if(_en2-_cur < 0.4) _en2=_cur+Math.min(0.4,_maxPlan);      /* plan minimal, jamais > matière dispo */
+        _newSegs.push({ start:_cur, end:_en2, strong:(_eAt(_cur)>0.55), e:_eAt(_cur), video:true, vclip:_rc[_gp2] });
+        _cur=_en2;
+      }
+      SEGS = _newSegs;
+      /* la zone médias se termine maintenant à _cur -> ajuster pEnd/wEnd pour que la musique s'adapte AUX médias */
+      pEnd=_cur; wEnd=pEnd+_oD; window.MONTAGE_DUR=wEnd; window.SIGN_PE=pEnd;
     } else if(_rc.length){
       /* PHOTOS + VIDÉOS : DISTRIBUTION PROPORTIONNELLE (remplace la contrainte rigide des 3 plans).
          - vidéos majoritaires -> elles peuvent se suivre ;
@@ -8860,7 +8887,7 @@ function _openLangPicker(){
   bg.style.cssText="position:fixed;inset:0;z-index:100050;background:rgba(0,0,0,.62);backdrop-filter:blur(4px);display:flex;align-items:flex-end;justify-content:center;font-family:system-ui,-apple-system,sans-serif";
   var card=document.createElement("div");
   card.style.cssText="width:100%;max-width:520px;background:#0f0e0d;border:1px solid #282622;border-radius:22px 22px 0 0;padding:8px 10px 22px;max-height:78vh;overflow:auto;box-shadow:0 -10px 50px rgba(0,0,0,.7)";
-  var head="<div style=\"text-align:center;padding:12px 0 6px\"><div style=\"width:40px;height:4px;background:#3a3733;border-radius:3px;margin:0 auto 12px\"></div><div style=\"color:#f4f7fc;font:700 17px system-ui\">\uD83C\uDF10 "+_st("Langue des paroles")+"</div><div style=\"color:#8a93a6;font:500 12.5px system-ui;margin-top:3px\">"+_st("Traduction synchronisée au rythme")+" \u00b7 v979</div></div>";
+  var head="<div style=\"text-align:center;padding:12px 0 6px\"><div style=\"width:40px;height:4px;background:#3a3733;border-radius:3px;margin:0 auto 12px\"></div><div style=\"color:#f4f7fc;font:700 17px system-ui\">\uD83C\uDF10 "+_st("Langue des paroles")+"</div><div style=\"color:#8a93a6;font:500 12.5px system-ui;margin-top:3px\">"+_st("Traduction synchronisée au rythme")+" \u00b7 v984</div></div>";
   var rows="";
   for(var i=0;i<window._LYRICS_LANGS.length;i++){ var code=window._LYRICS_LANGS[i][0], name=window._LYRICS_LANGS[i][1], fl=_LANG_FLAGS[code]||"\uD83C\uDF10", on=(window._LYRICS_LANG===code);
     rows+="<button class=\"lang-opt\" data-l=\""+code+"\" style=\"display:flex;align-items:center;gap:13px;width:100%;text-align:left;background:"+(on?"rgba(122,208,160,.14)":"none")+";border:1px solid "+(on?"rgba(122,208,160,.5)":"transparent")+";color:#f4f7fc;font:600 15.5px system-ui;padding:14px 15px;border-radius:13px;cursor:pointer;margin:3px 0\"><span style=\"font-size:22px\">"+fl+"</span><span style=\"flex:1\">"+name+"</span>"+(on?"<span style=\"color:#7ad0a0;font-size:18px\">\u2713</span>":"")+"</button>";
@@ -9651,11 +9678,38 @@ function _toggleFilmsMenu(anchor){
       +'<button class="fm-i" data-a="new" style="'+_bs+';color:#e6c15a">\u2728 '+_st("Nouveau montage")+'</button>'
       +'<button class="fm-i" data-a="tuto" style="'+_bs+'">\uD83E\uDDED '+_st("Revoir le tutoriel")+'</button>'
       +'<button class="fm-i" data-a="diag" style="'+_bs+';color:#c9a44a">\uD83D\uDD0D Diagnostic paroles</button>'
+      +'<button class="fm-i" data-a="diagmontage" style="'+_bs+';color:#c9a44a">\uD83C\uDFAC Diagnostic montage</button>'
       +'<button class="fm-i" data-a="lyrics" style="width:100%;text-align:left;background:none;border:0;color:#f4f7fc;font:600 15px system-ui;padding:13px 14px;border-radius:11px;cursor:pointer;display:flex;align-items:center;gap:10px"><span style="pointer-events:none">\uD83C\uDFA4</span><span style="flex:1;pointer-events:none">'+_st("Lyrique")+'</span><span id="lyrTrack" style="pointer-events:none;display:inline-block;width:46px;height:27px;border-radius:14px;background:'+(window._LYRICS_ON===true?"#7ad0a0":"#3a3733")+';position:relative;transition:background .2s;flex:none"><span id="lyrKnob" style="position:absolute;top:3px;left:'+(window._LYRICS_ON===true?"22px":"3px")+';width:21px;height:21px;border-radius:50%;background:#fff;transition:left .2s;box-shadow:0 1px 3px rgba(0,0,0,.4)"></span></span></button>'
       +((window.__hasLyrics || (window._SUBS && window._SUBS().length>0))?('<button class="fm-i" data-a="lyrlang" style="'+_bs+'">\uD83C\uDF10 '+_st("Langue des paroles")+'  <span style="float:right;font-size:.82em;opacity:.7">'+((function(){ for(var _l=0;_l<window._LYRICS_LANGS.length;_l++){ if(window._LYRICS_LANGS[_l][0]===window._LYRICS_LANG) return window._LYRICS_LANGS[_l][1]; } return "Original"; })())+' \u203A</span></button>'):"")
 ;
     document.body.appendChild(m);
     Array.prototype.forEach.call(m.querySelectorAll(".fm-i"), function(it){ it.onclick=function(ev){ ev.stopPropagation(); var a=it.getAttribute("data-a"); if(a!=="lyrics"){ m.style.display="none"; }   /* le toggle Lyrique garde le menu ouvert pour montrer la bascule */
+      if(a==="diagmontage"){ try{
+        var _cv=window._COVERAGE||{}, _md=window._MUSICDIAG||{};
+        var _pM=(_cv.photos&&_cv.photos.missing&&_cv.photos.missing.length)?(" MANQUE "+_cv.photos.missing.join(",")):" OK";
+        var _cM=(_cv.clips&&_cv.clips.missing&&_cv.clips.missing.length)?(" MANQUE "+_cv.clips.missing.join(",")):" OK";
+        var _nSeg=0, _nVid=0; try{ _nSeg=(typeof SEGS!=="undefined")?SEGS.length:0; for(var _z=0;_z<SEGS.length;_z++){ if(SEGS[_z].video)_nVid++; } }catch(e){}
+        var _clipInfo=""; try{
+          var _byCd={}; for(var _z2=0;_z2<SEGS.length;_z2++){ var _sg3=SEGS[_z2]; if(_sg3.video&&_sg3.vclip!=null){ (_byCd[_sg3.vclip]=_byCd[_sg3.vclip]||[]).push(_sg3.end-_sg3.start); } }
+          for(var _ck in _byCd){ var _clc=CLIPS[_ck]; var _src=(_clc&&_clc.dur)?Math.round(_clc.dur*10)/10:0; var _ap=_byCd[_ck].length; var _ex=Math.round(_byCd[_ck].reduce(function(a,b){return a+b;},0)/_ap*10)/10;
+            var _spdC=Math.max(0.5,(_clc&&_clc.speed)||1); var _tsC=(_clc&&_clc.trimStart!=null)?_clc.trimStart:0; var _teC=(_clc&&_clc.trimEnd!=null)?_clc.trimEnd:((_clc&&_clc.dur)||0); var _availC=Math.max(0,_teC-_tsC);
+            var _maxPlanDur=Math.max.apply(null,_byCd[_ck]); var _over=((_maxPlanDur*_spdC)>_availC+0.05);
+            _clipInfo+="\n  Clip "+(parseInt(_ck)+1)+" : source "+_src+"s, extrait ~"+_ex+"s x"+_ap+(_over?" DEPASSEMENT!":" ok"); }
+        }catch(e){}
+        var msg="DIAGNOSTIC MONTAGE — v979\n\n"
+          +"Photos : "+((_cv.photos&&_cv.photos.placed)||0)+"/"+((_cv.photos&&_cv.photos.need)||0)+_pM+"\n"
+          +"Clips : "+((_cv.clips&&_cv.clips.placed)||0)+"/"+((_cv.clips&&_cv.clips.need)||0)+_cM+"\n"
+          +"Plans totaux : "+_nSeg+" (dont "+_nVid+" vidéo)\n"
+          +"Durée médias : "+(_cv.pDur||0)+"s photos + "+(_cv.vDur||0)+"s vidéos\n"
+          +"DÉTAIL CLIPS :"+(_clipInfo||" (aucun)")+"\n\n"
+          +"MUSIQUE\n"
+          +"Mode : "+(_md.mode||"?")+"\n"
+          +"Média fin : "+(_md.mediaEnd||0)+"s · Montage fin : "+(_md.montageEnd||0)+"s\n"
+          +"Grille fin : "+(_md.gridEnd||0)+"s · Plan fin : "+(_md.planEnd||0)+"s\n"
+          +"Audio couvre le film : "+(_md.audioCoversFilm?"OUI":"NON")+"\n"
+          +"Grille couvre les coupes : "+(_md.gridCoversCuts?"OUI":"NON");
+        alert(msg);
+      }catch(e){ try{ alert("diag montage err: "+e); }catch(_e){} } return; }
       if(a==="diag"){ try{
         var am=window.__activeMusicMeta||{};
         var libN=0, libLyr=0, libTitles=[];
