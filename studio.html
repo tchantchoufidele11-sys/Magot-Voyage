@@ -1568,24 +1568,25 @@ function buildPartition(){
     want=Math.min(Math.max(1,_voWant),_MAXFILM);
     if(_vTgt<_clipCount) _vTgt=_clipCount;   /* couverture garantie même en vidéo-only */
   }
-  if((_nP>0||_videoOnly) && TRACKS.length>1){ want=Math.min(want,_MAXFILM); window.MULTI=1; var _pl=buildMusicPlan(MST,want); var _g=planBeatGrid(_pl); if(_g.beats&&_g.beats.length){ beats=_g.beats; str=_g.str; metricArr=_g.metric||metricArr; } avail=want; bdur=want; window.DUR_FIT=1; window.DUR_NP=_nP; }
+  if((_nP>0||_videoOnly) && TRACKS.length>1){ want=Math.min(want,_MAXFILM); window.MULTI=1; var _pl=buildMusicPlan(MST,_iD+want+_oD); var _g=planBeatGrid(_pl);   /* musicNeed = intro+médias+outro */ if(_g.beats&&_g.beats.length){ beats=_g.beats; str=_g.str; metricArr=_g.metric||metricArr; } avail=want; bdur=want; window.DUR_FIT=1; window.DUR_NP=_nP; }
   else if(_nP>0||_videoOnly){ want=Math.min(want, _MAXFILM);
     if((_iD+want+_oD)<=avail){ bdur=want; window.DUR_FIT=1; }
     else {
       var _J=computeLoopJoin(beats,dur); WA.XF=_J.xf;
       var _lb0=_J.start, _lb1=_J.end, _ll=Math.max(2,_lb1-_lb0);
       window.LOOP_ON=1; window.MUSIC_DUR=dur; window.LOOP_START=_lb0; window.LOOP_END=_lb1; window.LOOP_LEN=_ll;
-      var _extB=[], _extS=[];
-      for(var _b4=0;_b4<beats.length;_b4++){ if(beats[_b4]<=_lb1+0.01){ _extB.push(beats[_b4]); _extS.push(str[_b4]||0.5); } }
-      var _bse=_lb1;
-      while(_bse < MST+_iD+want+4){ for(var _b5=0;_b5<beats.length;_b5++){ if(beats[_b5]>=_lb0 && beats[_b5]<_lb1-0.01){ _extB.push(_bse+(beats[_b5]-_lb0)); _extS.push(str[_b5]||0.5); } } _bse+=_ll; }
-      beats=_extB; str=_extS;
+      var _extB=[], _extS=[], _extM=[];
+      for(var _b4=0;_b4<beats.length;_b4++){ if(beats[_b4]<=_lb1+0.01){ _extB.push(beats[_b4]); _extS.push(str[_b4]!=null?str[_b4]:0.5); _extM.push(metricArr[_b4]!=null?metricArr[_b4]:0.4); } }
+      var _bse=_lb1, _musicNeed=_iD+want+_oD;   /* la grille doit couvrir intro + médias + OUTRO */
+      while(_bse < MST+_musicNeed+4){ for(var _b5=0;_b5<beats.length;_b5++){ if(beats[_b5]>=_lb0 && beats[_b5]<_lb1-0.01){ _extB.push(_bse+(beats[_b5]-_lb0)); _extS.push(str[_b5]!=null?str[_b5]:0.5); _extM.push(metricArr[_b5]!=null?metricArr[_b5]:0.4); } } _bse+=_ll; }
+      beats=_extB; str=_extS; metricArr=_extM;   /* metricArr étendu -> downbeats corrects sur TOUTES les boucles */
       avail=_iD+want+_oD; bdur=want; window.DUR_FIT=1;
     }
     window.DUR_NP=(_nP||1); }
   bdur=Math.max(1,Math.min(bdur, avail - _iD - _oD));   /* no-op quand la décision de boucle est correcte ; garde-fou */
   var pStart=MST+_iD, pEnd=pStart+bdur, wEnd=pEnd+_oD;   /* la musique joue sur TOUT : intro + photos + outro */
   window.MONTAGE_DUR=wEnd; window.MSTART_EFF=MST; window.SIGN_PS=pStart; window.SIGN_PE=pEnd;
+  try{ var _gEnd=beats.length?beats[beats.length-1]:0; console.log("[MUSIC GRID]",{ mode:(window.MULTI?"multi":"single"), mediaNeed:Math.round(bdur), musicNeed:Math.round(_iD+bdur+_oD), gridEnd:Math.round(_gEnd), montageEnd:Math.round(wEnd), loopStart:window.LOOP_START||null, loopEnd:window.LOOP_END||null, loopLen:window.LOOP_LEN||null, gridCoversFilm:(_gEnd>=wEnd-2) }); if(_gEnd < wEnd-2) console.warn("[MUSIC GRID] ⚠ la grille ("+Math.round(_gEnd)+"s) ne couvre pas tout le film ("+Math.round(wEnd)+"s)"); }catch(e){}
   /* INVERSION : parmi les temps de [min,max] secondes, on prend le PLUS FORT.
      -> chaque coupe tombe sur un accent réel ; jamais de seconde arbitraire. */
   var cuts=[], lastCut=pStart, bi=0, gi=0, span=(emax-emin)||1;
@@ -1697,6 +1698,26 @@ function buildPartition(){
       }
       for(var _fs=0;_fs<_finalSlots.length;_fs++){ SEGS[_finalSlots[_fs]].video=true; }
       if(window.VEXCL && window.VEXCL.length){ for(var _ex=0;_ex<SEGS.length;_ex++){ if(SEGS[_ex].video && window.VEXCL.indexOf(Math.round(SEGS[_ex].start*10))>=0){ SEGS[_ex].video=false; } } }
+      /* ALLONGER LES PLANS VIDÉO TROP COURTS — SANS jamais faire disparaître une photo obligatoire.
+         Règle (GPT) : on n'absorbe le segment suivant QUE s'il ne porte pas l'UNIQUE apparition
+         d'une photo. Sinon on laisse le plan vidéo plus court (la timeline additive garantit déjà
+         que chaque photo a son plan ; on ne lui vole pas sa place). */
+      var _vMin=Math.max(2.2, VIDEO_TARGET*0.8);
+      /* compter les apparitions de chaque photo dans les segments actuels */
+      function _imgCount(){ var c={}; for(var _q=0;_q<SEGS.length;_q++){ var g=SEGS[_q]; if(!g.video && g.img!=null && g.img>=0){ c[g.img]=(c[g.img]||0)+1; } } return c; }
+      for(var _vm=0; _vm<SEGS.length; _vm++){
+        if(!SEGS[_vm].video) continue;
+        var _guard2=0;
+        while((SEGS[_vm].end-SEGS[_vm].start) < _vMin && (_vm+1)<SEGS.length && _guard2++<12){
+          var _nx=SEGS[_vm+1];
+          if(_nx.video || _nx.sign) break;                 /* ne pas manger une vidéo ni la signature */
+          if(_nx.img!=null && _nx.img>=0){                  /* le suivant porte une photo */
+            var _cnt=_imgCount();
+            if((_cnt[_nx.img]||0)<=1) break;                /* UNIQUE apparition de cette photo -> INTERDIT d'absorber */
+          }
+          SEGS[_vm].end=_nx.end; SEGS.splice(_vm+1,1);       /* absorption autorisée (photo en double, ou segment sans photo) */
+        }
+      }
       /* Assigner les clips : COUVERTURE d'abord (chaque clip une fois), puis round-robin pour les reprises */
       var _vidSegs=[]; for(var _s3=0;_s3<SEGS.length;_s3++){ if(SEGS[_s3].video) _vidSegs.push(_s3); }
       var _byClip={};
@@ -1774,6 +1795,21 @@ function buildPartition(){
   try{ if(typeof _projSaveSoon==="function") _projSaveSoon(); }catch(e){}
   try{ if(typeof PHOTOS!=="undefined" && PHOTOS.length) _studioPrimeSoon(); }catch(e){}
   try{ if(typeof _refreshSrcCounts==="function") _refreshSrcCounts(); }catch(e){}   /* compteurs Photos/Vidéo à jour dès le montage */
+  /* POSTCONDITION + DIAGNOSTIC (couverture photos & clips) — vérif objective en console */
+  try{
+    var _keptP=[]; for(var _pp2=0;_pp2<PHOTOS.length;_pp2++){ if(PHOTOS[_pp2] && !(PHOTOS[_pp2].feat&&PHOTOS[_pp2].feat.skip)) _keptP.push(_pp2); }
+    var _readyC=[]; for(var _rc2=0;_rc2<CLIPS.length;_rc2++){ if(CLIPS[_rc2] && CLIPS[_rc2].ready) _readyC.push(_rc2); }
+    var _pSeen={}, _cSeen={}, _pDur=0, _vDur=0;
+    for(var _sq=0;_sq<SEGS.length;_sq++){ var _sg=SEGS[_sq]; if(_sg.sign) continue; var _len=(_sg.end-_sg.start)||0;
+      if(_sg.video && _sg.vclip!=null){ _cSeen[_sg.vclip]=1; _vDur+=_len; }
+      else if(_sg.img!=null && _sg.img>=0){ _pSeen[_sg.img]=1; _pDur+=_len; } }
+    var _pMiss=_keptP.filter(function(i){return !_pSeen[i];});
+    var _cMiss=_readyC.filter(function(i){return !_cSeen[i];});
+    window._COVERAGE={ photos:{need:_keptP.length,placed:Object.keys(_pSeen).length,missing:_pMiss}, clips:{need:_readyC.length,placed:Object.keys(_cSeen).length,missing:_cMiss}, pDur:Math.round(_pDur), vDur:Math.round(_vDur) };
+    console.log('[COUVERTURE] photos '+Object.keys(_pSeen).length+'/'+_keptP.length+(_pMiss.length?' MANQUE:'+_pMiss.join(','):' ✓')+' | clips '+Object.keys(_cSeen).length+'/'+_readyC.length+(_cMiss.length?' MANQUE:'+_cMiss.join(','):' ✓')+' | durée photos='+Math.round(_pDur)+'s vidéos='+Math.round(_vDur)+'s');
+    if(_pMiss.length) console.warn('[COUVERTURE] ⚠ photos manquantes: '+_pMiss.join(','));
+    if(_cMiss.length) console.warn('[COUVERTURE] ⚠ clips manquants: '+_cMiss.join(','));
+  }catch(e){}
 }
 
 
