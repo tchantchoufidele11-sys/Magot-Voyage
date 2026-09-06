@@ -1160,7 +1160,7 @@ function waStart(mt){
   }catch(e){ WA.on=false; return false; }
 }
 function masterVol(v){ v=Math.max(0,Math.min(1,v)); if((window.LOOP_ON||window.MULTI) && WA.on && WA.gain){ try{ WA.gain.gain.value=v; }catch(e){} } else if(audioEl){ try{ audioEl.volume=v; }catch(e){} } }
-function seekMontageTo(mt){ mt=Math.max(0,mt); try{ invalidateClipActivation(); }catch(e){} if(window.MULTI){ mBase=_perfNow()-mt; if(WA.on){ waStartPlan(mt); return; } } if(window.LOOP_ON){ mBase=_perfNow()-mt; if(WA.on){ waStart(mt); return; } } try{ if(audioEl) audioEl.currentTime=audioAt(mt); }catch(e){} }
+function seekMontageTo(mt){ mt=Math.max(0,mt); try{ invalidateClipActivation(); invalidateLastVideoFrame(); }catch(e){} if(window.MULTI){ mBase=_perfNow()-mt; if(WA.on){ waStartPlan(mt); return; } } if(window.LOOP_ON){ mBase=_perfNow()-mt; if(WA.on){ waStart(mt); return; } } try{ if(audioEl) audioEl.currentTime=audioAt(mt); }catch(e){} }
 function _mediaBeatP(bts){ var d=[]; for(var i=1;i<bts.length;i++){ var x=bts[i]-bts[i-1]; if(x>0.15&&x<2) d.push(x); } d.sort(function(a,b){return a-b;}); return d.length?d[d.length>>1]:0.5; }
 function _eWinAt(a,b){ var s=0,n=0; for(var t=a;t<=b;t+=0.15){ s+=energyAt(t); n++; } return n?s/n:energyAt(a); }
 function _bestBeat(bts,a,b,score){ var bt=null,sc=-1e9; for(var k=0;k<bts.length;k++){ var t=bts[k]; if(t>=a&&t<=b){ var m=(A.metric&&A.metric[k]!=null)?A.metric[k]:0.4; var s=score(t,m,energyAt(t),k); if(s>sc){ sc=s; bt=t; } } } return bt; }
@@ -1242,7 +1242,7 @@ function renderPlanToBuffer(dur, sr){
 function analyzeBufferInto(buf, cb){ try{ essentiaReady.then(function(ok){ if(ok){ setTimeout(function(){ try{ toMono44(buf,function(sig,sr){ var An; try{ An=analyzeEssentia(sig,sr,buf.duration); }catch(e){ An=analyzeCustom(buf); } cb(An); }); }catch(e){ cb(analyzeCustom(buf)); } }, 20); } else { setTimeout(function(){ cb(analyzeCustom(buf)); }, 20); } }); }catch(e){ try{ cb(analyzeCustom(buf)); }catch(e2){ cb(null); } } }
 
 var CLIPS=[], clipVidReady=false, VIDACT=-1;
-window.STUDIO_VERSION="v1010";
+window.STUDIO_VERSION="v1017";
 var VIDEO_POOL_V2=false;
 window.MAX_VIDEO_CLIPS=10;              // palier de test (était 6)
 window.VIDEO_SOURCE_WINDOW=3;          // fenêtre de sources attachées en lecture (ne pas changer)
@@ -1267,7 +1267,7 @@ function _applyVidAudio(force){ try{
   } else if(force){ if(typeof masterVol==="function") masterVol(1); window._vidDuck=false; }
 }catch(e){} }
 function genThumb(clip){ if(!clip||clip.thumb||!clip.el||!clip.ready) return; var v=clip.el, t=Math.min(1.2,(clip.dur||2)*0.35), done=false;
-  function draw(){ if(done)return; done=true; try{ var w=200,h=Math.round(200*((v.videoHeight||9)/(v.videoWidth||16)))||112; var cv=document.createElement("canvas"); cv.width=w; cv.height=h; cv.getContext("2d").drawImage(v,0,0,w,h); clip.thumb=cv.toDataURL("image/jpeg",0.72); }catch(e){} try{ v.currentTime=0; }catch(e){} if(typeof renderVideoSheet==="function"){ try{ renderVideoSheet(); }catch(e){} } }
+  function draw(){ if(done)return; done=true; try{ var w=200,h=Math.round(200*((v.videoHeight||9)/(v.videoWidth||16)))||112; var cv=document.createElement("canvas"); cv.width=w; cv.height=h; cv.getContext("2d").drawImage(v,0,0,w,h); clip.thumb=cv.toDataURL("image/jpeg",0.72); clip.thumbCanvas=cv;   /* canvas gardé pour secours de rendu (dessinable) */ }catch(e){} try{ v.currentTime=0; }catch(e){} if(typeof renderVideoSheet==="function"){ try{ renderVideoSheet(); }catch(e){} } }
   try{ var h1=function(){ v.removeEventListener("seeked",h1); if(v.requestVideoFrameCallback){ try{ v.requestVideoFrameCallback(function(){ draw(); }); }catch(e){ draw(); } } else setTimeout(draw,40); }; v.addEventListener("seeked",h1,{once:true}); v.currentTime=t; }catch(e){ setTimeout(draw,60); }
   setTimeout(function(){ if(!done) draw(); }, 1200);
 }
@@ -1528,7 +1528,7 @@ function orderWithin(order){
   for(var _k=1;_k<_res.length;_k++){ if(cl[_res[_k]]===cl[_res[_k-1]]){ for(var _m=_k+1;_m<_res.length;_m++){ if(cl[_res[_m]]!==cl[_res[_k-1]] && (_k+1>=_res.length||cl[_res[_m]]!==cl[_res[_k+1]])){ var _t=_res[_k]; _res[_k]=_res[_m]; _res[_m]=_t; break; } } } }
   return _res;
 }
-function buildPartition(){ try{ invalidateClipActivation(); }catch(e){}
+function buildPartition(){
   SEGS=[]; stripDirty=true; if(!A||!A.beats||A.beats.length<2) return;
   /* [DIAG couverture — admin only, aucun effet sur le montage] */
   window._DIAGC={}; function _diagMiss(){ var kept=[]; for(var _p=0;_p<PHOTOS.length;_p++){ if(PHOTOS[_p]&&!(PHOTOS[_p].feat&&PHOTOS[_p].feat.skip)) kept.push(_p); } var has={}; for(var _s=0;_s<SEGS.length;_s++){ var sg=SEGS[_s]; if(sg&&!sg.video&&sg.img!=null&&sg.img>=0) has[sg.img]=1; } var m=[]; for(var _k=0;_k<kept.length;_k++){ if(!has[kept[_k]]) m.push(kept[_k]); } return m; }
@@ -2573,8 +2573,29 @@ function drawSegAt(sg,t,ox,smul){
   if(!sg){ bctx.fillStyle="#000"; bctx.fillRect(0,0,Wd,Hd); return; }
   var _clip=(sg.video && sg.vclip!=null && CLIPS[sg.vclip] && CLIPS[sg.vclip].ready) ? CLIPS[sg.vclip] : null;
   var isVid=(_clip && _clip.el.videoWidth>0);
+  var _vidUsable=(isVid && _clip.el.readyState>=2);
   var img, iw, ih;
-  if(isVid){ img=_clip.el; iw=_clip.el.videoWidth; ih=_clip.el.videoHeight; }
+  if(isVid && _vidUsable){ img=_clip.el; iw=_clip.el.videoWidth; ih=_clip.el.videoHeight;
+    /* capture LIMITÉE de la dernière bonne image : seulement quand le clip actif change (pas 60x/s) */
+    try{ if(window.__lastFrameClip!==sg.vclip || !window.__lastFrameValid){
+      if(!window.__lastFrameCanvas){ window.__lastFrameCanvas=document.createElement("canvas"); }
+      var _lf=window.__lastFrameCanvas; if(_lf.width!==iw||_lf.height!==ih){ _lf.width=iw; _lf.height=ih; }
+      _lf.getContext("2d").drawImage(_clip.el,0,0,iw,ih); window.__lastFrameValid=true; window.__lastFrameClip=sg.vclip;
+    } }catch(e){}
+  }
+  else if(isVid && !_vidUsable){
+    /* clip vidéo actif mais image PAS prête : choisir la meilleure image de secours (AUCUN rattachement ici -> rendu pur, GPT) */
+    if(_clip.thumbCanvas && _clip.thumbCanvas.width>0){
+      /* PRIORITÉ : miniature DU CLIP CIBLE (le bon lieu, après seek/restauration) */
+      img=_clip.thumbCanvas; iw=img.width; ih=img.height;
+    } else if(window.__lastFrameValid && window.__lastFrameCanvas && window.__lastFrameCanvas.width>0){
+      /* sinon : dernière image du clip sortant (changement normal) */
+      img=window.__lastFrameCanvas; iw=img.width; ih=img.height;
+    } else if(sg.img!=null && sg.img>=0 && PHOTOS[sg.img]){
+      var _pf=PHOTOS[sg.img]; img=_pf.c||_pf.img||_pf._fb||_pf._thumb; iw=img?img.width:0; ih=img?img.height:0;
+    }
+    if(!img||!iw){ bctx.fillStyle="#0b0e16"; bctx.fillRect(0,0,Wd,Hd); return; }
+  }
   else { if(sg.img<0||!PHOTOS[sg.img]){ bctx.fillStyle="#000"; bctx.fillRect(0,0,Wd,Hd); return; } var _pp=PHOTOS[sg.img]; var _tgtR=_planTargetRes(sg); img=_pp.c||_pp.img; if(img){ _touchDec(sg.img); if((_pp._decRes||0)<Math.round(_tgtR*0.95) && !_pp._decoding){ ensurePhotoDecoded(sg.img,(!playing)?function(_cc){ try{ if(_cc && !playing && window._pauseRenderT!=null && typeof renderMontageAt==="function"){ renderMontageAt(window._pauseRenderT); } }catch(e){} }:null,_tgtR); } } else { ensurePhotoDecoded(sg.img, (!playing)?function(_cc){ try{ if(_cc && !playing && window._pauseRenderT!=null && typeof renderMontageAt==="function"){ renderMontageAt(window._pauseRenderT); } }catch(e){} }:null, _tgtR); img=_pp._fb||_pp._thumb||null; } iw=img?img.width:0; ih=img?img.height:0; try{ var _lag=(_pp.c&&(_pp._decRes||0)>=Math.round(_tgtR*0.95))?0:1; var _pin=window.__pinned||{}; var _nx=(_pin.next>=0&&PHOTOS[_pin.next])?((PHOTOS[_pin.next].c&&(PHOTOS[_pin.next]._decRes||0)>=Math.round(_planTargetRes({img:_pin.next})*0.9))?"pr\u00eat":"prépa"):"\u2014"; window.__photoDiag={idx:sg.img, src:(img&&(img===_pp.c||img===_pp.img))?"PLEINE":(img&&img===_pp._fb?"SECOURS":(img?"thumb":"—")), w:iw, h:ih, tgt:_tgtR, decR:(_pp._decRes||0), mb:Math.round(_cacheMB()), nb:_cacheCount(), lag:_lag, inf:(window._decInFlight||0), cur:(_pin.cur===sg.img?1:0), nx:_nx, ms:(window.__lastDecodeMs||0), adv:Math.round((window.__advance||0)*10)/10, ev:(window.__evictN||0)}; }catch(e){} if(!img||!iw){ bctx.fillStyle="#000"; bctx.fillRect(0,0,Wd,Hd); return; } }
   var dur=Math.max(0.001,sg.end-sg.start), p=Math.max(0,Math.min(1,(t-sg.start)/dur));
   var M=MOODS[MOOD];
@@ -9111,6 +9132,7 @@ function releaseClipSource(clip){
   if(!el.getAttribute("src")){ clip._unloaded=true; clip.loadState="unloaded"; return false; }
   try{ el.removeAttribute("src"); el.load(); clip._unloaded=true; clip.loadState="unloaded"; return true; }catch(e){ return false; }
 }
+function _clipDrawable(clip){ try{ return !!(clip && clip.el && clip.el.videoWidth>0 && clip.el.readyState>=2); }catch(e){ return false; } }
 function _clipHasAttachedSource(clip){
   try{ return !!(clip && clip.el && clip.el.hasAttribute("src") && String(clip.el.getAttribute("src")||"").trim()); }catch(e){ return false; }
 }
@@ -9124,6 +9146,7 @@ function _videoWindowSnapshot(){
   return { attached:attached, active:active, empty:empty };
 }
 function invalidateClipActivation(){ window.__clipActivationToken=(window.__clipActivationToken||0)+1; window.__pendingClipActivationKey=""; }
+function invalidateLastVideoFrame(){ window.__lastFrameValid=false; window.__lastFrameClip=-1; }
 function seekClipReady(clip, sourceTime, timeoutMs){
   timeoutMs=timeoutMs||1500;
   return new Promise(function(resolve){
@@ -9140,9 +9163,12 @@ function seekClipReady(clip, sourceTime, timeoutMs){
 }
 function _videoClipAtSeg(segIndex){ if(segIndex<0||segIndex>=SEGS.length) return -1; var sg=SEGS[segIndex]; return (sg&&sg.video&&sg.vclip>=0)?sg.vclip:-1; }
 function _nearestVideoClip(segIndex,direction){ for(var i=segIndex+direction;i>=0&&i<SEGS.length;i+=direction){ var ci=_videoClipAtSeg(i); if(ci>=0) return ci; } return -1; }
-function _wantedClipWindow(segIndex){ var wanted=[]; var previous=_nearestVideoClip(segIndex,-1); var current=_videoClipAtSeg(segIndex); var next=_nearestVideoClip(segIndex,1);
-  [previous,current,next].forEach(function(ci){ if(ci>=0 && wanted.indexOf(ci)<0) wanted.push(ci); });
-  return wanted.slice(0, window.VIDEO_SOURCE_WINDOW||3);
+function _wantedClipWindow(segIndex){
+  var wanted=[]; var maxWindow=window.VIDEO_SOURCE_WINDOW||3;
+  var current=_videoClipAtSeg(segIndex); if(current>=0) wanted.push(current);
+  /* compléter avec les prochains clips vidéo distincts (photos ignorées) -> jusqu'à 2 plans d'avance */
+  for(var i=segIndex+1; i<SEGS.length && wanted.length<maxWindow; i++){ var ci=_videoClipAtSeg(i); if(ci>=0 && wanted.indexOf(ci)<0) wanted.push(ci); }
+  return wanted;
 }
 function _syncClipWindow(curIdx){
   try{
@@ -9157,9 +9183,10 @@ function _syncClipWindow(curIdx){
     for(var _ci=0;_ci<CLIPS.length;_ci++){ var _c=CLIPS[_ci]; if(!_c||!_c.el) continue;
       var _hasSrc=_clipHasAttachedSource(_c);
       if(_want[_ci]){
-        if(_c._unloaded || !_hasSrc){ if(_c._u){ window.__VWIN.loads=(window.__VWIN.loads||0)+1;
-          ensureClipLoaded(_c,4000).catch(function(err){ if(err && err.message!=="chargement_clip_annule") { /* silencieux */ } });   /* préchargement non bloquant */
-        } }
+        /* précharger si pas DESSINABLE (une source peut être attachée mais pas encore utilisable) */
+        if(!_clipDrawable(_c) && _c._u){ window.__VWIN.loads=(window.__VWIN.loads||0)+1;
+          ensureClipLoaded(_c,4000).catch(function(err){ if(err && err.message!=="chargement_clip_annule") { /* silencieux */ } });
+        }
       } else {
         if(_hasSrc){ if(releaseClipSource(_c)){ window.__VWIN.unloads=(window.__VWIN.unloads||0)+1;
           (function(clip){ setTimeout(function(){ var released=!_clipHasAttachedSource(clip) && clip.el.networkState===0 && clip.el.readyState===0;
@@ -9212,35 +9239,14 @@ function loop(){ try{ window.__MMT_BOTTOM_CAP_TOP=null; }catch(e){}
   var trProg=inTrans?((t-preStart)/TRd):0;
   if(sg && sg.video && sg.vclip!=null && CLIPS[sg.vclip] && CLIPS[sg.vclip].ready){ var _clA=CLIPS[sg.vclip];
     if(VIDACT!==idx){ VIDACT=idx; for(var _c=0;_c<CLIPS.length;_c++){ if(_c!==sg.vclip){ try{ CLIPS[_c].el.pause(); }catch(e){} } }
-      /* ANTI-CLIP-NOIR ROBUSTE (GPT) : dédup activation par clé, recalcul du temps DANS le then,
-         seek+attente de l'image, bascule d'affichage SEULEMENT quand prêt (jamais de noir). */
-      if(_clA._unloaded || !_clipHasAttachedSource(_clA) || _clA.el.readyState<2){
-        var _actKey=idx+":"+sg.vclip;
-        if(window.__pendingClipActivationKey!==_actKey){
-          window.__pendingClipActivationKey=_actKey;
-          var _actTok=(window.__clipActivationToken||0)+1; window.__clipActivationToken=_actTok;
-          var _actSeg=idx, _actClip=sg.vclip;
-          /* pause du clip SORTANT (hors transition) : garde sa dernière image sans le laisser jouer librement */
-          if(!inTrans){ var _outClip=(VIDACT>=0 && CLIPS[VIDACT])?CLIPS[VIDACT]:null; if(_outClip && _outClip.el){ try{ _outClip.el.pause(); }catch(e){} } }
-          ensureClipLoaded(_clA,4000).then(function(clip){
-            if(_actTok!==window.__clipActivationToken) throw new Error("activation_obsolete");
-            var _aSeg=SEGS[_actSeg]; if(!_aSeg || _aSeg.vclip!==_actClip) throw new Error("activation_obsolete");
-            var _tNow=visualTime(); var _srcT=(_aSeg.vstart||0)+Math.max(0,(_tNow-_aSeg.start))*(_aSeg.vspeed||clip.speed||1);
-            clip.el.muted=true; clip.el.playbackRate=(_aSeg.vspeed||clip.speed||1);
-            return seekClipReady(clip,_srcT,1500).then(function(fr){ return {clip:clip,frameReady:fr}; });
-          }).then(function(r){
-            if(!r||!r.frameReady) return;
-            if(_actTok!==window.__clipActivationToken) return;
-            if(!playing) return;
-            /* bascule d'affichage SEULEMENT maintenant que l'image est prête */
-            VIDACT=_actClip;
-            var _pv2=r.clip.el.play(); if(_pv2&&_pv2.then) _pv2.catch(function(){});
-          }).catch(function(err){ if(err && err.message!=="activation_obsolete" && err.message!=="chargement_clip_annule"){ /* silencieux */ } })
-          .finally(function(){ if(window.__pendingClipActivationKey===_actKey) window.__pendingClipActivationKey=""; });
-        }
-      } else {
-        try{ _clA.el.muted=true; _clA.el.playbackRate=(sg.vspeed||_clA.speed||1); if(Math.abs((_clA.el.currentTime||0)-(sg.vstart||0))>0.18) _clA.el.currentTime=sg.vstart||0; }catch(e){} var _pv=_clA.el.play(); if(_pv&&_pv.then) _pv.catch(function(){});
-      }
+      /* LECTURE SIMPLE : rattacher la source si besoin (non bloquant) et jouer directement.
+         Retour à un comportement stable après l'anti-noir complexe qui bloquait l'affichage. */
+      try{
+        if((_clA._unloaded || !_clipHasAttachedSource(_clA)) && _clA._u){ _clA.el.src=_clA._u; _clA.el.load(); _clA._unloaded=false; }
+        _clA.el.muted=true; _clA.el.playbackRate=(sg.vspeed||_clA.speed||1);
+        if(Math.abs((_clA.el.currentTime||0)-(sg.vstart||0))>0.18) _clA.el.currentTime=sg.vstart||0;
+        var _pv=_clA.el.play(); if(_pv&&_pv.then) _pv.catch(function(){});
+      }catch(e){}
     }
   } else { if(VIDACT>=0){ VIDACT=-1; for(var _c2=0;_c2<CLIPS.length;_c2++){ try{ CLIPS[_c2].el.pause(); }catch(e){} } } }
   try{ if(typeof SEGS!=="undefined"&&SEGS&&idx>=0){ var _primed=0; for(var _pi2=idx+1; _pi2<SEGS.length && (SEGS[_pi2].start-t)<2.8 && _primed<3; _pi2++){ var _ps=SEGS[_pi2]; if(_ps.video&&_ps.vclip!=null&&_ps.vclip!==sg.vclip&&CLIPS[_ps.vclip]&&CLIPS[_ps.vclip].ready){ var _pe=CLIPS[_ps.vclip].el; if(_pe.paused && Math.abs((_pe.currentTime||0)-(_ps.vstart||0))>0.12){ _pe.muted=true; try{ _pe.currentTime=_ps.vstart||0; }catch(_e){} } _primed++; } } } }catch(e){}
@@ -9251,7 +9257,10 @@ function loop(){ try{ window.__MMT_BOTTOM_CAP_TOP=null; }catch(e){}
      nativement -> 60 FPS. Compromis assumé : les légendes canvas ne s'affichent pas sur les clips
      en plein écran (le karaoké HTML reste visible, z-index au-dessus). */
   var _fs=!!(_hEl && _hEl.classList.contains("cinema"));
-  var _vidNow=(sg && sg.video && sg.vclip!=null && CLIPS[sg.vclip] && CLIPS[sg.vclip].ready && !inTrans && _hEl && (_hEl.classList.contains("chrome-hidden") || _fs));
+  var _vidReadyToShow=(sg && sg.video && sg.vclip!=null && CLIPS[sg.vclip] && CLIPS[sg.vclip].el && CLIPS[sg.vclip].el.readyState>=2 && CLIPS[sg.vclip].el.videoWidth>0);
+  var _vidNow=(_vidReadyToShow && !inTrans && _hEl && (_hEl.classList.contains("chrome-hidden") || _fs));
+  /* Si un clip vidéo est actif mais PAS encore prêt : rattacher la source (non bloquant) pour qu'il le devienne vite. */
+  if(sg && sg.video && sg.vclip!=null && CLIPS[sg.vclip] && !_vidReadyToShow){ var _cw=CLIPS[sg.vclip]; if((_cw._unloaded || !_clipHasAttachedSource(_cw)) && _cw._u){ try{ _cw.el.src=_cw._u; _cw.el.load(); _cw._unloaded=false; }catch(e){} } }
   try{
     var _renderMode = _vidNow ? "native"
       : inTrans ? "transition"
@@ -9302,6 +9311,9 @@ function startPlay(){
   try{ var _wMax=Math.min(CLIPS.length,3), _wDone=0; for(var _wc=0;_wc<CLIPS.length && _wDone<_wMax;_wc++){ if(CLIPS[_wc]&&CLIPS[_wc].ready){ var _we=CLIPS[_wc].el; try{ _we.muted=true; _we.preload="auto"; }catch(_e){} var _wp=_we.play(); if(_wp&&_wp.then){ _wp.then(function(){}).catch(function(){}); } _we.pause(); _wDone++; } } }catch(e){}
   document.getElementById("empty").style.display="none";
   var _st0=pausedOffset||(window.MSTART_EFF||0);
+  /* PRÉCHARGER LE PREMIER CLIP : préparer la fenêtre de sources du segment de départ (le 1er clip
+     n'a pas de plan précédent pour se charger). Non bloquant : le montage démarre, la miniature couvre. */
+  try{ if(typeof SEGS!=="undefined" && SEGS && SEGS.length){ var _sidx=-1; for(var _si=0;_si<SEGS.length;_si++){ if(_st0>=SEGS[_si].start && _st0<SEGS[_si].end){ _sidx=_si; break; } } if(_sidx<0) _sidx=0; window.__clipWindowSeg=-1; _syncClipWindow(_sidx); } }catch(e){}
   var go=function(){ playing=true; try{ document.getElementById("play").textContent="\u23F8 Pause"; }catch(e){} if(OVL.on && ovVid){ var p=ovVid.play(); if(p&&p.then) p.catch(function(){}); } cancelAnimationFrame(raf); loop(); };
   var _launch=function(){
     if(window.MULTI){ mBase=_perfNow()-_st0; if(waStartPlan(_st0)){ try{ audioEl.muted=true; }catch(e){} } else { window.MULTI=0; try{ audioEl.muted=false; }catch(e){} } }
@@ -9428,7 +9440,7 @@ function _addClipFromBlob(blob, meta, options){ options=options||{}; var detachA
   setTimeout(function(){ if(done) return; if(detachAfterThumb){ try{ _detachPreparedClip(clip); }catch(e){} } fin(clip); }, 8000);
 }catch(e){ res(false); } }); }
 
-function studioAutoMontage(input){ try{ _videoImportBegin("auto"); }catch(e){}
+function studioAutoMontage(input){ try{ _videoImportBegin("auto"); invalidateLastVideoFrame(); }catch(e){}
   input=input||{};
   var items=(input.items||[]).slice();
   items.sort(function(a,b){ var da=(a.day!=null?a.day:1e9), db=(b.day!=null?b.day:1e9); if(da!==db) return da-db; return ((a.time||0)-(b.time||0)); });
@@ -9702,7 +9714,7 @@ function _afterOpenFilm(proj){ try{ _linkSources(); }catch(e){} try{
   var _clipsP=Promise.resolve();
   if(proj.clips && proj.clips.length){
     try{ setState(_st("Chargement du montage\u2026")+" (clips)"); }catch(e){}
-    try{ _videoImportBegin("restore"); }catch(e){}
+    try{ _videoImportBegin("restore"); invalidateLastVideoFrame(); }catch(e){}
     var _clipsToRestore=(proj.clips||[]).slice(0, window.MAX_VIDEO_CLIPS);   /* borne le nombre restauré */
     /* RESTAURATION : file limitée à 2 chargements + détachement après miniature (comme l'import manuel) */
     _clipsP=_videoMapLimit(_clipsToRestore, window.VIDEO_IMPORT_CONCURRENCY, function(cm){
@@ -9783,7 +9795,7 @@ function studioNewFilm(){ try{ studioSaveLocal(); }catch(e){} _curFilmId=null; t
 function studioClipIds(){ var a=[]; try{ for(var i=0;i<CLIPS.length;i++){ if(CLIPS[i]&&CLIPS[i]._mid!=null) a.push(CLIPS[i]._mid); } }catch(e){} return a; }
 function studioClipCount(){ try{ return CLIPS.length; }catch(e){ return 0; } }
 function studioRemovePhotos(ids){ try{ if(!ids||!ids.length) return 0; var s={},n=0; ids.forEach(function(x){ s[x]=1; }); for(var i=PHOTOS.length-1;i>=0;i--){ if(PHOTOS[i]&&PHOTOS[i]._id!=null&&s[PHOTOS[i]._id]){ PHOTOS.splice(i,1); n++; } } return n; }catch(e){ return 0; } }
-function studioRemoveAllClips(){ try{ invalidateClipActivation(); }catch(e){} try{ for(var i=CLIPS.length-1;i>=0;i--){ try{ if(CLIPS[i]&&CLIPS[i].el) CLIPS[i].el.remove(); }catch(e){} } CLIPS.length=0; clipVidReady=false; }catch(e){} }
+function studioRemoveAllClips(){ try{ invalidateClipActivation(); invalidateLastVideoFrame(); }catch(e){} try{ for(var i=CLIPS.length-1;i>=0;i--){ try{ if(CLIPS[i]&&CLIPS[i].el) CLIPS[i].el.remove(); }catch(e){} } CLIPS.length=0; clipVidReady=false; }catch(e){} }
 function studioRemoveClips(ids){ try{ if(!ids||!ids.length) return 0; var s={},n=0; ids.forEach(function(x){ s[x]=1; }); for(var i=CLIPS.length-1;i>=0;i--){ if(CLIPS[i]&&CLIPS[i]._mid!=null&&s[CLIPS[i]._mid]){ try{ if(CLIPS[i].el) CLIPS[i].el.remove(); }catch(e){} CLIPS.splice(i,1); n++; } } clipVidReady=CLIPS.some(function(c){return c.ready;}); return n; }catch(e){ return 0; } }
 function studioRebuild(){ try{ if(A&&(PHOTOS.length||clipVidReady)){ window.USER_ORDER=[]; for(var j=0;j<PHOTOS.length;j++) window.USER_ORDER.push(j); buildPartition(); paintStrip(0); studioSaveLocal(); } }catch(e){} }
 function studioRefreshFromSource(items){ try{
