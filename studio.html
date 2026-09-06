@@ -1674,7 +1674,7 @@ function buildPartition(){
   /* VIDÉO — placement PRO */
   if(clipVidReady && SEGS.length>=1){
     var _rc=[]; for(var _c=0;_c<CLIPS.length;_c++){ if(CLIPS[_c].ready) _rc.push(_c); }
-    if(_rc.length && PHOTOS.length===0){
+    if(_rc.length && _nP===0){   /* _nP = photos NON écartées : si tu écartes toutes les photos, on passe bien en vidéo-only */
       /* VIDÉO-ONLY : round-robin des clips -> chacun avance régulièrement, aucun bout repris */
       for(var _s=0;_s<SEGS.length;_s++){ SEGS[_s].video=true; SEGS[_s].vclip=_rc[_s % _rc.length]; }
     } else if(_rc.length){
