@@ -1586,6 +1586,7 @@ function buildPartition(){
   bdur=Math.max(1,Math.min(bdur, avail - _iD - _oD));   /* no-op quand la décision de boucle est correcte ; garde-fou */
   var pStart=MST+_iD, pEnd=pStart+bdur, wEnd=pEnd+_oD;   /* la musique joue sur TOUT : intro + photos + outro */
   window.MONTAGE_DUR=wEnd; window.MSTART_EFF=MST; window.SIGN_PS=pStart; window.SIGN_PE=pEnd;
+  try{ window.__VWIN={attMax:0,playMax:0,att:0,play:0}; }catch(e){}   /* reset mesures video window à chaque montage */
   try{
     var _montageEnd=wEnd, _mediaEnd=(window.SIGN_PE||wEnd);
     var _gEnd=beats.length?beats[beats.length-1]:0, _beatStep=_mediaBeatP(beats);
@@ -8887,7 +8888,7 @@ function _openLangPicker(){
   bg.style.cssText="position:fixed;inset:0;z-index:100050;background:rgba(0,0,0,.62);backdrop-filter:blur(4px);display:flex;align-items:flex-end;justify-content:center;font-family:system-ui,-apple-system,sans-serif";
   var card=document.createElement("div");
   card.style.cssText="width:100%;max-width:520px;background:#0f0e0d;border:1px solid #282622;border-radius:22px 22px 0 0;padding:8px 10px 22px;max-height:78vh;overflow:auto;box-shadow:0 -10px 50px rgba(0,0,0,.7)";
-  var head="<div style=\"text-align:center;padding:12px 0 6px\"><div style=\"width:40px;height:4px;background:#3a3733;border-radius:3px;margin:0 auto 12px\"></div><div style=\"color:#f4f7fc;font:700 17px system-ui\">\uD83C\uDF10 "+_st("Langue des paroles")+"</div><div style=\"color:#8a93a6;font:500 12.5px system-ui;margin-top:3px\">"+_st("Traduction synchronisée au rythme")+" \u00b7 v986</div></div>";
+  var head="<div style=\"text-align:center;padding:12px 0 6px\"><div style=\"width:40px;height:4px;background:#3a3733;border-radius:3px;margin:0 auto 12px\"></div><div style=\"color:#f4f7fc;font:700 17px system-ui\">\uD83C\uDF10 "+_st("Langue des paroles")+"</div><div style=\"color:#8a93a6;font:500 12.5px system-ui;margin-top:3px\">"+_st("Traduction synchronisée au rythme")+" \u00b7 v987</div></div>";
   var rows="";
   for(var i=0;i<window._LYRICS_LANGS.length;i++){ var code=window._LYRICS_LANGS[i][0], name=window._LYRICS_LANGS[i][1], fl=_LANG_FLAGS[code]||"\uD83C\uDF10", on=(window._LYRICS_LANG===code);
     rows+="<button class=\"lang-opt\" data-l=\""+code+"\" style=\"display:flex;align-items:center;gap:13px;width:100%;text-align:left;background:"+(on?"rgba(122,208,160,.14)":"none")+";border:1px solid "+(on?"rgba(122,208,160,.5)":"transparent")+";color:#f4f7fc;font:600 15.5px system-ui;padding:14px 15px;border-radius:13px;cursor:pointer;margin:3px 0\"><span style=\"font-size:22px\">"+fl+"</span><span style=\"flex:1\">"+name+"</span>"+(on?"<span style=\"color:#7ad0a0;font-size:18px\">\u2713</span>":"")+"</button>";
@@ -8955,6 +8956,18 @@ function _drawSubOnCanvas(cx, W, H, mt){ try{ if(window._LYRICS_ON!==true) retur
   }
   cx.restore(); }catch(e){} }
 function loop(){ try{ window.__MMT_BOTTOM_CAP_TOP=null; }catch(e){}
+  /* ÉCHANTILLONNEUR VIDEO WINDOW : capte les MAXIMUMS (le pic), pas l'instantané (GPT) */
+  try{ if(typeof CLIPS!=="undefined" && CLIPS.length){
+    var _W=window.__VWIN||(window.__VWIN={attMax:0,playMax:0,att:0,play:0});
+    var _a=0,_p=0;
+    for(var _vs=0;_vs<CLIPS.length;_vs++){ var _c=CLIPS[_vs]; if(!_c||!_c.el) continue;
+      if((_c.el.currentSrc||_c.el.getAttribute("src"))) _a++;
+      if(!_c.el.paused && !_c.el.ended) _p++;
+    }
+    _W.att=_a; _W.play=_p;
+    if(_a>_W.attMax) _W.attMax=_a;
+    if(_p>_W.playMax) _W.playMax=_p;
+  } }catch(e){}
   if(!playing) return;
   try{
   if(window.LOOP_ON && !WA.on && audioEl){ var _le=window.LOOP_END||window.MUSIC_DUR||(A?A.dur:0); if(_le>0 && audioEl.currentTime>=_le-0.06){ try{ audioEl.currentTime=window.LOOP_START||0; }catch(e){} } }
@@ -9708,19 +9721,18 @@ function _toggleFilmsMenu(anchor){
           +"Grille fin : "+(_md.gridEnd||0)+"s · Plan fin : "+(_md.planEnd||0)+"s\n"
           +"Audio couvre le film : "+(_md.audioCoversFilm?"OUI":"NON")+"\n"
           +"Grille couvre les coupes : "+(_md.gridCoversCuts?"OUI":"NON")
-          +"\n\nVIDEO WINDOW\n"+(function(){ try{
-            var _att=0,_playing=0,_unl=0,_list=[];
+          +"\n\nVIDEO WINDOW (pic depuis ouverture)\n"+(function(){ try{
+            var _W=window.__VWIN||{attMax:0,playMax:0,att:0,play:0};
+            var _attNow=0,_playNow=0;
             for(var _vi=0;_vi<CLIPS.length;_vi++){ var _c=CLIPS[_vi]; if(!_c||!_c.el) continue;
-              var _hasSrc=!!(_c.el.currentSrc||_c.el.src)&&!_c._unloaded;
-              if(_hasSrc) _att++;
-              if(!_c.el.paused) _playing++;
-              if(_c._unloaded) _unl++;
-              if(_hasSrc) _list.push("clip"+(_vi+1)+"(rs"+_c.el.readyState+(_c.el.paused?"":"|play")+")");
+              if((_c.el.currentSrc||_c.el.getAttribute("src"))) _attNow++;
+              if(!_c.el.paused && !_c.el.ended) _playNow++;
             }
-            return "Sources attachées : "+_att+(_att>3?" TROP(>3)!":"")+"\n"
-              +"Lecteurs en lecture : "+_playing+(_playing>2?" TROP!":"")+"\n"
-              +"Clips déchargés : "+_unl+"/"+CLIPS.length+"\n"
-              +"Attachés : "+(_list.join(", ")||"(aucun)");
+            return "Clips au total : "+CLIPS.length+"\n"
+              +"Sources attachées MAX : "+_W.attMax+(_W.attMax>3?" TROP(>3)!":" ok")+"\n"
+              +"Sources attachées maintenant : "+_attNow+"\n"
+              +"Lecteurs actifs MAX : "+_W.playMax+(_W.playMax>2?" TROP!":" ok")+"\n"
+              +"Lecteurs actifs maintenant : "+_playNow;
           }catch(e){ return "(indispo: "+e+")"; } })();
         alert(msg);
       }catch(e){ try{ alert("diag montage err: "+e); }catch(_e){} } return; }
