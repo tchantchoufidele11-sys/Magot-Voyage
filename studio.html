@@ -1862,7 +1862,7 @@ function buildPartition(){
       var _pM=(_cv.photos&&_cv.photos.missing&&_cv.photos.missing.length)?(" MANQUE "+_cv.photos.missing.join(",")):" OK";
       var _cM=(_cv.clips&&_cv.clips.missing&&_cv.clips.missing.length)?(" MANQUE "+_cv.clips.missing.join(",")):" OK";
       var _txt="DIAGNOSTIC MONTAGE\n"
-        +"Version : v992 - pool-diag\n"
+        +"Version : v995 - vperf2\n"
         +"Photos : "+((_cv.photos&&_cv.photos.placed)||0)+"/"+((_cv.photos&&_cv.photos.need)||0)+_pM+"\n"
         +"Clips : "+((_cv.clips&&_cv.clips.placed)||0)+"/"+((_cv.clips&&_cv.clips.need)||0)+_cM+"\n"
         +"Duree medias : "+(_cv.pDur||0)+"s photos + "+(_cv.vDur||0)+"s videos\n"
@@ -8746,6 +8746,11 @@ function _hideEl(el){ try{ if(el) el.style.cssText="position:fixed;left:0;bottom
 function _hideClipOverlay(){ if(_ovEl){ _hideEl(_ovEl); _ovEl=null; _ovRect=null; } }
 function _showClipOverlay(el){ try{
   var gc=document.getElementById("gl")||document.getElementById("base"); if(!gc||!el) return;
+  /* la position/taille du canvas ne change quasiment pas pendant la lecture :
+     on ne recalcule getBoundingClientRect (coûteux, force un reflow) qu'occasionnellement */
+  var _now=(typeof performance!=="undefined"&&performance.now)?performance.now():Date.now();
+  if(el===_ovEl && _ovRect && window.__ovRectT && (_now-window.__ovRectT)<500){ _ovEl=el; return; }
+  window.__ovRectT=_now;
   var r=gc.getBoundingClientRect(); var _flt=_moodFilter();
   if(el!==_ovEl || el._flt!==_flt || !_ovRect || Math.abs(_ovRect.left-r.left)>1 || Math.abs(_ovRect.top-r.top)>1 || Math.abs(_ovRect.width-r.width)>1 || Math.abs(_ovRect.height-r.height)>1){
     el.style.cssText="position:fixed;left:"+r.left+"px;top:"+r.top+"px;width:"+r.width+"px;height:"+r.height+"px;object-fit:contain;opacity:1;z-index:15;pointer-events:none;background:#000;border-radius:20px;filter:"+_flt+";-webkit-filter:"+_flt+";";
@@ -8893,7 +8898,7 @@ function _openLangPicker(){
   bg.style.cssText="position:fixed;inset:0;z-index:100050;background:rgba(0,0,0,.62);backdrop-filter:blur(4px);display:flex;align-items:flex-end;justify-content:center;font-family:system-ui,-apple-system,sans-serif";
   var card=document.createElement("div");
   card.style.cssText="width:100%;max-width:520px;background:#0f0e0d;border:1px solid #282622;border-radius:22px 22px 0 0;padding:8px 10px 22px;max-height:78vh;overflow:auto;box-shadow:0 -10px 50px rgba(0,0,0,.7)";
-  var head="<div style=\"text-align:center;padding:12px 0 6px\"><div style=\"width:40px;height:4px;background:#3a3733;border-radius:3px;margin:0 auto 12px\"></div><div style=\"color:#f4f7fc;font:700 17px system-ui\">\uD83C\uDF10 "+_st("Langue des paroles")+"</div><div style=\"color:#8a93a6;font:500 12.5px system-ui;margin-top:3px\">"+_st("Traduction synchronisée au rythme")+" \u00b7 v992</div></div>";
+  var head="<div style=\"text-align:center;padding:12px 0 6px\"><div style=\"width:40px;height:4px;background:#3a3733;border-radius:3px;margin:0 auto 12px\"></div><div style=\"color:#f4f7fc;font:700 17px system-ui\">\uD83C\uDF10 "+_st("Langue des paroles")+"</div><div style=\"color:#8a93a6;font:500 12.5px system-ui;margin-top:3px\">"+_st("Traduction synchronisée au rythme")+" \u00b7 v995</div></div>";
   var rows="";
   for(var i=0;i<window._LYRICS_LANGS.length;i++){ var code=window._LYRICS_LANGS[i][0], name=window._LYRICS_LANGS[i][1], fl=_LANG_FLAGS[code]||"\uD83C\uDF10", on=(window._LYRICS_LANG===code);
     rows+="<button class=\"lang-opt\" data-l=\""+code+"\" style=\"display:flex;align-items:center;gap:13px;width:100%;text-align:left;background:"+(on?"rgba(122,208,160,.14)":"none")+";border:1px solid "+(on?"rgba(122,208,160,.5)":"transparent")+";color:#f4f7fc;font:600 15.5px system-ui;padding:14px 15px;border-radius:13px;cursor:pointer;margin:3px 0\"><span style=\"font-size:22px\">"+fl+"</span><span style=\"flex:1\">"+name+"</span>"+(on?"<span style=\"color:#7ad0a0;font-size:18px\">\u2713</span>":"")+"</button>";
@@ -8963,6 +8968,29 @@ function _drawSubOnCanvas(cx, W, H, mt){ try{ if(window._LYRICS_ON!==true) retur
 /* FENÊTRE DE SOURCES VIDÉO (anti-crash mémoire iOS) : garde AU PLUS 3 clips avec une source
    attachée (courant + suivant distinct + précédent pendant transition). Les autres sont déchargés
    (removeAttribute src + load). On choisit d'après SEGS (timeline), pas l'ordre de CLIPS. */
+function _vperfReset(){
+  window.__VPERF={ last:0, recent:[], frames:0, maxGap:0, over50:0, over120:0, interruptions:0, modes:{}, lastClip:-1, switchAt:0, switches:0, startStalls:0, qualityAt:0, qualityPrev:{}, decoded:0, dropped:0 };
+}
+function _vperfFrame(mode,clipIndex){
+  var now=(performance&&performance.now)?performance.now():Date.now();
+  var p=window.__VPERF; if(!p){ _vperfReset(); p=window.__VPERF; }
+  if(clipIndex!=null && clipIndex>=0 && clipIndex!==p.lastClip){ p.lastClip=clipIndex; p.switchAt=now; p.switches++; }
+  if(p.last){ var gap=now-p.last;
+    if(gap<500){ p.recent.push(gap); if(p.recent.length>120) p.recent.shift(); p.maxGap=Math.max(p.maxGap,gap);
+      if(gap>50){ p.over50++; if(now-p.switchAt<700) p.startStalls++; }
+      if(gap>120) p.over120++;
+    } else { p.interruptions++; }
+  }
+  p.last=now; p.frames++;
+  if(!p.modes) p.modes={}; p.modes[mode]=(p.modes[mode]||0)+1;
+  if(clipIndex!=null && clipIndex>=0 && now-p.qualityAt>=500 && CLIPS[clipIndex] && CLIPS[clipIndex].el && typeof CLIPS[clipIndex].el.getVideoPlaybackQuality==="function"){
+    p.qualityAt=now;
+    try{ var q=CLIPS[clipIndex].el.getVideoPlaybackQuality(); var prev=p.qualityPrev[clipIndex];
+      if(prev){ var dd=q.totalVideoFrames-prev.total, dp=q.droppedVideoFrames-prev.dropped; if(dd>=0 && dp>=0){ p.decoded+=dd; p.dropped+=dp; } }
+      p.qualityPrev[clipIndex]={ total:q.totalVideoFrames, dropped:q.droppedVideoFrames };
+    }catch(e){}
+  }
+}
 function _clipHasAttachedSource(clip){
   try{ return !!(clip && clip.el && clip.el.hasAttribute("src") && String(clip.el.getAttribute("src")||"").trim()); }catch(e){ return false; }
 }
@@ -9064,6 +9092,14 @@ function loop(){ try{ window.__MMT_BOTTOM_CAP_TOP=null; }catch(e){}
   _atmo=sg?(sg.atmo||null):null; _atmoAmt=(ATMO_AMT[MOOD]!=null?ATMO_AMT[MOOD]:0.6);
   var _hEl=document.querySelector(".hero");
   var _vidNow=(sg && sg.video && sg.vclip!=null && CLIPS[sg.vclip] && CLIPS[sg.vclip].ready && !inTrans && _hEl && _hEl.classList.contains("chrome-hidden") && !_hEl.classList.contains("cinema"));
+  try{
+    var _renderMode = _vidNow ? "native"
+      : inTrans ? "transition"
+      : (_hEl && _hEl.classList.contains("cinema")) ? "canvas-fullscreen"
+      : (_hEl && !_hEl.classList.contains("chrome-hidden")) ? "canvas-controls"
+      : "canvas-other";
+    _vperfFrame(_renderMode, (sg && sg.video && sg.vclip!=null) ? sg.vclip : -1);
+  }catch(e){}
   if(_vidNow){ _showClipOverlay(CLIPS[sg.vclip].el); }
   else {
     _hideClipOverlay();
@@ -9100,7 +9136,7 @@ function startPlay(){
   if(!PHOTOS.length && !clipVidReady){ setState(_st("Ajoute des photos ou des vid\u00e9os.")); return; }
   if(!audioEl){ setState("Musique non chargée."); return; }
   buildPartition();
-  try{ window.__clipWindowSeg=-1; }catch(e){}
+  try{ window.__clipWindowSeg=-1; _vperfReset(); }catch(e){}
   try{ masterVol(1); }catch(e){}
   try{ if(ctx&&ctx.state==="suspended"&&ctx.resume) ctx.resume(); }catch(e){}
   try{ var _wMax=Math.min(CLIPS.length,3), _wDone=0; for(var _wc=0;_wc<CLIPS.length && _wDone<_wMax;_wc++){ if(CLIPS[_wc]&&CLIPS[_wc].ready){ var _we=CLIPS[_wc].el; try{ _we.muted=true; _we.preload="auto"; }catch(_e){} var _wp=_we.play(); if(_wp&&_wp.then){ _wp.then(function(){}).catch(function(){}); } _we.pause(); _wDone++; } } }catch(e){}
@@ -9766,7 +9802,7 @@ function _toggleFilmsMenu(anchor){
             var _maxPlanDur=Math.max.apply(null,_byCd[_ck]); var _over=((_maxPlanDur*_spdC)>_availC+0.05);
             _clipInfo+="\n  Clip "+(parseInt(_ck)+1)+" : source "+_src+"s, extrait ~"+_ex+"s x"+_ap+(_over?" DEPASSEMENT!":" ok"); }
         }catch(e){}
-        var msg="DIAGNOSTIC MONTAGE — v992\n\n"
+        var msg="DIAGNOSTIC MONTAGE — v995\n\n"
           +"Photos : "+((_cv.photos&&_cv.photos.placed)||0)+"/"+((_cv.photos&&_cv.photos.need)||0)+_pM+"\n"
           +"Clips : "+((_cv.clips&&_cv.clips.placed)||0)+"/"+((_cv.clips&&_cv.clips.need)||0)+_cM+"\n"
           +"Plans totaux : "+_nSeg+" (dont "+_nVid+" vidéo)\n"
@@ -9788,7 +9824,24 @@ function _toggleFilmsMenu(anchor){
               +"Déchargements demandés : "+(_W.unloads||0)+"\n"
               +"Déchargements confirmés : "+(_W.unloadConfirmed||0)+"\n"
               +"Déchargements échoués : "+(_W.unloadFailed||0)+"\n"
-              +"Violations fenêtre : "+(_W.syncErr||0);
+              +"Violations fenêtre : "+(_W.syncErr||0)
+              +"\n\nFLUIDITÉ\n"+(function(){ try{
+                var p=window.__VPERF||{}; var recent=p.recent||[]; var sum=0; for(var _q=0;_q<recent.length;_q++) sum+=recent[_q];
+                var fps=recent.length?1000/(sum/recent.length):0;
+                var dropRate=p.decoded>0?(p.dropped/p.decoded)*100:0;
+                return "FPS boucle : "+fps.toFixed(1)+"\n"
+                  +"Écart max : "+Math.round(p.maxGap||0)+" ms\n"
+                  +"Retards >50ms : "+(p.over50||0)+" | Blocages >120ms : "+(p.over120||0)+"\n"
+                  +"Retards après changement clip : "+(p.startStalls||0)+"/"+(p.over50||0)+"\n"
+                  +"Images vidéo décodées : "+(p.decoded||0)+"\n"
+                  +"Images vidéo PERDUES : "+(p.dropped||0)+" ("+dropRate.toFixed(2)+" %)\n"
+                  +"Rendu natif : "+((p.modes&&p.modes.native)||0)+"\n"
+                  +"Canvas plein écran : "+((p.modes&&p.modes["canvas-fullscreen"])||0)+"\n"
+                  +"Canvas commandes visibles : "+((p.modes&&p.modes["canvas-controls"])||0)+"\n"
+                  +"Canvas autre : "+((p.modes&&p.modes["canvas-other"])||0)+"\n"
+                  +"Transitions : "+((p.modes&&p.modes.transition)||0)+"\n"
+                  +"Changements de clip : "+(p.switches||0);
+              }catch(e){ return "(fluidité indispo: "+e+")"; } })();
           }catch(e){ return "(indispo: "+e+")"; } })();
         alert(msg);
       }catch(e){ try{ alert("diag montage err: "+e); }catch(_e){} } return; }
