@@ -14555,7 +14555,10 @@ async function sendChatMessage(){
   }
   else if(body){
     const isLimit = out && out.error==="plafond_ia_atteint";
-    const errMsg = isLimit ? t("agent.busy") : (t("agent.error")+" "+((out&&out.error)||"?"));
+    /* DIAGNOSTIC : on affiche le VRAI détail (statut + cause) pour identifier la source du blocage. */
+    var _diagTxt = "";
+    try{ if(out){ _diagTxt = " [err="+(out.error||"?")+(out.status?(" http="+out.status):"")+(out.diag?(" diag="+JSON.stringify(out.diag)):"")+(out.detail?(" detail="+String(out.detail).slice(0,120)):"")+"]"; } }catch(e){}
+    const errMsg = (isLimit ? t("agent.busy") : (t("agent.error")+" "+((out&&out.error)||"?"))) + _diagTxt;
     body.innerHTML+=`<div class="ac-msg assistant err">${escapeHtml(errMsg)}</div>`; body.scrollTop=body.scrollHeight;
   }
   if(out&&out.proposal&&out.proposal.type==="ajout_planning"){ renderPlanProposal(out.proposal); }
