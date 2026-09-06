@@ -2008,6 +2008,15 @@ function _softBg(){}
 /* lignes de texte : contour sombre fin + remplissage (net, façon CapCut/iMovie) */
 function _lines(ctx,arr,x,y0,lh,fs,align,fill,stroke){ ctx.textAlign=align||"left"; if(stroke){ ctx.lineJoin="round"; try{ctx.miterLimit=2;}catch(e){} } for(var i=0;i<arr.length;i++){ if(stroke){ ctx.lineWidth=Math.max(1.5,fs*0.058); ctx.strokeStyle=stroke; ctx.strokeText(arr[i],x,y0); } ctx.fillStyle=fill; ctx.fillText(arr[i],x,y0); y0+=lh; } }
 var _STK="rgba(3,7,12,.5)";
+function _mmtRegisterBottomCaption(topY,H,zone){
+  try{
+    if(zone!=="bottom") return;
+    if(!isFinite(topY) || !(H>0)) return;
+    var frac=Math.max(0.40,Math.min(0.97,topY/H));
+    var previous=window.__MMT_BOTTOM_CAP_TOP;
+    if(typeof previous!=="number" || frac<previous){ window.__MMT_BOTTOM_CAP_TOP=frac; }   /* garder le bloc qui monte le plus haut */
+  }catch(e){}
+}
 function _mmtSubMaxRows(W,H){
   try{
     if(typeof window._SUB_MAXROWS==="number" && window._SUB_MAXROWS>0 && window.__SUB_MAXROWS_W===W) return window._SUB_MAXROWS;
@@ -2054,6 +2063,13 @@ function _mmtDraw(ctx,opt){
   var W=opt.width||ctx.canvas.width, H=opt.height||ctx.canvas.height, S=Math.min(W,H);
   var time=Math.max(0,+opt.time||0), duration=Math.max(0.2,+opt.duration||4), role=opt.role||"comment";
   var st=_mmtResolve(opt.mood||"cinema",opt.style||"auto",role);
+  /* POSITION NATURELLE par style (l'utilisateur ne choisit plus Haut/Milieu/Bas) */
+  var _natural=(function(kind){
+    if(kind==="title")   return {zone:"title",  center:0.38};
+    if(kind==="credits") return {zone:"credits",center:0.52};
+    if(kind==="ticker")  return {zone:"bottom", bottom:0.965};
+    return {zone:"bottom", bottom:0.94};
+  })(st.kind);
   var TR=Math.max(0.12,Math.min(st.transition,duration*0.42));
   var pin=_mmtClamp(time/TR,0,1), pout=_mmtClamp((duration-time)/TR,0,1), ein=_mmtEoc(pin);
   var alpha=Math.min(ein,_mmtEoc(pout)); if(st.kind==="credits") alpha=1; if(alpha<=0.01) return;
@@ -2069,39 +2085,34 @@ function _mmtDraw(ctx,opt){
   var _cmtFs=Math.max(13,Math.round(H*_subScale*_szM));   /* taille commentaire = sous-titre */
   var fs=(role==="comment")?_cmtFs:(role==="title"?Math.max(_cmtFs,Math.round(S*0.058*_szM)):Math.max(13,Math.round(S*0.047*_szM)));   /* commentaires = sous-titre ; titres jamais plus petits que les commentaires */
   var small=Math.max(11,Math.round(fs*0.52));
-  var _cpos=(opt.pos||"bottom");
-  var _subOn=false; try{ _subOn=(window._LYRICS_ON===true) && window._SUBS && window._SUBS().length>0; }catch(e){}
-  var _subLift=0;
-  if(_subOn && _cpos!=="top" && _cpos!=="mid"){
-    /* Remontée dynamique de la LÉGENDE selon le nb de lignes du karaoké AFFICHÉ à cet instant.
-       Le sous-titre karaoké, lui, ne bouge pas (il reste à H*0.91). */
-    var _subRows=_mmtKaraokeRows(ctx,W,H,+opt.absTime||0);
-    if(_subRows===1) _subLift=Math.round(H*0.088);
-    else if(_subRows>=2) _subLift=Math.round(H*0.145);
-    else _subLift=0;   /* aucune parole affichée -> pas de remontée */
-  }
-  var lh=fs*1.22, bottom=(_cpos==="top"?Math.round(H*0.17):(_cpos==="mid"?Math.round(H*0.5):H-Math.round(H*0.072)-_subLift)), beat=(opt.beat||0);
+  var _cpos=_natural.zone;
+  /* La légende NE bouge JAMAIS quand les paroles apparaissent : c'est le karaoké qui se placera
+     au-dessus (voir _mmtRegisterBottomCaption + _drawSubOnCanvas). Position fixe par style. */
+  var lh=fs*1.22;
+  var bottom=(_natural.zone==="title"||_natural.zone==="credits")?Math.round(H*_natural.center):Math.round(H*_natural.bottom);
+  var beat=(opt.beat||0);
   var colText=S*0.86, colCard=S*0.76;
   var i,yy,g,lines,blockH,wmax=0,cy,left,boxW,boxH,tx,topY;
   ctx.save(); ctx.globalAlpha=alpha; ctx.textBaseline="alphabetic";
   /* ---------- Bandeau info : hauteur fixe (petit côté) ---------- */
   if(st.kind==="ticker"){
-    var bh=Math.max(42,Math.round(S*0.082));
-    var yb=bottom-bh+(1-ein)*bh;
+    var bh=Math.max(56,Math.round(H*0.062));
+    var tickerBottom=Math.round(H*0.965), yb=tickerBottom-bh+(1-ein)*bh;
+    ctx.save(); ctx.shadowColor="rgba(0,0,0,0)"; ctx.shadowBlur=0; ctx.shadowOffsetX=0; ctx.shadowOffsetY=0;
     ctx.fillStyle="rgba(7,11,17,0.90)"; ctx.fillRect(0,yb,W,bh);
     var accentW=Math.max(2,fs*0.075); ctx.fillStyle=GOLD; ctx.fillRect(0,yb,accentW,bh);
-    var tfs=Math.round(bh*0.34);
-    var labelW=Math.min(W*0.22,tfs*4.8);
-    ctx.font="700 "+Math.round(tfs*0.82)+"px "+FF; ctx.textAlign="left"; ctx.fillStyle="#D3A33B";
-    _ls(ctx,tfs*0.08); ctx.fillText("MAGOT",fs*0.42,yb+bh*0.62); _ls(ctx,0);
+    var brandFs=Math.round(H*0.018), tickerFs=Math.round(H*0.026);
+    ctx.font="700 "+brandFs+"px "+FF; ctx.textAlign="left"; ctx.fillStyle="#D3A33B"; ctx.textBaseline="middle";
+    _ls(ctx,brandFs*0.10); ctx.fillText("MAGOT",Math.round(fs*0.42),Math.round(yb+bh*0.5)); _ls(ctx,0);
+    var labelW=Math.min(W*0.24,brandFs*7);
     var contentX=labelW, contentW=W-contentX-fs*0.30;
     ctx.save(); ctx.beginPath(); ctx.rect(contentX,yb,contentW,bh); ctx.clip();
-    ctx.font="600 "+tfs+"px "+FF; ctx.fillStyle="#F7F5F0"; ctx.textAlign="left";
-    var separator="     \u2022     ", item=text+separator, itemW=ctx.measureText(item).width;
-    var speed=S*0.28, cycle=Math.max(itemW,fs*4);
+    ctx.font="600 "+tickerFs+"px "+FF; ctx.fillStyle="#F7F5F0"; ctx.textAlign="left";
+    var separator="        \u2022        ", item=text+separator, itemW=ctx.measureText(item).width;
+    var speed=S*0.12, cycle=Math.max(itemW,fs*6);
     var start=contentX+fs*0.35-((time*speed)%cycle);
-    while(start<contentX+contentW){ ctx.fillText(item,start,yb+bh*0.63); start+=cycle; }
-    ctx.restore(); ctx.restore(); return;
+    while(start<contentX+contentW){ ctx.fillText(item,Math.round(start),Math.round(yb+bh*0.5)); start+=cycle; }
+    ctx.restore(); ctx.textBaseline="alphabetic"; ctx.restore(); return;
   }
   /* ---------- Karaoke ---------- */
   if(st.kind==="karaoke"){
@@ -2151,7 +2162,7 @@ function _mmtDraw(ctx,opt){
     var tlines, tagline=""; if(hasTag){ tlines=_mmtWrap(ctx,_parts[0],maxTextW,1); tagline=_parts.slice(1).join(" "); } else { tlines=_mmtWrap(ctx,text,maxTextW,2); }
     var lineH=titlefs*1.14;
     var barH=Math.round(hasTag ? fs*2.18 : Math.max(fs*1.72, tlines.length*lineH + padV*2));
-    var cyy=bottom-barH*0.5, barY=cyy-barH/2, rad=Math.round(fs*0.22);
+    var cyy=bottom-barH*0.5, barY=cyy-barH/2, rad=Math.round(fs*0.22); _mmtRegisterBottomCaption(barY,H,_cpos);
     /* animation : fondu + léger déplacement horizontal (pas de zoom) */
     var an=(opt.anim && opt.anim!=="auto")?opt.anim:"slide";
     var _dx=0,_dy=0; if(an==="up")_dy=(1-ein)*fs*0.5; else if(an==="down")_dy=-(1-ein)*fs*0.5; else if(an==="slide")_dx=-(1-ein)*fs*0.10; 
@@ -2219,7 +2230,7 @@ function _mmtDraw(ctx,opt){
   scale += (an==="beat")?0:beat*0.035;
 
   if(st.kind==="cinema"){
-    topY=bottom-blockH-fs*0.78; _scrimTo(ctx,W,H,topY,alpha*0.88);
+    topY=bottom-blockH-fs*0.78; _mmtRegisterBottomCaption(bottom-blockH,H,_cpos); _scrimTo(ctx,W,H,topY,alpha*0.88);
     ctx.translate(dx,dy);
     ctx.font="600 "+fs+"px "+FF; ctx.textAlign="center";
     _soft(ctx,fs,0.38);
@@ -2230,7 +2241,7 @@ function _mmtDraw(ctx,opt){
     ctx.font="700 "+fs+"px "+FF;
     var _sPadX=fs*0.52, _sPadY=fs*0.24;
     var _sBoxW=Math.min(W*0.90,wmax+_sPadX*2), _sBoxH=blockH+_sPadY*2;
-    var _sX=W/2-_sBoxW/2, _sY=bottom-_sBoxH;
+    var _sX=W/2-_sBoxW/2, _sY=bottom-_sBoxH; _mmtRegisterBottomCaption(_sY,H,_cpos);
     ctx.save(); ctx.shadowColor="rgba(0,0,0,0.28)"; ctx.shadowBlur=fs*0.10; ctx.shadowOffsetY=fs*0.03;
     _rr(ctx,_sX,_sY,_sBoxW,_sBoxH,fs*0.20); ctx.fillStyle="rgba(6,9,14,0.62)"; ctx.fill(); ctx.restore();
     ctx.textAlign="center";
@@ -2272,7 +2283,7 @@ function _mmtDraw(ctx,opt){
     var _dContentW=Math.min(Math.max(_dW1,_dW2),_dMaxContent), _dBoxW=_dContentW+_dPadX*2;
     var _nLineH=_dNameFs*1.16, _nBlock=_dNameLines.length*_nLineH;
     var _dBoxH=_nBlock+(_dCtxLines.length?_dGap+_dCtxFs:0)+_dPadV*2;
-    var _dLeft=Math.round(W*0.06), _dTop=bottom-_dBoxH;   /* ancré par le bas */
+    var _dLeft=Math.round(W*0.06), _dTop=bottom-_dBoxH; _mmtRegisterBottomCaption(_dTop,H,_cpos);   /* ancré par le bas */
     ctx.save(); ctx.globalAlpha=alpha; ctx.translate(dx,dy);
     ctx.save(); ctx.shadowColor="rgba(0,0,0,0.32)"; ctx.shadowBlur=_kfs*0.14; ctx.shadowOffsetY=_kfs*0.05;
     _rr(ctx,_dLeft,_dTop,_dBoxW,_dBoxH,_dRad); ctx.fillStyle="rgba(7,11,17,0.72)"; ctx.fill(); ctx.restore();
@@ -2379,7 +2390,7 @@ function drawDayMarker(ctx,Wd,Hd,day,into){
   var HOLD=2.6; if(into>HOLD||into<0) return;
   var a=1; if(into<0.4) a=into/0.4; else if(into>HOLD-0.6) a=Math.max(0,(HOLD-into)/0.6); a=Math.max(0,Math.min(1,a));
   var subOn=false; try{ subOn=(window._LYRICS_ON===true)&&window._SUBS&&window._SUBS().length>0; }catch(e){}
-  var lift=subOn?Math.round(Hd*0.110):0;   /* aligné sur _subLift (0.110) */
+  var lift=0;   /* la légende ne remonte plus (le karaoké se place au-dessus) */
   var fs=Math.max(13,Math.round(Hd*0.036)), left=Math.round(Math.min(Wd,Hd)*0.075);
   var txt="\u25C6 JOUR "+day;
   ctx.save(); ctx.globalAlpha=a; ctx.textAlign="left"; ctx.textBaseline="middle";
@@ -8656,7 +8667,9 @@ function _sizeSub(){ try{ if(!_subEl||!_subEl._box) return; var h=document.query
   _subEl._box.style.font="700 "+fs+"px/1.5 'Inter','Helvetica Neue',system-ui,-apple-system,sans-serif";
   _subEl.style.width=Math.round(dispW*0.94)+"px"; _subEl.style.left="50%"; _subEl.style.right="auto"; _subEl.style.transform="translateX(-50%)"; _subEl.style.paddingLeft="0"; _subEl.style.paddingRight="0";
   // remonter le sous-titre au-dessus du bas de la zone vidéo (identique en proportion à l'export : ~9% du bas)
-  _subEl.style.bottom=Math.round((hh-dispH)/2 + dispH*0.09)+"px"; _subEl.style.top="auto";
+  var _capTop=window.__MMT_BOTTOM_CAP_TOP, _bf=0.09;
+  if(typeof _capTop==="number"){ _bf=Math.max(0.09, 1-_capTop+0.018); }
+  _subEl.style.bottom=Math.round((hh-dispH)/2 + dispH*_bf)+"px"; _subEl.style.top="auto";
 }catch(e){} }
 var _CUES=[], _cueSig="", _subCueRef=null, _subWordEls=[];
 function _escHtml(x){ return String(x).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;"); }
@@ -8703,7 +8716,8 @@ function _ensureCues(){ try{
   }
 }catch(e){} }
 function _cueIdxAt(t){ if(!_CUES.length) return -1; var idx=-1; for(var i=0;i<_CUES.length;i++){ if(_CUES[i].t<=t+0.02) idx=i; else break; } return idx; }
-function _updateSub(){ if(window._LYRICS_ON!==true){ if(_subEl)_subEl.style.opacity="0"; return; } try{ if(!_subEl){ var h=document.querySelector(".hero"); if(!h) return; _subEl=document.createElement("div"); _subEl.id="karaokeSub"; _subEl.style.cssText="position:absolute;left:50%;right:auto;bottom:9%;text-align:center;z-index:16;pointer-events:none;opacity:0;transition:opacity .1s;transform:translateX(-50%)";
+function _updateSub(){ if(window._LYRICS_ON!==true){ if(_subEl)_subEl.style.opacity="0"; return; }
+  try{ var _ck=(typeof window.__MMT_BOTTOM_CAP_TOP==="number"?window.__MMT_BOTTOM_CAP_TOP.toFixed(4):"none"); if(_subEl && _subEl._capPositionKey!==_ck){ _subEl._capPositionKey=_ck; _sizeSub(); } }catch(e){} try{ if(!_subEl){ var h=document.querySelector(".hero"); if(!h) return; _subEl=document.createElement("div"); _subEl.id="karaokeSub"; _subEl.style.cssText="position:absolute;left:50%;right:auto;bottom:9%;text-align:center;z-index:16;pointer-events:none;opacity:0;transition:opacity .1s;transform:translateX(-50%)";
     var _sb=document.createElement("span"); _sb.className="ks-box";
     _sb.style.cssText="display:inline;background:rgba(8,8,8,.62);color:#fff;font:700 20px/1.5 'Inter','Helvetica Neue',system-ui,-apple-system,sans-serif;padding:.14em .48em;border-radius:8px;-webkit-box-decoration-break:clone;box-decoration-break:clone;letter-spacing:.2px;text-shadow:0 1px 2px rgba(0,0,0,.55)";
     _subEl.appendChild(_sb); _subEl._box=_sb; h.appendChild(_subEl); _sizeSub();
@@ -8786,7 +8800,9 @@ function _drawSubOnCanvas(cx, W, H, mt){ try{ if(window._LYRICS_ON!==true) retur
   var lines=[], curL=[], curW=0;
   for(var i=0;i<cue.words.length;i++){ var ww=cue.words[i], wW=cx.measureText(ww.w).width, add=(curL.length?spaceW:0)+wW; if(curW+add>maxW && curL.length){ lines.push(curL); curL=[]; curW=0; add=wW; } curL.push({w:ww.w,t:ww.t,width:wW}); curW+=add; }
   if(curL.length) lines.push(curL);
-  var padX=fs*0.5, padY=fs*0.22, boxH=fs+padY*2, gap=fs*0.16, rad=Math.min(fs*0.30,boxH/2), baseBottom=H*0.91;
+  var padX=fs*0.5, padY=fs*0.22, boxH=fs+padY*2, gap=fs*0.16, rad=Math.min(fs*0.30,boxH/2);
+  var capTop=window.__MMT_BOTTOM_CAP_TOP, baseBottom=H*0.91;
+  if(typeof capTop==="number"){ baseBottom=Math.min(baseBottom, H*(capTop-0.018)); }   /* karaoké au-dessus de la légende, écart 0.018 H */
   cx.textAlign="left"; cx.textBaseline="middle";
   for(var j=lines.length-1;j>=0;j--){
     var k=lines.length-1-j, L=lines[j];
@@ -8797,7 +8813,7 @@ function _drawSubOnCanvas(cx, W, H, mt){ try{ if(window._LYRICS_ON!==true) retur
     for(var a2=0;a2<L.length;a2++){ var word=L[a2]; var _karX=(window._SUB_KARAOKE===true)||(cue&&cue.real===true); cx.fillStyle=(!_karX || word.t<=mt+0.02)?"#ffffff":"rgba(255,255,255,.5)"; cx.fillText(word.w, x, yc); x+=word.width+spaceW; }
   }
   cx.restore(); }catch(e){} }
-function loop(){
+function loop(){ try{ window.__MMT_BOTTOM_CAP_TOP=null; }catch(e){}
   if(!playing) return;
   try{
   if(window.LOOP_ON && !WA.on && audioEl){ var _le=window.LOOP_END||window.MUSIC_DUR||(A?A.dur:0); if(_le>0 && audioEl.currentTime>=_le-0.06){ try{ audioEl.currentTime=window.LOOP_START||0; }catch(e){} } }
@@ -9756,7 +9772,7 @@ function _fitRenderToDisplay(){ try{
 }catch(e){} }
 try{ window._fitRenderToDisplay=_fitRenderToDisplay; }catch(e){}
 try{ var _fitT2; window.addEventListener("resize", function(){ clearTimeout(_fitT2); _fitT2=setTimeout(function(){ try{ _fitRenderToDisplay(); }catch(e){} },250); }); window.addEventListener("orientationchange", function(){ setTimeout(function(){ try{ _fitRenderToDisplay(); }catch(e){} },350); }); }catch(e){}
-function renderMontageAt(t){
+function renderMontageAt(t){ try{ window.__MMT_BOTTOM_CAP_TOP=null; }catch(e){}
   if(t<0)t=0;
   try{ window._pauseRenderT = playing?null:t; }catch(e){}
   var idx=-1; for(var i=0;i<SEGS.length;i++){ if(t>=SEGS[i].start && t<SEGS[i].end){ idx=i; break; } }
@@ -11152,7 +11168,6 @@ essentiaReady.then(function(ok){ if(!ok && !A){ /* silencieux : le repli se fait
     var STYLES=[["auto","Style : Auto"],["title","Titre"],["cinema","Cin\u00e9ma"],["subtitle","Sous-titre"],["voyageor","Voyage"],["documentary","Documentaire"],["band","Bande info"],["credits","G\u00e9n\u00e9rique"]];
     var ANIMS=[["auto","Anim : Auto"],["none","Aucune"],["fade","Fondu"],["zoom","Zoom"],["slide","Glisser"],["type","Machine"]];
     var FONTS=[["","Police : Syst\u00e8me"],['"Times New Roman",Times,serif',"Times New Roman"],['"Poppins",system-ui,sans-serif',"Poppins"],['"Playfair Display",Georgia,serif',"Playfair Display"],['"Montserrat",system-ui,sans-serif',"Montserrat"],['"Raleway",system-ui,sans-serif',"Raleway"],['"DM Serif Display",Georgia,serif',"DM Serif"],['"Lora",Georgia,serif',"Lora"],['"Caveat","Snell Roundhand",cursive',"Caveat"]];
-    var POSIT=[["bottom","Position : Bas"],["mid","Milieu"],["top","Haut"]];
     var ALIGN=[["center","Align : Centre"],["left","Gauche"],["right","Droite"]];
     var SIZES=[["0.7","18 pt"],["0.8","20 pt"],["0.9","22 pt"],["1","24 pt"],["1.15","28 pt"],["1.3","32 pt"],["1.5","36 pt"],["1.7","42 pt"],["2","48 pt"]];
     var MAXLEN=120, applyAll=!!window._capApplyAll;
@@ -11162,7 +11177,7 @@ essentiaReady.then(function(ok){ if(!ok && !A){ /* silencieux : le repli se fait
       +'<div class="te-head"><span class="te-title">Texte</span><div class="te-tools"><button class="te-tool" id="teAI" aria-label="Fid\u00e8le : g\u00e9n\u00e9rer"><svg width="19" height="19" viewBox="0 0 24 24" fill="currentColor"><path d="M6.5 21.5l-2-2 11-11 2 2-11 11zM17.6 5.1l1.1-1.1 1.4 1.4-1.1 1.1 1.1 1.1-1.4 1.4-1.1-1.1-1.1 1.1-1.4-1.4 1.1-1.1-1.1-1.1 1.4-1.4z"/><circle cx="20.5" cy="12" r="1.1"/><circle cx="12.5" cy="3.5" r="1.1"/></svg></button><button class="te-doneb" id="teDone" aria-label="Termin\u00e9"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12l5 5L20 6"/></svg></button></div></div>'
       +'<div class="te-prevwrap"><canvas class="te-cv" width="360" height="640"></canvas></div>'
       +'<div class="te-inputwrap"><textarea class="te-input" id="teInput" maxlength="'+MAXLEN+'" rows="2" placeholder="'+_st("\u00c9cris ton texte\u2026")+'">'+esc(p._cap||"")+'</textarea><span class="te-count" id="teCount">'+(""+(p._cap||"")).length+'/'+MAXLEN+'</span></div>'
-      +'<div class="te-bar"><select class="te-sel" id="teStyle">'+opts(STYLES,p._capStyle||"auto")+'</select><select class="te-sel" id="teAnim">'+opts(ANIMS,p._capAnim||"auto")+'</select><select class="te-sel" id="tePos">'+opts(POSIT,p._capPos||"bottom")+'</select><select class="te-sel" id="teAlign">'+opts(ALIGN,p._capAlign||"center")+'</select></div>'
+      +'<div class="te-bar"><select class="te-sel" id="teStyle">'+opts(STYLES,p._capStyle||"auto")+'</select><select class="te-sel" id="teAnim">'+opts(ANIMS,p._capAnim||"auto")+'</select><select class="te-sel" id="teAlign">'+opts(ALIGN,p._capAlign||"center")+'</select></div>'
       +'<div class="te-bar"><select class="te-sel te-selfont" id="teFont">'+opts(FONTS,p._capFont||"")+'</select>'
                 +'<label class="te-cbtn" title="Couleur du texte"><span class="te-cA">A</span><input type="color" id="teColor" value="'+(p._capColor||"#f5f7fb")+'"></label>'
       +'</div>'
@@ -11173,7 +11188,6 @@ essentiaReady.then(function(ok){ if(!ok && !A){ /* silencieux : le repli se fait
     function setAll(prop,val){ if(!window._capApplyAll) return; for(var z=0;z<PHOTOS.length;z++){ if(PHOTOS[z]&&!(PHOTOS[z].feat&&PHOTOS[z].feat.skip)) PHOTOS[z][prop]=val; } }
     var st=ov.querySelector("#teStyle"); if(st) st.onchange=function(){ p._capStyle=(st.value==="auto")?null:st.value; setAll("_capStyle",p._capStyle); rp(); };
     var an=ov.querySelector("#teAnim"); if(an) an.onchange=function(){ p._capAnim=(an.value==="auto")?null:an.value; setAll("_capAnim",p._capAnim); rp(); };
-    var po=ov.querySelector("#tePos"); if(po) po.onchange=function(){ p._capPos=(po.value==="bottom")?null:po.value; setAll("_capPos",p._capPos); rp(); };
     var al=ov.querySelector("#teAlign"); if(al) al.onchange=function(){ p._capAlign=(al.value==="center")?null:al.value; setAll("_capAlign",p._capAlign); rp(); };
     var fo=ov.querySelector("#teFont"); if(fo) fo.onchange=function(){ p._capFont=(fo.value==="")?null:fo.value; setAll("_capFont",p._capFont); _loadCapFont(fo.value,rp); rp(); };
     /* Taille du texte : câblée sur celle du sous-titre (plus de sélecteur) */
