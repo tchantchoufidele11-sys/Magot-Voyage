@@ -1587,15 +1587,18 @@ function buildPartition(){
   var pStart=MST+_iD, pEnd=pStart+bdur, wEnd=pEnd+_oD;   /* la musique joue sur TOUT : intro + photos + outro */
   window.MONTAGE_DUR=wEnd; window.MSTART_EFF=MST; window.SIGN_PS=pStart; window.SIGN_PE=pEnd;
   try{
-    var _gEnd=beats.length?beats[beats.length-1]:0;
-    var _audioCovers, _planEnd=0;
-    if(window.MULTI && window.MPLAN && window.MPLAN.length){ var _lp=window.MPLAN[window.MPLAN.length-1]; _planEnd=_lp.mStart+_lp.len; _audioCovers=(_planEnd>=wEnd-0.05); }
-    else { _audioCovers=(window.LOOP_ON===1) || (_gEnd>=wEnd-0.05); }
-    var _beatStep=_mediaBeatP(beats);
-    var _gridCoversCuts=(_gEnd + Math.max(_beatStep,0.25) >= wEnd);
-    console.log("[MUSIC GRID]",{ mode:(window.MULTI?"multi":"single"), mediaNeed:Math.round(bdur), musicNeed:Math.round(_iD+bdur+_oD), montageEnd:Math.round(wEnd), gridEnd:Math.round(_gEnd), planEnd:Math.round(_planEnd), audioCoversFilm:_audioCovers, gridCoversCuts:_gridCoversCuts, loopOn:!!window.LOOP_ON });
+    var _montageEnd=wEnd, _mediaEnd=(window.SIGN_PE||wEnd);
+    var _gEnd=beats.length?beats[beats.length-1]:0, _beatStep=_mediaBeatP(beats);
+    var _plan=window.MPLAN||[], _planEnd=_plan.length?(_plan[_plan.length-1].mStart+_plan[_plan.length-1].len):0;
+    var _audioCovers;
+    if(window.MULTI){ _audioCovers=(_planEnd>=_montageEnd-0.05); }
+    else if(window.LOOP_ON){ _audioCovers=true; }
+    else { _audioCovers=((A.dur||0)>=_montageEnd-0.05); }
+    var _gridCoversCuts=(_gEnd + Math.max(_beatStep||0,0.25) >= _mediaEnd);   /* la grille couvre les MÉDIAS, pas l'outro */
+    window._MUSICDIAG={ mode:(window.MULTI?"multi":(window.LOOP_ON?"single-loop":"single")), mediaNeed:Math.round(bdur), musicNeed:Math.round(_iD+bdur+_oD), mediaEnd:Math.round(_mediaEnd), montageEnd:Math.round(_montageEnd), gridEnd:Math.round(_gEnd), planEnd:Math.round(_planEnd), audioCoversFilm:_audioCovers, gridCoversCuts:_gridCoversCuts };
+    console.log("[MUSIC GRID]", window._MUSICDIAG);
     if(!_audioCovers) console.warn("[MUSIC GRID] audio ne couvre pas tout le film");
-    if(!_gridCoversCuts) console.warn("[MUSIC GRID] pas assez de beats jusqu'a la fin");
+    if(!_gridCoversCuts) console.warn("[MUSIC GRID] pas assez de beats pour les coupes medias");
   }catch(e){}
   /* INVERSION : parmi les temps de [min,max] secondes, on prend le PLUS FORT.
      -> chaque coupe tombe sur un accent réel ; jamais de seconde arbitraire. */
@@ -1816,6 +1819,28 @@ function buildPartition(){
     var _pMiss=_keptP.filter(function(i){return !_pSeen[i];});
     var _cMiss=_readyC.filter(function(i){return !_cSeen[i];});
     window._COVERAGE={ photos:{need:_keptP.length,placed:Object.keys(_pSeen).length,missing:_pMiss}, clips:{need:_readyC.length,placed:Object.keys(_cSeen).length,missing:_cMiss}, pDur:Math.round(_pDur), vDur:Math.round(_vDur) };
+    /* PANNEAU DIAG VISIBLE (?diag=1) : pour tester sur iPhone sans console Safari */
+    try{ if(/[?&]diag=1/.test(location.search)){
+      var _md=window._MUSICDIAG||{}, _cv=window._COVERAGE||{};
+      var _dp=document.getElementById("diagPanel");
+      if(!_dp){ _dp=document.createElement("div"); _dp.id="diagPanel";
+        _dp.style.cssText="position:fixed;left:8px;right:8px;bottom:8px;z-index:99999;background:rgba(10,14,22,.95);color:#e8ecf3;font:600 12px/1.5 system-ui,sans-serif;padding:12px 14px;border-radius:12px;border:1px solid rgba(211,163,59,.4);box-shadow:0 8px 30px rgba(0,0,0,.5);max-height:46vh;overflow:auto";
+        document.body.appendChild(_dp); }
+      var _pM=(_cv.photos&&_cv.photos.missing&&_cv.photos.missing.length)?(" MANQUE "+_cv.photos.missing.join(",")):" OK";
+      var _cM=(_cv.clips&&_cv.clips.missing&&_cv.clips.missing.length)?(" MANQUE "+_cv.clips.missing.join(",")):" OK";
+      var _txt="DIAGNOSTIC MONTAGE\n"
+        +"Photos : "+((_cv.photos&&_cv.photos.placed)||0)+"/"+((_cv.photos&&_cv.photos.need)||0)+_pM+"\n"
+        +"Clips : "+((_cv.clips&&_cv.clips.placed)||0)+"/"+((_cv.clips&&_cv.clips.need)||0)+_cM+"\n"
+        +"Duree medias : "+(_cv.pDur||0)+"s photos + "+(_cv.vDur||0)+"s videos\n"
+        +"Mode musique : "+(_md.mode||"?")+"\n"
+        +"Media fin : "+(_md.mediaEnd||0)+"s - Montage fin : "+(_md.montageEnd||0)+"s\n"
+        +"Grille fin : "+(_md.gridEnd||0)+"s - Plan fin : "+(_md.planEnd||0)+"s\n"
+        +"Audio couvre le film : "+(_md.audioCoversFilm?"OUI":"NON")+"\n"
+        +"Grille couvre les coupes : "+(_md.gridCoversCuts?"OUI":"NON");
+      _dp.innerHTML='<pre style="margin:0;white-space:pre-wrap;font:inherit">'+_txt.replace(/</g,"&lt;")+'</pre><div style="display:flex;gap:8px;margin-top:8px"><button id="diagCopy" style="flex:1;background:#D3A33B;border:0;color:#0b0e16;border-radius:8px;padding:8px;font:700 12px system-ui;cursor:pointer">Copier</button><button id="diagClose" style="background:transparent;border:1px solid rgba(255,255,255,.25);color:#cfd6e2;border-radius:8px;padding:8px 12px;font:600 12px system-ui;cursor:pointer">Fermer</button></div>';
+      var _cp=_dp.querySelector("#diagCopy"); if(_cp) _cp.onclick=function(){ try{ navigator.clipboard.writeText(_txt); _cp.textContent="Copie OK"; setTimeout(function(){_cp.textContent="Copier";},1500); }catch(e){} };
+      var _clb=_dp.querySelector("#diagClose"); if(_clb) _clb.onclick=function(){ _dp.remove(); };
+    } }catch(e){}
     console.log('[COUVERTURE] photos '+Object.keys(_pSeen).length+'/'+_keptP.length+(_pMiss.length?' MANQUE:'+_pMiss.join(','):' ✓')+' | clips '+Object.keys(_cSeen).length+'/'+_readyC.length+(_cMiss.length?' MANQUE:'+_cMiss.join(','):' ✓')+' | durée photos='+Math.round(_pDur)+'s vidéos='+Math.round(_vDur)+'s');
     if(_pMiss.length) console.warn('[COUVERTURE] ⚠ photos manquantes: '+_pMiss.join(','));
     if(_cMiss.length) console.warn('[COUVERTURE] ⚠ clips manquants: '+_cMiss.join(','));
@@ -8834,7 +8859,7 @@ function _openLangPicker(){
   bg.style.cssText="position:fixed;inset:0;z-index:100050;background:rgba(0,0,0,.62);backdrop-filter:blur(4px);display:flex;align-items:flex-end;justify-content:center;font-family:system-ui,-apple-system,sans-serif";
   var card=document.createElement("div");
   card.style.cssText="width:100%;max-width:520px;background:#0f0e0d;border:1px solid #282622;border-radius:22px 22px 0 0;padding:8px 10px 22px;max-height:78vh;overflow:auto;box-shadow:0 -10px 50px rgba(0,0,0,.7)";
-  var head="<div style=\"text-align:center;padding:12px 0 6px\"><div style=\"width:40px;height:4px;background:#3a3733;border-radius:3px;margin:0 auto 12px\"></div><div style=\"color:#f4f7fc;font:700 17px system-ui\">\uD83C\uDF10 "+_st("Langue des paroles")+"</div><div style=\"color:#8a93a6;font:500 12.5px system-ui;margin-top:3px\">"+_st("Traduction synchronisée au rythme")+" \u00b7 v962</div></div>";
+  var head="<div style=\"text-align:center;padding:12px 0 6px\"><div style=\"width:40px;height:4px;background:#3a3733;border-radius:3px;margin:0 auto 12px\"></div><div style=\"color:#f4f7fc;font:700 17px system-ui\">\uD83C\uDF10 "+_st("Langue des paroles")+"</div><div style=\"color:#8a93a6;font:500 12.5px system-ui;margin-top:3px\">"+_st("Traduction synchronisée au rythme")+" \u00b7 v979</div></div>";
   var rows="";
   for(var i=0;i<window._LYRICS_LANGS.length;i++){ var code=window._LYRICS_LANGS[i][0], name=window._LYRICS_LANGS[i][1], fl=_LANG_FLAGS[code]||"\uD83C\uDF10", on=(window._LYRICS_LANG===code);
     rows+="<button class=\"lang-opt\" data-l=\""+code+"\" style=\"display:flex;align-items:center;gap:13px;width:100%;text-align:left;background:"+(on?"rgba(122,208,160,.14)":"none")+";border:1px solid "+(on?"rgba(122,208,160,.5)":"transparent")+";color:#f4f7fc;font:600 15.5px system-ui;padding:14px 15px;border-radius:13px;cursor:pointer;margin:3px 0\"><span style=\"font-size:22px\">"+fl+"</span><span style=\"flex:1\">"+name+"</span>"+(on?"<span style=\"color:#7ad0a0;font-size:18px\">\u2713</span>":"")+"</button>";
