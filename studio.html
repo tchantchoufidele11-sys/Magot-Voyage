@@ -1586,7 +1586,17 @@ function buildPartition(){
   bdur=Math.max(1,Math.min(bdur, avail - _iD - _oD));   /* no-op quand la décision de boucle est correcte ; garde-fou */
   var pStart=MST+_iD, pEnd=pStart+bdur, wEnd=pEnd+_oD;   /* la musique joue sur TOUT : intro + photos + outro */
   window.MONTAGE_DUR=wEnd; window.MSTART_EFF=MST; window.SIGN_PS=pStart; window.SIGN_PE=pEnd;
-  try{ var _gEnd=beats.length?beats[beats.length-1]:0; console.log("[MUSIC GRID]",{ mode:(window.MULTI?"multi":"single"), mediaNeed:Math.round(bdur), musicNeed:Math.round(_iD+bdur+_oD), gridEnd:Math.round(_gEnd), montageEnd:Math.round(wEnd), loopStart:window.LOOP_START||null, loopEnd:window.LOOP_END||null, loopLen:window.LOOP_LEN||null, gridCoversFilm:(_gEnd>=wEnd-2) }); if(_gEnd < wEnd-2) console.warn("[MUSIC GRID] ⚠ la grille ("+Math.round(_gEnd)+"s) ne couvre pas tout le film ("+Math.round(wEnd)+"s)"); }catch(e){}
+  try{
+    var _gEnd=beats.length?beats[beats.length-1]:0;
+    var _audioCovers, _planEnd=0;
+    if(window.MULTI && window.MPLAN && window.MPLAN.length){ var _lp=window.MPLAN[window.MPLAN.length-1]; _planEnd=_lp.mStart+_lp.len; _audioCovers=(_planEnd>=wEnd-0.05); }
+    else { _audioCovers=(window.LOOP_ON===1) || (_gEnd>=wEnd-0.05); }
+    var _beatStep=_mediaBeatP(beats);
+    var _gridCoversCuts=(_gEnd + Math.max(_beatStep,0.25) >= wEnd);
+    console.log("[MUSIC GRID]",{ mode:(window.MULTI?"multi":"single"), mediaNeed:Math.round(bdur), musicNeed:Math.round(_iD+bdur+_oD), montageEnd:Math.round(wEnd), gridEnd:Math.round(_gEnd), planEnd:Math.round(_planEnd), audioCoversFilm:_audioCovers, gridCoversCuts:_gridCoversCuts, loopOn:!!window.LOOP_ON });
+    if(!_audioCovers) console.warn("[MUSIC GRID] audio ne couvre pas tout le film");
+    if(!_gridCoversCuts) console.warn("[MUSIC GRID] pas assez de beats jusqu'a la fin");
+  }catch(e){}
   /* INVERSION : parmi les temps de [min,max] secondes, on prend le PLUS FORT.
      -> chaque coupe tombe sur un accent réel ; jamais de seconde arbitraire. */
   var cuts=[], lastCut=pStart, bi=0, gi=0, span=(emax-emin)||1;
