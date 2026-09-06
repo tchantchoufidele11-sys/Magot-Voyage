@@ -12,6 +12,39 @@
 <meta name="apple-mobile-web-app-title" content="Magot Voyage">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <title>Magot Voyage</title>
+<!-- SENTRY — suivi des erreurs (même compte que le Studio : magot-voyage.sentry.io). Tag "voyage" pour distinguer les deux apps. -->
+<script src="https://browser.sentry-cdn.com/latest/bundle.min.js" crossorigin="anonymous"></script>
+<script>
+  (function(){
+    var DSN = "https://33a416959937976a60b80df3098acaab@o4512036687183872.ingest.de.sentry.io/4512036730896464";
+    try{
+      if(window.Sentry && DSN && DSN.indexOf("http")===0){
+        Sentry.init({
+          dsn: DSN,
+          release: "voyage",
+          tracesSampleRate: 0,
+          replaysSessionSampleRate: 0,
+          replaysOnErrorSampleRate: 0,
+          ignoreErrors: [
+            "Non-Error promise rejection captured",
+            /extension\//i, /^chrome-extension:/i, /^safari-extension:/i,
+            "ResizeObserver loop limit exceeded"
+          ],
+          beforeSend: function(event, hint){
+            try{
+              var fr = event && event.exception && event.exception.values &&
+                       event.exception.values[0] && event.exception.values[0].stacktrace &&
+                       event.exception.values[0].stacktrace.frames;
+              if(fr){ for(var i=0;i<fr.length;i++){ var f=(fr[i]&&fr[i].filename)||""; if(/extension:\/\//.test(f)) return null; } }
+            }catch(e){}
+            return event;
+          }
+        });
+        try{ Sentry.setTag("app","magot-voyage"); }catch(e){}
+      }
+    }catch(e){}
+  })();
+</script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@500;600;700;800&family=Dancing+Script:wght@600;700&family=Inter:wght@400;450;500;600;700&display=swap" rel="stylesheet">
@@ -9783,7 +9816,7 @@ function mvDirectEntry(tr){
 /* ===== Studio Magot : éditeur vidéo autonome (studio.html) ouvert en plein écran.
    On le nourrit via ses hooks window (studioAutoMontage, STUDIO_LANG…). Le montage
    des données du voyage arrive au Lot 1 ; ici : ouverture/fermeture + langue + admin. ===== */
-let _studioTrip=null; let _studioURLs=[]; let _studioLoadedId=null;
+let _studioTrip=null; let _studioURLs=[];
 /* Catalogue musique pour le Studio : lit la table Supabase music_catalog (via magotCatalog)
    et la mappe au format attendu par STUDIO_CATALOG. cover/artist/lyrics restent optionnels. */
 let _studioTranscribing=new Set(); let _studioTranscribeWarned=false;
@@ -9826,8 +9859,7 @@ async function studioCatalog(){ try{
   return (rows||[]).map(x=>({
     id:x.id, title:x.title||"Musique", artist:x.artist||"",
     mood:x.mood||"", type:x.type||x.genre||x.mood||"", genre:x.genre||x.mood||"",
-    cover:(function(){ var _c=x.cover_url||x.cover||""; return /^(https?:|data:)/.test(_c)?_c:""; })(),
-    path:x.path||"",
+    cover:(x.cover&&/^https?:/.test(x.cover))?x.cover:(x.cover_url||""),
     url:(x.path?magotUrl(x.path):(x.url||"")),
     duration:+x.duration||0, bpm:+x.bpm||0,
     lyrics:x.lyrics||x.lrc||""
@@ -9838,12 +9870,6 @@ function _studioSync(){ const fr=document.getElementById("studioFrame"); if(!fr)
   try{ w.STUDIO_LANG=_studioLang(); }catch(e){}
   try{ w.STUDIO_ADMIN=(typeof isAdmin==="function")?!!isAdmin():false; }catch(e){}
   try{ w.STUDIO_CATALOG=studioCatalog; }catch(e){}
-  try{ w.STUDIO_SET_MOOD=function(id,mood){ return magotSetMood(id,mood); }; }catch(e){}
-  try{ w.STUDIO_SET_COVER=function(id,cover){ return magotSetCover(id,cover); }; }catch(e){}
-  try{ w.STUDIO_SET_ARTIST=function(id,artist){ return magotSetArtist(id,artist); }; }catch(e){}
-  try{ w.STUDIO_DELETE=function(id,path){ return magotDelete(id,path); }; }catch(e){}
-  try{ w.STUDIO_PUBLISH=function(file){ try{ openPublishForm(file, function(){ try{ if(w && typeof w.__reloadCatalog==="function") w.__reloadCatalog(); }catch(e){} }); }catch(e){} }; }catch(e){}
-  try{ w.STUDIO_UPLOAD=async function(file,title,mood,artist,cover){ var _r=await magotUpload(file,title,mood,artist,cover); try{ w.__coverDiag=window.__mvUploadDiag||null; }catch(e){} return _r; }; }catch(e){}
   try{ w.STUDIO_AICAPTION=window.magotCaptionSuggest; }catch(e){}
   try{ if(typeof w._applyStudioLang==="function") w._applyStudioLang(w.STUDIO_LANG); }catch(e){}
 }
@@ -9874,26 +9900,10 @@ function studioOpen(w, tr){ if(!w||!tr) return; var fid="trip:"+tr.id;
   try{ if(w.studioHasFilm && w.studioHasFilm(fid)){
     try{ w.studioOpenFilm(fid); }catch(e){}
     setTimeout(function(){ (async function(){ try{
+      var have=(w.studioPhotoIds&&w.studioPhotoIds())||[];
       var items=await studioBuildItems(tr);
-      var curPh={}, curVi={}, curPhList=[], curViList=[];
-      items.forEach(function(it){ if(it.video){ curVi[it.id]=1; curViList.push(it.id); } else { curPh[it.id]=1; curPhList.push(it.id); } });
-      /* --- PHOTOS : ajoute les nouvelles, retire les supprimées --- */
-      var havePh=(w.studioPhotoIds&&w.studioPhotoIds())||[];
-      var delPh=havePh.filter(function(id){ return !curPh[id]; });
-      if(delPh.length && w.studioRemovePhotos) try{ w.studioRemovePhotos(delPh); }catch(e){}
-      /* --- VIDÉOS : si le film a des clips sans id (ancien film) -> on repart propre ; sinon on synchronise par id --- */
-      var haveClipIds=(w.studioClipIds&&w.studioClipIds())||[];
-      var clipTotal=(w.studioClipCount&&w.studioClipCount())||0;
-      if(clipTotal>haveClipIds.length && w.studioRemoveAllClips){ try{ w.studioRemoveAllClips(); }catch(e){} haveClipIds=[]; }
-      else { var delVi=haveClipIds.filter(function(id){ return !curVi[id]; }); if(delVi.length && w.studioRemoveClips) try{ w.studioRemoveClips(delVi); }catch(e){} haveClipIds=haveClipIds.filter(function(id){ return curVi[id]; }); }
-      var haveClipSet={}; haveClipIds.forEach(function(id){ haveClipSet[id]=1; });
-      /* --- AJOUTS : photos + clips manquants --- */
-      var missing=items.filter(function(it){ return it.video ? !haveClipSet[it.id] : (havePh.indexOf(it.id)<0); });
-      try{ var _memPh=(tr.memories||[]).filter(function(m){return m&&m.kind!=="video";}).length; var _memVi=(tr.memories||[]).filter(function(m){return m&&m.kind==="video";}).length; var _addPh=missing.filter(function(it){return !it.video;}).length; var _addVi=missing.filter(function(it){return it.video;}).length; if(w.__mergeDiag) w.__mergeDiag("MERGE DIAG\nphotos: memoires="+_memPh+" · avec media="+curPhList.length+" · film="+havePh.length+" · +ajout="+_addPh+" · retrait="+delPh.length+"\nvideos: memoires="+_memVi+" · avec media="+curViList.length+" · +ajout="+_addVi); }catch(e){}
-      if(missing.length && w.studioAddPhotos){ w.studioAddPhotos(missing); }
-      else if((delPh.length||clipTotal>haveClipIds.length) && w.studioRebuild){ try{ w.studioRebuild(); }catch(e){} }
-      /* (b) Rechargement depuis la base Souvenirs : une seule fois par voyage, garde les réglages. */
-      try{ var _refKey="mv_srcref2_"+tr.id; if(!localStorage.getItem(_refKey) && w.studioRefreshFromSource){ setTimeout(function(){ try{ w.studioRefreshFromSource(items); }catch(e){} }, missing.length?2500:300); localStorage.setItem(_refKey,"1"); } }catch(e){}
+      var missing=items.filter(function(it){ return have.indexOf(it.id)<0; });
+      if(missing.length && w.studioAddPhotos) w.studioAddPhotos(missing);
     }catch(e){} })(); }, 1600);
     return;
   } }catch(e){}
@@ -9903,7 +9913,6 @@ async function studioFeed(w, tr){ if(!w||!tr) return;
   let items=[], sig=null;
   try{ const _r=await Promise.all([studioBuildItems(tr), magotSignText(tr).catch(function(){return null;})]); items=_r[0]||[]; sig=_r[1]; }catch(e){ items=[]; }
   if(!items.length) return;   /* rien à monter : le Studio garde son écran d\u2019accueil */
-  try{ if(typeof w._studioResetAll==="function") w._studioResetAll(); }catch(e){}   /* POINT 1 : studio propre AVANT l'auto-montage (sinon l'ancien film/musique restait) */
   var _aimood=(sig&&sig.mood||"").toLowerCase(); var _mood=(_aimood==="cinema"||_aimood==="doux"||_aimood==="dynamique"||_aimood==="voyage")?_aimood:"voyage"; try{ w.studioAutoMontage({ items, mood:_mood, sign:true, signText:(sig||undefined), dayMarkers:true, project:("trip:"+tr.id), autoplay:false }); }catch(e){}
   /* format d\u2019origine par défaut (best-effort) */
   setTimeout(()=>{ try{
@@ -9943,12 +9952,6 @@ function ensureTripFilm(tr){ try{
     try{ w.STUDIO_LANG=_studioLang(); }catch(e){}
     try{ w.STUDIO_ADMIN=(typeof isAdmin==="function")?!!isAdmin():false; }catch(e){}
     try{ w.STUDIO_CATALOG=studioCatalog; }catch(e){}
-    try{ w.STUDIO_SET_MOOD=function(id,mood){ return magotSetMood(id,mood); }; }catch(e){}
-    try{ w.STUDIO_SET_COVER=function(id,cover){ return magotSetCover(id,cover); }; }catch(e){}
-    try{ w.STUDIO_SET_ARTIST=function(id,artist){ return magotSetArtist(id,artist); }; }catch(e){}
-    try{ w.STUDIO_DELETE=function(id,path){ return magotDelete(id,path); }; }catch(e){}
-    try{ w.STUDIO_PUBLISH=function(file){ try{ openPublishForm(file, function(){ try{ if(w && typeof w.__reloadCatalog==="function") w.__reloadCatalog(); }catch(e){} }); }catch(e){} }; }catch(e){}
-    try{ w.STUDIO_UPLOAD=async function(file,title,mood,artist,cover){ var _r=await magotUpload(file,title,mood,artist,cover); try{ w.__coverDiag=window.__mvUploadDiag||null; }catch(e){} return _r; }; }catch(e){}
     try{ w.STUDIO_AICAPTION=window.magotCaptionSuggest; }catch(e){}
     try{ if(typeof w._applyStudioLang==="function") w._applyStudioLang(w.STUDIO_LANG); }catch(e){}
     var tries=0, iv=setInterval(function(){ tries++;
@@ -9959,7 +9962,7 @@ function ensureTripFilm(tr){ try{
   };
   fr.src="studio.html"; document.body.appendChild(fr);
 }catch(e){ _hlFilmBusy=false; } }
-function openStudio(tr,version,autoplay,empty){ if(empty){ tr=null; } else { tr=tr||souvTrip()||null; } _studioTrip=tr;   /* empty = Studio vierge (écran d’accueil), pas de film chargé */
+function openStudio(tr,version,autoplay){ tr=tr||souvTrip()||null; _studioTrip=tr;   /* studio ouvrable sans voyage : écran d’accueil + import manuel */
   try{ var _hf=document.querySelector('iframe[name="mv-headless"]'); if(_hf) _hf.remove(); _hlFilmBusy=false; }catch(e){}   /* stop toute construction en arrière-plan */
   let ov=document.getElementById("studioOverlay");
   const backLbl=({fr:"Retour",en:"Back",es:"Volver",it:"Indietro",de:"Zur\u00fcck"})[_studioLang()]||"Retour";
@@ -9972,27 +9975,18 @@ function openStudio(tr,version,autoplay,empty){ if(empty){ tr=null; } else { tr=
       w.STUDIO_LANG=_studioLang();
       w.STUDIO_ADMIN=(typeof isAdmin==="function")?!!isAdmin():false;
       try{ w.STUDIO_CATALOG=studioCatalog; }catch(e){}
-      try{ w.STUDIO_SET_MOOD=function(id,mood){ return magotSetMood(id,mood); }; }catch(e){}
-      try{ w.STUDIO_SET_COVER=function(id,cover){ return magotSetCover(id,cover); }; }catch(e){}
-      try{ w.STUDIO_SET_ARTIST=function(id,artist){ return magotSetArtist(id,artist); }; }catch(e){}
-      try{ w.STUDIO_DELETE=function(id,path){ return magotDelete(id,path); }; }catch(e){}
-      try{ w.STUDIO_PUBLISH=function(file){ try{ openPublishForm(file, function(){ try{ if(w && typeof w.__reloadCatalog==="function") w.__reloadCatalog(); }catch(e){} }); }catch(e){} }; }catch(e){}
-      try{ w.STUDIO_UPLOAD=async function(file,title,mood,artist,cover){ var _r=await magotUpload(file,title,mood,artist,cover); try{ w.__coverDiag=window.__mvUploadDiag||null; }catch(e){} return _r; }; }catch(e){}
       try{ w.STUDIO_AICAPTION=window.magotCaptionSuggest; }catch(e){}
       try{ if(typeof w._applyStudioLang==="function") w._applyStudioLang(w.STUDIO_LANG); }catch(e){}
-      let _tries=0; const _feed=()=>{ if(w.studioAutoMontage){ if(empty){ try{ if(w.studioReset) w.studioReset(); }catch(e){} _studioLoadedId=null; } else { studioOpen(w,_studioTrip); _studioLoadedId=(_studioTrip&&_studioTrip.id)||null; } } else if(_tries++<25){ setTimeout(_feed,150); } }; _feed();
+      let _tries=0; const _feed=()=>{ if(w.studioAutoMontage){ studioOpen(w,_studioTrip); } else if(_tries++<25){ setTimeout(_feed,150); } }; _feed();
     }catch(e){} });
   }
-  else { try{ var _fr2=ov.querySelector("#studioFrame"); (function _re(_t){ try{ var _w2=_fr2&&_fr2.contentWindow; if(_w2&&_w2.studioAutoMontage){ try{ if(_w2.studioStop) _w2.studioStop(); }catch(e){}   /* arrête la lecture + sort du plein écran */ if(empty){ try{ if(_w2.studioReset) _w2.studioReset(); }catch(e){} _studioLoadedId=null; } else { var _same=(tr&&_studioLoadedId!=null&&tr.id===_studioLoadedId); if(!_same){ studioOpen(_w2, tr); _studioLoadedId=(tr&&tr.id)||null; } } return; } }catch(e){} if((_t||0)<25) setTimeout(function(){ _re((_t||0)+1); },150); })(0); }catch(e){} }
+  else { try{ var _fr2=ov.querySelector("#studioFrame"); (function _re(_t){ try{ var _w2=_fr2&&_fr2.contentWindow; if(_w2&&_w2.studioAutoMontage){ studioOpen(_w2, tr); return; } }catch(e){} if((_t||0)<25) setTimeout(function(){ _re((_t||0)+1); },150); })(0); }catch(e){} }
   { const sp=ov.querySelector(".studio-back span"); if(sp) sp.textContent=backLbl; }
   ov.classList.add("show"); document.documentElement.classList.add("studio-open"); _studioSync();
 }
 function closeStudio(){ const ov=document.getElementById("studioOverlay");
   try{ var _fr=ov&&ov.querySelector("#studioFrame"); var _w=_fr&&_fr.contentWindow; if(_w&&typeof _w.studioStop==="function") _w.studioStop(); }catch(e){}
-  try{ var _fr2=ov&&ov.querySelector("#studioFrame"); var _w2=_fr2&&_fr2.contentWindow; if(_w2&&typeof _w2._studioResetAll==="function") _w2._studioResetAll(); }catch(e){}   /* coupe le son + vide l'état tout de suite */
-  if(ov) ov.classList.remove("show"); document.documentElement.classList.remove("studio-open");
-  try{ if(ov){ ov.remove(); } _studioLoadedId=null; }catch(e){}   /* DÉTRUIT l'overlay + l'iframe : la prochaine ouverture recrée un studio NEUF et VIDE -> jamais l'ancien montage affiché pendant le chargement */
-}
+  if(ov) ov.classList.remove("show"); document.documentElement.classList.remove("studio-open"); }
 function openMontage(tr,version,autoplay){ tr=tr||souvTrip()||null; return openStudio(tr,version,autoplay); /* --- ancien moteur inline désactivé : Studio Magot prend le relais --- */ _mvState.style=""; _mvState.pace=1; _mvState.soft=false; _mvState.grade="natural"; _mvState.fx=""; _mvState.overlay=""; _mvState.overlayTr=""; if(_mvState.overlayInt==null) _mvState.overlayInt=0.55; try{ overlayCatalog(); }catch(e){} let _dir=null;
   if(version==="director"){ _dir=mvApplyDirector(tr); } else if(version) mvApplyVersion(version);
   const mems=(tr.memories||[]).slice();
@@ -13104,7 +13098,7 @@ function souvMiniMapOSM(tr,el){ const pts=souvPoints(tr); if(!pts.length||!el) r
 function renderMemChips(){ const el=document.getElementById("memChips"); if(!el) return;
   const F=[["all","overview"],["photos","medias"],["journal","journal"],["carnet","carnet"],["studio","studio"]];
   el.innerHTML=F.map(([k,lab])=>`<button class="chip ${souvState.filter===k?'on':''}${k==='studio'?' chip-studio':''}" data-mf="${k}">${k==='studio'?'\uD83C\uDFAC ':''}${svT(lab)}</button>`).join("");
-  el.querySelectorAll("[data-mf]").forEach(b=>b.onclick=()=>{ if(b.dataset.mf==="studio"){ openStudio(null,null,false,true); return; } souvState.filter=b.dataset.mf; renderMemories(); }); }
+  el.querySelectorAll("[data-mf]").forEach(b=>b.onclick=()=>{ if(b.dataset.mf==="studio"){ openStudio(souvTrip()); return; } souvState.filter=b.dataset.mf; renderMemories(); }); }
 const SOUV_I18N={
   fr:{ title:"Carnet de l'agent", gen:"Générer le résumé du voyage", regen:"Régénérer", generating:"L'agent écrit ton carnet…", hint:"Un titre et un résumé de ton voyage, écrits à partir de tes vrais lieux." , jTitle:"Journal du voyage en cours", jEmpty:"Rien d'écrit pour ce voyage. Les étapes, tes notes et tes photos apparaîtront ici, jour par jour." },
   en:{ title:"Agent's journal", gen:"Generate trip summary", regen:"Regenerate", generating:"The agent is writing your journal…", hint:"A title and summary of your trip, written from your real places." , jTitle:"Your journal", jEmpty:"Nothing written for this trip yet. Stops, notes and photos will appear here, day by day." },
@@ -13341,7 +13335,7 @@ function renderMemories(){ const body=document.getElementById("memBody"); if(!bo
     h+= list.length? `<div class="mem-places">`+list.map(p=>memPlaceCard(tr,p)).join("")+`</div>` : `<div class="empty" style="padding:24px 8px"><p>${t("mem.noPlaces")}</p></div>`; }
   else { const pts=souvPoints(tr); const located=pts.length>0;
     /* --- HÉROS : la page commence par une envie, pas par un tableau de bord --- */
-    { const d=mvDirect(tr); const nPh=(tr.memories||[]).filter(m=>m&&m.kind!=="video").length;
+    { const d=mvDirect(tr); const nPh=(tr.memories||[]).length;
       const ready=(pts.length>0 && nPh>0);              /* un film exige des lieux ET des photos */
       const est=Math.max(30,Math.min(120, 8+nPh*2.5+pts.length*4));
       const cover=(tr.filmPoster?{id:tr.filmPoster}:null)||(tr.memories||[])[0];
@@ -13705,7 +13699,7 @@ async function addMemPhotos(files,fromCamera){
       const okv=await addMemVideo(file,tr,placeId,day); if(okv) added++; else { skipped++; why=(file.name||"").split(".").pop()||"vid\u00e9o"; }
       continue; }
     if(ty && !/^image\//.test(ty)){ skipped++; why=ty||"?"; continue; }
-    let data=null; try{ data=await compressImage(file,3840,0.92); }catch(e){ data=null; }
+    let data=null; try{ data=await compressImage(file,2560,0.90); }catch(e){ data=null; }
     if(!data){ skipped++; why=ty||((file.name||"").split(".").pop()||"?"); continue; }
     const ex=fromCamera?null:await mvExifRead(file);   /* date/heure/lieu inscrits par l'appareil */
     const id=uid(); await idbSetMedia(id,data); _mediaCache[id]=data;
@@ -13848,29 +13842,6 @@ async function magotDelete(id, path){
     return true;
   }catch(e){ return "Erreur r\u00e9seau."; }
 }
-async function magotSetMood(id, mood){  if(!isAdmin()) return "Action r\u00e9serv\u00e9e \u00e0 l'administrateur.";
-  if(!id) return "Piste inconnue.";
-  const tok=await sbAccessToken(); if(!tok || tok===SB_ANON) return "Session admin introuvable. Reconnecte-toi.";
-  try{
-    const r=await fetch(SB_URL+"/rest/v1/music_catalog?id=eq."+encodeURIComponent(id),{ method:"PATCH", headers:{ apikey:SB_ANON, Authorization:"Bearer "+tok, "Content-Type":"application/json", Prefer:"return=minimal" }, body:JSON.stringify({ mood:mood||"" }) });
-    if(!r.ok){ const t=await r.text().catch(()=>""); return "Mise \u00e0 jour refus\u00e9e ("+r.status+"). "+String(t).slice(0,120); }
-    return true;
-  }catch(e){ return "Erreur r\u00e9seau."; }
-}
-async function magotSetArtist(id, artist){
-  if(!isAdmin()) return "Action r\u00e9serv\u00e9e \u00e0 l'administrateur.";
-  if(!id) return "Piste inconnue.";
-  const tok=await sbAccessToken(); if(!tok || tok===SB_ANON) return "Session admin introuvable.";
-  try{ const r=await fetch(SB_URL+"/rest/v1/music_catalog?id=eq."+encodeURIComponent(id),{ method:"PATCH", headers:{ apikey:SB_ANON, Authorization:"Bearer "+tok, "Content-Type":"application/json", Prefer:"return=minimal" }, body:JSON.stringify({ artist:artist||"" }) });
-    if(!r.ok){ const t=await r.text().catch(()=>""); return "Artiste non enregistr\u00e9 ("+r.status+"). "+String(t).slice(0,100); } return true; }catch(e){ return "Erreur r\u00e9seau."; }
-}
-async function magotSetCover(id, cover){
-  if(!isAdmin()) return "Action r\u00e9serv\u00e9e \u00e0 l'administrateur.";
-  if(!id || !cover) return "Donn\u00e9es manquantes.";
-  const tok=await sbAccessToken(); if(!tok || tok===SB_ANON) return "Session admin introuvable.";
-  const _patch=(body)=>fetch(SB_URL+"/rest/v1/music_catalog?id=eq."+encodeURIComponent(id),{ method:"PATCH", headers:{ apikey:SB_ANON, Authorization:"Bearer "+tok, "Content-Type":"application/json", Prefer:"return=minimal" }, body:JSON.stringify(body) });
-  try{ let r=await _patch({ cover_url:cover }); if(!r.ok) r=await _patch({ cover:cover }); if(!r.ok){ const t=await r.text().catch(()=>""); return "Pochette non enregistr\u00e9e ("+r.status+"). "+String(t).slice(0,100); } return true; }catch(e){ return "Erreur r\u00e9seau."; }
-}
 async function magotDownload(tr2){
   try{
     toast("T\u00e9l\u00e9chargement\u2026");
@@ -13883,17 +13854,9 @@ async function magotDownload(tr2){
     return true;
   }catch(e){ toast("T\u00e9l\u00e9chargement impossible (r\u00e9seau ?)."); return false; }
 }
-async function magotUpload(file, title, mood, artist, coverBlob){
+async function magotUpload(file, title, mood){
   if(!isAdmin()){ return "R\u00e9serv\u00e9 \u00e0 l'administrateur."; }
   if(!currentUser){ return "Tu n'es pas connect\u00e9."; }
-  try{ window.__mvUploadDiag=null; }catch(e){}
-  /* DÉDUP : refuse une piste dont le titre normalisé existe déjà au catalogue. */
-  try{
-    const _rows=(typeof magotCatalog==="function")?await magotCatalog():[];
-    const _norm=s=>String(s||"").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g,"").replace(/\.[^.]+$/,"").replace(/[^a-z0-9]+/g,"").trim();
-    const _nt=_norm(title||(file&&file.name));
-    if(_nt && (_rows||[]).some(x=>_norm(x.title)===_nt)){ return "\u00ab "+(title||"Cette musique")+" \u00bb est d\u00e9j\u00e0 au catalogue (doublon \u00e9vit\u00e9)."; }
-  }catch(e){}
   const tok=await sbAccessToken(); const path=Date.now()+"_"+String(file.name||"track.mp3").replace(/[^\w.\-]/g,"_");
   if(!tok || tok===SB_ANON){ return "Session admin introuvable. D\u00e9connecte-toi puis reconnecte-toi, puis r\u00e9essaie."; }
   try{
@@ -13901,21 +13864,11 @@ async function magotUpload(file, title, mood, artist, coverBlob){
     const up=await fetch(SB_URL+"/storage/v1/object/musics/"+encodeURIComponent(path),{
       method:"POST", headers:{ apikey:SB_ANON, Authorization:"Bearer "+tok, "Content-Type":(file.type||"audio/mpeg") }, body:file });
     if(!up.ok){ const t2=await up.text().catch(()=>""); toast("Envoi refus\u00e9 ("+up.status+"). V\u00e9rifie le bucket et les droits."); console.warn(t2); return false; }
-    /* Pochette (ID3 APIC, façon Suno) : reçue en data-URL compressée, stockée directement. */
-    const _base={ title:title||String(file.name||"").replace(/\.[^.]+$/,""), path, mood:mood||"", bpm, duration:dur };
-    const _cover=(typeof coverBlob==="string" && coverBlob.indexOf("data:")===0)?coverBlob:"";
-    const _insertRow=(bodyObj)=>fetch(SB_URL+"/rest/v1/music_catalog",{ method:"POST", headers:{ apikey:SB_ANON, Authorization:"Bearer "+tok, "Content-Type":"application/json", Prefer:"return=minimal" }, body:JSON.stringify(bodyObj) });
-    const _bodies=[];
-    if(_cover||artist) _bodies.push({name:"cover_url+artist", body:(function(){ const b=Object.assign({},_base); if(_cover)b.cover_url=_cover; if(artist)b.artist=artist; return b; })()});
-    if(_cover) _bodies.push({name:"cover_url", body:(function(){ const b=Object.assign({},_base); b.cover_url=_cover; return b; })()});
-    if(_cover||artist) _bodies.push({name:"cover+artist", body:(function(){ const b=Object.assign({},_base); if(_cover)b.cover=_cover; if(artist)b.artist=artist; return b; })()});
-    if(_cover) _bodies.push({name:"cover", body:(function(){ const b=Object.assign({},_base); b.cover=_cover; return b; })()});
-    if(artist) _bodies.push({name:"artist", body:(function(){ const b=Object.assign({},_base); b.artist=artist; return b; })()});
-    _bodies.push({name:"base", body:_base});
-    let ins=null,_used="none",_lastTxt=""; for(const e of _bodies){ ins=await _insertRow(e.body); if(ins.ok){ _used=e.name; break; } else { try{ _lastTxt=await ins.clone().text(); }catch(_){} } }   /* dégrade proprement si une colonne manque */
-    try{ window.__mvUploadDiag={ coverIn:!!_cover, coverLen:_cover?_cover.length:0, body:_used, status:(ins?ins.status:0), err:String(_lastTxt||"").slice(0,120) }; }catch(e){}
-    if(!ins || !ins.ok){ const t3=ins?await ins.text().catch(()=>""):""; let msg=""; try{ const j3=JSON.parse(t3); msg=j3.message||j3.error||j3.hint||""; }catch(e){ msg=t3; }
-      return "Fiche non enregistr\u00e9e ("+(ins?ins.status:"?")+"). "+((ins&&ins.status===403)?"La table refuse l\u2019\u00e9criture \u2014 ex\u00e9cute le SQL FINAL dans Supabase. ":"")+(msg?("D\u00e9tail : "+String(msg).slice(0,140)):""); }
+    const ins=await fetch(SB_URL+"/rest/v1/music_catalog",{
+      method:"POST", headers:{ apikey:SB_ANON, Authorization:"Bearer "+tok, "Content-Type":"application/json", Prefer:"return=minimal" },
+      body: JSON.stringify({ title:title||String(file.name||"").replace(/\.[^.]+$/,""), path, mood:mood||"", bpm, duration:dur }) });
+    if(!ins.ok){ const t3=await ins.text().catch(()=>""); let msg=""; try{ const j3=JSON.parse(t3); msg=j3.message||j3.error||j3.hint||""; }catch(e){ msg=t3; }
+      return "Fiche non enregistr\u00e9e ("+ins.status+"). "+(ins.status===403?"La table refuse l\u2019\u00e9criture \u2014 ex\u00e9cute le SQL FINAL dans Supabase. ":"")+(msg?("D\u00e9tail : "+String(msg).slice(0,140)):""); }
     return true;
   }catch(e){ return "\u00c9chec r\u00e9seau : "+((e&&e.message)||String(e)); }
 }
@@ -13952,8 +13905,8 @@ function openPublishForm(file, done){
       <div class="crop-hint">Fichier : <b>${escapeHtml(file.name||"musique")}</b></div>
       <div class="mv-lab">Titre</div>
       <input type="text" id="pfTitle" value="${escapeHtml(base)}" style="width:100%;border:1px solid var(--line);border-radius:11px;padding:11px;font:600 16px system-ui">
-      <div class="mv-lab" style="margin-top:10px">Ambiance du film (obligatoire)</div>
-      <div class="mv-durs" id="pfMoods">${[["cinema","Cinéma"],["doux","Doux"],["voyage","Voyage"],["dynamique","Dynamique"]].map(m=>`<button class="mv-dur" data-mood="${m[0]}">${m[1]}</button>`).join("")}</div>
+      <div class="mv-lab" style="margin-top:10px">Ambiance (optionnel)</div>
+      <div class="mv-durs" id="pfMoods">${["romantique","aventure","nature","calme","f\u00eate","voyage"].map(m=>`<button class="mv-dur" data-mood="${m}">${m}</button>`).join("")}</div>
       <div id="pfStatus" style="margin-top:12px;font-size:12.5px;color:var(--muted)"></div>
     </div>
     <div class="cal-foot"><button class="btn navy block" id="pfGo" type="button">Publier</button></div></div>`;
@@ -13964,7 +13917,6 @@ function openPublishForm(file, done){
   ov.querySelectorAll("[data-mood]").forEach(b=>b.onclick=()=>{ ov.querySelectorAll("[data-mood]").forEach(x=>x.classList.remove("on")); b.classList.add("on"); mood=b.dataset.mood; });
   ov.querySelector("#pfGo").onclick=async()=>{
     const go=ov.querySelector("#pfGo"), st=ov.querySelector("#pfStatus");
-    if(!mood){ st.style.color="#B3261E"; st.textContent="Choisis d'abord l'ambiance : Cinéma, Doux, Voyage ou Dynamique."; return; }
     const title=(ov.querySelector("#pfTitle").value||base||"Musique").trim();
     go.disabled=true; go.textContent="Envoi\u2026"; st.style.color="var(--muted)"; st.textContent="Analyse du rythme, puis envoi\u2026";
     const r=await magotUpload(file, title, mood);
@@ -14024,11 +13976,10 @@ function openMusicLib(fromMontage){
         <span class="mus-b"><b>${escapeHtml(x.title||"Musique")}</b>
           <span>${x.duration?_fmtDur(x.duration):""}${x.bpm?" \u00b7 "+x.bpm+" BPM":""}</span>
           ${x.mood?`<span class="mus-tags"><span class="mus-tag">${escapeHtml(x.mood)}</span></span>`:``}</span>
-        <span class="mus-act"><button class="mus-use" data-dl="${escapeHtml(x.path)}" data-title="${escapeHtml(x.title||"")}" data-bpm="${x.bpm||0}" data-dur="${x.duration||0}" data-mood="${escapeHtml(x.mood||"")}">\u2b07 Obtenir</button>${isAdmin()?`<select class="mus-mood" data-mid="${escapeHtml(String(x.id||""))}" title="Ambiance (admin)" style="font:600 11px system-ui;max-width:106px;border-radius:8px;padding:4px;margin-left:4px">${[["","\u2014 mode \u2014"],["cinema","Cin\u00e9ma"],["doux","Doux"],["voyage","Voyage"],["dynamique","Dynamique"]].map(o=>`<option value="${o[0]}"${(String(x.mood||"").toLowerCase()===o[0]?" selected":"")}>${o[1]}</option>`).join("")}</select><button class="mus-del" data-mdel="${escapeHtml(String(x.id||""))}" data-mpath="${escapeHtml(x.path||"")}" title="Supprimer (admin)">\u2715</button>`:""}</span></div>`).join("");
+        <span class="mus-act"><button class="mus-use" data-dl="${escapeHtml(x.path)}" data-title="${escapeHtml(x.title||"")}" data-bpm="${x.bpm||0}" data-dur="${x.duration||0}" data-mood="${escapeHtml(x.mood||"")}">\u2b07 Obtenir</button>${isAdmin()?`<button class="mus-del" data-mdel="${escapeHtml(String(x.id||""))}" data-mpath="${escapeHtml(x.path||"")}" title="Supprimer (admin)">\u2715</button>`:""}</span></div>`).join("");
       el.querySelectorAll("[data-prev]").forEach(b=>b.onclick=()=>musPreview("url",b.dataset.prev,b.dataset.src));
       musPreviewPaint();
       el.querySelectorAll("[data-mdel]").forEach(b=>b.onclick=()=>{ askConfirm("Supprimer cette musique de la biblioth\u00e8que Magot ?","Supprimer",async()=>{ b.disabled=true; const r=await magotDelete(b.dataset.mdel,b.dataset.mpath); if(r===true){ toast("Musique supprim\u00e9e"); close(); window._musTab="magot"; openMusicLib(fromMontage); } else { b.disabled=false; toast(typeof r==="string"?r:"\u00c9chec de suppression"); } }); });
-      el.querySelectorAll(".mus-mood[data-mid]").forEach(s=>s.onchange=async()=>{ const id=s.dataset.mid, mood=s.value; s.disabled=true; const r=await magotSetMood(id,mood); s.disabled=false; if(r===true){ try{ const row=s.closest(".mus-row"); const u=row&&row.querySelector(".mus-use"); if(u) u.setAttribute("data-mood",mood); }catch(e){} toast("Ambiance mise \u00e0 jour"+(mood?(" : "+mood):" (retir\u00e9e)")); } else { toast(typeof r==="string"?r:"\u00c9chec de la mise \u00e0 jour"); } });
       el.querySelectorAll("[data-dl]").forEach(b=>b.onclick=async()=>{ b.disabled=true; b.textContent="\u2026";
         const okd=await magotDownload({path:b.dataset.dl,title:b.dataset.title,bpm:b.dataset.bpm,duration:b.dataset.dur,mood:b.dataset.mood||""});
         if(okd){ close(); window._musTab="mine"; openMusicLib(fromMontage); } else { b.disabled=false; b.textContent="\u2b07 Obtenir"; } });
@@ -15221,7 +15172,6 @@ async function pullConvs(){
 }
 
 async function boot(){
-  try{ if(navigator.storage && navigator.storage.persist){ navigator.storage.persist().catch(function(){}); } }catch(e){}
   try{ const hadLS=!!localStorage.getItem(STORAGE_KEY); const idb=await idbGet(STORAGE_KEY);
     if(idb && (!hadLS || (idb._ts||0) > (S._ts||0))){ S=mergeState(idb); try{ localStorage.setItem(STORAGE_KEY,JSON.stringify(S)); }catch(e){} }
     else if(hadLS){ idbSet(STORAGE_KEY,S); }
