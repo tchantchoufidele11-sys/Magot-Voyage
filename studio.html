@@ -1242,6 +1242,7 @@ function renderPlanToBuffer(dur, sr){
 function analyzeBufferInto(buf, cb){ try{ essentiaReady.then(function(ok){ if(ok){ setTimeout(function(){ try{ toMono44(buf,function(sig,sr){ var An; try{ An=analyzeEssentia(sig,sr,buf.duration); }catch(e){ An=analyzeCustom(buf); } cb(An); }); }catch(e){ cb(analyzeCustom(buf)); } }, 20); } else { setTimeout(function(){ cb(analyzeCustom(buf)); }, 20); } }); }catch(e){ try{ cb(analyzeCustom(buf)); }catch(e2){ cb(null); } } }
 
 var CLIPS=[], clipVidReady=false, VIDACT=-1;
+window.STUDIO_VERSION="v1000";
 var VIDEO_POOL_V2=false;                 // reste false jusqu'à validation du laboratoire iPhone
 var MAX_VIDEO_CLIPS=VIDEO_POOL_V2?30:6; // plafond de sécurité temporaire
 window.VIDSOUND=false; window.VIDBAL=0.6; window.VEXCL=[]; window.VIDDENS=1; window.VMOVR={}; /* son des vidéos OFF par défaut ; équilibre musique<->vidéo (0=musique .. 1=vidéo) */
@@ -1786,10 +1787,11 @@ function buildPartition(){
     for(var _ck2 in _byC2){
       var _arr2=_byC2[_ck2].slice().sort(function(a,b){ return SEGS[a].start-SEGS[b].start; });
       var _d2=CLIPS[_ck2].dur||1, _ts2=CLIPS[_ck2].trimStart, _base=(_ts2!=null)?_ts2:0, _spd=(CLIPS[_ck2].speed||1), _vt=_base;
+      var _te2=(CLIPS[_ck2].trimEnd!=null)?CLIPS[_ck2].trimEnd:_d2;
       for(var _j2=0;_j2<_arr2.length;_j2++){ var _s5=_arr2[_j2];
-        if(_vt>=_d2-0.25) _vt=_base;                                   /* on ne reboucle que si le clip est épuisé */
-        SEGS[_s5].vstart=Math.max(0,Math.min(_d2-0.15,_vt));
-        _vt += Math.max(0.25,(SEGS[_s5].end-SEGS[_s5].start))*_spd;    /* AVANCE dans le clip -> chaque bout passe une seule fois */
+        if(_vt>=_te2-0.25) _vt=_base;                                  /* on ne reboucle que si le clip est épuisé */
+        SEGS[_s5].vstart=Math.max(0,Math.min(_te2-0.15,_vt));
+        _vt += Math.max(0.25,(SEGS[_s5].end-SEGS[_s5].start))*_spd;    /* AVANCE dans le clip */
       }
     }
     /* PARAMS PAR MORCEAU (couleur/vitesse) : défaut = celui du clip (l'éditeur par morceau viendra les surcharger) */
@@ -1798,6 +1800,42 @@ function buildPartition(){
     /* (retiré) l'absorption du plan photo suivant par un plan vidéo évinçait des photos.
        Les vidéos sont des plans EN PLUS (budgétés dans want + réservés au découpage) :
        on ne supprime plus aucun plan photo. */
+    /* ANTI-DÉPASSEMENT MIXTE (version sûre GPT) : si un plan vidéo dépasse la matière du clip,
+       on raccourcit son segment ET on rend le temps libéré à une PHOTO (jamais de trou). */
+    (function _fixMixedVideoDurations(){
+      if(_nP<=0) return;
+      var _VT2=({cinema:3.4,doux:4.0,dynamique:2.2,voyage:3.0})[MOOD]||3.0;
+      for(var i=0;i<SEGS.length;i++){ var seg=SEGS[i];
+        if(!seg||!seg.video||seg.vclip==null||!CLIPS[seg.vclip]) continue;
+        var clip=CLIPS[seg.vclip];
+        var rate=Math.max(0.5,Number(seg.vspeed||clip.speed||1));
+        var sourceStart=Math.max(0,Number(seg.vstart!=null?seg.vstart:(clip.trimStart||0)));
+        var sourceEnd=Number(clip.trimEnd!=null?clip.trimEnd:(clip.dur||sourceStart));
+        var availableSource=Math.max(0,sourceEnd-sourceStart-0.04);
+        var sourceLimit=availableSource/rate;
+        var currentDuration=seg.end-seg.start;
+        var wantedDuration=Math.min(_VT2,sourceLimit);
+        if(wantedDuration<=0.08 || currentDuration<=wantedDuration+0.05) continue;
+        var oldEnd=seg.end, hardEnd=seg.start+sourceLimit;
+        var newEnd=Math.min(oldEnd,seg.start+wantedDuration,hardEnd);
+        if(sourceLimit>_VT2+0.05){
+          var desired=seg.start+_VT2, maximum=Math.min(oldEnd,hardEnd), best=newEnd, bestDistance=0.36;
+          for(var b=0;b<beats.length;b++){ var beat=beats[b]; if(beat<=seg.start+0.40) continue; if(beat>maximum) break; var distance=Math.abs(beat-desired); if(distance<bestDistance){ bestDistance=distance; best=beat; } }
+          newEnd=Math.min(best,maximum);
+        }
+        if(newEnd<=seg.start+0.08) continue;
+        var remainder=oldEnd-newEnd; if(remainder<=0.05) continue;
+        seg.end=newEnd;
+        var next=SEGS[i+1];
+        if(next && !next.video && !next.sign && Math.abs(next.start-oldEnd)<0.08){
+          next.start=newEnd; next.trans="cut"; next._prev=seg; next.e=_eAt(newEnd);
+        } else {
+          var photoTail={ start:newEnd, end:oldEnd, strong:false, e:_eAt(newEnd), img:(seg.img!=null?seg.img:-1), move:seg.move||"zoomIn", atmo:seg.atmo||null, trans:"cut", _prev:seg, video:false };
+          SEGS.splice(i+1,0,photoTail); if(SEGS[i+2]) SEGS[i+2]._prev=photoTail; i++;
+        }
+      }
+      for(var j=1;j<SEGS.length;j++){ SEGS[j]._prev=SEGS[j-1]; }
+    })();
   }
   try{ window._DIAGC.vmerge=_diagMiss(); }catch(_e){}
   for(var _es=0; _es<SEGS.length; _es++){ if(!SEGS[_es].video && SEGS[_es].img!=null && SEGS[_es].img>=0){ var _en=_capNeeded(SEGS[_es].img); if(_en>0){ while((SEGS[_es].end-SEGS[_es].start) < _en-0.01 && _es+1<SEGS.length && !SEGS[_es+1].video){ SEGS[_es].end=SEGS[_es+1].end; SEGS.splice(_es+1,1); } } } }
@@ -1841,6 +1879,28 @@ function buildPartition(){
   try{ if(typeof _projSaveSoon==="function") _projSaveSoon(); }catch(e){}
   try{ if(typeof PHOTOS!=="undefined" && PHOTOS.length) _studioPrimeSoon(); }catch(e){}
   try{ if(typeof _refreshSrcCounts==="function") _refreshSrcCounts(); }catch(e){}   /* compteurs Photos/Vidéo à jour dès le montage */
+  /* CONTRÔLE FINAL D'INTÉGRITÉ (GPT) : exécuté APRÈS toutes les transformations de SEGS
+     (fusions légendes, couverture photo, intro/outro). Vérifie continuité ET dépassement par segment. */
+  (function _finalMediaIntegrityCheck(){
+    var gaps=[], overlaps=[], overruns=[];
+    for(var i=0;i<SEGS.length;i++){ var seg=SEGS[i];
+      if(i+1<SEGS.length){ var next=SEGS[i+1]; var delta=next.start-seg.end;
+        if(delta>0.02) gaps.push({after:i,seconds:Math.round(delta*1000)/1000});
+        else if(delta<-0.02) overlaps.push({after:i,seconds:Math.round((-delta)*1000)/1000});
+      }
+      if(seg && seg.video && seg.vclip!=null && CLIPS[seg.vclip]){
+        var clip=CLIPS[seg.vclip];
+        var rate=Math.max(0.5,Number(seg.vspeed||clip.speed||1));
+        var sourceStart=Math.max(0,Number(seg.vstart!=null?seg.vstart:(clip.trimStart||0)));
+        var sourceEnd=Number(clip.trimEnd!=null?clip.trimEnd:(clip.dur||sourceStart));
+        var consumed=Math.max(0,(seg.end-seg.start)*rate);
+        var available=Math.max(0,sourceEnd-sourceStart);
+        if(consumed>available+0.05) overruns.push({segment:i,clip:seg.vclip,consumed:Math.round(consumed*1000)/1000,available:Math.round(available*1000)/1000});
+      }
+    }
+    window._TIMELINEDIAG={ gaps:gaps, overlaps:overlaps, overruns:overruns, contiguous:!gaps.length && !overlaps.length, mediaValid:!overruns.length };
+    if(gaps.length||overlaps.length||overruns.length) console.warn("[FINAL MEDIA INTEGRITY]",window._TIMELINEDIAG);
+  })();
   /* POSTCONDITION + DIAGNOSTIC (couverture photos & clips) — vérif objective en console */
   try{
     var _keptP=[]; for(var _pp2=0;_pp2<PHOTOS.length;_pp2++){ if(PHOTOS[_pp2] && !(PHOTOS[_pp2].feat&&PHOTOS[_pp2].feat.skip)) _keptP.push(_pp2); }
@@ -1862,7 +1922,7 @@ function buildPartition(){
       var _pM=(_cv.photos&&_cv.photos.missing&&_cv.photos.missing.length)?(" MANQUE "+_cv.photos.missing.join(",")):" OK";
       var _cM=(_cv.clips&&_cv.clips.missing&&_cv.clips.missing.length)?(" MANQUE "+_cv.clips.missing.join(",")):" OK";
       var _txt="DIAGNOSTIC MONTAGE\n"
-        +"Version : v997 - native-fs2\n"
+        +"Version : "+(window.STUDIO_VERSION||"?")+"\n"
         +"Photos : "+((_cv.photos&&_cv.photos.placed)||0)+"/"+((_cv.photos&&_cv.photos.need)||0)+_pM+"\n"
         +"Clips : "+((_cv.clips&&_cv.clips.placed)||0)+"/"+((_cv.clips&&_cv.clips.need)||0)+_cM+"\n"
         +"Duree medias : "+(_cv.pDur||0)+"s photos + "+(_cv.vDur||0)+"s videos\n"
@@ -8905,7 +8965,7 @@ function _openLangPicker(){
   bg.style.cssText="position:fixed;inset:0;z-index:100050;background:rgba(0,0,0,.62);backdrop-filter:blur(4px);display:flex;align-items:flex-end;justify-content:center;font-family:system-ui,-apple-system,sans-serif";
   var card=document.createElement("div");
   card.style.cssText="width:100%;max-width:520px;background:#0f0e0d;border:1px solid #282622;border-radius:22px 22px 0 0;padding:8px 10px 22px;max-height:78vh;overflow:auto;box-shadow:0 -10px 50px rgba(0,0,0,.7)";
-  var head="<div style=\"text-align:center;padding:12px 0 6px\"><div style=\"width:40px;height:4px;background:#3a3733;border-radius:3px;margin:0 auto 12px\"></div><div style=\"color:#f4f7fc;font:700 17px system-ui\">\uD83C\uDF10 "+_st("Langue des paroles")+"</div><div style=\"color:#8a93a6;font:500 12.5px system-ui;margin-top:3px\">"+_st("Traduction synchronisée au rythme")+" \u00b7 v997</div></div>";
+  var head="<div style=\"text-align:center;padding:12px 0 6px\"><div style=\"width:40px;height:4px;background:#3a3733;border-radius:3px;margin:0 auto 12px\"></div><div style=\"color:#f4f7fc;font:700 17px system-ui\">\uD83C\uDF10 "+_st("Langue des paroles")+"</div><div style=\"color:#8a93a6;font:500 12.5px system-ui;margin-top:3px\">"+_st("Traduction synchronisée au rythme")+" \u00b7 v1000</div></div>";
   var rows="";
   for(var i=0;i<window._LYRICS_LANGS.length;i++){ var code=window._LYRICS_LANGS[i][0], name=window._LYRICS_LANGS[i][1], fl=_LANG_FLAGS[code]||"\uD83C\uDF10", on=(window._LYRICS_LANG===code);
     rows+="<button class=\"lang-opt\" data-l=\""+code+"\" style=\"display:flex;align-items:center;gap:13px;width:100%;text-align:left;background:"+(on?"rgba(122,208,160,.14)":"none")+";border:1px solid "+(on?"rgba(122,208,160,.5)":"transparent")+";color:#f4f7fc;font:600 15.5px system-ui;padding:14px 15px;border-radius:13px;cursor:pointer;margin:3px 0\"><span style=\"font-size:22px\">"+fl+"</span><span style=\"flex:1\">"+name+"</span>"+(on?"<span style=\"color:#7ad0a0;font-size:18px\">\u2713</span>":"")+"</button>";
@@ -9813,7 +9873,7 @@ function _toggleFilmsMenu(anchor){
             var _maxPlanDur=Math.max.apply(null,_byCd[_ck]); var _over=((_maxPlanDur*_spdC)>_availC+0.05);
             _clipInfo+="\n  Clip "+(parseInt(_ck)+1)+" : source "+_src+"s, extrait ~"+_ex+"s x"+_ap+(_over?" DEPASSEMENT!":" ok"); }
         }catch(e){}
-        var msg="DIAGNOSTIC MONTAGE — v997\n\n"
+        var msg="DIAGNOSTIC MONTAGE — "+(window.STUDIO_VERSION||"?")+"\n\n"
           +"Photos : "+((_cv.photos&&_cv.photos.placed)||0)+"/"+((_cv.photos&&_cv.photos.need)||0)+_pM+"\n"
           +"Clips : "+((_cv.clips&&_cv.clips.placed)||0)+"/"+((_cv.clips&&_cv.clips.need)||0)+_cM+"\n"
           +"Plans totaux : "+_nSeg+" (dont "+_nVid+" vidéo)\n"
@@ -9836,6 +9896,7 @@ function _toggleFilmsMenu(anchor){
               +"Déchargements confirmés : "+(_W.unloadConfirmed||0)+"\n"
               +"Déchargements échoués : "+(_W.unloadFailed||0)+"\n"
               +"Violations fenêtre : "+(_W.syncErr||0)
+              +(function(){ try{ var td=window._TIMELINEDIAG||{}; return "\n\nTIMELINE\n"+"Continue : "+(td.contiguous?"OUI":"NON")+"\n"+"Trous : "+((td.gaps&&td.gaps.length)||0)+"\n"+"Chevauchements : "+((td.overlaps&&td.overlaps.length)||0)+"\n"+"Dépassements vidéo : "+((td.overruns&&td.overruns.length)||0)+"\n"+"Médias physiquement valides : "+(td.mediaValid?"OUI":"NON"); }catch(e){ return ""; } })()
               +"\n\nFLUIDITÉ\n"+(function(){ try{
                 var p=window.__VPERF||{}; var recent=p.recent||[]; var sum=0; for(var _q=0;_q<recent.length;_q++) sum+=recent[_q];
                 var fps=recent.length?1000/(sum/recent.length):0;
@@ -9861,7 +9922,7 @@ function _toggleFilmsMenu(anchor){
         var libN=0, libLyr=0, libTitles=[];
         try{ if(typeof LIB!=="undefined"){ for(var _i=0;_i<LIB.length;_i++){ var _t=LIB[_i]; if(_t&&_t.remote){ libN++; if(_t.lyrics||_t.lrc) libLyr++; if(libTitles.length<6) libTitles.push(_t.title+(( _t.lyrics||_t.lrc)?"[LRC]":"")); } } } }catch(e){}
         var _sn=0; try{ _sn=(window._SUBS?window._SUBS().length:0); }catch(e){}
-        var msg="VERSION v953+\n SUBS chargés: "+_sn+"\n\nMUSIQUE ACTIVE\n titre: "+(am.title||"(vide)")+"\n catId: "+(am.catId!=null?am.catId:"(vide)")
+        var msg="VERSION "+(window.STUDIO_VERSION||"?")+"\n SUBS chargés: "+_sn+"\n\nMUSIQUE ACTIVE\n titre: "+(am.title||"(vide)")+"\n catId: "+(am.catId!=null?am.catId:"(vide)")
           +"\n\nÉTAT PAROLES\n hasLyrics: "+window.__hasLyrics+"\n origLRC: "+((window.__origLRC||"").slice(0,30)||"(vide)")
           +"\n\nCATALOGUE\n pistes: "+libN+" | avec paroles: "+libLyr
           +"\n titres: "+(libTitles.join(", ")||"(catalogue vide)")
