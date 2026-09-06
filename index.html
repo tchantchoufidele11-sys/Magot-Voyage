@@ -14527,9 +14527,12 @@ function typeOutMessage(text){
   });
 }
 async function sendChatMessage(){
+  if(window.__chatBusy) return;                 // évite les doubles envois pendant la réflexion
   const inp=document.getElementById("chatInput"); if(!inp) return;
   const text=(inp.value||"").trim(); if(!text) return;
+  window.__chatBusy=true;
   inp.value=""; inp.disabled=true; const sendBtn=document.getElementById("chatSend"); if(sendBtn) sendBtn.disabled=true;
+  var _qbar=document.getElementById("chatQuickBar"); if(_qbar){ _qbar.style.pointerEvents="none"; _qbar.style.opacity="0.5"; }
   let h=chatHistory(); h.push({role:"user",content:text,ts:Date.now()}); chatHistorySave(h); renderChatHistory();
   const body=document.getElementById("chatBody");
   if(body){ body.innerHTML+=`<div class="ac-msg assistant thinking" id="acThinking">…</div>`; body.scrollTop=body.scrollHeight; }
@@ -14558,7 +14561,10 @@ async function sendChatMessage(){
   if(out&&out.proposal&&out.proposal.type==="ajout_planning"){ renderPlanProposal(out.proposal); }
   if(out&&out.proposal&&out.proposal.type==="journee"){ renderDayProposal(out.proposal); }
   if(out&&out.lieuxPhotos&&out.lieuxPhotos.length){ renderChatPhotos(out.lieuxPhotos); }
-  inp.disabled=false; if(sendBtn) sendBtn.disabled=false; inp.focus();
+  inp.disabled=false; if(sendBtn) sendBtn.disabled=false;
+  if(_qbar){ _qbar.style.pointerEvents=""; _qbar.style.opacity=""; }
+  window.__chatBusy=false;
+  inp.focus();
 }
 /* Cartes photo de lieux dans le chat (sur demande explicite) — cliquables vers la fiche */
 function renderChatPhotos(lieux){
