@@ -1537,12 +1537,37 @@ function buildPartition(){
   /* MÉDIAS = DURÉE : les vidéos sont des médias EN PLUS, pas à la place des photos.
      On réserve leur temps dans `want` -> la timeline s'allonge pour porter photos + vidéos
      (la musique boucle par-dessus). Le nombre de plans vidéo suit la densité de mix du mode. */
+  /* COUVERTURE CLIPS (Étape A) : le nombre de plans vidéo vient du NOMBRE DE CLIPS PRÊTS,
+     plus des photos. Chaque clip apparaît au moins une fois ; la densité n'ajoute que des reprises. */
+  var _readyClips=[]; for(var _rcI=0;_rcI<CLIPS.length;_rcI++){ if(CLIPS[_rcI] && CLIPS[_rcI].ready) _readyClips.push(_rcI); }
+  var _clipCount=_readyClips.length;
+  var VIDEO_TARGET=({cinema:3.4,doux:4.0,dynamique:2.2,voyage:3.0})[MOOD]||3.0;
   var _vTgt=0;
-  if(clipVidReady && _nP>0){ var _gapW=({cinema:7,doux:8,dynamique:4,voyage:5})[MOOD]||6; _vTgt=Math.max(1, Math.round(_nP/_gapW*(window.VIDDENS||1))); want += _vTgt*M.tgtSec; }
+  if(clipVidReady && _clipCount>0){
+    var _extraV=Math.max(0, Math.round(_clipCount*Math.max(0,(window.VIDDENS||1)-1)));
+    _vTgt=_clipCount+_extraV;                 /* couverture obligatoire + reprises éventuelles */
+    /* durée réservée aux clips : chaque clip reçoit un vrai extrait (slotDuration), pas un tgtSec uniforme */
+    var _vidWant=0;
+    for(var _vc=0;_vc<_readyClips.length;_vc++){ var _cl=CLIPS[_readyClips[_vc]];
+      var _spd=Math.max(0.5,_cl.speed||1), _ss=Math.max(0,_cl.trimStart||0), _usable=Math.max(0,( _cl.dur||VIDEO_TARGET)-_ss)/_spd;
+      _vidWant += Math.min(_usable, VIDEO_TARGET); }
+    var _extraWant=_extraV*VIDEO_TARGET;       /* reprises : dimensionnées à la cible du mode */
+    want += _vidWant + _extraWant;
+  }
   var _iD=(typeof SIGN!=="undefined"&&SIGN.on)?SIGN.introDur:0, _oD=(typeof SIGN!=="undefined"&&SIGN.on)?SIGN.outroDur:0;
   window.LOOP_ON=0; window.MULTI=0;
   var _videoOnly=(_nP===0 && clipVidReady);
-  if(_videoOnly){ want=Math.min(Math.max(1,avail-_iD-_oD),_MAXFILM); }
+  if(_videoOnly){
+    /* VIDÉO-ONLY : la durée vient des CLIPS (chacun son extrait), la musique reboucle par-dessus. */
+    var _voWant=0;
+    for(var _vo2=0;_vo2<_readyClips.length;_vo2++){ var _cl2=CLIPS[_readyClips[_vo2]];
+      var _spd2=Math.max(0.5,_cl2.speed||1), _ss2=Math.max(0,_cl2.trimStart||0), _us2=Math.max(0,(_cl2.dur||VIDEO_TARGET)-_ss2)/_spd2;
+      _voWant += Math.min(_us2, VIDEO_TARGET); }
+    var _extraVO=Math.max(0, Math.round(_clipCount*Math.max(0,(window.VIDDENS||1)-1)));
+    _voWant += _extraVO*VIDEO_TARGET;
+    want=Math.min(Math.max(1,_voWant),_MAXFILM);
+    if(_vTgt<_clipCount) _vTgt=_clipCount;   /* couverture garantie même en vidéo-only */
+  }
   if((_nP>0||_videoOnly) && TRACKS.length>1){ want=Math.min(want,_MAXFILM); window.MULTI=1; var _pl=buildMusicPlan(MST,want); var _g=planBeatGrid(_pl); if(_g.beats&&_g.beats.length){ beats=_g.beats; str=_g.str; metricArr=_g.metric||metricArr; } avail=want; bdur=want; window.DUR_FIT=1; window.DUR_NP=_nP; }
   else if(_nP>0||_videoOnly){ want=Math.min(want, _MAXFILM);
     if((_iD+want+_oD)<=avail){ bdur=want; window.DUR_FIT=1; }
@@ -1604,10 +1629,11 @@ function buildPartition(){
   (function(){
     var _keptN=0; for(var _kp=0;_kp<PHOTOS.length;_kp++){ if(PHOTOS[_kp] && !(PHOTOS[_kp].feat&&PHOTOS[_kp].feat.skip)) _keptN++; }
     var _needN=_keptN + ((typeof _vTgt!=="undefined"&&_vTgt>0)?_vTgt:0);   /* photos + plans vidéo = 1 plan plein par média */
-    if(_keptN<=0 || SEGS.length===0 || SEGS.length>=_needN) return;
+    if(SEGS.length===0 || _needN<=0 || SEGS.length>=_needN) return;   /* marche aussi en vidéo-only (_keptN peut être 0) */
     var _guard=0;
     while(SEGS.length<_needN && _guard++<800){
-      var _li=0,_lmax=-1; for(var _s=0;_s<SEGS.length;_s++){ if(SEGS[_s].video) continue; var _len=SEGS[_s].end-SEGS[_s].start; if(_len>_lmax){ _lmax=_len; _li=_s; } }
+      var _li=0,_lmax=-1, _voMode=(_keptN<=0);
+      for(var _s=0;_s<SEGS.length;_s++){ if(!_voMode && SEGS[_s].video) continue; var _len=SEGS[_s].end-SEGS[_s].start; if(_len>_lmax){ _lmax=_len; _li=_s; } }
       if(_lmax<0.45) break;                                 /* on découpe jusqu'à 0,45s pour garantir un plan par photo */
       var _sgL=SEGS[_li], _mid=(_sgL.start+_sgL.end)/2, _cutT=_mid, _bd=1e9;
       for(var _bk=0;_bk<beats.length;_bk++){ if(beats[_bk]>_sgL.start+0.22 && beats[_bk]<_sgL.end-0.22){ var _dd=Math.abs(beats[_bk]-_mid); if(_dd<_bd){ _bd=_dd; _cutT=beats[_bk]; } } }
@@ -1652,25 +1678,41 @@ function buildPartition(){
       /* VIDÉO-ONLY : round-robin des clips -> chacun avance régulièrement, aucun bout repris */
       for(var _s=0;_s<SEGS.length;_s++){ SEGS[_s].video=true; SEGS[_s].vclip=_rc[_s % _rc.length]; }
     } else if(_rc.length){
-      /* PHOTOS + VIDÉOS : intercalage sur les temps forts, densité réglable */
-      var _gap=({cinema:7,doux:8,dynamique:4,voyage:5})[MOOD]||6;
-      var _target=(typeof _vTgt!=="undefined"&&_vTgt>0)?_vTgt:Math.max(1, Math.round(SEGS.length/_gap*(window.VIDDENS||1)));
-      var _lastV=-99;
-      for(var _k=1;_k<=_target;_k++){
-        var _ideal=Math.round(_k*SEGS.length/(_target+1));
-        var _pick=-1, _fallback=-1;
-        for(var _w=Math.max(1,_ideal-1); _w<Math.min(SEGS.length, _ideal+3); _w++){
-          if(_w-_lastV<3) continue;
-          if(SEGS[_w-1]&&SEGS[_w-1].video) continue;
-          if(SEGS[_w].strong){ _pick=_w; break; }
-          if(_fallback<0) _fallback=_w;
-        }
-        if(_pick<0) _pick=_fallback;
-        if(_pick>=0){ SEGS[_pick].video=true; _lastV=_pick; }
+      /* PHOTOS + VIDÉOS : DISTRIBUTION PROPORTIONNELLE (remplace la contrainte rigide des 3 plans).
+         - vidéos majoritaires -> elles peuvent se suivre ;
+         - photos majoritaires -> vidéos espacées régulièrement ;
+         - chaque clip prêt apparaît AU MOINS une fois avant toute reprise. */
+      var _target=(typeof _vTgt!=="undefined"&&_vTgt>0)?_vTgt:_rc.length;
+      _target=Math.min(_target, SEGS.length);                 /* pas plus de plans vidéo que de plans dispo */
+      _target=Math.max(_target, Math.min(_rc.length, SEGS.length));   /* mais au moins 1 par clip si possible */
+      /* Choisir _target positions réparties uniformément sur la timeline. */
+      var _slots=[];
+      for(var _k=0;_k<_target;_k++){ _slots.push(Math.min(SEGS.length-1, Math.round((_k+0.5)*SEGS.length/_target))); }
+      /* dédoublonner en décalant les collisions */
+      var _used={}, _finalSlots=[];
+      for(var _sl=0;_sl<_slots.length;_sl++){ var _pos=_slots[_sl];
+        while(_pos<SEGS.length && _used[_pos]) _pos++;
+        if(_pos>=SEGS.length){ _pos=_slots[_sl]; while(_pos>=0 && _used[_pos]) _pos--; }
+        if(_pos>=0 && _pos<SEGS.length){ _used[_pos]=1; _finalSlots.push(_pos); }
       }
+      for(var _fs=0;_fs<_finalSlots.length;_fs++){ SEGS[_finalSlots[_fs]].video=true; }
       if(window.VEXCL && window.VEXCL.length){ for(var _ex=0;_ex<SEGS.length;_ex++){ if(SEGS[_ex].video && window.VEXCL.indexOf(Math.round(SEGS[_ex].start*10))>=0){ SEGS[_ex].video=false; } } }
-      var _byClip={}, _n=0;
-      for(var _s3=0;_s3<SEGS.length;_s3++){ if(SEGS[_s3].video){ var _ci=_rc[_n%_rc.length]; SEGS[_s3].vclip=_ci; (_byClip[_ci]=_byClip[_ci]||[]).push(_s3); _n++; } }
+      /* Assigner les clips : COUVERTURE d'abord (chaque clip une fois), puis round-robin pour les reprises */
+      var _vidSegs=[]; for(var _s3=0;_s3<SEGS.length;_s3++){ if(SEGS[_s3].video) _vidSegs.push(_s3); }
+      var _byClip={};
+      for(var _vs=0;_vs<_vidSegs.length;_vs++){ var _ci=_rc[_vs % _rc.length]; SEGS[_vidSegs[_vs]].vclip=_ci; (_byClip[_ci]=_byClip[_ci]||[]).push(_vidSegs[_vs]); }
+      /* POSTCONDITION (GPT) : chaque clip prêt DOIT apparaître au moins une fois. */
+      for(var _rq=0;_rq<_rc.length;_rq++){ var _cid=_rc[_rq];
+        if(!_byClip[_cid]){
+          /* clip manquant -> forcer sur un plan photo (le plus long dispo) ou sur un plan vidéo en double */
+          var _cand=-1,_cmax=-1;
+          for(var _cs=0;_cs<SEGS.length;_cs++){ if(SEGS[_cs].video) continue; var _cl3=SEGS[_cs].end-SEGS[_cs].start; if(_cl3>_cmax){ _cmax=_cl3; _cand=_cs; } }
+          if(_cand<0){ /* pas de photo libre : prendre un plan vidéo d'un clip déjà répété */
+            for(var _cs2=0;_cs2<SEGS.length;_cs2++){ if(SEGS[_cs2].video && _byClip[SEGS[_cs2].vclip] && _byClip[SEGS[_cs2].vclip].length>1){ _cand=_cs2; _byClip[SEGS[_cs2].vclip].splice(_byClip[SEGS[_cs2].vclip].indexOf(_cs2),1); break; } }
+          }
+          if(_cand>=0){ SEGS[_cand].video=true; SEGS[_cand].vclip=_cid; (_byClip[_cid]=_byClip[_cid]||[]).push(_cand); }
+        }
+      }
     }
     /* vstart : varier le moment de chaque morceau dans son clip (respecte le trim) */
     var _byC2={}; for(var _s4=0;_s4<SEGS.length;_s4++){ if(SEGS[_s4].video && SEGS[_s4].vclip!=null){ (_byC2[SEGS[_s4].vclip]=_byC2[SEGS[_s4].vclip]||[]).push(_s4); } }
@@ -2097,7 +2139,7 @@ function _mmtDraw(ctx,opt){
   /* ---------- Bandeau info : hauteur fixe (petit côté) ---------- */
   if(st.kind==="ticker"){
     var bh=Math.max(56,Math.round(H*0.062));
-    var tickerBottom=Math.round(H*0.965), yb=tickerBottom-bh+(1-ein)*bh;
+    var tickerBottom=Math.round(H*0.965), yb=tickerBottom-bh+(1-ein)*bh; _mmtRegisterBottomCaption(tickerBottom-bh,H,_cpos);
     ctx.save(); ctx.shadowColor="rgba(0,0,0,0)"; ctx.shadowBlur=0; ctx.shadowOffsetX=0; ctx.shadowOffsetY=0;
     ctx.fillStyle="rgba(7,11,17,0.90)"; ctx.fillRect(0,yb,W,bh);
     var accentW=Math.max(2,fs*0.075); ctx.fillStyle=GOLD; ctx.fillRect(0,yb,accentW,bh);
@@ -8668,7 +8710,7 @@ function _sizeSub(){ try{ if(!_subEl||!_subEl._box) return; var h=document.query
   _subEl.style.width=Math.round(dispW*0.94)+"px"; _subEl.style.left="50%"; _subEl.style.right="auto"; _subEl.style.transform="translateX(-50%)"; _subEl.style.paddingLeft="0"; _subEl.style.paddingRight="0";
   // remonter le sous-titre au-dessus du bas de la zone vidéo (identique en proportion à l'export : ~9% du bas)
   var _capTop=window.__MMT_BOTTOM_CAP_TOP, _bf=0.09;
-  if(typeof _capTop==="number"){ _bf=Math.max(0.09, 1-_capTop+0.018); }
+  if(typeof _capTop==="number"){ _bf=Math.max(0.09, 1-_capTop+0.028); }
   _subEl.style.bottom=Math.round((hh-dispH)/2 + dispH*_bf)+"px"; _subEl.style.top="auto";
 }catch(e){} }
 var _CUES=[], _cueSig="", _subCueRef=null, _subWordEls=[];
