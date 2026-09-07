@@ -1242,7 +1242,7 @@ function renderPlanToBuffer(dur, sr){
 function analyzeBufferInto(buf, cb){ try{ essentiaReady.then(function(ok){ if(ok){ setTimeout(function(){ try{ toMono44(buf,function(sig,sr){ var An; try{ An=analyzeEssentia(sig,sr,buf.duration); }catch(e){ An=analyzeCustom(buf); } cb(An); }); }catch(e){ cb(analyzeCustom(buf)); } }, 20); } else { setTimeout(function(){ cb(analyzeCustom(buf)); }, 20); } }); }catch(e){ try{ cb(analyzeCustom(buf)); }catch(e2){ cb(null); } } }
 
 var CLIPS=[], clipVidReady=false, VIDACT=-1;
-window.STUDIO_VERSION="v1031";
+window.STUDIO_VERSION="v1032";
 window.MAGOT_EXPORT_ENGINE="auto"; try{ window.MAGOT_EXPORT_ENGINE=localStorage.getItem("magot_export_engine")||"auto"; }catch(e){}
 function setMagotExportEngine(mode){ if(mode!=="auto"&&mode!=="turbo"&&mode!=="mediarecorder") mode="auto"; window.MAGOT_EXPORT_ENGINE=mode; try{ localStorage.setItem("magot_export_engine",mode); }catch(e){} }
 function _exportEngineLabel(){ var m=window.MAGOT_EXPORT_ENGINE; return m==="turbo"?"Export : Turbo test":m==="mediarecorder"?"Export : Compatible":"Export : Automatique"; }
@@ -9012,7 +9012,7 @@ function _openLangPicker(){
   bg.style.cssText="position:fixed;inset:0;z-index:100050;background:rgba(0,0,0,.62);backdrop-filter:blur(4px);display:flex;align-items:flex-end;justify-content:center;font-family:system-ui,-apple-system,sans-serif";
   var card=document.createElement("div");
   card.style.cssText="width:100%;max-width:520px;background:#0f0e0d;border:1px solid #282622;border-radius:22px 22px 0 0;padding:8px 10px 22px;max-height:78vh;overflow:auto;box-shadow:0 -10px 50px rgba(0,0,0,.7)";
-  var head="<div style=\"text-align:center;padding:12px 0 6px\"><div style=\"width:40px;height:4px;background:#3a3733;border-radius:3px;margin:0 auto 12px\"></div><div style=\"color:#f4f7fc;font:700 17px system-ui\">\uD83C\uDF10 "+_st("Langue des paroles")+"</div><div style=\"color:#8a93a6;font:500 12.5px system-ui;margin-top:3px\">"+_st("Traduction synchronisée au rythme")+" \u00b7 v1031</div></div>";
+  var head="<div style=\"text-align:center;padding:12px 0 6px\"><div style=\"width:40px;height:4px;background:#3a3733;border-radius:3px;margin:0 auto 12px\"></div><div style=\"color:#f4f7fc;font:700 17px system-ui\">\uD83C\uDF10 "+_st("Langue des paroles")+"</div><div style=\"color:#8a93a6;font:500 12.5px system-ui;margin-top:3px\">"+_st("Traduction synchronisée au rythme")+" \u00b7 v1032</div></div>";
   var rows="";
   for(var i=0;i<window._LYRICS_LANGS.length;i++){ var code=window._LYRICS_LANGS[i][0], name=window._LYRICS_LANGS[i][1], fl=_LANG_FLAGS[code]||"\uD83C\uDF10", on=(window._LYRICS_LANG===code);
     rows+="<button class=\"lang-opt\" data-l=\""+code+"\" style=\"display:flex;align-items:center;gap:13px;width:100%;text-align:left;background:"+(on?"rgba(122,208,160,.14)":"none")+";border:1px solid "+(on?"rgba(122,208,160,.5)":"transparent")+";color:#f4f7fc;font:600 15.5px system-ui;padding:14px 15px;border-radius:13px;cursor:pointer;margin:3px 0\"><span style=\"font-size:22px\">"+fl+"</span><span style=\"flex:1\">"+name+"</span>"+(on?"<span style=\"color:#7ad0a0;font-size:18px\">\u2713</span>":"")+"</button>";
@@ -10823,7 +10823,8 @@ async function exportStudio(){ try{ _reqWake(); }catch(e){} try{ _hideClipOverla
   _setStage("Pr\u00e9paration\u2026"); await _paint();
   try{
     var FPS=30;
-    var W=EXPFMT.w, H=EXPFMT.h, cap=((window.__preRender&&window.__preRender.active)?1600:((typeof navigator!=="undefined"&&navigator.deviceMemory&&navigator.deviceMemory<4)?1920:2160)), mx=Math.max(W,H);
+    /* Compatible = rendu temps réel : priorité à la FLUIDITÉ (Turbo garde la haute définition). */
+    var W=EXPFMT.w, H=EXPFMT.h, cap=1440, mx=Math.max(W,H);
     try{ var _srcCeil=0; for(var _sc=0;_sc<PHOTOS.length;_sc++){ var _sp2=PHOTOS[_sc]; if(_sp2){ var _n2=Math.max(_sp2._srcRes||0,_sp2._w||0,_sp2._h||0); if(_n2>_srcCeil)_srcCeil=_n2; } } if(_srcCeil>0) cap=Math.min(cap, Math.max(1920,_srcCeil)); }catch(e){}   /* jamais plus grand que la meilleure source du film : pixels interpolés = temps de rendu gaspillé */   /* pré-rendu (lecture) : 1600px = net écran + encode rapide/fiable ; export partage : 2160px */
     if(mx<cap){ var _up=cap/mx; W=Math.round(W*_up/2)*2; H=Math.round(H*_up/2)*2; }
     else if(mx>cap){ var s=cap/mx; W=Math.max(2,Math.round(W*s/2)*2); H=Math.max(2,Math.round(H*s/2)*2); }
@@ -10955,7 +10956,7 @@ async function exportStudio(){ try{ _reqWake(); }catch(e){} try{ _hideClipOverla
     }
     _hardStop=setTimeout(function(){ try{ if(rec.state==="recording") rec.requestData(); }catch(e){} try{ if(rec.state!=="inactive")rec.stop(); }catch(e){} setTimeout(function(){ if(!done){ _finish(); } }, 4000); }, Math.round(TOT*1000)+700);   /* filet : si onstop ne vient jamais (WebKit), on finalise depuis les morceaux reçus */
 
-    var _rafLoop=(typeof requestAnimationFrame==="function"), _tick=0, _uiN=0, _tailOnce=false;
+    var _rafLoop=(typeof requestAnimationFrame==="function"), _uiN=0, _tailOnce=false;
     function _represent(){ try{ if(_useGLcap){ var _a=window.__lastGLArgs; if(_a && typeof drawGL==="function"){ drawGL(_a.t,_a.p,(_a.s||((typeof glTex!=="undefined")?glTex:null))); } } else { bctx.drawImage(base,0,0,1,1,0,0,1,1); } }catch(e){} }   /* re-présente le dernier rendu : repeinte réelle pour la capture, coût GPU minime */
     (function _loop(){
       if(EXPORT_ABORT){ try{ if(rec.state!=="inactive")rec.stop(); }catch(e){} return; }
@@ -10966,9 +10967,9 @@ async function exportStudio(){ try{ _reqWake(); }catch(e){} try{ _hideClipOverla
         if(!done && (performance.now()-t0)<(TOT*1000+9000)){ if(_rafLoop) requestAnimationFrame(_loop); else setTimeout(_loop,66); }   /* pompe de queue : on continue à peindre jusqu'à la fin réelle de l'enregistreur (les images après stop() sont ignorées) */
         return; }
       _startExpAudio();
-      if((_tick++&1)===0){ _renderFrameTo(t); try{ window.__expBeat=performance.now(); }catch(e){}
-        if((_uiN++&3)===0){ try{ expShow(Math.min(0.99,t/TOT)); }catch(e){} try{ var st=document.getElementById("expStage"); if(st) st.textContent="Enregistrement\u2026 "+Math.round(t)+"/"+Math.round(TOT)+" s"+(_bytes?(" · "+(_bytes/1048576).toFixed(1)+" Mo"):""); }catch(e){} }
-      } else { _represent(); }
+      /* Une vraie image à CHAQUE RAF (plafond 1440px permet de tenir la cadence sur iPhone) */
+      _renderFrameTo(t); try{ window.__expBeat=performance.now(); }catch(e){}
+      if((_uiN++&7)===0){ try{ expShow(Math.min(0.99,t/TOT)); }catch(e){} try{ var st=document.getElementById("expStage"); if(st) st.textContent="Enregistrement\u2026 "+Math.round(t)+"/"+Math.round(TOT)+" s"+(_bytes?(" · "+(_bytes/1048576).toFixed(1)+" Mo"):""); }catch(e){} }
       if(_rafLoop) requestAnimationFrame(_loop); else setTimeout(_loop, Math.max(16,Math.round(1000/FPS)));
     })();
   }catch(e){ _expRestoreMem(); EXPORTING=false; try{ if(_expWatch){clearTimeout(_expWatch);_expWatch=null;} }catch(_w){} _expMsg("Échec export : "+((e&&e.message)||e)); }
