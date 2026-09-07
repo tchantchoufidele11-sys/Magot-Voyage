@@ -1242,7 +1242,7 @@ function renderPlanToBuffer(dur, sr){
 function analyzeBufferInto(buf, cb){ try{ essentiaReady.then(function(ok){ if(ok){ setTimeout(function(){ try{ toMono44(buf,function(sig,sr){ var An; try{ An=analyzeEssentia(sig,sr,buf.duration); }catch(e){ An=analyzeCustom(buf); } cb(An); }); }catch(e){ cb(analyzeCustom(buf)); } }, 20); } else { setTimeout(function(){ cb(analyzeCustom(buf)); }, 20); } }); }catch(e){ try{ cb(analyzeCustom(buf)); }catch(e2){ cb(null); } } }
 
 var CLIPS=[], clipVidReady=false, VIDACT=-1;
-window.STUDIO_VERSION="v1036";
+window.STUDIO_VERSION="v1037";
 window.MAGOT_EXPORT_ENGINE="auto"; try{ window.MAGOT_EXPORT_ENGINE=localStorage.getItem("magot_export_engine")||"auto"; }catch(e){}
 function setMagotExportEngine(mode){ if(mode!=="auto"&&mode!=="turbo"&&mode!=="mediarecorder") mode="auto"; window.MAGOT_EXPORT_ENGINE=mode; try{ localStorage.setItem("magot_export_engine",mode); }catch(e){} }
 function _exportEngineLabel(){ var m=window.MAGOT_EXPORT_ENGINE; return m==="turbo"?"Export : Turbo test":m==="mediarecorder"?"Export : Compatible":"Export : Automatique"; }
@@ -9013,7 +9013,7 @@ function _openLangPicker(){
   bg.style.cssText="position:fixed;inset:0;z-index:100050;background:rgba(0,0,0,.62);backdrop-filter:blur(4px);display:flex;align-items:flex-end;justify-content:center;font-family:system-ui,-apple-system,sans-serif";
   var card=document.createElement("div");
   card.style.cssText="width:100%;max-width:520px;background:#0f0e0d;border:1px solid #282622;border-radius:22px 22px 0 0;padding:8px 10px 22px;max-height:78vh;overflow:auto;box-shadow:0 -10px 50px rgba(0,0,0,.7)";
-  var head="<div style=\"text-align:center;padding:12px 0 6px\"><div style=\"width:40px;height:4px;background:#3a3733;border-radius:3px;margin:0 auto 12px\"></div><div style=\"color:#f4f7fc;font:700 17px system-ui\">\uD83C\uDF10 "+_st("Langue des paroles")+"</div><div style=\"color:#8a93a6;font:500 12.5px system-ui;margin-top:3px\">"+_st("Traduction synchronisée au rythme")+" \u00b7 v1036</div></div>";
+  var head="<div style=\"text-align:center;padding:12px 0 6px\"><div style=\"width:40px;height:4px;background:#3a3733;border-radius:3px;margin:0 auto 12px\"></div><div style=\"color:#f4f7fc;font:700 17px system-ui\">\uD83C\uDF10 "+_st("Langue des paroles")+"</div><div style=\"color:#8a93a6;font:500 12.5px system-ui;margin-top:3px\">"+_st("Traduction synchronisée au rythme")+" \u00b7 v1037</div></div>";
   var rows="";
   for(var i=0;i<window._LYRICS_LANGS.length;i++){ var code=window._LYRICS_LANGS[i][0], name=window._LYRICS_LANGS[i][1], fl=_LANG_FLAGS[code]||"\uD83C\uDF10", on=(window._LYRICS_LANG===code);
     rows+="<button class=\"lang-opt\" data-l=\""+code+"\" style=\"display:flex;align-items:center;gap:13px;width:100%;text-align:left;background:"+(on?"rgba(122,208,160,.14)":"none")+";border:1px solid "+(on?"rgba(122,208,160,.5)":"transparent")+";color:#f4f7fc;font:600 15.5px system-ui;padding:14px 15px;border-radius:13px;cursor:pointer;margin:3px 0\"><span style=\"font-size:22px\">"+fl+"</span><span style=\"flex:1\">"+name+"</span>"+(on?"<span style=\"color:#7ad0a0;font-size:18px\">\u2713</span>":"")+"</button>";
@@ -10117,7 +10117,7 @@ function _toggleFilmsMenu(anchor){
                   +"Transitions : "+((p.modes&&p.modes.transition)||0)+"\n"
                   +"Changements de clip : "+(p.switches||0);
               }catch(e){ return "(fluidité indispo: "+e+")"; } })()
-              +(function(){ try{ var xd=window.__EXPORT_DIAG; if(!xd){ try{ xd=JSON.parse(localStorage.getItem("magot:lastExportDiag")||"null"); }catch(e){ xd=null; } } xd=xd||{}; return "\n\nEXPORT\n"+"Demandé : "+(xd.requested||"aucun")+"\n"+"Réellement utilisé : "+(xd.used||"aucun")+"\n"+"Résultat Turbo : "+(xd.turboResult||"non_tente")+"\n"+"Erreur Turbo : "+(xd.turboError||"aucune")+"\n"+"Résultat Compatible : "+(xd.mediaRecorderResult||"non_tente")+"\n"+"Erreur Compatible : "+(xd.mediaRecorderError||"aucune")+"\n"+"Etape echec : "+(xd.failureStage||xd.stage||"inconnue")+"\n"+"Temps : "+(xd.atSeconds!=null?xd.atSeconds+" s":"inconnu")+"\n"+"Segment : "+(xd.segment!=null?xd.segment:"inconnu")+"\n"+"Clip : "+(xd.clip!=null?xd.clip:"inconnu")+"\n"+"Statut : "+(xd.status||"inconnu")+"\n"+"Motif du repli : "+(xd.fallbackReason||"aucun"); }catch(e){ return ""; } })();
+              +(function(){ try{ var xd=window.__EXPORT_DIAG; if(!xd){ try{ xd=JSON.parse(localStorage.getItem("magot:lastExportDiag")||"null"); }catch(e){ xd=null; } } xd=xd||{}; return "\n\nEXPORT\n"+"Demandé : "+(xd.requested||"aucun")+"\n"+"Réellement utilisé : "+(xd.used||"aucun")+"\n"+"Résultat Turbo : "+(xd.turboResult||"non_tente")+"\n"+"Erreur Turbo : "+(xd.turboError||"aucune")+"\n"+"Résultat Compatible : "+(xd.mediaRecorderResult||"non_tente")+"\n"+"Erreur Compatible : "+(xd.mediaRecorderError||"aucune")+"\n"+"Etape echec : "+(xd.failureStage||xd.stage||"inconnue")+"\n"+"Temps : "+(xd.atSeconds!=null?xd.atSeconds+" s":"inconnu")+"\n"+"Segment : "+(xd.segment!=null?xd.segment:"inconnu")+"\n"+"Clip : "+(xd.clip!=null?xd.clip:"inconnu")+"\n"+"Statut : "+(xd.status||"inconnu")+"\n"+"Motif du repli : "+(xd.fallbackReason||"aucun")+(function(){ try{ var ks=window.__EXPORT_SOURCE_KEYS||[]; if(!ks.length) return ""; var out="\n\nEMPREINTES SOURCES"; for(var i=0;i<ks.length;i++){ out+="\n"+(i+1)+" : "+ks[i]; } return out; }catch(e){ return ""; } })(); }catch(e){ return ""; } })();
           }catch(e){ return "(indispo: "+e+")"; } })();
         alert(msg);
       }catch(e){ try{ alert("diag montage err: "+e); }catch(_e){} } return; }
@@ -10358,6 +10358,18 @@ function seekClipStrict(el,time,timeoutMs){
 function _exportSleep(ms){ return new Promise(function(resolve){ setTimeout(resolve,ms); }); }
 function _videoLoadState(clip){ try{ var el=clip&&clip.el; var er=el&&el.error; return "code="+(er?er.code:0)+", ready="+(el?el.readyState:-1)+", network="+(el?el.networkState:-1)+", src="+(_clipHasAttachedSource(clip)?"oui":"non"); }catch(e){ return "etat_indisponible"; } }
 var __EXPORT_READERS=[];
+function _bytesHex(buf){ return Array.from(new Uint8Array(buf)).map(function(b){ return b.toString(16).padStart(2,"0"); }).join(""); }
+async function _clipSourceFingerprint(clip){
+  var blob=clip && clip.file; if(!blob) return "sans-blob";
+  try{ var n=Math.min(65536,blob.size);
+    var first=await blob.slice(0,n).arrayBuffer();
+    var last=await blob.slice(Math.max(0,blob.size-n)).arrayBuffer();
+    var data=new Uint8Array(first.byteLength+last.byteLength); data.set(new Uint8Array(first),0); data.set(new Uint8Array(last),first.byteLength);
+    var hash=await crypto.subtle.digest("SHA-256",data);
+    return blob.size+":"+blob.type+":"+_bytesHex(hash).slice(0,16);
+  }catch(e){ return "err:"+blob.size; }
+}
+async function _prepareExportSourceFingerprints(){ window.__EXPORT_SOURCE_KEYS=[]; for(var i=0;i<CLIPS.length;i++){ window.__EXPORT_SOURCE_KEYS[i]=await _clipSourceFingerprint(CLIPS[i]); } }
 function _createExportVideoElement(){ var el=document.createElement("video"); el.muted=true; el.preload="auto"; el.setAttribute("playsinline",""); el.setAttribute("webkit-playsinline",""); el.style.cssText="position:fixed;left:-99999px;top:0;width:2px;height:2px;opacity:0;pointer-events:none"; document.body.appendChild(el); return el; }
 function _destroyExportReader(slot){ if(!slot) return; var el=slot.el, clipIndex=slot.clipIndex;
   try{ if(typeof slot._cancelLoad==="function"){ slot._cancelLoad(); } }catch(e){} slot._cancelLoad=null;   /* annuler le chargement (listeners+timeout) AVANT de détruire */
@@ -10864,6 +10876,7 @@ async function exportStudio(){ try{ _reqWake(); }catch(e){} try{ _hideClipOverla
      Désactivable via window._MAGOT_TURBO=false. */
   /* DIAGNOSTIC MOTEUR (GPT) : on enregistre le moteur DEMANDÉ et RÉELLEMENT utilisé -> pas d'ambiguïté */
   try{ _destroyAllExportReaders(); }catch(e){}
+  try{ await _prepareExportSourceFingerprints(); }catch(e){ window.__EXPORT_SOURCE_KEYS=[]; }
   window.__EXPORT_DIAG={ requested:(window.MAGOT_EXPORT_ENGINE||"auto"), used:((window.MAGOT_EXPORT_ENGINE==="mediarecorder")?"mediarecorder":"aucun"), turboResult:"non_tente", turboError:"", mediaRecorderResult:"non_tente", mediaRecorderError:"", fallbackReason:"", stage:"initialisation", failureStage:"", atSeconds:null, frame:null, segment:null, clip:null, sourceTime:null, status:"running", startedAt:Date.now() }; _saveExportDiag();
   var _reqEng=(window.MAGOT_EXPORT_ENGINE||"auto");
   var _forceTurbo=(_reqEng==="turbo"), _forceMR=(_reqEng==="mediarecorder");
