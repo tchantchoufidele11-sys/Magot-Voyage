@@ -1242,7 +1242,10 @@ function renderPlanToBuffer(dur, sr){
 function analyzeBufferInto(buf, cb){ try{ essentiaReady.then(function(ok){ if(ok){ setTimeout(function(){ try{ toMono44(buf,function(sig,sr){ var An; try{ An=analyzeEssentia(sig,sr,buf.duration); }catch(e){ An=analyzeCustom(buf); } cb(An); }); }catch(e){ cb(analyzeCustom(buf)); } }, 20); } else { setTimeout(function(){ cb(analyzeCustom(buf)); }, 20); } }); }catch(e){ try{ cb(analyzeCustom(buf)); }catch(e2){ cb(null); } } }
 
 var CLIPS=[], clipVidReady=false, VIDACT=-1;
-window.STUDIO_VERSION="v1018";
+window.STUDIO_VERSION="v1025";
+window.MAGOT_EXPORT_ENGINE="auto"; try{ window.MAGOT_EXPORT_ENGINE=localStorage.getItem("magot_export_engine")||"auto"; }catch(e){}
+function setMagotExportEngine(mode){ if(mode!=="auto"&&mode!=="turbo"&&mode!=="mediarecorder") mode="auto"; window.MAGOT_EXPORT_ENGINE=mode; try{ localStorage.setItem("magot_export_engine",mode); }catch(e){} }
+function _exportEngineLabel(){ var m=window.MAGOT_EXPORT_ENGINE; return m==="turbo"?"Export : Turbo test":m==="mediarecorder"?"Export : Compatible":"Export : Automatique"; }
 var VIDEO_POOL_V2=false;
 window.MAX_VIDEO_CLIPS=10;              // palier de test (était 6)
 window.VIDEO_SOURCE_WINDOW=3;          // fenêtre de sources attachées en lecture (ne pas changer)
@@ -10049,11 +10052,13 @@ function _toggleFilmsMenu(anchor){
       +'<button class="fm-i" data-a="tuto" style="'+_bs+'">\uD83E\uDDED '+_st("Revoir le tutoriel")+'</button>'
       +'<button class="fm-i" data-a="diag" style="'+_bs+';color:#c9a44a">\uD83D\uDD0D Diagnostic paroles</button>'
       +'<button class="fm-i" data-a="diagmontage" style="'+_bs+';color:#c9a44a">\uD83C\uDFAC Diagnostic montage</button>'
+      +'<button class="fm-i" data-a="expengine" style="'+_bs+';color:#c9a44a">\uD83E\uDDEA '+_exportEngineLabel()+'</button>'
       +'<button class="fm-i" data-a="lyrics" style="width:100%;text-align:left;background:none;border:0;color:#f4f7fc;font:600 15px system-ui;padding:13px 14px;border-radius:11px;cursor:pointer;display:flex;align-items:center;gap:10px"><span style="pointer-events:none">\uD83C\uDFA4</span><span style="flex:1;pointer-events:none">'+_st("Lyrique")+'</span><span id="lyrTrack" style="pointer-events:none;display:inline-block;width:46px;height:27px;border-radius:14px;background:'+(window._LYRICS_ON===true?"#7ad0a0":"#3a3733")+';position:relative;transition:background .2s;flex:none"><span id="lyrKnob" style="position:absolute;top:3px;left:'+(window._LYRICS_ON===true?"22px":"3px")+';width:21px;height:21px;border-radius:50%;background:#fff;transition:left .2s;box-shadow:0 1px 3px rgba(0,0,0,.4)"></span></span></button>'
       +((window.__hasLyrics || (window._SUBS && window._SUBS().length>0))?('<button class="fm-i" data-a="lyrlang" style="'+_bs+'">\uD83C\uDF10 '+_st("Langue des paroles")+'  <span style="float:right;font-size:.82em;opacity:.7">'+((function(){ for(var _l=0;_l<window._LYRICS_LANGS.length;_l++){ if(window._LYRICS_LANGS[_l][0]===window._LYRICS_LANG) return window._LYRICS_LANGS[_l][1]; } return "Original"; })())+' \u203A</span></button>'):"")
 ;
     document.body.appendChild(m);
     Array.prototype.forEach.call(m.querySelectorAll(".fm-i"), function(it){ it.onclick=function(ev){ ev.stopPropagation(); var a=it.getAttribute("data-a"); if(a!=="lyrics"){ m.style.display="none"; }   /* le toggle Lyrique garde le menu ouvert pour montrer la bascule */
+      if(a==="expengine"){ try{ var _cur=window.MAGOT_EXPORT_ENGINE||"auto"; var _next=(_cur==="auto")?"turbo":(_cur==="turbo")?"mediarecorder":"auto"; setMagotExportEngine(_next); if(typeof setState==="function") setState(_exportEngineLabel()); }catch(e){} return; }
       if(a==="diagmontage"){ try{
         var _cv=window._COVERAGE||{}, _md=window._MUSICDIAG||{};
         var _pM=(_cv.photos&&_cv.photos.missing&&_cv.photos.missing.length)?(" MANQUE "+_cv.photos.missing.join(",")):" OK";
@@ -10107,7 +10112,8 @@ function _toggleFilmsMenu(anchor){
                   +"Canvas autre : "+((p.modes&&p.modes["canvas-other"])||0)+"\n"
                   +"Transitions : "+((p.modes&&p.modes.transition)||0)+"\n"
                   +"Changements de clip : "+(p.switches||0);
-              }catch(e){ return "(fluidité indispo: "+e+")"; } })();
+              }catch(e){ return "(fluidité indispo: "+e+")"; } })()
+              +(function(){ try{ var xd=window.__EXPORT_DIAG||{}; return "\n\nEXPORT\n"+"Demandé : "+(xd.requested||"aucun")+"\n"+"Réellement utilisé : "+(xd.used||"aucun")+"\n"+"Résultat Turbo : "+(xd.turboResult||"non_tente")+"\n"+"Motif du repli : "+(xd.fallbackReason||"aucun"); }catch(e){ return ""; } })();
           }catch(e){ return "(indispo: "+e+")"; } })();
         alert(msg);
       }catch(e){ try{ alert("diag montage err: "+e); }catch(_e){} } return; }
@@ -10317,6 +10323,61 @@ document.getElementById("fPhotos").onchange=function(e){
 
 /* init */
 /* ===== EXPORT RAPIDE (WebCodecs + mux MP4 + son) ===== */
+function seekClipStrict(el,time,timeoutMs){
+  timeoutMs=timeoutMs||3000;
+  return new Promise(function(resolve){
+    if(!el){ resolve(false); return; }
+    var finished=false, timer=null;
+    function cleanup(){ el.removeEventListener("seeked",onSeeked); el.removeEventListener("error",onError); if(timer) clearTimeout(timer); }
+    function finish(ok){ if(finished)return; finished=true; cleanup(); resolve(ok); }
+    function confirmFrame(){
+      if(el.readyState<2 || !el.videoWidth || el.error){ finish(false); return; }
+      if(typeof el.requestVideoFrameCallback==="function"){ try{ var ft=setTimeout(function(){ finish(el.readyState>=2 && !!el.videoWidth); },500); el.requestVideoFrameCallback(function(){ clearTimeout(ft); finish(true); }); return; }catch(e){} }
+      setTimeout(function(){ finish(el.readyState>=2 && !!el.videoWidth); },30);
+    }
+    function onSeeked(){ confirmFrame(); }
+    function onError(){ finish(false); }
+    el.addEventListener("seeked",onSeeked,{once:true}); el.addEventListener("error",onError,{once:true});
+    try{ el.currentTime=Math.max(0,time||0); }catch(e){ finish(false); return; }
+    timer=setTimeout(function(){ finish(false); },timeoutMs);   /* timeout = ÉCHEC, pas réussite silencieuse */
+  });
+}
+async function _ensureExportClipFrame(clipIndex,sourceTime){
+  var clip=CLIPS[clipIndex];
+  if(!clip || !clip.el || !clip.ready) throw new Error("clip_export_invalide_"+clipIndex);
+  var maximum=Math.max(0,(clip.dur||0.1)-0.05);
+  var target=Math.max(0,Math.min(maximum,sourceTime||0));
+  var epoch=(clip._loadEpoch||0);
+  /* COURT-CIRCUIT : ce TEMPS EXACT déjà préparé avec la MÊME génération de source (epoch).
+     Après un rattachement, l'epoch change -> cache auto-invalidé. Deux frames successives ne sont jamais confondues. */
+  if(_clipDrawable(clip) && clip._expPreparedEpoch===epoch && typeof clip._expPreparedTime==="number"
+     && Math.abs(clip._expPreparedTime-target)<0.0005 && Math.abs((clip.el.currentTime||0)-target)<0.008) return clip;
+  /* rechargement si non dessinable (loadeddata + readyState>=2 garantissent une 1re image à ~0) */
+  var reloaded=!_clipDrawable(clip);
+  if(reloaded){ await ensureClipLoaded(clip,5000); if(!_clipDrawable(clip)) throw new Error("clip_export_non_dessinable_"+clipIndex); }
+  if(Math.abs((clip.el.currentTime||0)-target)>=0.008){
+    var ok=await seekClipStrict(clip.el,target,5000);
+    if(!ok) throw new Error("seek_export_echoue_"+clipIndex);
+  }
+  /* si target≈0 après loadeddata, l'image initiale est déjà dessinable : pas d'attente artificielle */
+  clip._expPreparedTime=target; clip._expPreparedEpoch=(clip._loadEpoch||0);
+  return clip;
+}
+function _exportVideoNeedsAt(t){
+  var result=[], idx=-1;
+  for(var i=0;i<SEGS.length;i++){ if(t>=SEGS[i].start && t<SEGS[i].end){ idx=i; break; } }
+  if(idx<0) return result;
+  var sg=SEGS[idx], next=(idx+1<SEGS.length)?SEGS[idx+1]:null;
+  function add(seg,time){ if(!seg||!seg.video||seg.vclip==null||!CLIPS[seg.vclip]) return;
+    for(var r=0;r<result.length;r++){ if(result[r].clipIndex===seg.vclip) return; }
+    var clip=CLIPS[seg.vclip]; var st=(seg.vstart||0)+Math.max(0,time-seg.start)*(seg.vspeed||clip.speed||1);
+    result.push({clipIndex:seg.vclip, sourceTime:st});
+  }
+  add(sg,t);
+  if(next){ var trName=next.trans||"none"; var trDur=(trName!=="cut"&&trName!=="none")?Math.min(next.trDur!=null?next.trDur:0.5,(sg.end-sg.start)*0.5):0;
+    var trStart=next.start-trDur; if(trDur>0 && t>=trStart && t<next.start){ add(next,next.start); } }
+  return result;
+}
 function seekClip(el, time){ return new Promise(function(res){
   var done=false, fin=function(){ if(!done){ done=true; el.onseeked=null; res(); } };
   var useR=(typeof el.requestVideoFrameCallback==="function");
@@ -10409,7 +10470,11 @@ function _expStage(msg){ try{ var e=document.getElementById("expProg"); if(!e) r
 function _expYield(){ return new Promise(function(r){ setTimeout(r,0); }); }
 function _expRestoreMem(){ try{ if(!playing) _memGuardStop(); }catch(e){} try{ window.__pinned=null; window.__expTgt=null; }catch(e){}
   try{ if(window.__essentiaFreed){ window.__essentiaFreed=false; if(typeof EssentiaWASM!=="undefined" && typeof Essentia!=="undefined"){ EssentiaWASM().then(function(w){ try{ essentia=new Essentia(w); ESSENTIA_STATE="ok"; }catch(e){} }).catch(function(){}); } } }catch(e){}   /* recharge essentia après l'export pour les analyses futures */
-  try{ if(window.__expClipHold){ window.__expClipHold=false; window.__expPrevClip=null; if(typeof CLIPS!=="undefined"){ for(var _ci=0;_ci<CLIPS.length;_ci++){ (function(_c){ try{ if(_c && _c.el && _c._u && _c._unloaded){ _c.el.src=_c._u; _c.el.load(); _c._unloaded=false; } }catch(e){} })(CLIPS[_ci]); } } } }catch(e){}   /* fin d'export : recharge tous les clips pour la lecture */
+  /* fin d'export : NE PAS recharger tous les clips (recréait le pic mémoire). Garder max 3 sources (fenêtre initiale). */
+  try{ window.__expClipHold=false; window.__expPrevClip=null; window.__mrExportSeg=-1; window.__clipWindowSeg=-1;
+    var _fvs=-1; for(var _fi=0;_fi<SEGS.length;_fi++){ if(SEGS[_fi] && SEGS[_fi].video){ _fvs=_fi; break; } }
+    if(_fvs>=0){ _syncClipWindow(_fvs); } else { for(var _cc=0;_cc<CLIPS.length;_cc++){ releaseClipSource(CLIPS[_cc]); } }
+  }catch(e){}
   try{ var _q=window.__putQueue; window.__putQueue=null; if(_q&&_q.length){ (function _flush(){ if(!_q.length) return; var it=_q.shift(); try{ _pput(it[0],it[1]).catch(function(){}); }catch(e){} setTimeout(_flush,120); })(); } }catch(e){}   /* rejeu différé de la file d'écriture */ try{ if(window.__deferredAdd&&window.__deferredAdd.length){ var _dfa=window.__deferredAdd; window.__deferredAdd=null; setTimeout(function(){ try{ studioAddPhotos(_dfa); }catch(e){} },600); } }catch(e){} try{ if(window.__deferredRefresh){ var _dfi=window.__deferredRefresh; window.__deferredRefresh=null; setTimeout(function(){ try{ studioRefreshFromSource(_dfi); }catch(e){} },800); } }catch(e){} try{ if(window.__expSaveDec){ _DEC_MAX=window.__expSaveDec; window.__expSaveDec=null; } if(window.__expSavePcap){ window._PCAP=window.__expSavePcap; window.__expSavePcap=null; } if(window.__expSaveCap){ _CACHE_MB_CAP=window.__expSaveCap; window.__expSaveCap=null; } _decLRU=[]; }catch(e){} }
 var _wakeLock=null;
 async function _reqWake(){ try{ if(navigator.wakeLock && navigator.wakeLock.request && !_wakeLock){ _wakeLock=await navigator.wakeLock.request("screen"); document.addEventListener("visibilitychange", _reWake); } }catch(e){} }
@@ -10504,7 +10569,7 @@ async function _turboExport(){
   var muxer, _vencErr=null, venc;
   try{ muxer=new Mp4Muxer.Muxer(mo); venc=new VideoEncoder({ output:function(chunk,meta){ muxer.addVideoChunk(chunk,meta); }, error:function(e){ _vencErr=(e&&e.message)||String(e); } }); venc.configure(vcfg); }
   catch(e){ _restore(); return "fail"; }
-  for(var _wc=0;_wc<CLIPS.length;_wc++){ if(CLIPS[_wc]&&CLIPS[_wc].ready){ try{ CLIPS[_wc].el.muted=true; var _wp=CLIPS[_wc].el.play(); if(_wp&&_wp.then){ await Promise.race([ _wp.catch(function(){}), new Promise(function(r){ setTimeout(r,400); }) ]); } CLIPS[_wc].el.pause(); }catch(e){} } }
+  /* (préchauffage global RETIRÉ : Turbo prépare via _ensureExportClipFrame -> chargement + seek strict, jamais play() global) */
   var t0=performance.now(), _aborted=false;
   try{
     for(var fnum=0; fnum<N; fnum++){
@@ -10513,13 +10578,12 @@ async function _turboExport(){
       var _t=fnum/FPS;
       var _si=-1; for(var _q=0;_q<SEGS.length;_q++){ if(_t>=SEGS[_q].start && _t<SEGS[_q].end){ _si=_q; break; } }
       var _sg=(_si>=0)?SEGS[_si]:null;
-      if(_sg && _sg.video && _sg.vclip!=null && CLIPS[_sg.vclip] && CLIPS[_sg.vclip].ready){ var _cl=CLIPS[_sg.vclip], _vt=(_sg.vstart||0)+(_t-_sg.start)*(_sg.vspeed||_cl.speed||1); _vt=Math.max(0,Math.min((_cl.dur||0.1)-0.05,_vt));
-        if(window.__expClipHold){
-          if(_cl._unloaded && _cl._u){ try{ _cl.el.src=_cl._u; _cl.el.load(); _cl._unloaded=false; await new Promise(function(r){ var _d=false,_f=function(){ if(!_d){_d=true; _cl.el.onloadeddata=null; r();} }; _cl.el.onloadeddata=_f; setTimeout(_f,3000); }); }catch(e){} }   /* recharge le clip courant */
-          if(window.__expPrevClip!=null && window.__expPrevClip!==_sg.vclip){ var _pc=CLIPS[window.__expPrevClip]; try{ if(_pc && _pc.el && _pc._u && !_pc._unloaded){ _pc.el.pause(); _pc.el.removeAttribute("src"); _pc.el.load(); _pc._unloaded=true; } }catch(e){} }   /* décharge le clip précédent */
-          window.__expPrevClip=_sg.vclip;
-        }
-        if(Math.abs((_cl.el.currentTime||0)-_vt)>0.08){ await seekClip(_cl.el, _vt); } }   /* seek seulement si nécessaire : réutilise l'image courante sous 80 ms d'écart */
+      /* PRÉPARATION VIDÉO COMMUNE (GPT) : préparer TOUTES les vidéos nécessaires à cette frame.
+         PAS de try/catch ici : une erreur de préparation DOIT remonter au catch principal de _turboExport
+         (-> "fail" -> bascule MediaRecorder), au lieu d'exporter une mauvaise image. */
+      var _vNeeds=_exportVideoNeedsAt(_t), _keepExp={};
+      for(var _vn=0;_vn<_vNeeds.length;_vn++){ var _prep=_ensureExportClipFrame(_vNeeds[_vn].clipIndex, _vNeeds[_vn].sourceTime); if(_prep && typeof _prep.then==="function"){ await _prep; } _keepExp[_vNeeds[_vn].clipIndex]=true; }
+      for(var _vc=0;_vc<CLIPS.length;_vc++){ if(!_keepExp[_vc] && _clipHasAttachedSource(CLIPS[_vc])){ releaseClipSource(CLIPS[_vc]); } }
       try{ var _curI=(_sg&&!_sg.video&&_sg.img>=0)?_sg.img:-1, _nxI=-1, _prvI=-1;
         if(_si>=0 && _si+1<SEGS.length && SEGS[_si+1] && !SEGS[_si+1].video && SEGS[_si+1].img>=0) _nxI=SEGS[_si+1].img;
         if(_si>0 && SEGS[_si-1] && !SEGS[_si-1].video && SEGS[_si-1].img>=0) _prvI=SEGS[_si-1].img;
@@ -10698,12 +10762,26 @@ async function exportStudio(){ try{ _reqWake(); }catch(e){} try{ _hideClipOverla
      Ici timestamp = n/24 s : la durée est exacte PAR CONSTRUCTION. Plus lent que la durée du
      film (~1,5-2,5x), mais correct. Repli temps réel automatique si le codec échoue.
      Désactivable via window._MAGOT_TURBO=false. */
-  if((window._MAGOT_TURBO!==false) && typeof VideoEncoder!=="undefined" && typeof VideoFrame!=="undefined" && typeof Mp4Muxer!=="undefined"){
-    try{ _expStage("Rendu fluide image par image (un peu plus long)\u2026"); }catch(e){}
-    var _tr="fail"; try{ _tr=await _turboExport(); }catch(e){ _tr="fail"; }
-    if(_tr==="ok"){ _expRestoreMem(); return; }
-    if(_tr==="abort"||EXPORT_ABORT){ _expRestoreMem(); EXPORTING=false; try{ if(_expWatch){clearTimeout(_expWatch);_expWatch=null;} }catch(e){} expHide(); return; }
-    /* _tr === "fail" -> on continue en MediaRecorder temps réel (fiable). EXPORTING reste true. */
+  /* DIAGNOSTIC MOTEUR (GPT) : on enregistre le moteur DEMANDÉ et RÉELLEMENT utilisé -> pas d'ambiguïté */
+  window.__EXPORT_DIAG={ requested:(window.MAGOT_EXPORT_ENGINE||"auto"), used:((window.MAGOT_EXPORT_ENGINE==="mediarecorder")?"mediarecorder":"aucun"), turboResult:"non_tente", fallbackReason:"" };
+  var _reqEng=(window.MAGOT_EXPORT_ENGINE||"auto");
+  var _forceTurbo=(_reqEng==="turbo"), _forceMR=(_reqEng==="mediarecorder");
+  var _turboSupported=(typeof VideoEncoder!=="undefined" && typeof VideoFrame!=="undefined" && typeof Mp4Muxer!=="undefined");
+  if(!_forceMR){
+    if(!_turboSupported){ window.__EXPORT_DIAG.turboResult="indisponible";
+      if(_forceTurbo){ _expRestoreMem(); EXPORTING=false; expHide(); _expMsg("Turbo indisponible sur cet appareil."); return; }
+      window.__EXPORT_DIAG.fallbackReason="Turbo indisponible";
+    } else if(_forceTurbo || window._MAGOT_TURBO!==false){
+      window.__EXPORT_DIAG.used="turbo";
+      try{ _expStage("Rendu fluide image par image (un peu plus long)\u2026"); }catch(e){}
+      var _tr="fail"; try{ _tr=await _turboExport(); }catch(error){ _tr="fail"; window.__EXPORT_DIAG.fallbackReason=(error&&error.message)||String(error); }
+      window.__EXPORT_DIAG.turboResult=_tr;
+      if(_tr==="ok"){ _expRestoreMem(); return; }
+      if(_tr==="abort"||EXPORT_ABORT){ _expRestoreMem(); EXPORTING=false; try{ if(_expWatch){clearTimeout(_expWatch);_expWatch=null;} }catch(e){} expHide(); return; }
+      if(_forceTurbo){ _expRestoreMem(); EXPORTING=false; expHide(); _expMsg("Test Turbo échoué : aucun repli Compatible utilisé (mode Turbo test)."); return; }
+      if(!window.__EXPORT_DIAG.fallbackReason) window.__EXPORT_DIAG.fallbackReason="Turbo retourné : "+_tr;
+    }
+    window.__EXPORT_DIAG.used="mediarecorder";
     try{ _expStage("Bascule mode compatible\u2026"); }catch(e){}
   }
   /* affiche l'étape ET laisse le navigateur peindre : la dernière étape visible = le point de blocage */
@@ -10763,6 +10841,7 @@ async function exportStudio(){ try{ _reqWake(); }catch(e){} try{ _hideClipOverla
     rec.ondataavailable=function(ev){ if(ev.data&&ev.data.size){ chunks.push(ev.data); _bytes+=ev.data.size; } };
     function _cleanup(){ _expRestoreMem(); try{ if(_expWatch){clearTimeout(_expWatch);_expWatch=null;} }catch(e){} try{ if(_hardStop){clearTimeout(_hardStop);_hardStop=null;} }catch(e){} try{ for(var _cc=0;_cc<CLIPS.length;_cc++){ try{ CLIPS[_cc].el.pause(); }catch(_p){} } }catch(e){} try{ audioSrc&&audioSrc.stop(); }catch(e){} try{ audioCtx&&audioCtx.close(); }catch(e){} try{ stream.getTracks().forEach(function(t){try{t.stop();}catch(_){}});}catch(e){} try{ if(base.width!==_ow||base.height!==_oh) setRenderSize(_ow,_oh);}catch(e){} }
     function _finish(){ if(done)return; done=true; _cleanup();
+      if(_mrPrepError){ try{ chunks.length=0; }catch(e){} EXPORTING=false; expHide(); _expMsg("Export interrompu : "+((_mrPrepError&&_mrPrepError.message)||"un clip n\'a pas pu être préparé")); return; }
       var blob=null; try{ blob=new Blob(chunks,{type:outType}); }catch(e){ EXPORTING=false; expHide(); try{ chunks.length=0; }catch(_){} _expMsg("Mémoire insuffisante à la finalisation. Montage trop long : réduis la durée ou la qualité."); return; }
       try{ chunks.length=0; }catch(e){}   /* libère tout de suite la RAM des morceaux (évite le double pic mémoire = crash iOS) */
       if(!blob || !blob.size){ EXPORTING=false; expHide(); try{ renderMontageAt(0);}catch(e){} _expMsg("Aucune image capturée. Ouvre la page dans Safari (\u2197 en bas) : les navigateurs intégrés (in-app) bloquent la capture vidéo."); return; }
@@ -10773,9 +10852,12 @@ async function exportStudio(){ try{ _reqWake(); }catch(e){} try{ _hideClipOverla
     var _expVidAct=-1;
     function _renderFrameTo(t){ try{ var _cs=(typeof curSync==="function")?curSync():0; t=Math.max(0, Math.min((typeof DUR!=="undefined"?DUR:t), t+_cs)); }catch(e){}   /* applique le réglage Sync -> export aligné comme l'aperçu */
       var si=-1; for(var q=0;q<SEGS.length;q++){ if(t>=SEGS[q].start&&t<SEGS[q].end){si=q;break;} } var sg=(si>=0)?SEGS[si]:null;
-      if(sg&&sg.video&&sg.vclip!=null&&CLIPS[sg.vclip]&&CLIPS[sg.vclip].ready){ var cl=CLIPS[sg.vclip], rate=(sg.vspeed||cl.speed||1), want=(sg.vstart||0)+(t-sg.start)*rate; want=Math.max(0,Math.min((cl.dur||0.1)-0.05,want));
+      /* MediaRecorder (temps réel) : fenêtre de sources ≤3 au changement de segment (courant + prochains préchargés) */
+      if(window.__mrExportSeg!==si){ _scheduleMRWindow(si,false); }   /* prépare la fenêtre suivante en avance (jeton, non bloquant) */
+      if(sg&&sg.video&&sg.vclip!=null&&CLIPS[sg.vclip]&&_clipDrawable(CLIPS[sg.vclip])){ var cl=CLIPS[sg.vclip], rate=(sg.vspeed||cl.speed||1), want=(sg.vstart||0)+(t-sg.start)*rate; want=Math.max(0,Math.min((cl.dur||0.1)-0.05,want));
+        /* le gestionnaire (_prepMRWindow) prépare la source ; le rendu ne la rattache jamais lui-même */
         if(_expVidAct!==sg.vclip){ _expVidAct=sg.vclip; for(var _c=0;_c<CLIPS.length;_c++){ if(_c!==sg.vclip){ try{ CLIPS[_c].el.pause(); }catch(e){} } } try{ cl.el.muted=true; cl.el.playbackRate=rate; if(Math.abs((cl.el.currentTime||0)-want)>0.18) cl.el.currentTime=want; var _pv=cl.el.play(); if(_pv&&_pv.then)_pv.catch(function(){}); }catch(e){} }
-        else { try{ if(cl.el.paused){ var _pv2=cl.el.play(); if(_pv2&&_pv2.then)_pv2.catch(function(){}); } if(cl.el.playbackRate!==rate) cl.el.playbackRate=rate; if(Math.abs((cl.el.currentTime||0)-want)>0.35) cl.el.currentTime=want; }catch(e){} }
+        else { try{ if(cl.el.paused){ var _pv2=cl.el.play(); if(_pv2&&_pv2.then)_pv2.catch(function(){}); } if(cl.el.playbackRate!==rate) cl.el.playbackRate=rate; if(Math.abs((cl.el.currentTime||0)-want)>0.25) cl.el.currentTime=want; }catch(e){} }
       }
       else { if(_expVidAct>=0){ _expVidAct=-1; for(var _c2=0;_c2<CLIPS.length;_c2++){ try{ CLIPS[_c2].el.pause(); }catch(e){} } } if(sg&&!sg.video&&sg.img>=0&&PHOTOS[sg.img]&&!PHOTOS[sg.img].c){ try{ ensurePhotoDecoded(sg.img); }catch(e){} } }
       try{ for(var _la=(si>=0?si+1:0); _la<SEGS.length && _la<=(si>=0?si:0)+2; _la++){ var _nsg=SEGS[_la]; if(_nsg && !_nsg.video && _nsg.img>=0 && PHOTOS[_nsg.img] && !PHOTOS[_nsg.img].c && !PHOTOS[_nsg.img]._decoding){ ensurePhotoDecoded(_nsg.img); break; } } }catch(e){}   /* 1 photo d'avance max */
@@ -10792,6 +10874,37 @@ async function exportStudio(){ try{ _reqWake(); }catch(e){} try{ _hideClipOverla
 
     try{ var _w0=-1; for(var _wq=0;_wq<SEGS.length;_wq++){ if(SEGS[_wq] && !SEGS[_wq].video && SEGS[_wq].img>=0){ _w0=_wq; break; } } if(_w0>=0 && PHOTOS[SEGS[_w0].img] && !PHOTOS[SEGS[_w0].img].c){ _setStage("Pr\u00e9paration de la premi\u00e8re image\u2026"); await Promise.race([ ensurePhotoDecodedAsync(SEGS[_w0].img), new Promise(function(r){ setTimeout(r,3000); }) ]); } }catch(e){}
     _setStage("Enregistrement\u2026"); await _paint();
+    /* MediaRecorder : préparer la FENÊTRE INITIALE AVANT rec.start() (tous les clips déchargés en tête d'export).
+       Charger ET pré-positionner les clips futurs à leur vstart (sinon une transition montre la frame 0). */
+    var _mrPrepToken=0, _mrPrepPromise=Promise.resolve(), _mrPrepError=null;
+    async function _prepMRWindow(segIndex, prepareCurrent, token){
+      try{ _syncClipWindow(segIndex); }catch(e){}
+      var used={}, done=[];
+      for(var i=Math.max(0,segIndex); i<SEGS.length && done.length<(window.VIDEO_SOURCE_WINDOW||3); i++){
+        var sgw=SEGS[i]; if(!sgw||!sgw.video||sgw.vclip==null||!CLIPS[sgw.vclip]||used[sgw.vclip]) continue; used[sgw.vclip]=1; done.push(i);
+        var clip=CLIPS[sgw.vclip];
+        await ensureClipLoaded(clip,5000);
+        if(token!==_mrPrepToken) return false;
+        if(!_clipDrawable(clip)) throw new Error("clip_mediarecorder_non_pret_"+sgw.vclip);
+        var isCurrent=(i===segIndex && SEGS[segIndex] && SEGS[segIndex].video);
+        if(prepareCurrent || !isCurrent){
+          var target=Math.max(0,Math.min((clip.dur||0.1)-0.05, sgw.vstart||0));
+          clip.el.pause(); clip.el.muted=true; clip.el.playbackRate=(sgw.vspeed||clip.speed||1);
+          if(Math.abs((clip.el.currentTime||0)-target)>0.08){ var ok=await seekClipStrict(clip.el,target,5000); if(token!==_mrPrepToken) return false; if(!ok) throw new Error("preseek_mediarecorder_echoue_"+sgw.vclip); }
+        }
+      }
+      return true;
+    }
+    function _scheduleMRWindow(segIndex, prepareCurrent){
+      if(!prepareCurrent && window.__mrExportSeg===segIndex) return _mrPrepPromise;
+      window.__mrExportSeg=segIndex; var token=++_mrPrepToken;
+      _mrPrepPromise=_prepMRWindow(segIndex, !!prepareCurrent, token).catch(function(error){ if(token===_mrPrepToken){ _mrPrepError=error; } return false; });
+      return _mrPrepPromise;
+    }
+    window.__mrExportSeg=-1; window.__clipWindowSeg=-1; _mrPrepError=null;
+    var _fes=0; for(var _fe=0;_fe<SEGS.length;_fe++){ if(SEGS[_fe] && SEGS[_fe].video){ _fes=_fe; break; } }
+    var _prepared=await _scheduleMRWindow(_fes, true);   /* fenêtre initiale RÉELLEMENT attendue */
+    if(!_prepared || _mrPrepError){ EXPORTING=false; _cleanup(); _expMsg("Impossible de préparer les clips : "+((_mrPrepError&&_mrPrepError.message)||"préparation interrompue")); return; }
     if(INTRO>0){ try{ drawSignatureCard("intro",0); }catch(e){} } else { _renderFrameTo(0); }
     try{ rec.start(1000); }catch(e){ try{ rec.start(); }catch(e2){ EXPORTING=false; _cleanup(); _expMsg("Démarrage impossible : "+((e2&&e2.message)||e2)); return; } }
     var t0=performance.now();
@@ -10811,6 +10924,7 @@ async function exportStudio(){ try{ _reqWake(); }catch(e){} try{ _hideClipOverla
     function _represent(){ try{ if(_useGLcap){ var _a=window.__lastGLArgs; if(_a && typeof drawGL==="function"){ drawGL(_a.t,_a.p,(_a.s||((typeof glTex!=="undefined")?glTex:null))); } } else { bctx.drawImage(base,0,0,1,1,0,0,1,1); } }catch(e){} }   /* re-présente le dernier rendu : repeinte réelle pour la capture, coût GPU minime */
     (function _loop(){
       if(EXPORT_ABORT){ try{ if(rec.state!=="inactive")rec.stop(); }catch(e){} return; }
+      if(_mrPrepError){ try{ if(rec.state!=="inactive") rec.stop(); }catch(e){} return; }
       var t=(performance.now()-t0)/1000;
       if(t>=TOT){ if(!_tailOnce){ _tailOnce=true; try{ _renderFrameTo(Math.max(0,DUR-0.001)); }catch(e){} } else { _represent(); }
         try{ var _stF=document.getElementById("expStage"); if(_stF) _stF.textContent="Finalisation\u2026"; }catch(e){}
@@ -10959,8 +11073,12 @@ async function exportFast(){ return exportStudio(); /* MOTEUR UNIFIÉ : tout pas
     venc.configure(vcfg);
   }catch(e){ EXPORTING=false; try{ if(_expWatch){clearTimeout(_expWatch);_expWatch=null;} }catch(_w){} try{ if(base.width!==_ow||base.height!==_oh) setRenderSize(_ow,_oh); }catch(_r){} _expMsg("Config encodeur impossible : "+((e&&e.message)||e)); return; }
   _expStage("Pr\u00e9paration\u2026"); await _expYield();
-  var _nclip=CLIPS.filter(function(c){return c&&c.ready;}).length, _dci=0;
-  for(var _wc=0;_wc<CLIPS.length;_wc++){ if(CLIPS[_wc]&&CLIPS[_wc].ready){ _dci++; _expStage("Pr\u00e9chauffage vid\u00e9o "+_dci+"/"+_nclip); try{ CLIPS[_wc].el.muted=true; var _wp=CLIPS[_wc].el.play(); if(_wp&&_wp.then){ await Promise.race([ _wp.catch(function(){}), new Promise(function(r){ setTimeout(r,400); }) ]); } CLIPS[_wc].el.pause(); }catch(e){} } }
+  /* MediaRecorder : préparer SEULEMENT la fenêtre initiale (max 3 sources), pas tous les clips (pic mémoire) */
+  try{ var _firstES=0; for(var _es=0;_es<SEGS.length;_es++){ if(SEGS[_es] && SEGS[_es].video){ _firstES=_es; break; } }
+    window.__clipWindowSeg=-1; _syncClipWindow(_firstES);
+    var _iw=_wantedClipWindow(_firstES);
+    await Promise.all(_iw.map(function(ci){ return ensureClipLoaded(CLIPS[ci],4000).catch(function(){}); }));
+  }catch(e){}
   var t0=performance.now();
   try{
     for(var fnum=0; fnum<N; fnum++){
@@ -10969,10 +11087,16 @@ async function exportFast(){ return exportStudio(); /* MOTEUR UNIFIÉ : tout pas
       var _t=fnum/FPS;
       var _si=-1; for(var _q=0;_q<SEGS.length;_q++){ if(_t>=SEGS[_q].start && _t<SEGS[_q].end){ _si=_q; break; } }
       var _sg=(_si>=0)?SEGS[_si]:null;
-      if(_sg && _sg.video && _sg.vclip!=null && CLIPS[_sg.vclip] && CLIPS[_sg.vclip].ready){
-        var _cl=CLIPS[_sg.vclip], _vt=(_sg.vstart||0)+(_t-_sg.start)*(_sg.vspeed||_cl.speed||1); _vt=Math.max(0,Math.min((_cl.dur||0.1)-0.05,_vt));
-        await seekClip(_cl.el, _vt);
-      }
+      /* fenêtre de sources à chaque changement de segment */
+      if(window.__mrExportSeg!==_si){ window.__mrExportSeg=_si; try{ _syncClipWindow(_si); }catch(e){} }
+      /* préparer toutes les vidéos de cette frame (courant + next en transition), seek strict */
+      try{ var _mn=_exportVideoNeedsAt(_t), _mkeep={};
+        for(var _mi=0;_mi<_mn.length;_mi++){ try{ await _ensureExportClipFrame(_mn[_mi].clipIndex,_mn[_mi].sourceTime); _mkeep[_mn[_mi].clipIndex]=true; }catch(_me){} }
+        for(var _mc=0;_mc<CLIPS.length;_mc++){ if(!_mkeep[_mc] && _clipHasAttachedSource(CLIPS[_mc])){ releaseClipSource(CLIPS[_mc]); } }
+      }catch(e){}
+      /* Export frame-par-frame : PAS de play() (le seek strict positionne exactement chaque frame ;
+         laisser jouer ferait avancer le clip tout seul -> conflit avec le seek suivant). */
+      if(_sg && _sg.video && _sg.vclip!=null && CLIPS[_sg.vclip] && !CLIPS[_sg.vclip].el.paused){ try{ CLIPS[_sg.vclip].el.pause(); }catch(e){} }
       if(_sg && !_sg.video && _sg.img>=0 && PHOTOS[_sg.img] && !PHOTOS[_sg.img].c){ try{ await Promise.race([ ensurePhotoDecodedAsync(_sg.img), new Promise(function(r){ setTimeout(r,2500); }) ]); }catch(e){} }
       renderMontageAt(_t);
       var frame=new VideoFrame(glReady?gl.canvas:base,{timestamp:Math.round(fnum*1000000/FPS), duration:Math.round(1000000/FPS)});
