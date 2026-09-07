@@ -1242,7 +1242,7 @@ function renderPlanToBuffer(dur, sr){
 function analyzeBufferInto(buf, cb){ try{ essentiaReady.then(function(ok){ if(ok){ setTimeout(function(){ try{ toMono44(buf,function(sig,sr){ var An; try{ An=analyzeEssentia(sig,sr,buf.duration); }catch(e){ An=analyzeCustom(buf); } cb(An); }); }catch(e){ cb(analyzeCustom(buf)); } }, 20); } else { setTimeout(function(){ cb(analyzeCustom(buf)); }, 20); } }); }catch(e){ try{ cb(analyzeCustom(buf)); }catch(e2){ cb(null); } } }
 
 var CLIPS=[], clipVidReady=false, VIDACT=-1;
-window.STUDIO_VERSION="v1025";
+window.STUDIO_VERSION="v1027";
 window.MAGOT_EXPORT_ENGINE="auto"; try{ window.MAGOT_EXPORT_ENGINE=localStorage.getItem("magot_export_engine")||"auto"; }catch(e){}
 function setMagotExportEngine(mode){ if(mode!=="auto"&&mode!=="turbo"&&mode!=="mediarecorder") mode="auto"; window.MAGOT_EXPORT_ENGINE=mode; try{ localStorage.setItem("magot_export_engine",mode); }catch(e){} }
 function _exportEngineLabel(){ var m=window.MAGOT_EXPORT_ENGINE; return m==="turbo"?"Export : Turbo test":m==="mediarecorder"?"Export : Compatible":"Export : Automatique"; }
@@ -9012,7 +9012,7 @@ function _openLangPicker(){
   bg.style.cssText="position:fixed;inset:0;z-index:100050;background:rgba(0,0,0,.62);backdrop-filter:blur(4px);display:flex;align-items:flex-end;justify-content:center;font-family:system-ui,-apple-system,sans-serif";
   var card=document.createElement("div");
   card.style.cssText="width:100%;max-width:520px;background:#0f0e0d;border:1px solid #282622;border-radius:22px 22px 0 0;padding:8px 10px 22px;max-height:78vh;overflow:auto;box-shadow:0 -10px 50px rgba(0,0,0,.7)";
-  var head="<div style=\"text-align:center;padding:12px 0 6px\"><div style=\"width:40px;height:4px;background:#3a3733;border-radius:3px;margin:0 auto 12px\"></div><div style=\"color:#f4f7fc;font:700 17px system-ui\">\uD83C\uDF10 "+_st("Langue des paroles")+"</div><div style=\"color:#8a93a6;font:500 12.5px system-ui;margin-top:3px\">"+_st("Traduction synchronisée au rythme")+" \u00b7 v1010</div></div>";
+  var head="<div style=\"text-align:center;padding:12px 0 6px\"><div style=\"width:40px;height:4px;background:#3a3733;border-radius:3px;margin:0 auto 12px\"></div><div style=\"color:#f4f7fc;font:700 17px system-ui\">\uD83C\uDF10 "+_st("Langue des paroles")+"</div><div style=\"color:#8a93a6;font:500 12.5px system-ui;margin-top:3px\">"+_st("Traduction synchronisée au rythme")+" \u00b7 v1027</div></div>";
   var rows="";
   for(var i=0;i<window._LYRICS_LANGS.length;i++){ var code=window._LYRICS_LANGS[i][0], name=window._LYRICS_LANGS[i][1], fl=_LANG_FLAGS[code]||"\uD83C\uDF10", on=(window._LYRICS_LANG===code);
     rows+="<button class=\"lang-opt\" data-l=\""+code+"\" style=\"display:flex;align-items:center;gap:13px;width:100%;text-align:left;background:"+(on?"rgba(122,208,160,.14)":"none")+";border:1px solid "+(on?"rgba(122,208,160,.5)":"transparent")+";color:#f4f7fc;font:600 15.5px system-ui;padding:14px 15px;border-radius:13px;cursor:pointer;margin:3px 0\"><span style=\"font-size:22px\">"+fl+"</span><span style=\"flex:1\">"+name+"</span>"+(on?"<span style=\"color:#7ad0a0;font-size:18px\">\u2713</span>":"")+"</button>";
@@ -10113,7 +10113,7 @@ function _toggleFilmsMenu(anchor){
                   +"Transitions : "+((p.modes&&p.modes.transition)||0)+"\n"
                   +"Changements de clip : "+(p.switches||0);
               }catch(e){ return "(fluidité indispo: "+e+")"; } })()
-              +(function(){ try{ var xd=window.__EXPORT_DIAG||{}; return "\n\nEXPORT\n"+"Demandé : "+(xd.requested||"aucun")+"\n"+"Réellement utilisé : "+(xd.used||"aucun")+"\n"+"Résultat Turbo : "+(xd.turboResult||"non_tente")+"\n"+"Motif du repli : "+(xd.fallbackReason||"aucun"); }catch(e){ return ""; } })();
+              +(function(){ try{ var xd=window.__EXPORT_DIAG; if(!xd){ try{ xd=JSON.parse(localStorage.getItem("magot:lastExportDiag")||"null"); }catch(e){ xd=null; } } xd=xd||{}; return "\n\nEXPORT\n"+"Demandé : "+(xd.requested||"aucun")+"\n"+"Réellement utilisé : "+(xd.used||"aucun")+"\n"+"Résultat Turbo : "+(xd.turboResult||"non_tente")+"\n"+"Erreur Turbo : "+(xd.turboError||"aucune")+"\n"+"Résultat Compatible : "+(xd.mediaRecorderResult||"non_tente")+"\n"+"Erreur Compatible : "+(xd.mediaRecorderError||"aucune")+"\n"+"Etape echec : "+(xd.failureStage||xd.stage||"inconnue")+"\n"+"Temps : "+(xd.atSeconds!=null?xd.atSeconds+" s":"inconnu")+"\n"+"Segment : "+(xd.segment!=null?xd.segment:"inconnu")+"\n"+"Clip : "+(xd.clip!=null?xd.clip:"inconnu")+"\n"+"Statut : "+(xd.status||"inconnu")+"\n"+"Motif du repli : "+(xd.fallbackReason||"aucun"); }catch(e){ return ""; } })();
           }catch(e){ return "(indispo: "+e+")"; } })();
         alert(msg);
       }catch(e){ try{ alert("diag montage err: "+e); }catch(_e){} } return; }
@@ -10323,6 +10323,15 @@ document.getElementById("fPhotos").onchange=function(e){
 
 /* init */
 /* ===== EXPORT RAPIDE (WebCodecs + mux MP4 + son) ===== */
+function _exportErrText(error){ try{ var e=(error && error.error)||error; if(!e) return "erreur inconnue"; var name=(e.name && e.name!=="Error")?e.name+": ":""; return name+(e.message||String(e)); }catch(_){ return "erreur illisible"; } }
+function _saveExportDiag(){ try{ localStorage.setItem("magot:lastExportDiag", JSON.stringify(window.__EXPORT_DIAG||{})); }catch(_){} }
+var __exportDiagSaveAt=0, __exportDiagSaveKey="";
+function _checkpointExportDiag(){ try{ var d=window.__EXPORT_DIAG; if(!d) return; var now=Date.now();
+  var key=[d.used||"", d.stage||"", d.segment==null?"":d.segment, d.clip==null?"":d.clip].join("|");
+  if(key===__exportDiagSaveKey && now-__exportDiagSaveAt<2000) return;   /* au changement d'étape/clip, ou toutes les 2s */
+  __exportDiagSaveKey=key; __exportDiagSaveAt=now; d.lastCheckpointAt=now;
+  localStorage.setItem("magot:lastExportDiag", JSON.stringify(d));
+}catch(e){} }
 function seekClipStrict(el,time,timeoutMs){
   timeoutMs=timeoutMs||3000;
   return new Promise(function(resolve){
@@ -10578,11 +10587,15 @@ async function _turboExport(){
       var _t=fnum/FPS;
       var _si=-1; for(var _q=0;_q<SEGS.length;_q++){ if(_t>=SEGS[_q].start && _t<SEGS[_q].end){ _si=_q; break; } }
       var _sg=(_si>=0)?SEGS[_si]:null;
-      /* PRÉPARATION VIDÉO COMMUNE (GPT) : préparer TOUTES les vidéos nécessaires à cette frame.
-         PAS de try/catch ici : une erreur de préparation DOIT remonter au catch principal de _turboExport
-         (-> "fail" -> bascule MediaRecorder), au lieu d'exporter une mauvaise image. */
+      var _diag=window.__EXPORT_DIAG; _diag.stage="turbo_frame"; _diag.atSeconds=+_t.toFixed(3); _diag.frame=fnum; _diag.segment=_si; _diag.clip=(_sg && _sg.video && _sg.vclip!=null)?_sg.vclip+1:null; _checkpointExportDiag();
+      /* PRÉPARATION VIDÉO COMMUNE : instrumentée, erreur détaillée remontée au catch principal */
       var _vNeeds=_exportVideoNeedsAt(_t), _keepExp={};
-      for(var _vn=0;_vn<_vNeeds.length;_vn++){ var _prep=_ensureExportClipFrame(_vNeeds[_vn].clipIndex, _vNeeds[_vn].sourceTime); if(_prep && typeof _prep.then==="function"){ await _prep; } _keepExp[_vNeeds[_vn].clipIndex]=true; }
+      for(var _vn=0;_vn<_vNeeds.length;_vn++){ var _needV=_vNeeds[_vn];
+        _diag.stage="turbo_prepare_clip"; _diag.clip=_needV.clipIndex+1; _diag.sourceTime=+_needV.sourceTime.toFixed(3);
+        try{ await _ensureExportClipFrame(_needV.clipIndex, _needV.sourceTime); }
+        catch(error){ throw new Error("clip "+(_needV.clipIndex+1)+" à "+_t.toFixed(2)+" s : "+_exportErrText(error)); }
+        _keepExp[_needV.clipIndex]=true;
+      }
       for(var _vc=0;_vc<CLIPS.length;_vc++){ if(!_keepExp[_vc] && _clipHasAttachedSource(CLIPS[_vc])){ releaseClipSource(CLIPS[_vc]); } }
       try{ var _curI=(_sg&&!_sg.video&&_sg.img>=0)?_sg.img:-1, _nxI=-1, _prvI=-1;
         if(_si>=0 && _si+1<SEGS.length && SEGS[_si+1] && !SEGS[_si+1].video && SEGS[_si+1].img>=0) _nxI=SEGS[_si+1].img;
@@ -10603,7 +10616,9 @@ async function _turboExport(){
     }
     var _flushMs=Math.max(25000, Math.round(DUR*1000)+15000);   /* flush proportionnel : ne coupe plus les dernières images des films longs avec clips (durée complète) */
     await _expRace(venc.flush(), _flushMs, "flush"); try{ venc.close(); }catch(_c){}
-  }catch(e){ try{ venc.close(); }catch(_c){} _restore(); if(_aborted||EXPORT_ABORT) return "abort"; return "fail"; }
+  }catch(error){ try{ venc.close(); }catch(_c){} _restore(); if(_aborted||EXPORT_ABORT) return "abort";
+    var _td=window.__EXPORT_DIAG||{}; _td.failureStage=_td.stage||"turbo"; _td.turboResult="fail"; _td.turboError=_exportErrText(error); _td.status="fail"; _saveExportDiag();
+    return "fail"; }
   if(useAudio){ try{ _expStage("Turbo : audio\u2026");
     var _srcBuf=(await _buildExportAudio(DUR, Asr))||AUDIOBUF;
     var _Lc=_srcBuf.getChannelData(0), _Rc=(_srcBuf.numberOfChannels>1)?_srcBuf.getChannelData(1):_srcBuf.getChannelData(0);
@@ -10739,7 +10754,7 @@ async function exportStudio(){ try{ _reqWake(); }catch(e){} try{ _hideClipOverla
   try{ _memGuardStart(); }catch(e){}   /* gardien mémoire actif pendant l'export/pré-rendu (évite le crash sur gros films) */
   try{ if(typeof essentia!=="undefined" && essentia && !window.__essentiaFreed){ if(essentia.shutdown) essentia.shutdown(); if(essentia.delete) essentia.delete(); essentia=null; window.__essentiaFreed=true; }   /* libère les ~285 Mo d'essentia-wasm pendant l'export (crash iOS 100%) ; rechargé à la fin via _expRestoreMem */
   }catch(e){}
-  try{ if(typeof CLIPS!=="undefined" && CLIPS.length>2){ window.__expClipHold=true; for(var _ci=0;_ci<CLIPS.length;_ci++){ (function(_c){ try{ if(_c && _c.el && _c._u){ _c.el.pause(); _c.el.removeAttribute("src"); _c.el.load(); _c._unloaded=true; } }catch(e){} })(CLIPS[_ci]); } } }catch(e){}   /* décharge tous les clips vidéo au début de l'export (chacun ~50-100 Mo décodé) : ils seront rechargés un par un juste avant leur tour -> évite 300-600 Mo simultanés qui crashent iOS */
+  try{ if(typeof CLIPS!=="undefined" && CLIPS.length>2){ window.__expClipHold=true; for(var _ci=0;_ci<CLIPS.length;_ci++){ var _c=CLIPS[_ci]; if(!_c) continue; releaseClipSource(_c); _c._expPreparedEpoch=null; _c._expPreparedTime=null; } } }catch(error){ if(window.__EXPORT_DIAG){ window.__EXPORT_DIAG.sharedError=_exportErrText(error); window.__EXPORT_DIAG.failureStage="export_detach"; _saveExportDiag(); } }   /* détachement CENTRALISÉ (releaseClipSource) : nettoie aussi _loadEpoch/_loadPromise */
   window.__expTgt=1400;   /* ESSAI 1880 : on vise plus haut. Le prédicat de re-décodage (garde de convergence) accepte le plafond réel si le décodeur ne suit pas -> va au bout sans boucler. Réduire ce nombre par paliers si le fichier est trop lourd/lent. */
   if(window.__srcRefreshBusy || window.__addBusy){   /* fusion Souvenirs (redécodage) OU ajout de photos (qui finit par buildPartition) en arrière-plan : on attend la fin AVANT d'exporter */
     var _wr0=performance.now(); while((window.__srcRefreshBusy || window.__addBusy) && (performance.now()-_wr0)<240000){ if(EXPORT_ABORT){ EXPORTING=false; expHide(); return; }
@@ -10763,7 +10778,7 @@ async function exportStudio(){ try{ _reqWake(); }catch(e){} try{ _hideClipOverla
      film (~1,5-2,5x), mais correct. Repli temps réel automatique si le codec échoue.
      Désactivable via window._MAGOT_TURBO=false. */
   /* DIAGNOSTIC MOTEUR (GPT) : on enregistre le moteur DEMANDÉ et RÉELLEMENT utilisé -> pas d'ambiguïté */
-  window.__EXPORT_DIAG={ requested:(window.MAGOT_EXPORT_ENGINE||"auto"), used:((window.MAGOT_EXPORT_ENGINE==="mediarecorder")?"mediarecorder":"aucun"), turboResult:"non_tente", fallbackReason:"" };
+  window.__EXPORT_DIAG={ requested:(window.MAGOT_EXPORT_ENGINE||"auto"), used:((window.MAGOT_EXPORT_ENGINE==="mediarecorder")?"mediarecorder":"aucun"), turboResult:"non_tente", turboError:"", mediaRecorderResult:"non_tente", mediaRecorderError:"", fallbackReason:"", stage:"initialisation", failureStage:"", atSeconds:null, frame:null, segment:null, clip:null, sourceTime:null, status:"running", startedAt:Date.now() }; _saveExportDiag();
   var _reqEng=(window.MAGOT_EXPORT_ENGINE||"auto");
   var _forceTurbo=(_reqEng==="turbo"), _forceMR=(_reqEng==="mediarecorder");
   var _turboSupported=(typeof VideoEncoder!=="undefined" && typeof VideoFrame!=="undefined" && typeof Mp4Muxer!=="undefined");
@@ -10778,7 +10793,7 @@ async function exportStudio(){ try{ _reqWake(); }catch(e){} try{ _hideClipOverla
       window.__EXPORT_DIAG.turboResult=_tr;
       if(_tr==="ok"){ _expRestoreMem(); return; }
       if(_tr==="abort"||EXPORT_ABORT){ _expRestoreMem(); EXPORTING=false; try{ if(_expWatch){clearTimeout(_expWatch);_expWatch=null;} }catch(e){} expHide(); return; }
-      if(_forceTurbo){ _expRestoreMem(); EXPORTING=false; expHide(); _expMsg("Test Turbo échoué : aucun repli Compatible utilisé (mode Turbo test)."); return; }
+      if(_forceTurbo){ var _td2=window.__EXPORT_DIAG||{}; var _where=(_td2.atSeconds!=null)?" vers "+_td2.atSeconds+" s":""; _expRestoreMem(); EXPORTING=false; expHide(); _expMsg("Turbo échoué"+_where+" : "+(_td2.turboError||"cause inconnue")); return; }
       if(!window.__EXPORT_DIAG.fallbackReason) window.__EXPORT_DIAG.fallbackReason="Turbo retourné : "+_tr;
     }
     window.__EXPORT_DIAG.used="mediarecorder";
@@ -10837,23 +10852,25 @@ async function exportStudio(){ try{ _reqWake(); }catch(e){} try{ _hideClipOverla
       : Math.max(4000000, Math.min(24000000, Math.floor(180*1048576*8/Math.max(1,DUR))));   /* export partage : plafond RÉEL ~180 Mo (le plancher 12 Mb/s annulait le budget -> 400-850 Mo en RAM sur les longs films = crash iOS) */
     var rec; try{ rec=new MediaRecorder(stream, mime?{mimeType:mime,videoBitsPerSecond:_vbps}:{videoBitsPerSecond:_vbps}); }catch(e){ try{ rec=new MediaRecorder(stream);}catch(e2){ _expRestoreMem(); EXPORTING=false; try{setRenderSize(_ow,_oh);}catch(_r){} _expMsg("MediaRecorder refusé : "+((e2&&e2.message)||e2)); return; } }
 
-    var chunks=[],done=false,_hardStop=null,_bytes=0;
+    var chunks=[],done=false,_hardStop=null,_bytes=0,_mrNativeError=null;
     rec.ondataavailable=function(ev){ if(ev.data&&ev.data.size){ chunks.push(ev.data); _bytes+=ev.data.size; } };
     function _cleanup(){ _expRestoreMem(); try{ if(_expWatch){clearTimeout(_expWatch);_expWatch=null;} }catch(e){} try{ if(_hardStop){clearTimeout(_hardStop);_hardStop=null;} }catch(e){} try{ for(var _cc=0;_cc<CLIPS.length;_cc++){ try{ CLIPS[_cc].el.pause(); }catch(_p){} } }catch(e){} try{ audioSrc&&audioSrc.stop(); }catch(e){} try{ audioCtx&&audioCtx.close(); }catch(e){} try{ stream.getTracks().forEach(function(t){try{t.stop();}catch(_){}});}catch(e){} try{ if(base.width!==_ow||base.height!==_oh) setRenderSize(_ow,_oh);}catch(e){} }
     function _finish(){ if(done)return; done=true; _cleanup();
-      if(_mrPrepError){ try{ chunks.length=0; }catch(e){} EXPORTING=false; expHide(); _expMsg("Export interrompu : "+((_mrPrepError&&_mrPrepError.message)||"un clip n\'a pas pu être préparé")); return; }
+      var _mrFailure=_mrPrepError||_mrNativeError; if(_mrFailure){ try{ chunks.length=0; }catch(e){} var d=window.__EXPORT_DIAG||{}; d.mediaRecorderResult="fail"; d.mediaRecorderError=_exportErrText(_mrFailure); d.bytes=_bytes; d.status="fail"; _saveExportDiag(); EXPORTING=false; expHide(); _expMsg("Export Compatible interrompu : "+d.mediaRecorderError); return; }
       var blob=null; try{ blob=new Blob(chunks,{type:outType}); }catch(e){ EXPORTING=false; expHide(); try{ chunks.length=0; }catch(_){} _expMsg("Mémoire insuffisante à la finalisation. Montage trop long : réduis la durée ou la qualité."); return; }
       try{ chunks.length=0; }catch(e){}   /* libère tout de suite la RAM des morceaux (évite le double pic mémoire = crash iOS) */
       if(!blob || !blob.size){ EXPORTING=false; expHide(); try{ renderMontageAt(0);}catch(e){} _expMsg("Aucune image capturée. Ouvre la page dans Safari (\u2197 en bas) : les navigateurs intégrés (in-app) bloquent la capture vidéo."); return; }
+      window.__EXPORT_DIAG.mediaRecorderResult="ok"; window.__EXPORT_DIAG.mediaRecorderError=""; window.__EXPORT_DIAG.bytes=blob.size; window.__EXPORT_DIAG.status="ok"; _saveExportDiag();
       _showExportResult(blob, outType, ext, (typeof TOT!=='undefined'?TOT:DUR), audioAdded, null);
     }
-    rec.onstop=_finish; rec.onerror=function(){ try{ if(rec.state!=="inactive")rec.stop(); }catch(e){} _finish(); };
+    rec.onstop=_finish; rec.onerror=function(ev){ var raw=(ev && ev.error)||rec.error||new Error("MediaRecorder_error_event"); _mrNativeError=raw; var d=window.__EXPORT_DIAG||{}; d.failureStage="mediarecorder_native"; d.mediaRecorderResult="fail"; d.mediaRecorderError=_exportErrText(raw); d.bytes=_bytes; d.recorderState=rec.state; _saveExportDiag(); try{ if(rec.state!=="inactive")rec.stop(); }catch(e){} _finish(); };
 
     var _expVidAct=-1;
     function _renderFrameTo(t){ try{ var _cs=(typeof curSync==="function")?curSync():0; t=Math.max(0, Math.min((typeof DUR!=="undefined"?DUR:t), t+_cs)); }catch(e){}   /* applique le réglage Sync -> export aligné comme l'aperçu */
       var si=-1; for(var q=0;q<SEGS.length;q++){ if(t>=SEGS[q].start&&t<SEGS[q].end){si=q;break;} } var sg=(si>=0)?SEGS[si]:null;
       /* MediaRecorder (temps réel) : fenêtre de sources ≤3 au changement de segment (courant + prochains préchargés) */
       if(window.__mrExportSeg!==si){ _scheduleMRWindow(si,false); }   /* prépare la fenêtre suivante en avance (jeton, non bloquant) */
+      try{ var _dmr=window.__EXPORT_DIAG; if(_dmr){ _dmr.stage="mediarecorder_recording"; _dmr.atSeconds=+t.toFixed(3); _dmr.segment=si; _dmr.clip=(sg && sg.video && sg.vclip!=null)?sg.vclip+1:null; _checkpointExportDiag(); } }catch(e){}
       if(sg&&sg.video&&sg.vclip!=null&&CLIPS[sg.vclip]&&_clipDrawable(CLIPS[sg.vclip])){ var cl=CLIPS[sg.vclip], rate=(sg.vspeed||cl.speed||1), want=(sg.vstart||0)+(t-sg.start)*rate; want=Math.max(0,Math.min((cl.dur||0.1)-0.05,want));
         /* le gestionnaire (_prepMRWindow) prépare la source ; le rendu ne la rattache jamais lui-même */
         if(_expVidAct!==sg.vclip){ _expVidAct=sg.vclip; for(var _c=0;_c<CLIPS.length;_c++){ if(_c!==sg.vclip){ try{ CLIPS[_c].el.pause(); }catch(e){} } } try{ cl.el.muted=true; cl.el.playbackRate=rate; if(Math.abs((cl.el.currentTime||0)-want)>0.18) cl.el.currentTime=want; var _pv=cl.el.play(); if(_pv&&_pv.then)_pv.catch(function(){}); }catch(e){} }
@@ -10898,7 +10915,7 @@ async function exportStudio(){ try{ _reqWake(); }catch(e){} try{ _hideClipOverla
     function _scheduleMRWindow(segIndex, prepareCurrent){
       if(!prepareCurrent && window.__mrExportSeg===segIndex) return _mrPrepPromise;
       window.__mrExportSeg=segIndex; var token=++_mrPrepToken;
-      _mrPrepPromise=_prepMRWindow(segIndex, !!prepareCurrent, token).catch(function(error){ if(token===_mrPrepToken){ _mrPrepError=error; } return false; });
+      _mrPrepPromise=_prepMRWindow(segIndex, !!prepareCurrent, token).catch(function(error){ if(token===_mrPrepToken){ _mrPrepError=error; var sgErr=SEGS[segIndex]; var d=window.__EXPORT_DIAG||{}; d.stage="mediarecorder_prepare"; d.failureStage="mediarecorder_prepare"; d.segment=segIndex; d.clip=(sgErr && sgErr.video && sgErr.vclip!=null)?sgErr.vclip+1:null; d.mediaRecorderResult="fail"; d.mediaRecorderError=_exportErrText(error); _saveExportDiag(); } return false; });
       return _mrPrepPromise;
     }
     window.__mrExportSeg=-1; window.__clipWindowSeg=-1; _mrPrepError=null;
