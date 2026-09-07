@@ -1242,7 +1242,7 @@ function renderPlanToBuffer(dur, sr){
 function analyzeBufferInto(buf, cb){ try{ essentiaReady.then(function(ok){ if(ok){ setTimeout(function(){ try{ toMono44(buf,function(sig,sr){ var An; try{ An=analyzeEssentia(sig,sr,buf.duration); }catch(e){ An=analyzeCustom(buf); } cb(An); }); }catch(e){ cb(analyzeCustom(buf)); } }, 20); } else { setTimeout(function(){ cb(analyzeCustom(buf)); }, 20); } }); }catch(e){ try{ cb(analyzeCustom(buf)); }catch(e2){ cb(null); } } }
 
 var CLIPS=[], clipVidReady=false, VIDACT=-1;
-window.STUDIO_VERSION="v1027";
+window.STUDIO_VERSION="v1030";
 window.MAGOT_EXPORT_ENGINE="auto"; try{ window.MAGOT_EXPORT_ENGINE=localStorage.getItem("magot_export_engine")||"auto"; }catch(e){}
 function setMagotExportEngine(mode){ if(mode!=="auto"&&mode!=="turbo"&&mode!=="mediarecorder") mode="auto"; window.MAGOT_EXPORT_ENGINE=mode; try{ localStorage.setItem("magot_export_engine",mode); }catch(e){} }
 function _exportEngineLabel(){ var m=window.MAGOT_EXPORT_ENGINE; return m==="turbo"?"Export : Turbo test":m==="mediarecorder"?"Export : Compatible":"Export : Automatique"; }
@@ -9012,7 +9012,7 @@ function _openLangPicker(){
   bg.style.cssText="position:fixed;inset:0;z-index:100050;background:rgba(0,0,0,.62);backdrop-filter:blur(4px);display:flex;align-items:flex-end;justify-content:center;font-family:system-ui,-apple-system,sans-serif";
   var card=document.createElement("div");
   card.style.cssText="width:100%;max-width:520px;background:#0f0e0d;border:1px solid #282622;border-radius:22px 22px 0 0;padding:8px 10px 22px;max-height:78vh;overflow:auto;box-shadow:0 -10px 50px rgba(0,0,0,.7)";
-  var head="<div style=\"text-align:center;padding:12px 0 6px\"><div style=\"width:40px;height:4px;background:#3a3733;border-radius:3px;margin:0 auto 12px\"></div><div style=\"color:#f4f7fc;font:700 17px system-ui\">\uD83C\uDF10 "+_st("Langue des paroles")+"</div><div style=\"color:#8a93a6;font:500 12.5px system-ui;margin-top:3px\">"+_st("Traduction synchronisée au rythme")+" \u00b7 v1027</div></div>";
+  var head="<div style=\"text-align:center;padding:12px 0 6px\"><div style=\"width:40px;height:4px;background:#3a3733;border-radius:3px;margin:0 auto 12px\"></div><div style=\"color:#f4f7fc;font:700 17px system-ui\">\uD83C\uDF10 "+_st("Langue des paroles")+"</div><div style=\"color:#8a93a6;font:500 12.5px system-ui;margin-top:3px\">"+_st("Traduction synchronisée au rythme")+" \u00b7 v1030</div></div>";
   var rows="";
   for(var i=0;i<window._LYRICS_LANGS.length;i++){ var code=window._LYRICS_LANGS[i][0], name=window._LYRICS_LANGS[i][1], fl=_LANG_FLAGS[code]||"\uD83C\uDF10", on=(window._LYRICS_LANG===code);
     rows+="<button class=\"lang-opt\" data-l=\""+code+"\" style=\"display:flex;align-items:center;gap:13px;width:100%;text-align:left;background:"+(on?"rgba(122,208,160,.14)":"none")+";border:1px solid "+(on?"rgba(122,208,160,.5)":"transparent")+";color:#f4f7fc;font:600 15.5px system-ui;padding:14px 15px;border-radius:13px;cursor:pointer;margin:3px 0\"><span style=\"font-size:22px\">"+fl+"</span><span style=\"flex:1\">"+name+"</span>"+(on?"<span style=\"color:#7ad0a0;font-size:18px\">\u2713</span>":"")+"</button>";
@@ -9116,19 +9116,21 @@ function ensureClipLoaded(clip, timeoutMs){
     var settled=false, timer=null;
     function cleanup(){ el.removeEventListener("loadeddata",onReady); el.removeEventListener("canplay",onReady); el.removeEventListener("error",onError); if(timer) clearTimeout(timer); }
     function finish(ok,value){ if(settled)return; settled=true; cleanup();
-      if(clip._loadEpoch!==epoch){ reject(new Error("chargement_clip_annule")); return; }   /* résultat obsolète */
+      if(clip._loadEpoch!==epoch){ reject(new Error("chargement_clip_annule")); return; }
       if(ok){ clip._unloaded=false; clip.loadState="ready"; resolve(value); } else { clip.loadState="error"; reject(value); } }
     function onReady(){ finish(true,clip); }
     function onError(){ finish(false,new Error("chargement_clip_echoue")); }
+    clip._cancelLoad=function(){ finish(false,new Error("chargement_clip_annule")); };
     el.addEventListener("loadeddata",onReady); el.addEventListener("canplay",onReady); el.addEventListener("error",onError);
     if(!el.getAttribute("src")){ if(!clip._u){ finish(false,new Error("source_clip_absente")); return; } el.src=clip._u; clip._unloaded=false; el.load(); }
     if(el.readyState>=2){ finish(true,clip); return; }
     timer=setTimeout(function(){ finish(false,new Error("chargement_clip_timeout")); },timeoutMs);
-  }).finally(function(){ if(clip._loadEpoch===epoch){ clip._loadPromise=null; } });
+  }).finally(function(){ if(clip._loadEpoch===epoch){ clip._loadPromise=null; clip._cancelLoad=null; } });
   return clip._loadPromise;
 }
 function releaseClipSource(clip){
   if(!clip||!clip.el) return false; var el=clip.el;
+  try{ if(typeof clip._cancelLoad==="function"){ clip._cancelLoad(); } }catch(e){} clip._cancelLoad=null;   /* retire les listeners de l'ancien chargement */
   clip._loadEpoch=(clip._loadEpoch||0)+1; clip._loadPromise=null;   /* annule un chargement en cours */
   try{ el.pause(); }catch(e){}
   if(!clip._u){ clip._u=el.getAttribute("src")||el.currentSrc||""; }
@@ -9136,6 +9138,7 @@ function releaseClipSource(clip){
   try{ el.removeAttribute("src"); el.load(); clip._unloaded=true; clip.loadState="unloaded"; return true; }catch(e){ return false; }
 }
 function _clipDrawable(clip){ try{ return !!(clip && clip.el && clip.el.videoWidth>0 && clip.el.readyState>=2); }catch(e){ return false; } }
+function _clipExportDrawable(clip){ try{ var el=clip&&clip.el; return !!(el && _clipHasAttachedSource(clip) && !el.error && el.readyState>=2 && el.videoWidth>0); }catch(e){ return false; } }
 function _clipHasAttachedSource(clip){
   try{ return !!(clip && clip.el && clip.el.hasAttribute("src") && String(clip.el.getAttribute("src")||"").trim()); }catch(e){ return false; }
 }
@@ -10351,6 +10354,20 @@ function seekClipStrict(el,time,timeoutMs){
     timer=setTimeout(function(){ finish(false); },timeoutMs);   /* timeout = ÉCHEC, pas réussite silencieuse */
   });
 }
+function _exportSleep(ms){ return new Promise(function(resolve){ setTimeout(resolve,ms); }); }
+function _videoLoadState(clip){ try{ var el=clip&&clip.el; var er=el&&el.error; return "code="+(er?er.code:0)+", ready="+(el?el.readyState:-1)+", network="+(el?el.networkState:-1)+", src="+(_clipHasAttachedSource(clip)?"oui":"non"); }catch(e){ return "etat_indisponible"; } }
+async function ensureExportClipLoaded(clip, clipIndex, timeoutMs, stillWanted){
+  timeoutMs=timeoutMs||5000;
+  function wanted(){ return !stillWanted || stillWanted(); }
+  async function attempt(){ if(!wanted()) throw new Error("preparation_obsolete"); await ensureClipLoaded(clip,timeoutMs); if(!wanted()) throw new Error("preparation_obsolete"); if(!_clipDrawable(clip)) throw new Error("clip_non_dessinable"); return clip; }
+  var firstError=null, firstState="";
+  try{ return await attempt(); }catch(error){ if(!wanted()) throw error; firstError=error; firstState=_videoLoadState(clip); }
+  /* UNE seule relance : nettoyage complet + pause pour laisser WebKit finir le détachement */
+  releaseClipSource(clip); await _exportSleep(220);
+  if(!wanted()) throw new Error("preparation_obsolete");
+  try{ return await attempt(); }
+  catch(secondError){ throw new Error("chargement_export_clip_"+(clipIndex+1)+"_echec_apres_2_essais [1="+_exportErrText(firstError)+" ; "+firstState+" | 2="+_exportErrText(secondError)+" ; "+_videoLoadState(clip)+"]"); }
+}
 async function _ensureExportClipFrame(clipIndex,sourceTime){
   var clip=CLIPS[clipIndex];
   if(!clip || !clip.el || !clip.ready) throw new Error("clip_export_invalide_"+clipIndex);
@@ -10359,11 +10376,11 @@ async function _ensureExportClipFrame(clipIndex,sourceTime){
   var epoch=(clip._loadEpoch||0);
   /* COURT-CIRCUIT : ce TEMPS EXACT déjà préparé avec la MÊME génération de source (epoch).
      Après un rattachement, l'epoch change -> cache auto-invalidé. Deux frames successives ne sont jamais confondues. */
-  if(_clipDrawable(clip) && clip._expPreparedEpoch===epoch && typeof clip._expPreparedTime==="number"
+  if(_clipExportDrawable(clip) && clip._expPreparedEpoch===epoch && typeof clip._expPreparedTime==="number"
      && Math.abs(clip._expPreparedTime-target)<0.0005 && Math.abs((clip.el.currentTime||0)-target)<0.008) return clip;
   /* rechargement si non dessinable (loadeddata + readyState>=2 garantissent une 1re image à ~0) */
-  var reloaded=!_clipDrawable(clip);
-  if(reloaded){ await ensureClipLoaded(clip,5000); if(!_clipDrawable(clip)) throw new Error("clip_export_non_dessinable_"+clipIndex); }
+  var reloaded=!_clipExportDrawable(clip);
+  if(reloaded){ await ensureExportClipLoaded(clip, clipIndex, 5000); if(!_clipExportDrawable(clip)) throw new Error("clip_export_non_dessinable_"+clipIndex); }
   if(Math.abs((clip.el.currentTime||0)-target)>=0.008){
     var ok=await seekClipStrict(clip.el,target,5000);
     if(!ok) throw new Error("seek_export_echoue_"+clipIndex);
@@ -10754,7 +10771,7 @@ async function exportStudio(){ try{ _reqWake(); }catch(e){} try{ _hideClipOverla
   try{ _memGuardStart(); }catch(e){}   /* gardien mémoire actif pendant l'export/pré-rendu (évite le crash sur gros films) */
   try{ if(typeof essentia!=="undefined" && essentia && !window.__essentiaFreed){ if(essentia.shutdown) essentia.shutdown(); if(essentia.delete) essentia.delete(); essentia=null; window.__essentiaFreed=true; }   /* libère les ~285 Mo d'essentia-wasm pendant l'export (crash iOS 100%) ; rechargé à la fin via _expRestoreMem */
   }catch(e){}
-  try{ if(typeof CLIPS!=="undefined" && CLIPS.length>2){ window.__expClipHold=true; for(var _ci=0;_ci<CLIPS.length;_ci++){ var _c=CLIPS[_ci]; if(!_c) continue; releaseClipSource(_c); _c._expPreparedEpoch=null; _c._expPreparedTime=null; } } }catch(error){ if(window.__EXPORT_DIAG){ window.__EXPORT_DIAG.sharedError=_exportErrText(error); window.__EXPORT_DIAG.failureStage="export_detach"; _saveExportDiag(); } }   /* détachement CENTRALISÉ (releaseClipSource) : nettoie aussi _loadEpoch/_loadPromise */
+  try{ if(typeof CLIPS!=="undefined" && CLIPS.length>2){ window.__expClipHold=true; for(var _ci=0;_ci<CLIPS.length;_ci++){ var _c=CLIPS[_ci]; if(!_c) continue; releaseClipSource(_c); _c._expPreparedEpoch=null; _c._expPreparedTime=null; } if(CLIPS.length){ await _exportSleep(180); } } }catch(error){ if(window.__EXPORT_DIAG){ window.__EXPORT_DIAG.sharedError=_exportErrText(error); window.__EXPORT_DIAG.failureStage="export_detach"; _saveExportDiag(); } }   /* détachement CENTRALISÉ + pause pour laisser WebKit finir */
   window.__expTgt=1400;   /* ESSAI 1880 : on vise plus haut. Le prédicat de re-décodage (garde de convergence) accepte le plafond réel si le décodeur ne suit pas -> va au bout sans boucler. Réduire ce nombre par paliers si le fichier est trop lourd/lent. */
   if(window.__srcRefreshBusy || window.__addBusy){   /* fusion Souvenirs (redécodage) OU ajout de photos (qui finit par buildPartition) en arrière-plan : on attend la fin AVANT d'exporter */
     var _wr0=performance.now(); while((window.__srcRefreshBusy || window.__addBusy) && (performance.now()-_wr0)<240000){ if(EXPORT_ABORT){ EXPORTING=false; expHide(); return; }
@@ -10781,6 +10798,7 @@ async function exportStudio(){ try{ _reqWake(); }catch(e){} try{ _hideClipOverla
   window.__EXPORT_DIAG={ requested:(window.MAGOT_EXPORT_ENGINE||"auto"), used:((window.MAGOT_EXPORT_ENGINE==="mediarecorder")?"mediarecorder":"aucun"), turboResult:"non_tente", turboError:"", mediaRecorderResult:"non_tente", mediaRecorderError:"", fallbackReason:"", stage:"initialisation", failureStage:"", atSeconds:null, frame:null, segment:null, clip:null, sourceTime:null, status:"running", startedAt:Date.now() }; _saveExportDiag();
   var _reqEng=(window.MAGOT_EXPORT_ENGINE||"auto");
   var _forceTurbo=(_reqEng==="turbo"), _forceMR=(_reqEng==="mediarecorder");
+  if(_forceMR){ window.__EXPORT_DIAG.used="mediarecorder"; window.__EXPORT_DIAG.mediaRecorderResult="running"; window.__EXPORT_DIAG.mediaRecorderError=""; window.__EXPORT_DIAG.stage="mediarecorder_initialisation"; window.__EXPORT_DIAG.status="running"; _saveExportDiag(); }
   var _turboSupported=(typeof VideoEncoder!=="undefined" && typeof VideoFrame!=="undefined" && typeof Mp4Muxer!=="undefined");
   if(!_forceMR){
     if(!_turboSupported){ window.__EXPORT_DIAG.turboResult="indisponible";
@@ -10791,12 +10809,12 @@ async function exportStudio(){ try{ _reqWake(); }catch(e){} try{ _hideClipOverla
       try{ _expStage("Rendu fluide image par image (un peu plus long)\u2026"); }catch(e){}
       var _tr="fail"; try{ _tr=await _turboExport(); }catch(error){ _tr="fail"; window.__EXPORT_DIAG.fallbackReason=(error&&error.message)||String(error); }
       window.__EXPORT_DIAG.turboResult=_tr;
-      if(_tr==="ok"){ _expRestoreMem(); return; }
+      if(_tr==="ok"){ window.__EXPORT_DIAG.used="turbo"; window.__EXPORT_DIAG.turboError=""; window.__EXPORT_DIAG.stage="termine"; window.__EXPORT_DIAG.failureStage=""; window.__EXPORT_DIAG.status="ok"; _saveExportDiag(); _expRestoreMem(); return; }
       if(_tr==="abort"||EXPORT_ABORT){ _expRestoreMem(); EXPORTING=false; try{ if(_expWatch){clearTimeout(_expWatch);_expWatch=null;} }catch(e){} expHide(); return; }
       if(_forceTurbo){ var _td2=window.__EXPORT_DIAG||{}; var _where=(_td2.atSeconds!=null)?" vers "+_td2.atSeconds+" s":""; _expRestoreMem(); EXPORTING=false; expHide(); _expMsg("Turbo échoué"+_where+" : "+(_td2.turboError||"cause inconnue")); return; }
       if(!window.__EXPORT_DIAG.fallbackReason) window.__EXPORT_DIAG.fallbackReason="Turbo retourné : "+_tr;
     }
-    window.__EXPORT_DIAG.used="mediarecorder";
+    window.__EXPORT_DIAG.used="mediarecorder"; window.__EXPORT_DIAG.mediaRecorderResult="running"; window.__EXPORT_DIAG.mediaRecorderError=""; window.__EXPORT_DIAG.status="running"; window.__EXPORT_DIAG.stage="mediarecorder_initialisation"; _saveExportDiag();
     try{ _expStage("Bascule mode compatible\u2026"); }catch(e){}
   }
   /* affiche l'étape ET laisse le navigateur peindre : la dernière étape visible = le point de blocage */
@@ -10871,7 +10889,7 @@ async function exportStudio(){ try{ _reqWake(); }catch(e){} try{ _hideClipOverla
       /* MediaRecorder (temps réel) : fenêtre de sources ≤3 au changement de segment (courant + prochains préchargés) */
       if(window.__mrExportSeg!==si){ _scheduleMRWindow(si,false); }   /* prépare la fenêtre suivante en avance (jeton, non bloquant) */
       try{ var _dmr=window.__EXPORT_DIAG; if(_dmr){ _dmr.stage="mediarecorder_recording"; _dmr.atSeconds=+t.toFixed(3); _dmr.segment=si; _dmr.clip=(sg && sg.video && sg.vclip!=null)?sg.vclip+1:null; _checkpointExportDiag(); } }catch(e){}
-      if(sg&&sg.video&&sg.vclip!=null&&CLIPS[sg.vclip]&&_clipDrawable(CLIPS[sg.vclip])){ var cl=CLIPS[sg.vclip], rate=(sg.vspeed||cl.speed||1), want=(sg.vstart||0)+(t-sg.start)*rate; want=Math.max(0,Math.min((cl.dur||0.1)-0.05,want));
+      if(sg&&sg.video&&sg.vclip!=null&&CLIPS[sg.vclip]&&_clipExportDrawable(CLIPS[sg.vclip])){ var cl=CLIPS[sg.vclip], rate=(sg.vspeed||cl.speed||1), want=(sg.vstart||0)+(t-sg.start)*rate; want=Math.max(0,Math.min((cl.dur||0.1)-0.05,want));
         /* le gestionnaire (_prepMRWindow) prépare la source ; le rendu ne la rattache jamais lui-même */
         if(_expVidAct!==sg.vclip){ _expVidAct=sg.vclip; for(var _c=0;_c<CLIPS.length;_c++){ if(_c!==sg.vclip){ try{ CLIPS[_c].el.pause(); }catch(e){} } } try{ cl.el.muted=true; cl.el.playbackRate=rate; if(Math.abs((cl.el.currentTime||0)-want)>0.18) cl.el.currentTime=want; var _pv=cl.el.play(); if(_pv&&_pv.then)_pv.catch(function(){}); }catch(e){} }
         else { try{ if(cl.el.paused){ var _pv2=cl.el.play(); if(_pv2&&_pv2.then)_pv2.catch(function(){}); } if(cl.el.playbackRate!==rate) cl.el.playbackRate=rate; if(Math.abs((cl.el.currentTime||0)-want)>0.25) cl.el.currentTime=want; }catch(e){} }
@@ -10900,9 +10918,9 @@ async function exportStudio(){ try{ _reqWake(); }catch(e){} try{ _hideClipOverla
       for(var i=Math.max(0,segIndex); i<SEGS.length && done.length<(window.VIDEO_SOURCE_WINDOW||3); i++){
         var sgw=SEGS[i]; if(!sgw||!sgw.video||sgw.vclip==null||!CLIPS[sgw.vclip]||used[sgw.vclip]) continue; used[sgw.vclip]=1; done.push(i);
         var clip=CLIPS[sgw.vclip];
-        await ensureClipLoaded(clip,5000);
+        await ensureExportClipLoaded(clip, sgw.vclip, 5000, function(){ return token===_mrPrepToken; });
         if(token!==_mrPrepToken) return false;
-        if(!_clipDrawable(clip)) throw new Error("clip_mediarecorder_non_pret_"+sgw.vclip);
+        if(!_clipExportDrawable(clip)) throw new Error("clip_mediarecorder_non_pret_"+sgw.vclip);
         var isCurrent=(i===segIndex && SEGS[segIndex] && SEGS[segIndex].video);
         if(prepareCurrent || !isCurrent){
           var target=Math.max(0,Math.min((clip.dur||0.1)-0.05, sgw.vstart||0));
@@ -10921,7 +10939,7 @@ async function exportStudio(){ try{ _reqWake(); }catch(e){} try{ _hideClipOverla
     window.__mrExportSeg=-1; window.__clipWindowSeg=-1; _mrPrepError=null;
     var _fes=0; for(var _fe=0;_fe<SEGS.length;_fe++){ if(SEGS[_fe] && SEGS[_fe].video){ _fes=_fe; break; } }
     var _prepared=await _scheduleMRWindow(_fes, true);   /* fenêtre initiale RÉELLEMENT attendue */
-    if(!_prepared || _mrPrepError){ EXPORTING=false; _cleanup(); _expMsg("Impossible de préparer les clips : "+((_mrPrepError&&_mrPrepError.message)||"préparation interrompue")); return; }
+    if(!_prepared || _mrPrepError){ var _prepErr=_mrPrepError||new Error("preparation_mediarecorder_interrompue"); var _d=window.__EXPORT_DIAG||{}; _d.used="mediarecorder"; _d.stage="mediarecorder_prepare"; _d.failureStage="mediarecorder_prepare"; _d.mediaRecorderResult="fail"; _d.mediaRecorderError=_exportErrText(_prepErr); _d.status="fail"; window.__EXPORT_DIAG=_d; _saveExportDiag(); EXPORTING=false; _cleanup(); _expMsg("Impossible de préparer les clips : "+_d.mediaRecorderError); return; }
     if(INTRO>0){ try{ drawSignatureCard("intro",0); }catch(e){} } else { _renderFrameTo(0); }
     try{ rec.start(1000); }catch(e){ try{ rec.start(); }catch(e2){ EXPORTING=false; _cleanup(); _expMsg("Démarrage impossible : "+((e2&&e2.message)||e2)); return; } }
     var t0=performance.now();
