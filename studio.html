@@ -1242,7 +1242,7 @@ function renderPlanToBuffer(dur, sr){
 function analyzeBufferInto(buf, cb){ try{ essentiaReady.then(function(ok){ if(ok){ setTimeout(function(){ try{ toMono44(buf,function(sig,sr){ var An; try{ An=analyzeEssentia(sig,sr,buf.duration); }catch(e){ An=analyzeCustom(buf); } cb(An); }); }catch(e){ cb(analyzeCustom(buf)); } }, 20); } else { setTimeout(function(){ cb(analyzeCustom(buf)); }, 20); } }); }catch(e){ try{ cb(analyzeCustom(buf)); }catch(e2){ cb(null); } } }
 
 var CLIPS=[], clipVidReady=false, VIDACT=-1;
-window.STUDIO_VERSION="v1032";
+window.STUDIO_VERSION="v1033";
 window.MAGOT_EXPORT_ENGINE="auto"; try{ window.MAGOT_EXPORT_ENGINE=localStorage.getItem("magot_export_engine")||"auto"; }catch(e){}
 function setMagotExportEngine(mode){ if(mode!=="auto"&&mode!=="turbo"&&mode!=="mediarecorder") mode="auto"; window.MAGOT_EXPORT_ENGINE=mode; try{ localStorage.setItem("magot_export_engine",mode); }catch(e){} }
 function _exportEngineLabel(){ var m=window.MAGOT_EXPORT_ENGINE; return m==="turbo"?"Export : Turbo test":m==="mediarecorder"?"Export : Compatible":"Export : Automatique"; }
@@ -9012,7 +9012,7 @@ function _openLangPicker(){
   bg.style.cssText="position:fixed;inset:0;z-index:100050;background:rgba(0,0,0,.62);backdrop-filter:blur(4px);display:flex;align-items:flex-end;justify-content:center;font-family:system-ui,-apple-system,sans-serif";
   var card=document.createElement("div");
   card.style.cssText="width:100%;max-width:520px;background:#0f0e0d;border:1px solid #282622;border-radius:22px 22px 0 0;padding:8px 10px 22px;max-height:78vh;overflow:auto;box-shadow:0 -10px 50px rgba(0,0,0,.7)";
-  var head="<div style=\"text-align:center;padding:12px 0 6px\"><div style=\"width:40px;height:4px;background:#3a3733;border-radius:3px;margin:0 auto 12px\"></div><div style=\"color:#f4f7fc;font:700 17px system-ui\">\uD83C\uDF10 "+_st("Langue des paroles")+"</div><div style=\"color:#8a93a6;font:500 12.5px system-ui;margin-top:3px\">"+_st("Traduction synchronisée au rythme")+" \u00b7 v1032</div></div>";
+  var head="<div style=\"text-align:center;padding:12px 0 6px\"><div style=\"width:40px;height:4px;background:#3a3733;border-radius:3px;margin:0 auto 12px\"></div><div style=\"color:#f4f7fc;font:700 17px system-ui\">\uD83C\uDF10 "+_st("Langue des paroles")+"</div><div style=\"color:#8a93a6;font:500 12.5px system-ui;margin-top:3px\">"+_st("Traduction synchronisée au rythme")+" \u00b7 v1033</div></div>";
   var rows="";
   for(var i=0;i<window._LYRICS_LANGS.length;i++){ var code=window._LYRICS_LANGS[i][0], name=window._LYRICS_LANGS[i][1], fl=_LANG_FLAGS[code]||"\uD83C\uDF10", on=(window._LYRICS_LANG===code);
     rows+="<button class=\"lang-opt\" data-l=\""+code+"\" style=\"display:flex;align-items:center;gap:13px;width:100%;text-align:left;background:"+(on?"rgba(122,208,160,.14)":"none")+";border:1px solid "+(on?"rgba(122,208,160,.5)":"transparent")+";color:#f4f7fc;font:600 15.5px system-ui;padding:14px 15px;border-radius:13px;cursor:pointer;margin:3px 0\"><span style=\"font-size:22px\">"+fl+"</span><span style=\"flex:1\">"+name+"</span>"+(on?"<span style=\"color:#7ad0a0;font-size:18px\">\u2713</span>":"")+"</button>";
@@ -10356,15 +10356,42 @@ function seekClipStrict(el,time,timeoutMs){
 }
 function _exportSleep(ms){ return new Promise(function(resolve){ setTimeout(resolve,ms); }); }
 function _videoLoadState(clip){ try{ var el=clip&&clip.el; var er=el&&el.error; return "code="+(er?er.code:0)+", ready="+(el?el.readyState:-1)+", network="+(el?el.networkState:-1)+", src="+(_clipHasAttachedSource(clip)?"oui":"non"); }catch(e){ return "etat_indisponible"; } }
+function _trimExportClipWindow(segIndex){
+  var wanted=_wantedClipWindow(segIndex), keep={};
+  for(var i=0;i<wanted.length;i++){ keep[wanted[i]]=true; }
+  for(var ci=0;ci<CLIPS.length;ci++){ var clip=CLIPS[ci]; if(!clip||!clip.el) continue; if(!keep[ci] && _clipHasAttachedSource(clip)){ releaseClipSource(clip); } }
+  return wanted;
+}
+async function _waitExportClipReleased(clip,timeoutMs){
+  timeoutMs=timeoutMs||800; var started=(performance&&performance.now)?performance.now():Date.now();
+  while(((performance&&performance.now)?performance.now():Date.now())-started<timeoutMs){
+    if(clip && clip.el && !_clipHasAttachedSource(clip) && clip.el.readyState===0 && clip.el.networkState===0) return true;
+    await _exportSleep(40);
+  }
+  return !!(clip && !_clipHasAttachedSource(clip));
+}
+function _renewExportClipUrl(clip){
+  try{
+    if(!clip || !clip.el || !clip.file || typeof URL.createObjectURL!=="function") return false;
+    var oldUrl=clip._u || clip.el._u || "";
+    var freshUrl=URL.createObjectURL(clip.file);
+    clip._u=freshUrl; clip.el._u=freshUrl; clip._unloaded=true; clip.loadState="unloaded";
+    if(oldUrl && oldUrl!==freshUrl && oldUrl.indexOf("blob:")===0){ try{ URL.revokeObjectURL(oldUrl); }catch(e){} }
+    return true;
+  }catch(e){ return false; }
+}
 async function ensureExportClipLoaded(clip, clipIndex, timeoutMs, stillWanted){
   timeoutMs=timeoutMs||5000;
   function wanted(){ return !stillWanted || stillWanted(); }
   async function attempt(){ if(!wanted()) throw new Error("preparation_obsolete"); await ensureClipLoaded(clip,timeoutMs); if(!wanted()) throw new Error("preparation_obsolete"); if(!_clipExportDrawable(clip)) throw new Error("clip_non_dessinable"); return clip; }   /* contrôle export avec !el.error */
   var firstError=null, firstState="";
   try{ return await attempt(); }catch(error){ if(!wanted()) throw error; firstError=error; firstState=_videoLoadState(clip); }
-  /* UNE seule relance : nettoyage complet + pause pour laisser WebKit finir le détachement */
-  releaseClipSource(clip); await _exportSleep(220);
+  /* UNE seule relance : nettoyage + ATTENTE du détachement réel + URL neuve si code=4 */
+  releaseClipSource(clip);
+  await _waitExportClipReleased(clip,800); await _exportSleep(120);
   if(!wanted()) throw new Error("preparation_obsolete");
+  /* code=4 sur une source déjà lue = URL blob dans un état d'erreur -> repartir sur une URL NEUVE */
+  if(firstState.indexOf("code=4")>=0){ _renewExportClipUrl(clip); }
   try{ return await attempt(); }
   catch(secondError){ throw new Error("chargement_export_clip_"+(clipIndex+1)+"_echec_apres_2_essais [1="+_exportErrText(firstError)+" ; "+firstState+" | 2="+_exportErrText(secondError)+" ; "+_videoLoadState(clip)+"]"); }
 }
@@ -10914,7 +10941,8 @@ async function exportStudio(){ try{ _reqWake(); }catch(e){} try{ _hideClipOverla
        Charger ET pré-positionner les clips futurs à leur vstart (sinon une transition montre la frame 0). */
     var _mrPrepToken=0, _mrPrepPromise=Promise.resolve(), _mrPrepError=null;
     async function _prepMRWindow(segIndex, prepareCurrent, token){
-      try{ _syncClipWindow(segIndex); }catch(e){}
+      /* Décharge hors fenêtre SANS déclencher de chargements parallèles ; ensureExportClipLoaded est la seule autorité de chargement (séquentiel) */
+      try{ _trimExportClipWindow(segIndex); }catch(e){}
       var used={}, done=[];
       for(var i=Math.max(0,segIndex); i<SEGS.length && done.length<(window.VIDEO_SOURCE_WINDOW||3); i++){
         var sgw=SEGS[i]; if(!sgw||!sgw.video||sgw.vclip==null||!CLIPS[sgw.vclip]||used[sgw.vclip]) continue; used[sgw.vclip]=1; done.push(i);
