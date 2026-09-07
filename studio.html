@@ -1242,7 +1242,7 @@ function renderPlanToBuffer(dur, sr){
 function analyzeBufferInto(buf, cb){ try{ essentiaReady.then(function(ok){ if(ok){ setTimeout(function(){ try{ toMono44(buf,function(sig,sr){ var An; try{ An=analyzeEssentia(sig,sr,buf.duration); }catch(e){ An=analyzeCustom(buf); } cb(An); }); }catch(e){ cb(analyzeCustom(buf)); } }, 20); } else { setTimeout(function(){ cb(analyzeCustom(buf)); }, 20); } }); }catch(e){ try{ cb(analyzeCustom(buf)); }catch(e2){ cb(null); } } }
 
 var CLIPS=[], clipVidReady=false, VIDACT=-1;
-window.STUDIO_VERSION="v1017";
+window.STUDIO_VERSION="v1018";
 var VIDEO_POOL_V2=false;
 window.MAX_VIDEO_CLIPS=10;              // palier de test (était 6)
 window.VIDEO_SOURCE_WINDOW=3;          // fenêtre de sources attachées en lecture (ne pas changer)
@@ -9201,6 +9201,24 @@ function _syncClipWindow(curIdx){
     if(_after.attached>window.VIDEO_SOURCE_WINDOW) window.__VWIN.syncErr=(window.__VWIN.syncErr||0)+1;
   }catch(e){}
 }
+function _retryActiveClipPlay(idx,sg){
+  if(!sg || !sg.video || sg.vclip==null || !CLIPS[sg.vclip]) return;
+  var clip=CLIPS[sg.vclip], el=clip.el;
+  if(!_clipDrawable(clip)) return;              /* pas encore décodable -> la miniature couvre */
+  if(!el.paused && !el.ended) return;           /* déjà en lecture -> rien à faire */
+  var now=(performance&&performance.now)?performance.now():Date.now();
+  if(clip._lastPlayRetryAt && now-clip._lastPlayRetryAt<250) return;   /* max 4x/seconde */
+  clip._lastPlayRetryAt=now;
+  var montageTime=visualTime();
+  var sourceTime=(sg.vstart||0)+Math.max(0,montageTime-sg.start)*(sg.vspeed||clip.speed||1);
+  try{
+    el.muted=true; el.playbackRate=(sg.vspeed||clip.speed||1);
+    if(Math.abs((el.currentTime||0)-sourceTime)>0.18) el.currentTime=sourceTime;
+    var pp=el.play();
+    if(pp && typeof pp.then==="function"){ pp.then(function(){ VIDACT=idx; }).catch(function(){}); }
+    else { VIDACT=idx; }
+  }catch(e){}
+}
 function loop(){ try{ window.__MMT_BOTTOM_CAP_TOP=null; }catch(e){}
 
   if(!playing) return;
@@ -9257,6 +9275,7 @@ function loop(){ try{ window.__MMT_BOTTOM_CAP_TOP=null; }catch(e){}
      nativement -> 60 FPS. Compromis assumé : les légendes canvas ne s'affichent pas sur les clips
      en plein écran (le karaoké HTML reste visible, z-index au-dessus). */
   var _fs=!!(_hEl && _hEl.classList.contains("cinema"));
+  try{ _retryActiveClipPlay(idx,sg); }catch(e){}   /* relance play() si le clip est dessinable mais en pause (anti-miniature-figée) */
   var _vidReadyToShow=(sg && sg.video && sg.vclip!=null && CLIPS[sg.vclip] && CLIPS[sg.vclip].el && CLIPS[sg.vclip].el.readyState>=2 && CLIPS[sg.vclip].el.videoWidth>0);
   var _vidNow=(_vidReadyToShow && !inTrans && _hEl && (_hEl.classList.contains("chrome-hidden") || _fs));
   /* Si un clip vidéo est actif mais PAS encore prêt : rattacher la source (non bloquant) pour qu'il le devienne vite. */
