@@ -1242,7 +1242,7 @@ function renderPlanToBuffer(dur, sr){
 function analyzeBufferInto(buf, cb){ try{ essentiaReady.then(function(ok){ if(ok){ setTimeout(function(){ try{ toMono44(buf,function(sig,sr){ var An; try{ An=analyzeEssentia(sig,sr,buf.duration); }catch(e){ An=analyzeCustom(buf); } cb(An); }); }catch(e){ cb(analyzeCustom(buf)); } }, 20); } else { setTimeout(function(){ cb(analyzeCustom(buf)); }, 20); } }); }catch(e){ try{ cb(analyzeCustom(buf)); }catch(e2){ cb(null); } } }
 
 var CLIPS=[], clipVidReady=false, VIDACT=-1;
-window.STUDIO_VERSION="v1051";
+window.STUDIO_VERSION="v1052";
 window.MAGOT_EXPORT_ENGINE="auto"; try{ window.MAGOT_EXPORT_ENGINE=localStorage.getItem("magot_export_engine")||"auto"; }catch(e){}
 function setMagotExportEngine(mode){ if(mode!=="auto"&&mode!=="turbo"&&mode!=="mediarecorder") mode="auto"; window.MAGOT_EXPORT_ENGINE=mode; try{ localStorage.setItem("magot_export_engine",mode); }catch(e){} }
 function _exportEngineLabel(){ var m=window.MAGOT_EXPORT_ENGINE; return m==="turbo"?"Export : Turbo test":m==="mediarecorder"?"Export : Compatible":"Export : Automatique"; }
@@ -9013,7 +9013,7 @@ function _openLangPicker(){
   bg.style.cssText="position:fixed;inset:0;z-index:100050;background:rgba(0,0,0,.62);backdrop-filter:blur(4px);display:flex;align-items:flex-end;justify-content:center;font-family:system-ui,-apple-system,sans-serif";
   var card=document.createElement("div");
   card.style.cssText="width:100%;max-width:520px;background:#0f0e0d;border:1px solid #282622;border-radius:22px 22px 0 0;padding:8px 10px 22px;max-height:78vh;overflow:auto;box-shadow:0 -10px 50px rgba(0,0,0,.7)";
-  var head="<div style=\"text-align:center;padding:12px 0 6px\"><div style=\"width:40px;height:4px;background:#3a3733;border-radius:3px;margin:0 auto 12px\"></div><div style=\"color:#f4f7fc;font:700 17px system-ui\">\uD83C\uDF10 "+_st("Langue des paroles")+"</div><div style=\"color:#8a93a6;font:500 12.5px system-ui;margin-top:3px\">"+_st("Traduction synchronisée au rythme")+" \u00b7 v1051</div></div>";
+  var head="<div style=\"text-align:center;padding:12px 0 6px\"><div style=\"width:40px;height:4px;background:#3a3733;border-radius:3px;margin:0 auto 12px\"></div><div style=\"color:#f4f7fc;font:700 17px system-ui\">\uD83C\uDF10 "+_st("Langue des paroles")+"</div><div style=\"color:#8a93a6;font:500 12.5px system-ui;margin-top:3px\">"+_st("Traduction synchronisée au rythme")+" \u00b7 v1052</div></div>";
   var rows="";
   for(var i=0;i<window._LYRICS_LANGS.length;i++){ var code=window._LYRICS_LANGS[i][0], name=window._LYRICS_LANGS[i][1], fl=_LANG_FLAGS[code]||"\uD83C\uDF10", on=(window._LYRICS_LANG===code);
     rows+="<button class=\"lang-opt\" data-l=\""+code+"\" style=\"display:flex;align-items:center;gap:13px;width:100%;text-align:left;background:"+(on?"rgba(122,208,160,.14)":"none")+";border:1px solid "+(on?"rgba(122,208,160,.5)":"transparent")+";color:#f4f7fc;font:600 15.5px system-ui;padding:14px 15px;border-radius:13px;cursor:pointer;margin:3px 0\"><span style=\"font-size:22px\">"+fl+"</span><span style=\"flex:1\">"+name+"</span>"+(on?"<span style=\"color:#7ad0a0;font-size:18px\">\u2713</span>":"")+"</button>";
@@ -10134,7 +10134,7 @@ function _toggleFilmsMenu(anchor){
                   +"Transitions : "+((p.modes&&p.modes.transition)||0)+"\n"
                   +"Changements de clip : "+(p.switches||0);
               }catch(e){ return "(fluidité indispo: "+e+")"; } })()
-              +(function(){ try{ var xd=window.__EXPORT_DIAG; if(!xd){ try{ xd=JSON.parse(localStorage.getItem("magot:lastExportDiag")||"null"); }catch(e){ xd=null; } } xd=xd||{}; return "\n\nEXPORT\n"+"Demandé : "+(xd.requested||"aucun")+"\n"+"Réellement utilisé : "+(xd.used||"aucun")+"\n"+"Résultat Turbo : "+(xd.turboResult||"non_tente")+"\n"+"Erreur Turbo : "+(xd.turboError||"aucune")+"\n"+"Résultat Compatible : "+(xd.mediaRecorderResult||"non_tente")+"\n"+"Erreur Compatible : "+(xd.mediaRecorderError||"aucune")+"\n"+"Etape echec : "+(xd.failureStage||xd.stage||"inconnue")+"\n"+"Temps : "+(xd.atSeconds!=null?xd.atSeconds+" s":"inconnu")+"\n"+"Segment : "+(xd.segment!=null?xd.segment:"inconnu")+"\n"+"Clip : "+(xd.clip!=null?xd.clip:"inconnu")+"\n"+"Statut : "+(xd.status||"inconnu")+"\n"+"Lecteur export : "+(window.__EXPORT_READER_KIND||"?")+"\n"+"URLs blob renouvelées : "+(xd.urlRenewals||0)+"\n"+"Éléments vidéo export créés : "+(xd.readerElsCreated||0)+" · recyclés : "+(xd.readerElsRecycled||0)+"\n"+"Motif du repli : "+(xd.fallbackReason||"aucun")+"\n\nDOUBLONS SOURCES\n"+(xd.duplicateSources||"Non mesurés"); }catch(e){ return ""; } })();
+              +(function(){ try{ var xd=window.__EXPORT_DIAG; if(!xd){ try{ xd=JSON.parse(localStorage.getItem("magot:lastExportDiag")||"null"); }catch(e){ xd=null; } } xd=xd||{}; return "\n\nEXPORT\n"+"Demandé : "+(xd.requested||"aucun")+"\n"+"Réellement utilisé : "+(xd.used||"aucun")+"\n"+"Résultat Turbo : "+(xd.turboResult||"non_tente")+"\n"+"Erreur Turbo : "+(xd.turboError||"aucune")+"\n"+"Résultat Compatible : "+(xd.mediaRecorderResult||"non_tente")+"\n"+"Erreur Compatible : "+(xd.mediaRecorderError||"aucune")+"\n"+"Etape echec : "+(xd.failureStage||xd.stage||"inconnue")+"\n"+"Temps : "+(xd.atSeconds!=null?xd.atSeconds+" s":"inconnu")+"\n"+"Segment : "+(xd.segment!=null?xd.segment:"inconnu")+"\n"+"Clip : "+(xd.clip!=null?xd.clip:"inconnu")+"\n"+"Statut : "+(xd.status||"inconnu")+"\n"+"Lecteur export : "+(window.__EXPORT_READER_KIND||"?")+"\n"+"URLs blob renouvelées : "+(xd.urlRenewals||0)+"\n"+"Éléments vidéo export créés : "+(xd.readerElsCreated||0)+" · recyclés : "+(xd.readerElsRecycled||0)+" · chargements clip.el : "+(xd.clipElLoads||0)+"\n"+"Motif du repli : "+(xd.fallbackReason||"aucun")+"\n\nDOUBLONS SOURCES\n"+(xd.duplicateSources||"Non mesurés"); }catch(e){ return ""; } })();
           }catch(e){ return "(indispo: "+e+")"; } })();
         (function(txt){ try{
           var dp=document.getElementById("diagMontagePanel"); if(dp) dp.remove();
@@ -10538,7 +10538,15 @@ async function _ensureExportClipFrame(clipIndex,sourceTime){
   if(!clip || !clip.ready) throw new Error("clip_export_invalide_"+clipIndex);
   var maximum=Math.max(0,(clip.dur||0.1)-0.05);
   var target=Math.max(0,Math.min(maximum,sourceTime||0));
-  var el=await ensureExportReaderLoaded(clipIndex,6000);
+  /* v1052 — STRATÉGIE DE L'ANCIEN BUILD (prouvée sur iPhone) : plus de lecteurs dédiés. L'export charge le clip sur SON élément
+     d'aperçu persistant clip.el (créé à l'import, jamais détruit), via ensureExportClipLoaded (rigueur conservée : attente vérifiée,
+     _clipExportDrawable, libération + URL neuve sur code=4). Le pool de lecteurs — seule différence avec le build qui exportait
+     sans problème — est retiré du chemin. */
+  await ensureExportClipLoaded(clip,clipIndex,6000);
+  var el=clip.el; clip._exportEl=el;
+  try{ el.muted=true; el.pause(); }catch(e){}
+  if(window.__EXPORT_DIAG) window.__EXPORT_DIAG.clipElLoads=(window.__EXPORT_DIAG.clipElLoads||0)+1;
+  window.__EXPORT_READER_KIND="élément_clip";
   if(Math.abs((el.currentTime||0)-target)>=0.008){ var ok=await seekClipStrict(el,target,6000); if(!ok) throw new Error("seek_export_echoue_"+clipIndex); }
   clip._expPreparedTime=target; clip._expPreparedEpoch=(clip._loadEpoch||0);
   return clip;
@@ -10674,7 +10682,7 @@ function _expRestoreMem(){ try{ if(!playing) _memGuardStop(); }catch(e){} try{ w
   try{ if(window.__essentiaFreed){ window.__essentiaFreed=false; if(typeof EssentiaWASM!=="undefined" && typeof Essentia!=="undefined"){ EssentiaWASM().then(function(w){ try{ essentia=new Essentia(w); ESSENTIA_STATE="ok"; }catch(e){} }).catch(function(){}); } } }catch(e){}   /* recharge essentia après l'export pour les analyses futures */
   /* fin d'export : NE PAS recharger tous les clips. Détruire les lecteurs export dédiés. Garder max 3 sources. */
   try{ _destroyAllExportReaders(); }catch(e){}
-  try{ window.__expClipHold=false; window.__expPrevClip=null; window.__mrExportSeg=-1; window.__clipWindowSeg=-1;
+  try{ window.__expClipHold=false; window.__expPrevClip=null; window.__mrExportSeg=-1; window.__mrWantedWindow=null; window.__clipWindowSeg=-1;
     var _fvs=-1; for(var _fi=0;_fi<SEGS.length;_fi++){ if(SEGS[_fi] && SEGS[_fi].video){ _fvs=_fi; break; } }
     if(_fvs>=0){ _syncClipWindow(_fvs); } else { for(var _cc=0;_cc<CLIPS.length;_cc++){ releaseClipSource(CLIPS[_cc]); } }
   }catch(e){}
@@ -10790,7 +10798,7 @@ async function _turboExport(){
         catch(error){ throw new Error("clip "+(_needV.clipIndex+1)+" à "+_t.toFixed(2)+" s : "+_exportErrText(error)); }
         _keepExp[_needV.clipIndex]=true;
       }
-      _trimExportReaders(Object.keys(_keepExp).map(function(k){ return +k; }));   /* ne garder que les lecteurs export voulus */
+      for(var _rk=0;_rk<CLIPS.length;_rk++){ if(!_keepExp[_rk] && CLIPS[_rk] && _clipHasAttachedSource(CLIPS[_rk])){ releaseClipSource(CLIPS[_rk]); } }   /* v1052 : décharge des clip.el non voulus (charge le courant, décharge le précédent — discipline de l'ancien build) */
       try{ var _curI=(_sg&&!_sg.video&&_sg.img>=0)?_sg.img:-1, _nxI=-1, _prvI=-1;
         if(_si>=0 && _si+1<SEGS.length && SEGS[_si+1] && !SEGS[_si+1].video && SEGS[_si+1].img>=0) _nxI=SEGS[_si+1].img;
         if(_si>0 && SEGS[_si-1] && !SEGS[_si-1].video && SEGS[_si-1].img>=0) _prvI=SEGS[_si-1].img;
@@ -11101,12 +11109,15 @@ async function exportStudio(){ try{ _reqWake(); }catch(e){} try{ _hideClipOverla
         var sgw=SEGS[i]; if(!sgw||!sgw.video||sgw.vclip==null||!CLIPS[sgw.vclip]||used[sgw.vclip]) continue;
         used[sgw.vclip]=true; wanted.push(sgw.vclip); entries.push({segIndex:i, seg:sgw, clipIndex:sgw.vclip});
       }
-      /* 2) CRUCIAL : libérer l'ancienne fenêtre AVANT d'allouer un nouveau lecteur (sinon pool_export_sature) */
-      _trimExportReaders(wanted);
+      window.__mrWantedWindow=used;   /* v1052 : fenêtre déclarée pour que la boucle de frames ne décharge pas ce que le préchargement vient de charger */
+      /* 2) v1052 : libérer les sources clip.el hors fenêtre AVANT de charger (un seul propriétaire des éléments, plus de pool dédié) */
+      for(var _rw=0;_rw<CLIPS.length;_rw++){ if(!used[_rw] && CLIPS[_rw] && _clipHasAttachedSource(CLIPS[_rw])){ releaseClipSource(CLIPS[_rw]); } }
       /* 3) charger séquentiellement */
       for(var n=0;n<entries.length;n++){
         var entry=entries[n], sgw2=entry.seg, clip=CLIPS[entry.clipIndex];
-        var exportEl=await ensureExportReaderLoaded(entry.clipIndex, 6000, function(){ return token===_mrPrepToken; });
+        await ensureExportClipLoaded(clip, entry.clipIndex, 6000, function(){ return token===_mrPrepToken; });
+        var exportEl=clip.el; clip._exportEl=exportEl;
+        if(window.__EXPORT_DIAG) window.__EXPORT_DIAG.clipElLoads=(window.__EXPORT_DIAG.clipElLoads||0)+1;
         if(token!==_mrPrepToken) return false;
         if(!exportEl || exportEl.error || exportEl.readyState<2 || !exportEl.videoWidth) throw new Error("clip_mediarecorder_non_pret_"+entry.clipIndex);
         var isCurrent=(entry.segIndex===segIndex && SEGS[segIndex] && SEGS[segIndex].video);
@@ -11311,11 +11322,11 @@ async function exportFast(){ return exportStudio(); /* MOTEUR UNIFIÉ : tout pas
       var _si=-1; for(var _q=0;_q<SEGS.length;_q++){ if(_t>=SEGS[_q].start && _t<SEGS[_q].end){ _si=_q; break; } }
       var _sg=(_si>=0)?SEGS[_si]:null;
       /* fenêtre de sources à chaque changement de segment */
-      if(window.__mrExportSeg!==_si){ window.__mrExportSeg=_si; try{ _syncClipWindow(_si); }catch(e){} }
+      if(window.__mrExportSeg!==_si){ window.__mrExportSeg=_si; }   /* v1052 : _syncClipWindow retiré — il chargeait les clip.el en CONCURRENCE avec la préparation d'export (jusqu'à 6 médias chargés) ; la préparation est désormais seule propriétaire */
       /* préparer toutes les vidéos de cette frame (courant + next en transition), seek strict */
       try{ var _mn=_exportVideoNeedsAt(_t), _mkeep={};
         for(var _mi=0;_mi<_mn.length;_mi++){ try{ await _ensureExportClipFrame(_mn[_mi].clipIndex,_mn[_mi].sourceTime); _mkeep[_mn[_mi].clipIndex]=true; }catch(_me){} }
-        for(var _mc=0;_mc<CLIPS.length;_mc++){ if(!_mkeep[_mc] && _clipHasAttachedSource(CLIPS[_mc])){ releaseClipSource(CLIPS[_mc]); } }
+        for(var _mc=0;_mc<CLIPS.length;_mc++){ if(!_mkeep[_mc] && !(window.__mrWantedWindow&&window.__mrWantedWindow[_mc]) && _clipHasAttachedSource(CLIPS[_mc])){ releaseClipSource(CLIPS[_mc]); } }   /* v1052 : respecte la fenêtre du préchargement */
       }catch(e){}
       /* Export frame-par-frame : PAS de play() (le seek strict positionne exactement chaque frame ;
          laisser jouer ferait avancer le clip tout seul -> conflit avec le seek suivant). */
