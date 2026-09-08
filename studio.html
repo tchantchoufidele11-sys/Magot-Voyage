@@ -1242,7 +1242,7 @@ function renderPlanToBuffer(dur, sr){
 function analyzeBufferInto(buf, cb){ try{ essentiaReady.then(function(ok){ if(ok){ setTimeout(function(){ try{ toMono44(buf,function(sig,sr){ var An; try{ An=analyzeEssentia(sig,sr,buf.duration); }catch(e){ An=analyzeCustom(buf); } cb(An); }); }catch(e){ cb(analyzeCustom(buf)); } }, 20); } else { setTimeout(function(){ cb(analyzeCustom(buf)); }, 20); } }); }catch(e){ try{ cb(analyzeCustom(buf)); }catch(e2){ cb(null); } } }
 
 var CLIPS=[], clipVidReady=false, VIDACT=-1;
-window.STUDIO_VERSION="v1043";
+window.STUDIO_VERSION="v1048";
 window.MAGOT_EXPORT_ENGINE="auto"; try{ window.MAGOT_EXPORT_ENGINE=localStorage.getItem("magot_export_engine")||"auto"; }catch(e){}
 function setMagotExportEngine(mode){ if(mode!=="auto"&&mode!=="turbo"&&mode!=="mediarecorder") mode="auto"; window.MAGOT_EXPORT_ENGINE=mode; try{ localStorage.setItem("magot_export_engine",mode); }catch(e){} }
 function _exportEngineLabel(){ var m=window.MAGOT_EXPORT_ENGINE; return m==="turbo"?"Export : Turbo test":m==="mediarecorder"?"Export : Compatible":"Export : Automatique"; }
@@ -9013,7 +9013,7 @@ function _openLangPicker(){
   bg.style.cssText="position:fixed;inset:0;z-index:100050;background:rgba(0,0,0,.62);backdrop-filter:blur(4px);display:flex;align-items:flex-end;justify-content:center;font-family:system-ui,-apple-system,sans-serif";
   var card=document.createElement("div");
   card.style.cssText="width:100%;max-width:520px;background:#0f0e0d;border:1px solid #282622;border-radius:22px 22px 0 0;padding:8px 10px 22px;max-height:78vh;overflow:auto;box-shadow:0 -10px 50px rgba(0,0,0,.7)";
-  var head="<div style=\"text-align:center;padding:12px 0 6px\"><div style=\"width:40px;height:4px;background:#3a3733;border-radius:3px;margin:0 auto 12px\"></div><div style=\"color:#f4f7fc;font:700 17px system-ui\">\uD83C\uDF10 "+_st("Langue des paroles")+"</div><div style=\"color:#8a93a6;font:500 12.5px system-ui;margin-top:3px\">"+_st("Traduction synchronisée au rythme")+" \u00b7 v1043</div></div>";
+  var head="<div style=\"text-align:center;padding:12px 0 6px\"><div style=\"width:40px;height:4px;background:#3a3733;border-radius:3px;margin:0 auto 12px\"></div><div style=\"color:#f4f7fc;font:700 17px system-ui\">\uD83C\uDF10 "+_st("Langue des paroles")+"</div><div style=\"color:#8a93a6;font:500 12.5px system-ui;margin-top:3px\">"+_st("Traduction synchronisée au rythme")+" \u00b7 v1048</div></div>";
   var rows="";
   for(var i=0;i<window._LYRICS_LANGS.length;i++){ var code=window._LYRICS_LANGS[i][0], name=window._LYRICS_LANGS[i][1], fl=_LANG_FLAGS[code]||"\uD83C\uDF10", on=(window._LYRICS_LANG===code);
     rows+="<button class=\"lang-opt\" data-l=\""+code+"\" style=\"display:flex;align-items:center;gap:13px;width:100%;text-align:left;background:"+(on?"rgba(122,208,160,.14)":"none")+";border:1px solid "+(on?"rgba(122,208,160,.5)":"transparent")+";color:#f4f7fc;font:600 15.5px system-ui;padding:14px 15px;border-radius:13px;cursor:pointer;margin:3px 0\"><span style=\"font-size:22px\">"+fl+"</span><span style=\"flex:1\">"+name+"</span>"+(on?"<span style=\"color:#7ad0a0;font-size:18px\">\u2713</span>":"")+"</button>";
@@ -9298,11 +9298,28 @@ function loop(){ try{ window.__MMT_BOTTOM_CAP_TOP=null; }catch(e){}
   if(_vidNow){ _showClipOverlay(CLIPS[sg.vclip].el); }
   else {
     _hideClipOverlay();
-    if(glReady && TR.ready && inTrans){
+    /* FONDU AU NOIR vidéo->vidéo, CENTRÉ sur la coupe next.start.
+       - avant la coupe (inTrans) : sortante affichée, noir croît 0->1
+       - après la coupe (prev.video, into<halfPrev) : entrante déjà à son vrai temps, noir décroît 1->0
+       Aucune lecture anticipée de l'entrante -> pas de saut arrière. */
+    var _vid2vid=(inTrans && sg && next && sg.video && next.video);
+    var _halfPrev=(prev && prev.video && sg && sg.video && trName!=="cut")?Math.min((prev.trDur!=null?prev.trDur:0.5),(sg.end-sg.start)*0.5):0;
+    var _postBlack=(_halfPrev>0 && prev && prev.video && sg.video && into<_halfPrev)?(1-(into/_halfPrev)):0;
+    if(glReady && TR.ready && inTrans && !_vid2vid){
       drawSegAt(sg,t,0,1); trUpload(TR.texFrom);
       drawSegAt(next,next.start,0,1); trUpload(TR.texTo);
       trMix(trName,trProg,next);
       drawGL(t,strongPulse,TR.fbo.tex);
+    } else if(_vid2vid){
+      /* AVANT la coupe : sortante -> noir croissant */
+      drawSegAt(sg, t, 0, 1);
+      try{ if(bctx){ bctx.save(); bctx.globalAlpha=Math.max(0,Math.min(1,trProg)); bctx.fillStyle="#000"; bctx.fillRect(0,0,base.width,base.height); bctx.restore(); } }catch(e){}
+      if(glReady) drawGL(t,strongPulse);
+    } else if(_postBlack>0){
+      /* APRÈS la coupe : entrante (rendu normal) -> noir décroissant */
+      drawSegAt(sg, t, 0, 1);
+      try{ if(bctx){ bctx.save(); bctx.globalAlpha=Math.max(0,Math.min(1,_postBlack)); bctx.fillStyle="#000"; bctx.fillRect(0,0,base.width,base.height); bctx.restore(); } }catch(e){}
+      if(glReady) drawGL(t,strongPulse);
     } else {
       var r=renderBaseFrame(t);
       if(glReady) drawGL(t,r.strongPulse);
@@ -10497,9 +10514,19 @@ function _exportVideoNeedsAt(t){
     var clip=CLIPS[seg.vclip]; var st=(seg.vstart||0)+Math.max(0,time-seg.start)*(seg.vspeed||clip.speed||1);
     result.push({clipIndex:seg.vclip, sourceTime:st});
   }
-  add(sg,t);
-  if(next){ var trName=next.trans||"none"; var trDur=(trName!=="cut"&&trName!=="none")?Math.min(next.trDur!=null?next.trDur:0.5,(sg.end-sg.start)*0.5):0;
-    var trStart=next.start-trDur; if(trDur>0 && t>=trStart && t<next.start){ add(next,next.start); } }
+  var trName=next?(next.trans||"none"):"none";
+  var trDur=(next&&trName!=="cut"&&trName!=="none")?Math.min(next.trDur!=null?next.trDur:0.5,(sg.end-sg.start)*0.5):0;
+  var trStart=next?(next.start-trDur):Infinity;
+  var _inTr=(trDur>0 && t>=trStart && t<next.start);
+  var _v2v=(_inTr && sg.video && next.video);
+  if(_v2v){
+    /* FONDU AU NOIR (avant la coupe) : préparer SEULEMENT la sortante. L'entrante sera préparée
+       normalement une fois qu'on aura atteint son segment (après next.start) -> aucune lecture anticipée. */
+    add(sg,t);
+  } else {
+    add(sg,t);
+    if(_inTr) add(next,next.start);   /* transitions non-vidéo (mix) : les deux, comme avant */
+  }
   return result;
 }
 function seekClip(el, time){ return new Promise(function(res){
@@ -10545,13 +10572,25 @@ function renderMontageAt(t){ try{ window.__MMT_BOTTOM_CAP_TOP=null; }catch(e){}
   var trProg=inTrans?((t-preStart)/TRd):0;
   var strongPulse=(sg&&sg.strong&&into<0.10)?(1-into/0.10):0;
   _atmo=sg?(sg.atmo||null):null; _atmoAmt=(ATMO_AMT[MOOD]!=null?ATMO_AMT[MOOD]:0.6);
-  if(glReady && TR.ready && inTrans){
+  /* FONDU AU NOIR vidéo->vidéo CENTRÉ sur la coupe (identique lecture) : avant = sortante->noir, après = noir->entrante réelle. Pas de saut arrière. */
+  var _vid2vidX=(inTrans && sg && next && sg.video && next.video);
+  var _halfPrevX=(prev && prev.video && sg && sg.video && trName!=="cut")?Math.min((prev.trDur!=null?prev.trDur:0.5),(sg.end-sg.start)*0.5):0;
+  var _postBlackX=(_halfPrevX>0 && prev && prev.video && sg.video && into<_halfPrevX)?(1-(into/_halfPrevX)):0;
+  if(glReady && TR.ready && inTrans && !_vid2vidX){
     drawSegAt(sg,t,0,1); trUpload(TR.texFrom);
     drawSegAt(next,next.start,0,1); trUpload(TR.texTo);
     trMix(trName,trProg,next);
     drawGL(t,strongPulse,TR.fbo.tex);
+  } else if(_vid2vidX){
+    drawSegAt(sg, t, 0, 1);
+    try{ if(bctx){ bctx.save(); bctx.globalAlpha=Math.max(0,Math.min(1,trProg)); bctx.fillStyle="#000"; bctx.fillRect(0,0,base.width,base.height); bctx.restore(); } }catch(e){}
+    if(glReady) drawGL(t,strongPulse);
+  } else if(_postBlackX>0){
+    drawSegAt(sg, t, 0, 1);
+    try{ if(bctx){ bctx.save(); bctx.globalAlpha=Math.max(0,Math.min(1,_postBlackX)); bctx.fillStyle="#000"; bctx.fillRect(0,0,base.width,base.height); bctx.restore(); } }catch(e){}
+    if(glReady) drawGL(t,strongPulse);
   } else { var r=renderBaseFrame(t); if(glReady) drawGL(t,r.strongPulse); }
-  if(window.SIGN_PE && t>window.SIGN_PE-1.5 && t<window.SIGN_PE){ try{ _fadeBlackOverlay((t-(window.SIGN_PE-1.5))/1.5); }catch(e){} }   /* l'image se fond au noir avant la fin */
+  if(window.SIGN_PE && t>window.SIGN_PE-1.5 && t<window.SIGN_PE){ try{ _fadeBlackOverlay((t-(window.SIGN_PE-1.5))/1.5); }catch(e){} }
 }
 function _expMsg(m){ try{ var e=document.getElementById("expProg"); var t=e?e.querySelector("div"):null; if(e){ if(t) t.textContent=m; e.style.display="flex"; var b=document.getElementById("expBar"); if(b)b.style.width="0%"; setTimeout(function(){ try{ e.style.display="none"; if(t)t.textContent="Export en cours\u2026"; }catch(x){} },2600); } }catch(x){} try{ if(typeof setState==="function") setState(m); }catch(x){} }
 function expShow(p){ try{ window.__expLastPct=p; }catch(e){} var e=document.getElementById("expProg"); if(e){ e.style.display="flex"; } var b=document.getElementById("expBar"), pc=document.getElementById("expPct"); var v=Math.round(p*100); if(b) b.style.width=v+"%"; if(pc) pc.textContent=v+" %"; var rg=document.getElementById("expRing"); if(rg){ var off=Math.max(0,Math.min(1,1-p)); rg.style.strokeDashoffset=String(off); } }
