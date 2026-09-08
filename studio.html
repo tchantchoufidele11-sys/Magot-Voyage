@@ -1242,7 +1242,7 @@ function renderPlanToBuffer(dur, sr){
 function analyzeBufferInto(buf, cb){ try{ essentiaReady.then(function(ok){ if(ok){ setTimeout(function(){ try{ toMono44(buf,function(sig,sr){ var An; try{ An=analyzeEssentia(sig,sr,buf.duration); }catch(e){ An=analyzeCustom(buf); } cb(An); }); }catch(e){ cb(analyzeCustom(buf)); } }, 20); } else { setTimeout(function(){ cb(analyzeCustom(buf)); }, 20); } }); }catch(e){ try{ cb(analyzeCustom(buf)); }catch(e2){ cb(null); } } }
 
 var CLIPS=[], clipVidReady=false, VIDACT=-1;
-window.STUDIO_VERSION="v1052";
+window.STUDIO_VERSION="v1053";
 window.MAGOT_EXPORT_ENGINE="auto"; try{ window.MAGOT_EXPORT_ENGINE=localStorage.getItem("magot_export_engine")||"auto"; }catch(e){}
 function setMagotExportEngine(mode){ if(mode!=="auto"&&mode!=="turbo"&&mode!=="mediarecorder") mode="auto"; window.MAGOT_EXPORT_ENGINE=mode; try{ localStorage.setItem("magot_export_engine",mode); }catch(e){} }
 function _exportEngineLabel(){ var m=window.MAGOT_EXPORT_ENGINE; return m==="turbo"?"Export : Turbo test":m==="mediarecorder"?"Export : Compatible":"Export : Automatique"; }
@@ -9013,7 +9013,7 @@ function _openLangPicker(){
   bg.style.cssText="position:fixed;inset:0;z-index:100050;background:rgba(0,0,0,.62);backdrop-filter:blur(4px);display:flex;align-items:flex-end;justify-content:center;font-family:system-ui,-apple-system,sans-serif";
   var card=document.createElement("div");
   card.style.cssText="width:100%;max-width:520px;background:#0f0e0d;border:1px solid #282622;border-radius:22px 22px 0 0;padding:8px 10px 22px;max-height:78vh;overflow:auto;box-shadow:0 -10px 50px rgba(0,0,0,.7)";
-  var head="<div style=\"text-align:center;padding:12px 0 6px\"><div style=\"width:40px;height:4px;background:#3a3733;border-radius:3px;margin:0 auto 12px\"></div><div style=\"color:#f4f7fc;font:700 17px system-ui\">\uD83C\uDF10 "+_st("Langue des paroles")+"</div><div style=\"color:#8a93a6;font:500 12.5px system-ui;margin-top:3px\">"+_st("Traduction synchronisée au rythme")+" \u00b7 v1052</div></div>";
+  var head="<div style=\"text-align:center;padding:12px 0 6px\"><div style=\"width:40px;height:4px;background:#3a3733;border-radius:3px;margin:0 auto 12px\"></div><div style=\"color:#f4f7fc;font:700 17px system-ui\">\uD83C\uDF10 "+_st("Langue des paroles")+"</div><div style=\"color:#8a93a6;font:500 12.5px system-ui;margin-top:3px\">"+_st("Traduction synchronisée au rythme")+" \u00b7 v1053</div></div>";
   var rows="";
   for(var i=0;i<window._LYRICS_LANGS.length;i++){ var code=window._LYRICS_LANGS[i][0], name=window._LYRICS_LANGS[i][1], fl=_LANG_FLAGS[code]||"\uD83C\uDF10", on=(window._LYRICS_LANG===code);
     rows+="<button class=\"lang-opt\" data-l=\""+code+"\" style=\"display:flex;align-items:center;gap:13px;width:100%;text-align:left;background:"+(on?"rgba(122,208,160,.14)":"none")+";border:1px solid "+(on?"rgba(122,208,160,.5)":"transparent")+";color:#f4f7fc;font:600 15.5px system-ui;padding:14px 15px;border-radius:13px;cursor:pointer;margin:3px 0\"><span style=\"font-size:22px\">"+fl+"</span><span style=\"flex:1\">"+name+"</span>"+(on?"<span style=\"color:#7ad0a0;font-size:18px\">\u2713</span>":"")+"</button>";
@@ -9136,6 +9136,7 @@ function releaseClipSource(clip){
   try{ el.pause(); }catch(e){}
   if(!clip._u){ clip._u=el.getAttribute("src")||el.currentSrc||""; }
   if(!el.getAttribute("src")){ clip._unloaded=true; clip.loadState="unloaded"; return false; }
+  try{ if(clip._exportEl && clip._exportEl!==el){ var xe=clip._exportEl; clip._exportEl=null; try{ xe.pause(); xe.removeAttribute("src"); xe.load(); }catch(_x){} try{ if(typeof __EXPORT_EL_POOL!=="undefined" && __EXPORT_EL_POOL.indexOf(xe)<0 && __EXPORT_EL_POOL.length<4){ __EXPORT_EL_POOL.push(xe); } else { xe.remove(); } }catch(_p){} } }catch(_e){}
   try{ el.removeAttribute("src"); el.load(); clip._unloaded=true; clip.loadState="unloaded"; return true; }catch(e){ return false; }
 }
 function _clipDrawable(clip){ try{ return !!(clip && clip.el && clip.el.videoWidth>0 && clip.el.readyState>=2); }catch(e){ return false; } }
@@ -10134,7 +10135,7 @@ function _toggleFilmsMenu(anchor){
                   +"Transitions : "+((p.modes&&p.modes.transition)||0)+"\n"
                   +"Changements de clip : "+(p.switches||0);
               }catch(e){ return "(fluidité indispo: "+e+")"; } })()
-              +(function(){ try{ var xd=window.__EXPORT_DIAG; if(!xd){ try{ xd=JSON.parse(localStorage.getItem("magot:lastExportDiag")||"null"); }catch(e){ xd=null; } } xd=xd||{}; return "\n\nEXPORT\n"+"Demandé : "+(xd.requested||"aucun")+"\n"+"Réellement utilisé : "+(xd.used||"aucun")+"\n"+"Résultat Turbo : "+(xd.turboResult||"non_tente")+"\n"+"Erreur Turbo : "+(xd.turboError||"aucune")+"\n"+"Résultat Compatible : "+(xd.mediaRecorderResult||"non_tente")+"\n"+"Erreur Compatible : "+(xd.mediaRecorderError||"aucune")+"\n"+"Etape echec : "+(xd.failureStage||xd.stage||"inconnue")+"\n"+"Temps : "+(xd.atSeconds!=null?xd.atSeconds+" s":"inconnu")+"\n"+"Segment : "+(xd.segment!=null?xd.segment:"inconnu")+"\n"+"Clip : "+(xd.clip!=null?xd.clip:"inconnu")+"\n"+"Statut : "+(xd.status||"inconnu")+"\n"+"Lecteur export : "+(window.__EXPORT_READER_KIND||"?")+"\n"+"URLs blob renouvelées : "+(xd.urlRenewals||0)+"\n"+"Éléments vidéo export créés : "+(xd.readerElsCreated||0)+" · recyclés : "+(xd.readerElsRecycled||0)+" · chargements clip.el : "+(xd.clipElLoads||0)+"\n"+"Motif du repli : "+(xd.fallbackReason||"aucun")+"\n\nDOUBLONS SOURCES\n"+(xd.duplicateSources||"Non mesurés"); }catch(e){ return ""; } })();
+              +(function(){ try{ var xd=window.__EXPORT_DIAG; if(!xd){ try{ xd=JSON.parse(localStorage.getItem("magot:lastExportDiag")||"null"); }catch(e){ xd=null; } } xd=xd||{}; return "\n\nEXPORT\n"+"Demandé : "+(xd.requested||"aucun")+"\n"+"Réellement utilisé : "+(xd.used||"aucun")+"\n"+"Résultat Turbo : "+(xd.turboResult||"non_tente")+"\n"+"Erreur Turbo : "+(xd.turboError||"aucune")+"\n"+"Résultat Compatible : "+(xd.mediaRecorderResult||"non_tente")+"\n"+"Erreur Compatible : "+(xd.mediaRecorderError||"aucune")+"\n"+"Etape echec : "+(xd.failureStage||xd.stage||"inconnue")+"\n"+"Temps : "+(xd.atSeconds!=null?xd.atSeconds+" s":"inconnu")+"\n"+"Segment : "+(xd.segment!=null?xd.segment:"inconnu")+"\n"+"Clip : "+(xd.clip!=null?xd.clip:"inconnu")+"\n"+"Statut : "+(xd.status||"inconnu")+"\n"+"Lecteur export : "+(window.__EXPORT_READER_KIND||"?")+"\n"+"URLs blob renouvelées : "+(xd.urlRenewals||0)+"\n"+"Chargements clip.el réels : "+(xd.clipElRealLoads||0)+" · déjà prêts : "+(xd.clipElHits||0)+" · éléments dédiés créés : "+(xd.readerElsCreated||0)+"\n"+"VERDICT TRIAGE : "+(xd.triageVerdict||"aucun échec triagé")+"\n"+"SOLUTION : "+(xd.triageSolution||"—")+"\n"+"Étapes triage : "+(xd.triageSteps||"—")+"\n\nJOURNAL EXPORT (40 derniers événements)\n"+(xd.journal||"vide")+"\n"+"Motif du repli : "+(xd.fallbackReason||"aucun")+"\n\nDOUBLONS SOURCES\n"+(xd.duplicateSources||"Non mesurés"); }catch(e){ return ""; } })();
           }catch(e){ return "(indispo: "+e+")"; } })();
         (function(txt){ try{
           var dp=document.getElementById("diagMontagePanel"); if(dp) dp.remove();
@@ -10514,24 +10515,100 @@ function _renewExportClipUrl(clip){
     var oldUrl=clip._u || clip.el._u || "";
     var freshUrl=URL.createObjectURL(clip.file);
     clip._u=freshUrl; clip.el._u=freshUrl; clip._unloaded=true; clip.loadState="unloaded";
+    if(window.__EXPORT_DIAG) window.__EXPORT_DIAG.urlRenewals=(window.__EXPORT_DIAG.urlRenewals||0)+1;
     if(oldUrl && oldUrl!==freshUrl && oldUrl.indexOf("blob:")===0){ try{ URL.revokeObjectURL(oldUrl); }catch(e){} }
     return true;
   }catch(e){ return false; }
 }
+/* ===== v1053 — BOÎTE NOIRE D'EXPORT : journal + triage automatique à l'échec (verdict fichier / code / appareil + réparation sur place) ===== */
+function _xlog(ev, clipIndex, extra){ try{ var d=window.__EXPORT_DIAG||{}; var t=(d.atSeconds!=null)?(d.atSeconds+"s"):"-";
+  var line="["+t+"] clip"+(clipIndex!=null?(clipIndex+1):"?")+" "+ev+(extra?(" · "+extra):"");
+  var L=window.__EXPORT_LOG||(window.__EXPORT_LOG=[]); L.push(line); if(L.length>80) L.splice(0,L.length-80);
+  d.journal=L.slice(-40).join("\n"); }catch(e){} }
+function _attachedCount(){ try{ return _videoWindowSnapshot().attached; }catch(e){ return -1; } }
+function _readClipBytes(blob){ return new Promise(function(resolve){ try{ var r=new FileReader();
+  r.onload=function(){ resolve({ok:true, bytes:(r.result&&r.result.byteLength)||0}); };
+  r.onerror=function(){ resolve({ok:false, err:(r.error&&r.error.name)||"lecture_ko"}); };
+  r.readAsArrayBuffer(blob); }catch(e){ resolve({ok:false, err:(e&&e.name)||"exception"}); } }); }
+function _swapClipToRamBlob(clip, buffer){ try{
+  if(!clip._diskFile) clip._diskFile=clip.file;
+  var ram=new Blob([buffer],{type:(clip.file&&clip.file.type)||"video/mp4"});
+  clip.file=ram; clip._ramCopy=true; _renewExportClipUrl(clip);
+  var R=window.__RAM_COPIES||(window.__RAM_COPIES=[]);
+  R.push(clip);
+  while(R.length>2){ var old=R.shift(); try{ if(old!==clip && old._diskFile){ old.file=old._diskFile; old._ramCopy=false; _renewExportClipUrl(old); } }catch(e){} }   /* max 2 copies RAM simultanées */
+  return true; }catch(e){ return false; } }
+async function _exportClipTriage(clip, clipIndex, timeoutMs, firstError, firstState, secondError){
+  var d=window.__EXPORT_DIAG||{}; var steps=[];
+  function verdict(code, solution){ d.triageVerdict=code; d.triageSolution=solution; d.triageSteps=steps.join(" · "); _saveExportDiag(); }
+  _xlog("TRIAGE début", clipIndex, "1="+_exportErrText(firstError)+" | 2="+_exportErrText(secondError)+" | attachées="+_attachedCount());
+  /* T1 — le blob se lit-il en entier ? (intégrité de la BASE, indépendante du pipeline vidéo) */
+  var read=await _readClipBytes(clip.file);
+  steps.push("lecture_blob="+(read.ok?("ok_"+read.bytes+"o"):("KO_"+read.err)));
+  _xlog("T1 lecture blob", clipIndex, steps[steps.length-1]+" (taille annoncée "+(clip.file?clip.file.size:0)+"o)");
+  if(!read.ok || (clip.file && read.bytes!==clip.file.size)){
+    verdict("FICHIER_CORROMPU_EN_BASE","Le blob de ce clip est illisible ou tronqué dans IndexedDB : supprimer ce clip du montage et le ré-importer depuis la source.");
+    throw new Error("triage_fichier_corrompu_clip_"+(clipIndex+1)+" ["+steps.join(" · ")+"]");
+  }
+  /* T2 — copie RAM du blob (contourne le bug WebKit « blob IndexedDB lisible par FileReader mais refusé par <video> ») sur clip.el */
+  var buffer=await new Promise(function(res){ var r=new FileReader(); r.onload=function(){ res(r.result); }; r.onerror=function(){ res(null); }; r.readAsArrayBuffer(clip.file); });
+  if(buffer && _swapClipToRamBlob(clip, buffer)){
+    try{ await ensureClipLoaded(clip,timeoutMs); if(_clipExportDrawable(clip)){ steps.push("copie_RAM_sur_clip.el=ok");
+      _xlog("T2 RÉPARÉ par copie RAM", clipIndex, "le blob disque IndexedDB était refusé par <video> (bug WebKit), la copie mémoire passe");
+      verdict("FICHIER_IDB_REFUSE_REPARE","Bug WebKit iOS : le blob stocké en IndexedDB est lisible en octets mais refusé par le lecteur vidéo. Réparé pendant l'export par copie en mémoire. Correction durable : re-sauvegarder le film (ré-écrit les blobs).");
+      clip._exportEl=clip.el; return clip; } steps.push("copie_RAM_sur_clip.el=ko_non_dessinable"); }
+    catch(e2){ steps.push("copie_RAM_sur_clip.el=KO_"+_exportErrText(e2)+" ; "+_videoLoadState(clip)); }
+  } else { steps.push("copie_RAM=impossible"); }
+  _xlog("T2", clipIndex, steps[steps.length-1]);
+  /* T3 — même copie RAM sur un élément NEUF (isole un clip.el en état d'erreur) */
+  try{ var el3=_createExportVideoElement(); var url3=clip._u;
+    var ok3=await new Promise(function(res){ var done=false; var fin=function(v){ if(done)return; done=true; el3.removeEventListener("loadeddata",on); el3.removeEventListener("canplay",on); el3.removeEventListener("error",bad); res(v); };
+      var on=function(){ if(el3.readyState>=2 && el3.videoWidth>0 && !el3.error) fin(true); }; var bad=function(){ fin(false); };
+      el3.addEventListener("loadeddata",on); el3.addEventListener("canplay",on); el3.addEventListener("error",bad);
+      try{ el3.src=url3; el3.load(); }catch(e){ fin(false); } setTimeout(function(){ fin(el3.readyState>=2 && el3.videoWidth>0 && !el3.error); }, timeoutMs||6000); });
+    steps.push("élément_neuf="+(ok3?"ok":("KO code="+(el3.error?el3.error.code:0)+" net="+el3.networkState)));
+    _xlog("T3", clipIndex, steps[steps.length-1]);
+    if(ok3){ clip._exportEl=el3;
+      verdict("ELEMENT_CLIP_EN_ERREUR_REPARE","L'élément vidéo habituel de ce clip est resté en état d'erreur ; un élément neuf lit la même source. Réparé pendant l'export.");
+      return clip; }
+    try{ el3.removeAttribute("src"); el3.load(); if(__EXPORT_EL_POOL.indexOf(el3)<0&&__EXPORT_EL_POOL.length<4){__EXPORT_EL_POOL.push(el3);}else{el3.remove();} }catch(e){}
+  }catch(e3){ steps.push("élément_neuf=exception_"+_exportErrText(e3)); _xlog("T3", clipIndex, steps[steps.length-1]); }
+  /* T4 — purge TOTALE des médias + pause, puis dernier essai (budget de lecteurs iOS épuisé ?) */
+  try{ for(var _pc=0;_pc<CLIPS.length;_pc++){ if(CLIPS[_pc]) releaseClipSource(CLIPS[_pc]); } }catch(e){}
+  await _exportSleep(1400);
+  try{ await ensureClipLoaded(clip,timeoutMs); if(_clipExportDrawable(clip)){ steps.push("après_purge_totale=ok");
+    _xlog("T4 RÉPARÉ après purge totale", clipIndex, "l'appareil refusait toute nouvelle charge (budget de lecteurs iOS) ; libéré, ça repart");
+    verdict("BUDGET_MEDIA_EPUISE_REPARE","iOS avait épuisé son budget de lecteurs vidéo (trop de charges/décharges cumulées). Réparé par purge complète + pause. Correction durable : espacer les rechargements pendant l'export.");
+    clip._exportEl=clip.el; return clip; } steps.push("après_purge_totale=ko_non_dessinable"); }
+  catch(e4){ steps.push("après_purge_totale=KO_"+_exportErrText(e4)+" ; "+_videoLoadState(clip)); }
+  _xlog("T4", clipIndex, steps[steps.length-1]);
+  verdict("APPAREIL_REFUSE_TOUTE_CHARGE","Ce clip se lit en octets, sa copie RAM et un élément neuf échouent aussi, même après purge : WebKit refuse toute nouvelle charge (état appareil/Safari). Solution : fermer et rouvrir Safari (voire redémarrer l'iPhone), rouvrir le film, exporter en premier geste.");
+  throw new Error("triage_appareil_clip_"+(clipIndex+1)+" ["+steps.join(" · ")+"]");
+}
 async function ensureExportClipLoaded(clip, clipIndex, timeoutMs, stillWanted){
   timeoutMs=timeoutMs||5000;
   function wanted(){ return !stillWanted || stillWanted(); }
+  var fastPath=!!(clip && clip.el && clip.el.getAttribute("src") && clip.el.readyState>=2 && !clip.el.error);
+  var t0=performance.now();
   async function attempt(){ if(!wanted()) throw new Error("preparation_obsolete"); await ensureClipLoaded(clip,timeoutMs); if(!wanted()) throw new Error("preparation_obsolete"); if(!_clipExportDrawable(clip)) throw new Error("clip_non_dessinable"); return clip; }   /* contrôle export avec !el.error */
   var firstError=null, firstState="";
-  try{ return await attempt(); }catch(error){ if(!wanted()) throw error; firstError=error; firstState=_videoLoadState(clip); }
-  /* UNE seule relance : nettoyage + ATTENTE du détachement réel + URL neuve si code=4 */
+  try{ var r=await attempt();
+    if(window.__EXPORT_DIAG){ var d0=window.__EXPORT_DIAG; if(fastPath){ d0.clipElHits=(d0.clipElHits||0)+1; } else { d0.clipElRealLoads=(d0.clipElRealLoads||0)+1; _xlog("chargé", clipIndex, Math.round(performance.now()-t0)+" ms · attachées="+_attachedCount()); } }
+    clip._exportEl=clip.el; return r;
+  }catch(error){ if(!wanted()) throw error; firstError=error; firstState=_videoLoadState(clip); }
+  _xlog("échec 1", clipIndex, _exportErrText(firstError)+" ; "+firstState);
+  /* relance : nettoyage + ATTENTE du détachement réel + URL neuve si code=4 */
   releaseClipSource(clip);
   await _waitExportClipReleased(clip,800); await _exportSleep(120);
   if(!wanted()) throw new Error("preparation_obsolete");
-  /* code=4 sur une source déjà lue = URL blob dans un état d'erreur -> repartir sur une URL NEUVE */
-  if(firstState.indexOf("code=4")>=0){ _renewExportClipUrl(clip); }
-  try{ return await attempt(); }
-  catch(secondError){ throw new Error("chargement_export_clip_"+(clipIndex+1)+"_echec_apres_2_essais [1="+_exportErrText(firstError)+" ; "+firstState+" | 2="+_exportErrText(secondError)+" ; "+_videoLoadState(clip)+"]"); }
+  if(firstState.indexOf("code=4")>=0){ _renewExportClipUrl(clip); _xlog("URL neuve", clipIndex, "depuis clip.file"); }
+  try{ var r2=await attempt(); _xlog("chargé (2e essai)", clipIndex, "attachées="+_attachedCount()); clip._exportEl=clip.el; return r2; }
+  catch(secondError){
+    _xlog("échec 2", clipIndex, _exportErrText(secondError)+" ; "+_videoLoadState(clip));
+    if(!wanted()) throw secondError;
+    /* v1053 : plus d'abandon aveugle — TRIAGE automatique (répare si possible, sinon verdict précis) */
+    return await _exportClipTriage(clip, clipIndex, timeoutMs, firstError, firstState, secondError);
+  }
 }
 async function _ensureExportClipFrame(clipIndex,sourceTime){
   var clip=CLIPS[clipIndex];
@@ -10543,7 +10620,7 @@ async function _ensureExportClipFrame(clipIndex,sourceTime){
      _clipExportDrawable, libération + URL neuve sur code=4). Le pool de lecteurs — seule différence avec le build qui exportait
      sans problème — est retiré du chemin. */
   await ensureExportClipLoaded(clip,clipIndex,6000);
-  var el=clip.el; clip._exportEl=el;
+  var el=clip._exportEl||clip.el;   /* v1053 : le triage T3 peut avoir choisi un élément neuf */
   try{ el.muted=true; el.pause(); }catch(e){}
   if(window.__EXPORT_DIAG) window.__EXPORT_DIAG.clipElLoads=(window.__EXPORT_DIAG.clipElLoads||0)+1;
   window.__EXPORT_READER_KIND="élément_clip";
@@ -10982,6 +11059,7 @@ async function exportStudio(){ try{ _reqWake(); }catch(e){} try{ _hideClipOverla
   /* DIAGNOSTIC MOTEUR (GPT) : on enregistre le moteur DEMANDÉ et RÉELLEMENT utilisé -> pas d'ambiguïté */
   try{ _destroyAllExportReaders(); }catch(e){}
   try{ await _prepareExportSourceFingerprints(); }catch(e){ window.__EXPORT_SOURCE_KEYS=[]; }
+  window.__EXPORT_LOG=[];   /* v1053 : journal neuf par export */
   window.__EXPORT_DIAG={ requested:(window.MAGOT_EXPORT_ENGINE||"auto"), used:((window.MAGOT_EXPORT_ENGINE==="mediarecorder")?"mediarecorder":"aucun"), turboResult:"non_tente", turboError:"", mediaRecorderResult:"non_tente", mediaRecorderError:"", fallbackReason:"", stage:"initialisation", failureStage:"", atSeconds:null, frame:null, segment:null, clip:null, sourceTime:null, status:"running", startedAt:Date.now(), sourceKeys:(window.__EXPORT_SOURCE_KEYS||[]).slice(), duplicateSources:_duplicateSourceSummary(window.__EXPORT_SOURCE_KEYS||[]) }; _saveExportDiag();
   var _reqEng=(window.MAGOT_EXPORT_ENGINE||"auto");
   var _forceTurbo=(_reqEng==="turbo"), _forceMR=(_reqEng==="mediarecorder");
@@ -11116,7 +11194,7 @@ async function exportStudio(){ try{ _reqWake(); }catch(e){} try{ _hideClipOverla
       for(var n=0;n<entries.length;n++){
         var entry=entries[n], sgw2=entry.seg, clip=CLIPS[entry.clipIndex];
         await ensureExportClipLoaded(clip, entry.clipIndex, 6000, function(){ return token===_mrPrepToken; });
-        var exportEl=clip.el; clip._exportEl=exportEl;
+        var exportEl=clip._exportEl||clip.el;   /* v1053 : élément choisi par le chargeur/triage */
         if(window.__EXPORT_DIAG) window.__EXPORT_DIAG.clipElLoads=(window.__EXPORT_DIAG.clipElLoads||0)+1;
         if(token!==_mrPrepToken) return false;
         if(!exportEl || exportEl.error || exportEl.readyState<2 || !exportEl.videoWidth) throw new Error("clip_mediarecorder_non_pret_"+entry.clipIndex);
