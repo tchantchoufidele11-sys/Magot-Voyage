@@ -1242,7 +1242,7 @@ function renderPlanToBuffer(dur, sr){
 function analyzeBufferInto(buf, cb){ try{ essentiaReady.then(function(ok){ if(ok){ setTimeout(function(){ try{ toMono44(buf,function(sig,sr){ var An; try{ An=analyzeEssentia(sig,sr,buf.duration); }catch(e){ An=analyzeCustom(buf); } cb(An); }); }catch(e){ cb(analyzeCustom(buf)); } }, 20); } else { setTimeout(function(){ cb(analyzeCustom(buf)); }, 20); } }); }catch(e){ try{ cb(analyzeCustom(buf)); }catch(e2){ cb(null); } } }
 
 var CLIPS=[], clipVidReady=false, VIDACT=-1;
-window.STUDIO_VERSION="v1041";
+window.STUDIO_VERSION="v1042";
 window.MAGOT_EXPORT_ENGINE="auto"; try{ window.MAGOT_EXPORT_ENGINE=localStorage.getItem("magot_export_engine")||"auto"; }catch(e){}
 function setMagotExportEngine(mode){ if(mode!=="auto"&&mode!=="turbo"&&mode!=="mediarecorder") mode="auto"; window.MAGOT_EXPORT_ENGINE=mode; try{ localStorage.setItem("magot_export_engine",mode); }catch(e){} }
 function _exportEngineLabel(){ var m=window.MAGOT_EXPORT_ENGINE; return m==="turbo"?"Export : Turbo test":m==="mediarecorder"?"Export : Compatible":"Export : Automatique"; }
@@ -9013,7 +9013,7 @@ function _openLangPicker(){
   bg.style.cssText="position:fixed;inset:0;z-index:100050;background:rgba(0,0,0,.62);backdrop-filter:blur(4px);display:flex;align-items:flex-end;justify-content:center;font-family:system-ui,-apple-system,sans-serif";
   var card=document.createElement("div");
   card.style.cssText="width:100%;max-width:520px;background:#0f0e0d;border:1px solid #282622;border-radius:22px 22px 0 0;padding:8px 10px 22px;max-height:78vh;overflow:auto;box-shadow:0 -10px 50px rgba(0,0,0,.7)";
-  var head="<div style=\"text-align:center;padding:12px 0 6px\"><div style=\"width:40px;height:4px;background:#3a3733;border-radius:3px;margin:0 auto 12px\"></div><div style=\"color:#f4f7fc;font:700 17px system-ui\">\uD83C\uDF10 "+_st("Langue des paroles")+"</div><div style=\"color:#8a93a6;font:500 12.5px system-ui;margin-top:3px\">"+_st("Traduction synchronisée au rythme")+" \u00b7 v1041</div></div>";
+  var head="<div style=\"text-align:center;padding:12px 0 6px\"><div style=\"width:40px;height:4px;background:#3a3733;border-radius:3px;margin:0 auto 12px\"></div><div style=\"color:#f4f7fc;font:700 17px system-ui\">\uD83C\uDF10 "+_st("Langue des paroles")+"</div><div style=\"color:#8a93a6;font:500 12.5px system-ui;margin-top:3px\">"+_st("Traduction synchronisée au rythme")+" \u00b7 v1042</div></div>";
   var rows="";
   for(var i=0;i<window._LYRICS_LANGS.length;i++){ var code=window._LYRICS_LANGS[i][0], name=window._LYRICS_LANGS[i][1], fl=_LANG_FLAGS[code]||"\uD83C\uDF10", on=(window._LYRICS_LANG===code);
     rows+="<button class=\"lang-opt\" data-l=\""+code+"\" style=\"display:flex;align-items:center;gap:13px;width:100%;text-align:left;background:"+(on?"rgba(122,208,160,.14)":"none")+";border:1px solid "+(on?"rgba(122,208,160,.5)":"transparent")+";color:#f4f7fc;font:600 15.5px system-ui;padding:14px 15px;border-radius:13px;cursor:pointer;margin:3px 0\"><span style=\"font-size:22px\">"+fl+"</span><span style=\"flex:1\">"+name+"</span>"+(on?"<span style=\"color:#7ad0a0;font-size:18px\">\u2713</span>":"")+"</button>";
@@ -10388,7 +10388,7 @@ function _destroyExportReader(slot){ if(!slot) return; var el=slot.el, clipIndex
   try{ if(typeof slot._cancelLoad==="function"){ slot._cancelLoad(); } }catch(e){} slot._cancelLoad=null;   /* annuler le chargement (listeners+timeout) AVANT de détruire */
   if(clipIndex>=0 && CLIPS[clipIndex] && CLIPS[clipIndex]._exportEl===el){ CLIPS[clipIndex]._exportEl=null; }
   if(el){ try{ el.pause(); }catch(e){} try{ el.removeAttribute("src"); el.load(); }catch(e){} try{ el.remove(); }catch(e){} }
-  try{ if(slot.url) URL.revokeObjectURL(slot.url); }catch(e){} slot.el=null; slot.url=""; slot.clipIndex=-1; slot._loadPromise=null; }
+  try{ if(slot.ownsUrl && slot.url) URL.revokeObjectURL(slot.url); }catch(e){} slot.el=null; slot.url=""; slot.ownsUrl=false; slot.clipIndex=-1; slot._loadPromise=null; }
 function _destroyAllExportReaders(){ for(var i=0;i<__EXPORT_READERS.length;i++){ _destroyExportReader(__EXPORT_READERS[i]); } __EXPORT_READERS.length=0; for(var ci=0;ci<CLIPS.length;ci++){ if(CLIPS[ci]) CLIPS[ci]._exportEl=null; } }
 function _pauseOtherExportReaders(activeClipIndex){ for(var i=0;i<__EXPORT_READERS.length;i++){ var slot=__EXPORT_READERS[i]; if(slot && slot.el && slot.clipIndex!==activeClipIndex){ try{ slot.el.pause(); }catch(e){} } } }
 function _pauseAllExportReaders(){ for(var i=0;i<__EXPORT_READERS.length;i++){ var slot=__EXPORT_READERS[i]; if(slot && slot.el){ try{ slot.el.pause(); }catch(e){} } } }
@@ -10408,7 +10408,13 @@ function _loadExportReaderOnce(slot,clipIndex,timeoutMs){ timeoutMs=timeoutMs||6
     function onError(){ var er=el.error; finish(false,new Error("lecteur_export_erreur_"+(clipIndex+1)+"_code_"+(er?er.code:0)+"_ready_"+el.readyState+"_network_"+el.networkState)); }
     slot._cancelLoad=function(){ finish(false,new Error("lecteur_export_annule_"+(clipIndex+1))); };
     el.addEventListener("loadeddata",onReady); el.addEventListener("canplay",onReady); el.addEventListener("error",onError);
-    try{ slot.url=URL.createObjectURL(clip.file); el.src=slot.url; el.load(); }catch(error){ finish(false,error); return; }
+    try{
+      var sourceUrl=clip._u, ownsUrl=false;
+      if(!sourceUrl && clip.file){ sourceUrl=URL.createObjectURL(clip.file); ownsUrl=true; }
+      if(!sourceUrl){ finish(false,new Error("source_export_url_absente_"+(clipIndex+1))); return; }
+      slot.url=sourceUrl; slot.ownsUrl=ownsUrl;   /* URL de l'aperçu (validée) réutilisée -> distingue problème d'URL vs élément neuf */
+      el.src=sourceUrl; el.load();
+    }catch(error){ finish(false,error); return; }
     timer=setTimeout(function(){ finish(false,new Error("lecteur_export_timeout_"+(clipIndex+1))); },timeoutMs);
   });
   slot._loadPromise=promise;
