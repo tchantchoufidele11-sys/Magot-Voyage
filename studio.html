@@ -1242,7 +1242,7 @@ function renderPlanToBuffer(dur, sr){
 function analyzeBufferInto(buf, cb){ try{ essentiaReady.then(function(ok){ if(ok){ setTimeout(function(){ try{ toMono44(buf,function(sig,sr){ var An; try{ An=analyzeEssentia(sig,sr,buf.duration); }catch(e){ An=analyzeCustom(buf); } cb(An); }); }catch(e){ cb(analyzeCustom(buf)); } }, 20); } else { setTimeout(function(){ cb(analyzeCustom(buf)); }, 20); } }); }catch(e){ try{ cb(analyzeCustom(buf)); }catch(e2){ cb(null); } } }
 
 var CLIPS=[], clipVidReady=false, VIDACT=-1;
-window.STUDIO_VERSION="v1054";
+window.STUDIO_VERSION="v1055";
 window.MAGOT_EXPORT_ENGINE="auto"; try{ window.MAGOT_EXPORT_ENGINE=localStorage.getItem("magot_export_engine")||"auto"; }catch(e){}
 function setMagotExportEngine(mode){ if(mode!=="auto"&&mode!=="turbo"&&mode!=="mediarecorder") mode="auto"; window.MAGOT_EXPORT_ENGINE=mode; try{ localStorage.setItem("magot_export_engine",mode); }catch(e){} }
 function _exportEngineLabel(){ var m=window.MAGOT_EXPORT_ENGINE; return m==="turbo"?"Export : Turbo test":m==="mediarecorder"?"Export : Compatible":"Export : Automatique"; }
@@ -9013,7 +9013,7 @@ function _openLangPicker(){
   bg.style.cssText="position:fixed;inset:0;z-index:100050;background:rgba(0,0,0,.62);backdrop-filter:blur(4px);display:flex;align-items:flex-end;justify-content:center;font-family:system-ui,-apple-system,sans-serif";
   var card=document.createElement("div");
   card.style.cssText="width:100%;max-width:520px;background:#0f0e0d;border:1px solid #282622;border-radius:22px 22px 0 0;padding:8px 10px 22px;max-height:78vh;overflow:auto;box-shadow:0 -10px 50px rgba(0,0,0,.7)";
-  var head="<div style=\"text-align:center;padding:12px 0 6px\"><div style=\"width:40px;height:4px;background:#3a3733;border-radius:3px;margin:0 auto 12px\"></div><div style=\"color:#f4f7fc;font:700 17px system-ui\">\uD83C\uDF10 "+_st("Langue des paroles")+"</div><div style=\"color:#8a93a6;font:500 12.5px system-ui;margin-top:3px\">"+_st("Traduction synchronisée au rythme")+" \u00b7 v1054</div></div>";
+  var head="<div style=\"text-align:center;padding:12px 0 6px\"><div style=\"width:40px;height:4px;background:#3a3733;border-radius:3px;margin:0 auto 12px\"></div><div style=\"color:#f4f7fc;font:700 17px system-ui\">\uD83C\uDF10 "+_st("Langue des paroles")+"</div><div style=\"color:#8a93a6;font:500 12.5px system-ui;margin-top:3px\">"+_st("Traduction synchronisée au rythme")+" \u00b7 v1055</div></div>";
   var rows="";
   for(var i=0;i<window._LYRICS_LANGS.length;i++){ var code=window._LYRICS_LANGS[i][0], name=window._LYRICS_LANGS[i][1], fl=_LANG_FLAGS[code]||"\uD83C\uDF10", on=(window._LYRICS_LANG===code);
     rows+="<button class=\"lang-opt\" data-l=\""+code+"\" style=\"display:flex;align-items:center;gap:13px;width:100%;text-align:left;background:"+(on?"rgba(122,208,160,.14)":"none")+";border:1px solid "+(on?"rgba(122,208,160,.5)":"transparent")+";color:#f4f7fc;font:600 15.5px system-ui;padding:14px 15px;border-radius:13px;cursor:pointer;margin:3px 0\"><span style=\"font-size:22px\">"+fl+"</span><span style=\"flex:1\">"+name+"</span>"+(on?"<span style=\"color:#7ad0a0;font-size:18px\">\u2713</span>":"")+"</button>";
@@ -10790,6 +10790,19 @@ function _expSizeRing(){
 }
 function _expStage(msg){ try{ var e=document.getElementById("expProg"); if(!e) return; var st=document.getElementById("expStage"); if(!st){ st=document.createElement("div"); st.id="expStage"; st.style.cssText="font:600 12px ui-monospace,monospace;color:#9fb0d0;margin-top:8px;min-height:15px"; e.appendChild(st); } st.textContent=msg||""; }catch(_x){} }
 function _expYield(){ return new Promise(function(r){ setTimeout(r,0); }); }
+function _expRestoreLight(){
+  /* v1055 — fin d'export ALLÉGÉE : l'écran de résultat tient le MP4 (~100+ Mo) et l'enregistrement iOS en fait 2 copies
+     (File + feuille de partage). _expRestoreMem regonflait TOUT à cet instant (essentia ~285 Mo, fenêtre de clips, rejeu
+     des écritures, plafonds de cache) -> crash « à 100 % au moment d'enregistrer ». Ici : régime minimal maintenu ;
+     la restauration complète part à la FERMETURE de l'écran de résultat (ou après 4 s si aucun écran ne s'ouvre). */
+  try{ if(!playing) _memGuardStop(); }catch(e){} try{ window.__pinned=null; window.__expTgt=null; }catch(e){}
+  try{ _destroyAllExportReaders(); }catch(e){}
+  try{ window.__expClipHold=false; window.__expPrevClip=null; window.__mrExportSeg=-1; window.__mrWantedWindow=null; window.__clipWindowSeg=-1;
+    for(var _cc=0;_cc<CLIPS.length;_cc++){ releaseClipSource(CLIPS[_cc]); }
+  }catch(e){}
+  window.__expRestorePending=true;
+  setTimeout(function(){ try{ if(window.__expRestorePending && !window.__resultOpen){ window.__expRestorePending=false; _expRestoreMem(); } }catch(e){} },4000);
+}
 function _expRestoreMem(){ try{ if(!playing) _memGuardStop(); }catch(e){} try{ window.__pinned=null; window.__expTgt=null; }catch(e){}
   try{ if(window.__essentiaFreed){ window.__essentiaFreed=false; if(typeof EssentiaWASM!=="undefined" && typeof Essentia!=="undefined"){ EssentiaWASM().then(function(w){ try{ essentia=new Essentia(w); ESSENTIA_STATE="ok"; }catch(e){} }).catch(function(){}); } } }catch(e){}   /* recharge essentia après l'export pour les analyses futures */
   /* fin d'export : NE PAS recharger tous les clips. Détruire les lecteurs export dédiés. Garder max 3 sources. */
@@ -10837,7 +10850,11 @@ function _showExportResult(blob, outType, ext, DUR, audioAdded, dt){
   if(window.__preRender && window.__preRender.active){ var _pr=window.__preRender; window.__preRender=null; try{ if(_expWatch){ clearTimeout(_expWatch); _expWatch=null; } }catch(e){} EXPORTING=false; try{ expHide(); }catch(e){} try{ renderMontageAt(0); }catch(e){} if(blob && blob.size){ try{ _pput("prerender:"+(_curFilmId||"cur"), blob).then(function(){ try{ if(_pr.cb) _pr.cb(true, blob.size); }catch(e){} }).catch(function(){ try{ if(_pr.cb) _pr.cb(false); }catch(e){} }); }catch(e){ try{ if(_pr.cb) _pr.cb(false); }catch(_){} } } else { try{ if(_pr.cb) _pr.cb(false); }catch(e){} } return; }
   try{ if(typeof studioMarkExported==="function") studioMarkExported(); }catch(e){}
   try{ if(_expWatch){ clearTimeout(_expWatch); _expWatch=null; } }catch(e){}
-  EXPORTING=false; expHide(); try{ renderMontageAt(0); }catch(e){}
+  EXPORTING=false; expHide();
+  window.__resultOpen=true;   /* v1055 : tant que cet écran est ouvert, la mémoire reste au régime minimal */
+  try{ for(var _pg=0;_pg<PHOTOS.length;_pg++){ if(PHOTOS[_pg]){ PHOTOS[_pg].c=null; PHOTOS[_pg].img=null; } } _decLRU=[]; }catch(e){}
+  try{ for(var _pc2=0;_pc2<CLIPS.length;_pc2++){ releaseClipSource(CLIPS[_pc2]); } }catch(e){}
+  try{ renderMontageAt(0); }catch(e){}
   if(!blob || !blob.size){ _expMsg("Aucune donnée produite."); return; }
   try{ window.__wakeHold=true; _reqWake(); }catch(e){}   /* écran allumé pendant l'enregistrement du fichier */
   var _mo=blob.size/1048576, heavy=(_mo>120);
@@ -10854,7 +10871,8 @@ function _showExportResult(blob, outType, ext, DUR, audioAdded, dt){
     var line2=heavy?"Aperçu masqué pour les gros fichiers — enregistre-la":(dt?("exporté en "+dt.toFixed(0)+" s"):"");
     info.innerHTML="<div>"+line1+"</div>"+(line2?("<div style='margin-top:5px;font-size:11px;color:#7f8da4'>"+line2+"</div>"):""); }
   var share=document.getElementById("expShare"); if(share) share.onclick=async function(){ try{ var file=new File([blob],"magot-voyage."+ext,{type:outType}); if(navigator.canShare&&navigator.canShare({files:[file]})){ await navigator.share({files:[file],title:"Magot Voyage"}); return; } }catch(e){} var a=document.createElement("a"); a.href=url; a.download="magot-voyage."+ext; document.body.appendChild(a); a.click(); a.remove(); };
-  var cl=document.getElementById("expClose"); if(cl) cl.onclick=function(){ window.__wakeHold=false; try{ _relWake(); }catch(e){} document.getElementById("expRes").style.display="none"; try{ if(vv){ vv.pause(); vv.removeAttribute("src"); vv.load&&vv.load(); } }catch(e){} try{ URL.revokeObjectURL(url); }catch(e){} };
+  var cl=document.getElementById("expClose"); if(cl) cl.onclick=function(){ window.__wakeHold=false; try{ _relWake(); }catch(e){} document.getElementById("expRes").style.display="none"; try{ if(vv){ vv.pause(); vv.removeAttribute("src"); vv.load&&vv.load(); } }catch(e){} try{ URL.revokeObjectURL(url); }catch(e){}
+    window.__resultOpen=false; if(window.__expRestorePending){ window.__expRestorePending=false; setTimeout(function(){ try{ _expRestoreMem(); }catch(e){} },300); }   /* v1055 : restauration complète (essentia, clips, écritures) seulement une fois le fichier enregistré/fermé */ };
   document.getElementById("expRes").style.display="flex";
 }
 
@@ -11094,9 +11112,9 @@ async function exportStudio(){ try{ _reqWake(); }catch(e){} try{ _hideClipOverla
   /* DIAGNOSTIC MOTEUR (GPT) : on enregistre le moteur DEMANDÉ et RÉELLEMENT utilisé -> pas d'ambiguïté */
   try{ _destroyAllExportReaders(); }catch(e){}
   try{ await _prepareExportSourceFingerprints(); }catch(e){ window.__EXPORT_SOURCE_KEYS=[]; }
-  try{ await _verifyClipBlobsAlive(); }catch(e){}   /* v1054 : blobs évincés ressuscités depuis la base AVANT d'exporter */
   window.__EXPORT_LOG=[];   /* v1053 : journal neuf par export */
   window.__EXPORT_DIAG={ requested:(window.MAGOT_EXPORT_ENGINE||"auto"), used:((window.MAGOT_EXPORT_ENGINE==="mediarecorder")?"mediarecorder":"aucun"), turboResult:"non_tente", turboError:"", mediaRecorderResult:"non_tente", mediaRecorderError:"", fallbackReason:"", stage:"initialisation", failureStage:"", atSeconds:null, frame:null, segment:null, clip:null, sourceTime:null, status:"running", startedAt:Date.now(), sourceKeys:(window.__EXPORT_SOURCE_KEYS||[]).slice(), duplicateSources:_duplicateSourceSummary(window.__EXPORT_SOURCE_KEYS||[]) }; _saveExportDiag();
+  try{ await _verifyClipBlobsAlive(); }catch(e){}   /* v1055 : APRÈS la création du diagnostic (v1054 écrivait sur l'objet précédent, rapport effacé) */
   var _reqEng=(window.MAGOT_EXPORT_ENGINE||"auto");
   var _forceTurbo=(_reqEng==="turbo"), _forceMR=(_reqEng==="mediarecorder");
   if(_forceMR){ window.__EXPORT_DIAG.used="mediarecorder"; window.__EXPORT_DIAG.mediaRecorderResult="running"; window.__EXPORT_DIAG.mediaRecorderError=""; window.__EXPORT_DIAG.stage="mediarecorder_initialisation"; window.__EXPORT_DIAG.status="running"; _saveExportDiag(); }
@@ -11110,7 +11128,7 @@ async function exportStudio(){ try{ _reqWake(); }catch(e){} try{ _hideClipOverla
       try{ _expStage("Rendu fluide image par image (un peu plus long)\u2026"); }catch(e){}
       var _tr="fail"; try{ _tr=await _turboExport(); }catch(error){ _tr="fail"; window.__EXPORT_DIAG.fallbackReason=(error&&error.message)||String(error); }
       window.__EXPORT_DIAG.turboResult=_tr;
-      if(_tr==="ok"){ window.__EXPORT_DIAG.used="turbo"; window.__EXPORT_DIAG.turboError=""; window.__EXPORT_DIAG.stage="termine"; window.__EXPORT_DIAG.failureStage=""; window.__EXPORT_DIAG.status="ok"; _saveExportDiag(); _expRestoreMem(); return; }
+      if(_tr==="ok"){ window.__EXPORT_DIAG.used="turbo"; window.__EXPORT_DIAG.turboError=""; window.__EXPORT_DIAG.stage="termine"; window.__EXPORT_DIAG.failureStage=""; window.__EXPORT_DIAG.status="ok"; _saveExportDiag(); _expRestoreLight(); return; }
       if(_tr==="abort"||EXPORT_ABORT){ _expRestoreMem(); EXPORTING=false; try{ if(_expWatch){clearTimeout(_expWatch);_expWatch=null;} }catch(e){} expHide(); return; }
       if(_forceTurbo){ var _td2=window.__EXPORT_DIAG||{}; var _where=(_td2.atSeconds!=null)?" vers "+_td2.atSeconds+" s":""; _expRestoreMem(); EXPORTING=false; expHide(); _expMsg("Turbo échoué"+_where+" : "+(_td2.turboError||"cause inconnue")); return; }
       if(!window.__EXPORT_DIAG.fallbackReason) window.__EXPORT_DIAG.fallbackReason="Turbo retourné : "+_tr;
@@ -11177,7 +11195,7 @@ async function exportStudio(){ try{ _reqWake(); }catch(e){} try{ _hideClipOverla
 
     var chunks=[],done=false,_hardStop=null,_bytes=0,_mrNativeError=null;
     rec.ondataavailable=function(ev){ if(ev.data&&ev.data.size){ chunks.push(ev.data); _bytes+=ev.data.size; } };
-    function _cleanup(){ _expRestoreMem(); try{ if(_expWatch){clearTimeout(_expWatch);_expWatch=null;} }catch(e){} try{ if(_hardStop){clearTimeout(_hardStop);_hardStop=null;} }catch(e){} try{ for(var _cc=0;_cc<CLIPS.length;_cc++){ try{ CLIPS[_cc].el.pause(); }catch(_p){} } }catch(e){} try{ audioSrc&&audioSrc.stop(); }catch(e){} try{ audioCtx&&audioCtx.close(); }catch(e){} try{ stream.getTracks().forEach(function(t){try{t.stop();}catch(_){}});}catch(e){} try{ if(base.width!==_ow||base.height!==_oh) setRenderSize(_ow,_oh);}catch(e){} }
+    function _cleanup(){ _expRestoreLight(); try{ if(_expWatch){clearTimeout(_expWatch);_expWatch=null;} }catch(e){} try{ if(_hardStop){clearTimeout(_hardStop);_hardStop=null;} }catch(e){} try{ for(var _cc=0;_cc<CLIPS.length;_cc++){ try{ CLIPS[_cc].el.pause(); }catch(_p){} } }catch(e){} try{ audioSrc&&audioSrc.stop(); }catch(e){} try{ audioCtx&&audioCtx.close(); }catch(e){} try{ stream.getTracks().forEach(function(t){try{t.stop();}catch(_){}});}catch(e){} try{ if(base.width!==_ow||base.height!==_oh) setRenderSize(_ow,_oh);}catch(e){} }
     function _finish(){ if(done)return; done=true; _cleanup();
       var _mrFailure=_mrPrepError||_mrNativeError; if(_mrFailure){ try{ chunks.length=0; }catch(e){} var d=window.__EXPORT_DIAG||{}; d.mediaRecorderResult="fail"; d.mediaRecorderError=_exportErrText(_mrFailure); d.bytes=_bytes; d.status="fail"; _saveExportDiag(); EXPORTING=false; expHide(); _expMsg("Export Compatible interrompu : "+d.mediaRecorderError); return; }
       var blob=null; try{ blob=new Blob(chunks,{type:outType}); }catch(e){ EXPORTING=false; expHide(); try{ chunks.length=0; }catch(_){} _expMsg("Mémoire insuffisante à la finalisation. Montage trop long : réduis la durée ou la qualité."); return; }
