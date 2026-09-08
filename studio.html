@@ -1242,7 +1242,7 @@ function renderPlanToBuffer(dur, sr){
 function analyzeBufferInto(buf, cb){ try{ essentiaReady.then(function(ok){ if(ok){ setTimeout(function(){ try{ toMono44(buf,function(sig,sr){ var An; try{ An=analyzeEssentia(sig,sr,buf.duration); }catch(e){ An=analyzeCustom(buf); } cb(An); }); }catch(e){ cb(analyzeCustom(buf)); } }, 20); } else { setTimeout(function(){ cb(analyzeCustom(buf)); }, 20); } }); }catch(e){ try{ cb(analyzeCustom(buf)); }catch(e2){ cb(null); } } }
 
 var CLIPS=[], clipVidReady=false, VIDACT=-1;
-window.STUDIO_VERSION="v1050";
+window.STUDIO_VERSION="v1051";
 window.MAGOT_EXPORT_ENGINE="auto"; try{ window.MAGOT_EXPORT_ENGINE=localStorage.getItem("magot_export_engine")||"auto"; }catch(e){}
 function setMagotExportEngine(mode){ if(mode!=="auto"&&mode!=="turbo"&&mode!=="mediarecorder") mode="auto"; window.MAGOT_EXPORT_ENGINE=mode; try{ localStorage.setItem("magot_export_engine",mode); }catch(e){} }
 function _exportEngineLabel(){ var m=window.MAGOT_EXPORT_ENGINE; return m==="turbo"?"Export : Turbo test":m==="mediarecorder"?"Export : Compatible":"Export : Automatique"; }
@@ -9013,7 +9013,7 @@ function _openLangPicker(){
   bg.style.cssText="position:fixed;inset:0;z-index:100050;background:rgba(0,0,0,.62);backdrop-filter:blur(4px);display:flex;align-items:flex-end;justify-content:center;font-family:system-ui,-apple-system,sans-serif";
   var card=document.createElement("div");
   card.style.cssText="width:100%;max-width:520px;background:#0f0e0d;border:1px solid #282622;border-radius:22px 22px 0 0;padding:8px 10px 22px;max-height:78vh;overflow:auto;box-shadow:0 -10px 50px rgba(0,0,0,.7)";
-  var head="<div style=\"text-align:center;padding:12px 0 6px\"><div style=\"width:40px;height:4px;background:#3a3733;border-radius:3px;margin:0 auto 12px\"></div><div style=\"color:#f4f7fc;font:700 17px system-ui\">\uD83C\uDF10 "+_st("Langue des paroles")+"</div><div style=\"color:#8a93a6;font:500 12.5px system-ui;margin-top:3px\">"+_st("Traduction synchronisée au rythme")+" \u00b7 v1050</div></div>";
+  var head="<div style=\"text-align:center;padding:12px 0 6px\"><div style=\"width:40px;height:4px;background:#3a3733;border-radius:3px;margin:0 auto 12px\"></div><div style=\"color:#f4f7fc;font:700 17px system-ui\">\uD83C\uDF10 "+_st("Langue des paroles")+"</div><div style=\"color:#8a93a6;font:500 12.5px system-ui;margin-top:3px\">"+_st("Traduction synchronisée au rythme")+" \u00b7 v1051</div></div>";
   var rows="";
   for(var i=0;i<window._LYRICS_LANGS.length;i++){ var code=window._LYRICS_LANGS[i][0], name=window._LYRICS_LANGS[i][1], fl=_LANG_FLAGS[code]||"\uD83C\uDF10", on=(window._LYRICS_LANG===code);
     rows+="<button class=\"lang-opt\" data-l=\""+code+"\" style=\"display:flex;align-items:center;gap:13px;width:100%;text-align:left;background:"+(on?"rgba(122,208,160,.14)":"none")+";border:1px solid "+(on?"rgba(122,208,160,.5)":"transparent")+";color:#f4f7fc;font:600 15.5px system-ui;padding:14px 15px;border-radius:13px;cursor:pointer;margin:3px 0\"><span style=\"font-size:22px\">"+fl+"</span><span style=\"flex:1\">"+name+"</span>"+(on?"<span style=\"color:#7ad0a0;font-size:18px\">\u2713</span>":"")+"</button>";
@@ -10134,7 +10134,7 @@ function _toggleFilmsMenu(anchor){
                   +"Transitions : "+((p.modes&&p.modes.transition)||0)+"\n"
                   +"Changements de clip : "+(p.switches||0);
               }catch(e){ return "(fluidité indispo: "+e+")"; } })()
-              +(function(){ try{ var xd=window.__EXPORT_DIAG; if(!xd){ try{ xd=JSON.parse(localStorage.getItem("magot:lastExportDiag")||"null"); }catch(e){ xd=null; } } xd=xd||{}; return "\n\nEXPORT\n"+"Demandé : "+(xd.requested||"aucun")+"\n"+"Réellement utilisé : "+(xd.used||"aucun")+"\n"+"Résultat Turbo : "+(xd.turboResult||"non_tente")+"\n"+"Erreur Turbo : "+(xd.turboError||"aucune")+"\n"+"Résultat Compatible : "+(xd.mediaRecorderResult||"non_tente")+"\n"+"Erreur Compatible : "+(xd.mediaRecorderError||"aucune")+"\n"+"Etape echec : "+(xd.failureStage||xd.stage||"inconnue")+"\n"+"Temps : "+(xd.atSeconds!=null?xd.atSeconds+" s":"inconnu")+"\n"+"Segment : "+(xd.segment!=null?xd.segment:"inconnu")+"\n"+"Clip : "+(xd.clip!=null?xd.clip:"inconnu")+"\n"+"Statut : "+(xd.status||"inconnu")+"\n"+"Motif du repli : "+(xd.fallbackReason||"aucun")+"\n\nDOUBLONS SOURCES\n"+(xd.duplicateSources||"Non mesurés"); }catch(e){ return ""; } })();
+              +(function(){ try{ var xd=window.__EXPORT_DIAG; if(!xd){ try{ xd=JSON.parse(localStorage.getItem("magot:lastExportDiag")||"null"); }catch(e){ xd=null; } } xd=xd||{}; return "\n\nEXPORT\n"+"Demandé : "+(xd.requested||"aucun")+"\n"+"Réellement utilisé : "+(xd.used||"aucun")+"\n"+"Résultat Turbo : "+(xd.turboResult||"non_tente")+"\n"+"Erreur Turbo : "+(xd.turboError||"aucune")+"\n"+"Résultat Compatible : "+(xd.mediaRecorderResult||"non_tente")+"\n"+"Erreur Compatible : "+(xd.mediaRecorderError||"aucune")+"\n"+"Etape echec : "+(xd.failureStage||xd.stage||"inconnue")+"\n"+"Temps : "+(xd.atSeconds!=null?xd.atSeconds+" s":"inconnu")+"\n"+"Segment : "+(xd.segment!=null?xd.segment:"inconnu")+"\n"+"Clip : "+(xd.clip!=null?xd.clip:"inconnu")+"\n"+"Statut : "+(xd.status||"inconnu")+"\n"+"Lecteur export : "+(window.__EXPORT_READER_KIND||"?")+"\n"+"URLs blob renouvelées : "+(xd.urlRenewals||0)+"\n"+"Éléments vidéo export créés : "+(xd.readerElsCreated||0)+" · recyclés : "+(xd.readerElsRecycled||0)+"\n"+"Motif du repli : "+(xd.fallbackReason||"aucun")+"\n\nDOUBLONS SOURCES\n"+(xd.duplicateSources||"Non mesurés"); }catch(e){ return ""; } })();
           }catch(e){ return "(indispo: "+e+")"; } })();
         (function(txt){ try{
           var dp=document.getElementById("diagMontagePanel"); if(dp) dp.remove();
@@ -10400,11 +10400,23 @@ async function _prepareExportSourceFingerprints(){ window.__EXPORT_SOURCE_KEYS=[
 function _duplicateSourceSummary(keys){ var groups={}; for(var i=0;i<keys.length;i++){ var key=keys[i]||"inconnue"; (groups[key]||(groups[key]=[])).push(i+1); }
   var lines=[]; Object.keys(groups).forEach(function(key){ if(groups[key].length>1){ lines.push("Clips "+groups[key].join(", ")+" : "+key); } });
   return lines.length?lines.join("\n"):"Aucun doublon"; }
-function _createExportVideoElement(){ var el=document.createElement("video"); el.muted=true; el.preload="auto"; el.setAttribute("playsinline",""); el.setAttribute("webkit-playsinline",""); el.style.cssText="position:fixed;left:-99999px;top:0;width:2px;height:2px;opacity:0;pointer-events:none"; document.body.appendChild(el); return el; }
+var __EXPORT_EL_POOL=[];
+/* v1051 — CAUSE RACINE POSITIONNELLE (prouvée par 2 films différents échouant tous deux au clip 4, fichiers ET URLs différents,
+   URL neuve v1050 exécutée et insuffisante) : créer un <video> NEUF par clip et le détruire (remove) à la sortie épuise le budget
+   iOS de MediaPlayers (~4) — WebKit ne libère le player d'un élément détruit qu'au GC. Au 4e lecteur, TOUTE nouvelle charge est
+   refusée instantanément (code 4 / NETWORK_NO_SOURCE), y compris le repli original. L'aperçu marche car il RÉUTILISE ses éléments
+   à vie. Remède : mêmes éléments recyclés (attacher/détacher), jamais détruits pendant la session. */
+function _createExportVideoElement(){ var el=__EXPORT_EL_POOL.pop();
+  if(el){ try{ if(!el.isConnected) document.body.appendChild(el); }catch(e){} if(window.__EXPORT_DIAG) window.__EXPORT_DIAG.readerElsRecycled=(window.__EXPORT_DIAG.readerElsRecycled||0)+1; return el; }
+  el=document.createElement("video"); el.muted=true; el.preload="auto"; el.setAttribute("playsinline",""); el.setAttribute("webkit-playsinline",""); el.style.cssText="position:fixed;left:-99999px;top:0;width:2px;height:2px;opacity:0;pointer-events:none"; document.body.appendChild(el);
+  if(window.__EXPORT_DIAG) window.__EXPORT_DIAG.readerElsCreated=(window.__EXPORT_DIAG.readerElsCreated||0)+1;
+  return el; }
 function _destroyExportReader(slot){ if(!slot) return; var el=slot.el, clipIndex=slot.clipIndex;
   try{ if(typeof slot._cancelLoad==="function"){ slot._cancelLoad(); } }catch(e){} slot._cancelLoad=null;   /* annuler le chargement (listeners+timeout) AVANT de détruire */
   if(clipIndex>=0 && CLIPS[clipIndex] && CLIPS[clipIndex]._exportEl===el){ CLIPS[clipIndex]._exportEl=null; }
-  if(el){ try{ el.pause(); }catch(e){} try{ el.removeAttribute("src"); el.load(); }catch(e){} try{ el.remove(); }catch(e){} }
+  if(el){ try{ el.pause(); }catch(e){} try{ el.removeAttribute("src"); el.load(); }catch(e){}
+    /* v1051 : NE PAS remove() — recycler l'élément (le player iOS reste attaché à un élément vivant, réutilisable immédiatement) */
+    if(__EXPORT_EL_POOL.indexOf(el)<0 && __EXPORT_EL_POOL.length<4){ __EXPORT_EL_POOL.push(el); } else { try{ el.remove(); }catch(e){} } }
   try{ if(slot.ownsUrl && slot.url) URL.revokeObjectURL(slot.url); }catch(e){} slot.el=null; slot.url=""; slot.ownsUrl=false; slot.clipIndex=-1; slot._loadPromise=null; }
 function _destroyAllExportReaders(){ for(var i=0;i<__EXPORT_READERS.length;i++){ _destroyExportReader(__EXPORT_READERS[i]); } __EXPORT_READERS.length=0; for(var ci=0;ci<CLIPS.length;ci++){ if(CLIPS[ci]) CLIPS[ci]._exportEl=null; } }
 function _pauseOtherExportReaders(activeClipIndex){ for(var i=0;i<__EXPORT_READERS.length;i++){ var slot=__EXPORT_READERS[i]; if(slot && slot.el && slot.clipIndex!==activeClipIndex){ try{ slot.el.pause(); }catch(e){} } } }
@@ -10451,9 +10463,36 @@ async function ensureExportReaderLoaded(clipIndex,timeoutMs,stillWanted){
   /* vrai échec : remplacer complètement le lecteur */
   var position=__EXPORT_READERS.indexOf(slot); _destroyExportReader(slot); if(position>=0) __EXPORT_READERS.splice(position,1);
   await _exportSleep(220); if(!wanted()) throw new Error("preparation_obsolete");
+  /* v1050 — CAUSE RACINE du code=4/network=3 : après usage+libération, iOS WebKit peut laisser l'URL blob de l'aperçu (clip._u)
+     dans un état d'erreur permanent -> tout élément (neuf OU original) qui recharge CETTE URL échoue à l'identique.
+     Le remède « URL NEUVE depuis clip.file » existait déjà (_renewExportClipUrl) mais seulement dans ensureExportClipLoaded,
+     qui n'est appelé nulle part ; le chemin Turbo réel (ensureExportReaderLoaded) réessayait avec la MÊME URL morte.
+     Ici : URL neuve avant le 2e essai (le blob est prouvé lisible par les empreintes) ; le repli original en profite aussi via clip._u. */
+  var _renewed=false;
+  try{ if(CLIPS[clipIndex] && CLIPS[clipIndex].file){ _renewed=_renewExportClipUrl(CLIPS[clipIndex]); if(_renewed && window.__EXPORT_DIAG){ window.__EXPORT_DIAG.urlRenewals=(window.__EXPORT_DIAG.urlRenewals||0)+1; } } }catch(_er){}
   slot=_newExportReaderSlot(clipIndex);
-  try{ await _loadExportReaderOnce(slot,clipIndex,timeoutMs); if(!wanted()) throw new Error("preparation_obsolete"); return slot.el; }
-  catch(secondError){ throw new Error("lecteur_export_clip_"+(clipIndex+1)+"_echec_apres_remplacement [1="+_exportErrText(firstError)+" | 2="+_exportErrText(secondError)+"]"); }
+  var secondError=null;
+  try{ await _loadExportReaderOnce(slot,clipIndex,timeoutMs); if(!wanted()) throw new Error("preparation_obsolete"); window.__EXPORT_READER_KIND=_renewed?"dédié (URL neuve)":"dédié"; return slot.el; }
+  catch(e2){ secondError=e2; }
+  /* DERNIER RECOURS (GPT) : le lecteur dédié échoue en code=4, mais l'élément ORIGINAL clip.el sait décoder ce fichier (l'aperçu le prouve).
+     On le rattache via clip._u, en pause et muet, on attend loadeddata, PUIS on le renvoie pour le seek strict. Aucun play() -> pas de son du clip. */
+  var _orig=CLIPS[clipIndex] && CLIPS[clipIndex].el;
+  if(_orig){
+    try{
+      var _origUrl=(CLIPS[clipIndex]._u)||"";
+      if((!_orig.getAttribute("src") || _orig.error) && _origUrl){ try{ _orig.pause(); }catch(e){} _orig.muted=true; _orig.src=_origUrl; _orig.load(); }
+      else { _orig.muted=true; try{ _orig.pause(); }catch(e){} }
+      var okOrig=await new Promise(function(res){ var done=false; var fin=function(v){ if(done)return; done=true; res(v); };
+        if(_orig.readyState>=2 && !_orig.error && _orig.videoWidth>0){ fin(true); return; }
+        var on=function(){ if(_orig.readyState>=2 && !_orig.error && _orig.videoWidth>0) fin(true); };
+        _orig.addEventListener("loadeddata",on,{once:true}); _orig.addEventListener("canplay",on,{once:true});
+        _orig.addEventListener("error",function(){ fin(false); },{once:true});
+        setTimeout(function(){ fin(_orig.readyState>=2 && !_orig.error && _orig.videoWidth>0); }, timeoutMs||6000);
+      });
+      if(okOrig && wanted()){ CLIPS[clipIndex]._exportEl=_orig; window.__EXPORT_READER_KIND="original_fallback"; return _orig; }
+    }catch(eo){}
+  }
+  throw new Error("lecteur_export_clip_"+(clipIndex+1)+"_echec_apres_remplacement_url_"+(_renewed?"neuve":"non_renouvelee")+" [1="+_exportErrText(firstError)+" | 2="+_exportErrText(secondError)+(_orig?" | 3=original_fallback_echoue":"")+"]");
 }
 function _trimExportClipWindow(segIndex){
   var wanted=_wantedClipWindow(segIndex), keep={};
