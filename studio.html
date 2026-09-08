@@ -1242,7 +1242,7 @@ function renderPlanToBuffer(dur, sr){
 function analyzeBufferInto(buf, cb){ try{ essentiaReady.then(function(ok){ if(ok){ setTimeout(function(){ try{ toMono44(buf,function(sig,sr){ var An; try{ An=analyzeEssentia(sig,sr,buf.duration); }catch(e){ An=analyzeCustom(buf); } cb(An); }); }catch(e){ cb(analyzeCustom(buf)); } }, 20); } else { setTimeout(function(){ cb(analyzeCustom(buf)); }, 20); } }); }catch(e){ try{ cb(analyzeCustom(buf)); }catch(e2){ cb(null); } } }
 
 var CLIPS=[], clipVidReady=false, VIDACT=-1;
-window.STUDIO_VERSION="v1053";
+window.STUDIO_VERSION="v1054";
 window.MAGOT_EXPORT_ENGINE="auto"; try{ window.MAGOT_EXPORT_ENGINE=localStorage.getItem("magot_export_engine")||"auto"; }catch(e){}
 function setMagotExportEngine(mode){ if(mode!=="auto"&&mode!=="turbo"&&mode!=="mediarecorder") mode="auto"; window.MAGOT_EXPORT_ENGINE=mode; try{ localStorage.setItem("magot_export_engine",mode); }catch(e){} }
 function _exportEngineLabel(){ var m=window.MAGOT_EXPORT_ENGINE; return m==="turbo"?"Export : Turbo test":m==="mediarecorder"?"Export : Compatible":"Export : Automatique"; }
@@ -9013,7 +9013,7 @@ function _openLangPicker(){
   bg.style.cssText="position:fixed;inset:0;z-index:100050;background:rgba(0,0,0,.62);backdrop-filter:blur(4px);display:flex;align-items:flex-end;justify-content:center;font-family:system-ui,-apple-system,sans-serif";
   var card=document.createElement("div");
   card.style.cssText="width:100%;max-width:520px;background:#0f0e0d;border:1px solid #282622;border-radius:22px 22px 0 0;padding:8px 10px 22px;max-height:78vh;overflow:auto;box-shadow:0 -10px 50px rgba(0,0,0,.7)";
-  var head="<div style=\"text-align:center;padding:12px 0 6px\"><div style=\"width:40px;height:4px;background:#3a3733;border-radius:3px;margin:0 auto 12px\"></div><div style=\"color:#f4f7fc;font:700 17px system-ui\">\uD83C\uDF10 "+_st("Langue des paroles")+"</div><div style=\"color:#8a93a6;font:500 12.5px system-ui;margin-top:3px\">"+_st("Traduction synchronisée au rythme")+" \u00b7 v1053</div></div>";
+  var head="<div style=\"text-align:center;padding:12px 0 6px\"><div style=\"width:40px;height:4px;background:#3a3733;border-radius:3px;margin:0 auto 12px\"></div><div style=\"color:#f4f7fc;font:700 17px system-ui\">\uD83C\uDF10 "+_st("Langue des paroles")+"</div><div style=\"color:#8a93a6;font:500 12.5px system-ui;margin-top:3px\">"+_st("Traduction synchronisée au rythme")+" \u00b7 v1054</div></div>";
   var rows="";
   for(var i=0;i<window._LYRICS_LANGS.length;i++){ var code=window._LYRICS_LANGS[i][0], name=window._LYRICS_LANGS[i][1], fl=_LANG_FLAGS[code]||"\uD83C\uDF10", on=(window._LYRICS_LANG===code);
     rows+="<button class=\"lang-opt\" data-l=\""+code+"\" style=\"display:flex;align-items:center;gap:13px;width:100%;text-align:left;background:"+(on?"rgba(122,208,160,.14)":"none")+";border:1px solid "+(on?"rgba(122,208,160,.5)":"transparent")+";color:#f4f7fc;font:600 15.5px system-ui;padding:14px 15px;border-radius:13px;cursor:pointer;margin:3px 0\"><span style=\"font-size:22px\">"+fl+"</span><span style=\"flex:1\">"+name+"</span>"+(on?"<span style=\"color:#7ad0a0;font-size:18px\">\u2713</span>":"")+"</button>";
@@ -9765,6 +9765,7 @@ function _afterOpenFilm(proj){ try{ _linkSources(); }catch(e){} try{
       return _pget(_curFilmId+":clip:"+cm.idx).then(function(cb){ if(!cb) return null;
         return _addClipFromBlob(cb,{day:cm.day,cap:cm.cap},{detachAfterThumb:true}).then(function(clip){
           if(!clip || clip===false) return null;
+          clip._dbKey=_curFilmId+":clip:"+cm.idx;   /* v1054 : clé de base retenue pour relire le blob si Safari évince son fichier disque */
           if(cm.trimStart!=null) clip.trimStart=cm.trimStart;
           if(cm.trimEnd!=null) clip.trimEnd=cm.trimEnd;
           if(cm.speed) clip.speed=cm.speed;
@@ -10135,7 +10136,7 @@ function _toggleFilmsMenu(anchor){
                   +"Transitions : "+((p.modes&&p.modes.transition)||0)+"\n"
                   +"Changements de clip : "+(p.switches||0);
               }catch(e){ return "(fluidité indispo: "+e+")"; } })()
-              +(function(){ try{ var xd=window.__EXPORT_DIAG; if(!xd){ try{ xd=JSON.parse(localStorage.getItem("magot:lastExportDiag")||"null"); }catch(e){ xd=null; } } xd=xd||{}; return "\n\nEXPORT\n"+"Demandé : "+(xd.requested||"aucun")+"\n"+"Réellement utilisé : "+(xd.used||"aucun")+"\n"+"Résultat Turbo : "+(xd.turboResult||"non_tente")+"\n"+"Erreur Turbo : "+(xd.turboError||"aucune")+"\n"+"Résultat Compatible : "+(xd.mediaRecorderResult||"non_tente")+"\n"+"Erreur Compatible : "+(xd.mediaRecorderError||"aucune")+"\n"+"Etape echec : "+(xd.failureStage||xd.stage||"inconnue")+"\n"+"Temps : "+(xd.atSeconds!=null?xd.atSeconds+" s":"inconnu")+"\n"+"Segment : "+(xd.segment!=null?xd.segment:"inconnu")+"\n"+"Clip : "+(xd.clip!=null?xd.clip:"inconnu")+"\n"+"Statut : "+(xd.status||"inconnu")+"\n"+"Lecteur export : "+(window.__EXPORT_READER_KIND||"?")+"\n"+"URLs blob renouvelées : "+(xd.urlRenewals||0)+"\n"+"Chargements clip.el réels : "+(xd.clipElRealLoads||0)+" · déjà prêts : "+(xd.clipElHits||0)+" · éléments dédiés créés : "+(xd.readerElsCreated||0)+"\n"+"VERDICT TRIAGE : "+(xd.triageVerdict||"aucun échec triagé")+"\n"+"SOLUTION : "+(xd.triageSolution||"—")+"\n"+"Étapes triage : "+(xd.triageSteps||"—")+"\n\nJOURNAL EXPORT (40 derniers événements)\n"+(xd.journal||"vide")+"\n"+"Motif du repli : "+(xd.fallbackReason||"aucun")+"\n\nDOUBLONS SOURCES\n"+(xd.duplicateSources||"Non mesurés"); }catch(e){ return ""; } })();
+              +(function(){ try{ var xd=window.__EXPORT_DIAG; if(!xd){ try{ xd=JSON.parse(localStorage.getItem("magot:lastExportDiag")||"null"); }catch(e){ xd=null; } } xd=xd||{}; return "\n\nEXPORT\n"+"Demandé : "+(xd.requested||"aucun")+"\n"+"Réellement utilisé : "+(xd.used||"aucun")+"\n"+"Résultat Turbo : "+(xd.turboResult||"non_tente")+"\n"+"Erreur Turbo : "+(xd.turboError||"aucune")+"\n"+"Résultat Compatible : "+(xd.mediaRecorderResult||"non_tente")+"\n"+"Erreur Compatible : "+(xd.mediaRecorderError||"aucune")+"\n"+"Etape echec : "+(xd.failureStage||xd.stage||"inconnue")+"\n"+"Temps : "+(xd.atSeconds!=null?xd.atSeconds+" s":"inconnu")+"\n"+"Segment : "+(xd.segment!=null?xd.segment:"inconnu")+"\n"+"Clip : "+(xd.clip!=null?xd.clip:"inconnu")+"\n"+"Statut : "+(xd.status||"inconnu")+"\n"+"Lecteur export : "+(window.__EXPORT_READER_KIND||"?")+"\n"+"URLs blob renouvelées : "+(xd.urlRenewals||0)+"\n"+"Blobs au départ : "+(xd.blobCheck||"non vérifiés")+"\n"+"Chargements clip.el réels : "+(xd.clipElRealLoads||0)+" · déjà prêts : "+(xd.clipElHits||0)+" · éléments dédiés créés : "+(xd.readerElsCreated||0)+"\n"+"VERDICT TRIAGE : "+(xd.triageVerdict||"aucun échec triagé")+"\n"+"SOLUTION : "+(xd.triageSolution||"—")+"\n"+"Étapes triage : "+(xd.triageSteps||"—")+"\n\nJOURNAL EXPORT (40 derniers événements)\n"+(xd.journal||"vide")+"\n"+"Motif du repli : "+(xd.fallbackReason||"aucun")+"\n\nDOUBLONS SOURCES\n"+(xd.duplicateSources||"Non mesurés"); }catch(e){ return ""; } })();
           }catch(e){ return "(indispo: "+e+")"; } })();
         (function(txt){ try{
           var dp=document.getElementById("diagMontagePanel"); if(dp) dp.remove();
@@ -10538,6 +10539,28 @@ function _swapClipToRamBlob(clip, buffer){ try{
   R.push(clip);
   while(R.length>2){ var old=R.shift(); try{ if(old!==clip && old._diskFile){ old.file=old._diskFile; old._ramCopy=false; _renewExportClipUrl(old); } }catch(e){} }   /* max 2 copies RAM simultanées */
   return true; }catch(e){ return false; } }
+function _probeBlobAlive(blob){ return new Promise(function(resolve){ try{ if(!blob||!blob.size){ resolve({ok:false, why:"vide"}); return; }
+  var r=new FileReader(); r.onload=function(){ resolve({ok:true}); }; r.onerror=function(){ resolve({ok:false, why:(r.error&&r.error.name)||"lecture_ko"}); };
+  r.readAsArrayBuffer(blob.slice(0,32)); }catch(e){ resolve({ok:false, why:(e&&e.name)||"exception"}); } }); }
+async function _reloadClipBlobFromDB(clip, clipIndex){
+  if(!clip || !clip._dbKey || typeof _pget!=="function") return {ok:false, why:"sans_cle_base"};
+  try{ var fresh=await _pget(clip._dbKey);
+    if(!fresh || !fresh.size) return {ok:false, why:"enregistrement_absent"};
+    var alive=await _probeBlobAlive(fresh); if(!alive.ok) return {ok:false, why:"base_illisible_"+alive.why};
+    clip._diskFile=fresh; clip.file=fresh; clip._ramCopy=false; _renewExportClipUrl(clip);
+    _xlog("relu depuis IndexedDB", clipIndex, fresh.size+" o · URL neuve");
+    return {ok:true, bytes:fresh.size};
+  }catch(e){ return {ok:false, why:"pget_"+((e&&e.name)||"erreur")}; }
+}
+async function _verifyClipBlobsAlive(){ var dead=0, healed=0;
+  for(var i=0;i<CLIPS.length;i++){ var c=CLIPS[i]; if(!c||!c.file) continue;
+    var alive=await _probeBlobAlive(c.file); if(alive.ok) continue;
+    dead++; _xlog("blob mort au départ ("+alive.why+")", i, "taille annoncée "+c.file.size+" o");
+    var back=await _reloadClipBlobFromDB(c,i); if(back.ok) healed++;
+  }
+  var d=window.__EXPORT_DIAG; if(d){ d.blobCheck=CLIPS.length?("clips "+CLIPS.length+" · morts au départ "+dead+" · ressuscités "+healed):"aucun clip"; }
+  if(dead) _xlog("vérification départ", null, dead+" mort(s), "+healed+" ressuscité(s)");
+}
 async function _exportClipTriage(clip, clipIndex, timeoutMs, firstError, firstState, secondError){
   var d=window.__EXPORT_DIAG||{}; var steps=[];
   function verdict(code, solution){ d.triageVerdict=code; d.triageSolution=solution; d.triageSteps=steps.join(" · "); _saveExportDiag(); }
@@ -10547,8 +10570,20 @@ async function _exportClipTriage(clip, clipIndex, timeoutMs, firstError, firstSt
   steps.push("lecture_blob="+(read.ok?("ok_"+read.bytes+"o"):("KO_"+read.err)));
   _xlog("T1 lecture blob", clipIndex, steps[steps.length-1]+" (taille annoncée "+(clip.file?clip.file.size:0)+"o)");
   if(!read.ok || (clip.file && read.bytes!==clip.file.size)){
-    verdict("FICHIER_CORROMPU_EN_BASE","Le blob de ce clip est illisible ou tronqué dans IndexedDB : supprimer ce clip du montage et le ré-importer depuis la source.");
-    throw new Error("triage_fichier_corrompu_clip_"+(clipIndex+1)+" ["+steps.join(" · ")+"]");
+    /* v1054 — T1b : la POIGNÉE est morte (Safari a évincé le fichier disque du blob), pas forcément la base -> relire l'enregistrement IndexedDB */
+    var back=await _reloadClipBlobFromDB(clip, clipIndex);
+    steps.push("relecture_base="+(back.ok?("ok_"+back.bytes+"o"):("KO_"+back.why)));
+    _xlog("T1b relecture IndexedDB", clipIndex, steps[steps.length-1]);
+    if(back.ok){
+      try{ await ensureClipLoaded(clip,timeoutMs); if(_clipExportDrawable(clip)){
+        _xlog("T1b RÉPARÉ", clipIndex, "blob évincé par Safari en cours de session, relu depuis la base et rechargé");
+        verdict("BLOB_EVINCE_RELU_EN_BASE_REPARE","Safari avait évincé le fichier disque de ce blob pendant la session (pression mémoire) ; l'enregistrement IndexedDB était intact, relu et rechargé. Réparé pendant l'export. Prévention posée : vérification de tous les blobs au départ de chaque export.");
+        clip._exportEl=clip.el; return clip; } }catch(e1b){ steps.push("recharge_apres_relecture=KO_"+_exportErrText(e1b)); _xlog("T1b recharge KO", clipIndex, steps[steps.length-1]); }
+      read=await _readClipBytes(clip.file);   /* blob frais : T2 (copie RAM) peut maintenant travailler dessus */
+    } else {
+      verdict("FICHIER_PERDU_EN_BASE","Le blob du clip "+(clipIndex+1)+" est mort (fichier disque évincé) ET sa relecture IndexedDB échoue ("+back.why+") : la donnée n'existe plus sur l'appareil. Supprimer ce clip du montage et le ré-importer depuis la source, puis ré-enregistrer le film.");
+      throw new Error("triage_fichier_perdu_clip_"+(clipIndex+1)+" ["+steps.join(" · ")+"]");
+    }
   }
   /* T2 — copie RAM du blob (contourne le bug WebKit « blob IndexedDB lisible par FileReader mais refusé par <video> ») sur clip.el */
   var buffer=await new Promise(function(res){ var r=new FileReader(); r.onload=function(){ res(r.result); }; r.onerror=function(){ res(null); }; r.readAsArrayBuffer(clip.file); });
@@ -11059,6 +11094,7 @@ async function exportStudio(){ try{ _reqWake(); }catch(e){} try{ _hideClipOverla
   /* DIAGNOSTIC MOTEUR (GPT) : on enregistre le moteur DEMANDÉ et RÉELLEMENT utilisé -> pas d'ambiguïté */
   try{ _destroyAllExportReaders(); }catch(e){}
   try{ await _prepareExportSourceFingerprints(); }catch(e){ window.__EXPORT_SOURCE_KEYS=[]; }
+  try{ await _verifyClipBlobsAlive(); }catch(e){}   /* v1054 : blobs évincés ressuscités depuis la base AVANT d'exporter */
   window.__EXPORT_LOG=[];   /* v1053 : journal neuf par export */
   window.__EXPORT_DIAG={ requested:(window.MAGOT_EXPORT_ENGINE||"auto"), used:((window.MAGOT_EXPORT_ENGINE==="mediarecorder")?"mediarecorder":"aucun"), turboResult:"non_tente", turboError:"", mediaRecorderResult:"non_tente", mediaRecorderError:"", fallbackReason:"", stage:"initialisation", failureStage:"", atSeconds:null, frame:null, segment:null, clip:null, sourceTime:null, status:"running", startedAt:Date.now(), sourceKeys:(window.__EXPORT_SOURCE_KEYS||[]).slice(), duplicateSources:_duplicateSourceSummary(window.__EXPORT_SOURCE_KEYS||[]) }; _saveExportDiag();
   var _reqEng=(window.MAGOT_EXPORT_ENGINE||"auto");
