@@ -1242,15 +1242,13 @@ function renderPlanToBuffer(dur, sr){
 function analyzeBufferInto(buf, cb){ try{ essentiaReady.then(function(ok){ if(ok){ setTimeout(function(){ try{ toMono44(buf,function(sig,sr){ var An; try{ An=analyzeEssentia(sig,sr,buf.duration); }catch(e){ An=analyzeCustom(buf); } cb(An); }); }catch(e){ cb(analyzeCustom(buf)); } }, 20); } else { setTimeout(function(){ cb(analyzeCustom(buf)); }, 20); } }); }catch(e){ try{ cb(analyzeCustom(buf)); }catch(e2){ cb(null); } } }
 
 var CLIPS=[], clipVidReady=false, VIDACT=-1;
-window.STUDIO_VERSION="v1060";
+window.STUDIO_VERSION="v1062";
 window.MAGOT_EXPORT_ENGINE="auto"; try{ window.MAGOT_EXPORT_ENGINE=localStorage.getItem("magot_export_engine")||"auto"; }catch(e){}
 function setMagotExportEngine(mode){ if(mode!=="auto"&&mode!=="turbo"&&mode!=="mediarecorder") mode="auto"; window.MAGOT_EXPORT_ENGINE=mode; try{ localStorage.setItem("magot_export_engine",mode); }catch(e){} }
 function _exportEngineLabel(){ var m=window.MAGOT_EXPORT_ENGINE; return m==="turbo"?"Export : Turbo test":m==="mediarecorder"?"Export : Compatible":"Export : Automatique"; }
 var VIDEO_POOL_V2=false;
-window.MAX_VIDEO_CLIPS=(function(){  /* v1060 : la limite ne concerne QUE les téléphones/tablettes (rappel Loïc). Ordinateur : plafond large de bon sens. */
-  var tel=/iPhone|iPad|iPod|Android/i.test(navigator.userAgent) || (/(Mac)/.test(navigator.userAgent) && navigator.maxTouchPoints>1);   /* iPadOS se présente comme Mac tactile */
-  return tel?20:60;
-})();              // v1059 : 10→20 sur mobile (motif « limite iOS des décodeurs » obsolète depuis v1052 : une seule source chargée à la fois à l'export ; coût réel = stockage, traité par la déduplication)
+window.IS_MOBILE=(/iPhone|iPad|iPod|Android/i.test(navigator.userAgent) || (/(Mac)/.test(navigator.userAgent) && navigator.maxTouchPoints>1));   /* v1061 : drapeau plateforme partagé (iPadOS se présente comme Mac tactile) */
+window.MAX_VIDEO_CLIPS=(window.IS_MOBILE?20:60);   /* v1060 : la limite ne concerne QUE les téléphones/tablettes (rappel Loïc) */              // v1059 : 10→20 sur mobile (motif « limite iOS des décodeurs » obsolète depuis v1052 : une seule source chargée à la fois à l'export ; coût réel = stockage, traité par la déduplication)
 window.VIDEO_SOURCE_WINDOW=3;          // fenêtre de sources attachées en lecture (ne pas changer)
 var MAX_VIDEO_CLIPS=window.MAX_VIDEO_CLIPS;   // alias local (compat)
 window.VIDSOUND=false; window.VIDBAL=0.6; window.VEXCL=[]; window.VIDDENS=1; window.VMOVR={}; /* son des vidéos OFF par défaut ; équilibre musique<->vidéo (0=musique .. 1=vidéo) */
@@ -2134,9 +2132,9 @@ function _adaptivePCAP(){ try{
   var desired=Math.round(Math.max(sw,sh)*dpr*1.15);   /* pixels RÉELS du plus grand côté écran × marge de zoom — exactement ce dont l'écran a besoin */
   return Math.max(1000, Math.min(3840, desired));   /* seules bornes = PHYSIQUES : min lisible, max = résolution des photos sources. Aucune limite arbitraire. */
 }catch(e){ return 1600; } }
-var _PCAP=1200; try{ window._PCAP=_PCAP; window._HQ=false; }catch(e){}   /* MESURÉ : 1920px = 708ms de décodage sur cet iPhone -> trop lent pour la lecture temps réel. 1200px ≈ 275ms estimé, tenable avec ~2s d'avance. Net sur écran 1170px. */
+var _PCAP=(window.IS_MOBILE?1200:3840); try{ window._PCAP=_PCAP; window._HQ=!window.IS_MOBILE; }catch(e){}   /* TÉLÉPHONE (mesuré) : 1920px = 708ms de décodage -> 1200 tenable en temps réel. ORDINATEUR (v1061) : pleine capacité — 3840 = borne physique, _planTargetRes plafonne déjà au natif de chaque photo, donc « comme elles ont été filmées ». */
 /* ===== MOTEUR IMAGES — étape 1 : résolution PAR PLAN + cache glissant borné en Mo ===== */
-var _CACHE_MB_CAP=64;   /* cache réduit : à 1200px et décodage ~70ms depuis le blob léger, inutile de garder beaucoup de canvas -> mémoire iOS protégée */
+var _CACHE_MB_CAP=(window.IS_MOBILE?64:512);   /* téléphone : mémoire iOS protégée. Ordinateur (v1061) : les canvas natifs sont lourds, cache large pour une lecture fluide. */
 function _dispPx(){ try{ var h=document.querySelector(".hero"); var w=h?h.clientWidth:0, ht=h?h.clientHeight:0; var lng=Math.max(w,ht)||Math.max((window.screen&&screen.width)||390,(window.screen&&screen.height)||700); return Math.round(lng*Math.max(1,(window.devicePixelRatio||1))); }catch(e){ return 1400; } }
 function _resMax(){ try{ var isTouch=(('ontouchstart' in window)||((navigator.maxTouchPoints||0)>0)); return isTouch?1500:3200; }catch(e){ return 1500; } }   /* mobile 1500 : résolution que l'iPhone décode à TEMPS pendant la lecture ET qui tient dans le cache (au-delà, la photo n'est jamais prête -> on ne voit que le secours mou) */
 function _planZoomMax(sg){ try{ if(sg&&sg.video) return 1.0; var fit=(sg&&sg.img>=0&&typeof PHOTOS!=="undefined"&&PHOTOS[sg.img]&&PHOTOS[sg.img]._fit)||"fit"; return (fit==="fill")?1.12:1.32; }catch(e){ return 1.32; } }
@@ -9072,7 +9070,7 @@ function _openLangPicker(){
   bg.style.cssText="position:fixed;inset:0;z-index:100050;background:rgba(0,0,0,.62);backdrop-filter:blur(4px);display:flex;align-items:flex-end;justify-content:center;font-family:system-ui,-apple-system,sans-serif";
   var card=document.createElement("div");
   card.style.cssText="width:100%;max-width:520px;background:#0f0e0d;border:1px solid #282622;border-radius:22px 22px 0 0;padding:8px 10px 22px;max-height:78vh;overflow:auto;box-shadow:0 -10px 50px rgba(0,0,0,.7)";
-  var head="<div style=\"text-align:center;padding:12px 0 6px\"><div style=\"width:40px;height:4px;background:#3a3733;border-radius:3px;margin:0 auto 12px\"></div><div style=\"color:#f4f7fc;font:700 17px system-ui\">\uD83C\uDF10 "+_st("Langue des paroles")+"</div><div style=\"color:#8a93a6;font:500 12.5px system-ui;margin-top:3px\">"+_st("Traduction synchronisée au rythme")+" \u00b7 v1060</div></div>";
+  var head="<div style=\"text-align:center;padding:12px 0 6px\"><div style=\"width:40px;height:4px;background:#3a3733;border-radius:3px;margin:0 auto 12px\"></div><div style=\"color:#f4f7fc;font:700 17px system-ui\">\uD83C\uDF10 "+_st("Langue des paroles")+"</div><div style=\"color:#8a93a6;font:500 12.5px system-ui;margin-top:3px\">"+_st("Traduction synchronisée au rythme")+" \u00b7 v1062</div></div>";
   var rows="";
   for(var i=0;i<window._LYRICS_LANGS.length;i++){ var code=window._LYRICS_LANGS[i][0], name=window._LYRICS_LANGS[i][1], fl=_LANG_FLAGS[code]||"\uD83C\uDF10", on=(window._LYRICS_LANG===code);
     rows+="<button class=\"lang-opt\" data-l=\""+code+"\" style=\"display:flex;align-items:center;gap:13px;width:100%;text-align:left;background:"+(on?"rgba(122,208,160,.14)":"none")+";border:1px solid "+(on?"rgba(122,208,160,.5)":"transparent")+";color:#f4f7fc;font:600 15.5px system-ui;padding:14px 15px;border-radius:13px;cursor:pointer;margin:3px 0\"><span style=\"font-size:22px\">"+fl+"</span><span style=\"flex:1\">"+name+"</span>"+(on?"<span style=\"color:#7ad0a0;font-size:18px\">\u2713</span>":"")+"</button>";
@@ -10156,7 +10154,7 @@ function _toggleFilmsMenu(anchor){
             _clipInfo+="\n  Clip "+(parseInt(_ck)+1)+" : source "+_src+"s, extrait ~"+_ex+"s x"+_ap+(_over?" DEPASSEMENT!":" ok");
             if(typeof _clipTgt==="function" && _clc && _clipTgt(_clc)){ var _occ2=[]; for(var _q4=0;_q4<SEGS.length;_q4++){ var _g4=SEGS[_q4]; if(_g4.video&&_g4.vclip===parseInt(_ck)) _occ2.push(_g4); }
               for(var _o4=0;_o4<_occ2.length;_o4++){ var _g5=_occ2[_o4], _got5=_g5.end-_g5.start, _tg5=_clipTgt(_clc), _ec5=_got5-_tg5;
-                _clipInfo+="\n    passage "+(_o4+1)+" \u00b7 mode musical \u00b7 cible "+_tg5.toFixed(2)+" s \u00b7 retenue "+_got5.toFixed(2)+" s \u00b7 \u00e9cart "+(_ec5>=0?"+":"")+_ec5.toFixed(2)+" s \u00b7 coupe musicale : "+((_g5._durOnBeat||!_g5._durSrcLim)?"OUI":"NON")+" \u00b7 limit\u00e9 par la source : "+(_g5._durSrcLim?"OUI":"NON")+" \u00b7 vitesse "+((_g5.vspeed||_clc.speed||1).toFixed(3))+"\u00d7";
+                _clipInfo+="\n    passage "+(_o4+1)+" \u00b7 mode musical \u00b7 cible "+_tg5.toFixed(2)+" s \u00b7 retenue "+_got5.toFixed(2)+" s \u00b7 \u00e9cart "+(_ec5>=0?"+":"")+_ec5.toFixed(2)+" s \u00b7 coupe musicale : "+((_g5._durOnBeat||!_g5._durSrcLim)?"OUI":"NON")+" \u00b7 limit\u00e9 par la source : "+(_g5._durSrcLim?"OUI":"NON")+" \u00b7 limit\u00e9 par le montage : "+((!_g5._durSrcLim&&_got5<_tg5-0.5)?"OUI":"NON")+" \u00b7 vitesse "+((_g5.vspeed||_clc.speed||1).toFixed(3))+"\u00d7";
               } } }
         }catch(e){}
         var msg="DIAGNOSTIC MONTAGE — "+(window.STUDIO_VERSION||"?")+"\n\n"
@@ -10201,7 +10199,7 @@ function _toggleFilmsMenu(anchor){
                   +"Transitions : "+((p.modes&&p.modes.transition)||0)+"\n"
                   +"Changements de clip : "+(p.switches||0);
               }catch(e){ return "(fluidité indispo: "+e+")"; } })()
-              +(function(){ try{ var xd=window.__EXPORT_DIAG; if(!xd){ try{ xd=JSON.parse(localStorage.getItem("magot:lastExportDiag")||"null"); }catch(e){ xd=null; } } xd=xd||{}; return "\n\nEXPORT\n"+"Demandé : "+(xd.requested||"aucun")+"\n"+"Réellement utilisé : "+(xd.used||"aucun")+"\n"+"Résultat Turbo : "+(xd.turboResult||"non_tente")+"\n"+"Erreur Turbo : "+(xd.turboError||"aucune")+"\n"+"Résultat Compatible : "+(xd.mediaRecorderResult||"non_tente")+"\n"+"Erreur Compatible : "+(xd.mediaRecorderError||"aucune")+"\n"+"Etape echec : "+(xd.failureStage||xd.stage||"inconnue")+"\n"+"Temps : "+(xd.atSeconds!=null?xd.atSeconds+" s":"inconnu")+"\n"+"Segment : "+(xd.segment!=null?xd.segment:"inconnu")+"\n"+"Clip : "+(xd.clip!=null?xd.clip:"inconnu")+"\n"+"Statut : "+(xd.status||"inconnu")+"\n"+"Lecteur export : "+(window.__EXPORT_READER_KIND||"?")+"\n"+"URLs blob renouvelées : "+(xd.urlRenewals||0)+"\n"+"Blobs au départ : "+(xd.blobCheck||"non vérifiés")+"\n"+"Chargements clip.el réels : "+(xd.clipElRealLoads||0)+" · déjà prêts : "+(xd.clipElHits||0)+" · seeks rejoués : "+(xd.softSeeks||0)+" · éléments dédiés créés : "+(xd.readerElsCreated||0)+"\n"+"VERDICT TRIAGE : "+(xd.triageVerdict||"aucun échec triagé")+"\n"+"SOLUTION : "+(xd.triageSolution||"—")+"\n"+"Étapes triage : "+(xd.triageSteps||"—")+"\n\nJOURNAL EXPORT (40 derniers événements)\n"+(xd.journal||"vide")+"\n"+"Motif du repli : "+(xd.fallbackReason||"aucun")+"\n\nDOUBLONS SOURCES\n"+(xd.duplicateSources||"Non mesurés"); }catch(e){ return ""; } })();
+              +(function(){ try{ var xd=window.__EXPORT_DIAG; if(!xd){ try{ xd=JSON.parse(localStorage.getItem("magot:lastExportDiag")||"null"); }catch(e){ xd=null; } } xd=xd||{}; return "\n\nEXPORT\n"+"Demandé : "+(xd.requested||"aucun")+"\n"+"Réellement utilisé : "+(xd.used||"aucun")+"\n"+"Résultat Turbo : "+(xd.turboResult||"non_tente")+"\n"+"Erreur Turbo : "+(xd.turboError||"aucune")+"\n"+"Résultat Compatible : "+(xd.mediaRecorderResult||"non_tente")+"\n"+"Erreur Compatible : "+(xd.mediaRecorderError||"aucune")+"\n"+"Etape echec : "+(xd.failureStage||xd.stage||"inconnue")+"\n"+"Temps : "+(xd.atSeconds!=null?xd.atSeconds+" s":"inconnu")+"\n"+"Segment : "+(xd.segment!=null?xd.segment:"inconnu")+"\n"+"Clip : "+(xd.clip!=null?xd.clip:"inconnu")+"\n"+"Statut : "+(xd.status||"inconnu")+"\n"+"Lecteur export : "+(window.__EXPORT_READER_KIND||"?")+"\n"+"URLs blob renouvelées : "+(xd.urlRenewals||0)+"\n"+"Blobs au départ : "+(xd.blobCheck||"non vérifiés")+"\n"+"Chargements clip.el réels : "+(xd.clipElRealLoads||0)+" · déjà prêts : "+(xd.clipElHits||0)+" · seeks rejoués : "+(xd.softSeeks||0)+" · éléments dédiés créés : "+(xd.readerElsCreated||0)+"\n"+"Amorçages ciblés : "+(xd.targetedPrimes||0)+" · Seeks stricts : "+(xd.strictSeeks||0)+" · erreur max seek : "+Math.round(xd.maxSeekErrMs||0)+" ms\n"+"SORTIE ENCODEUR : demandé "+(xd.encOut||"?")+" · canvas "+(xd.encCanvas||"?")+" · codec "+(xd.encCodec||"?")+" · frames "+(xd.encFrames||0)+" · durée théorique "+(xd.encTheo||"?")+"\n"+"VERDICT TRIAGE : "+(xd.triageVerdict||"aucun échec triagé")+"\n"+"SOLUTION : "+(xd.triageSolution||"—")+"\n"+"Étapes triage : "+(xd.triageSteps||"—")+"\n\nJOURNAL EXPORT (40 derniers événements)\n"+(xd.journal||"vide")+"\n"+"Motif du repli : "+(xd.fallbackReason||"aucun")+"\n\nDOUBLONS SOURCES\n"+(xd.duplicateSources||"Non mesurés"); }catch(e){ return ""; } })();
           }catch(e){ return "(indispo: "+e+")"; } })();
         (function(txt){ try{
           var dp=document.getElementById("diagMontagePanel"); if(dp) dp.remove();
@@ -10729,6 +10727,14 @@ async function _ensureExportClipFrame(clipIndex,sourceTime){
      RÉELLEMENT présentées (rVFC, borné 600 ms) puis pause — remède v872 adapté au hors temps réel. */
   var planEntry=(clip._expPreparedEpoch!==(clip._loadEpoch||0)) || (clip._expPreparedTime==null) || (Math.abs((clip._expPreparedTime||0)-target)>0.5);
   if(planEntry){ var _pt0=performance.now();
+    /* v1062 — AMORÇAGE CIBLÉ (Version A) : v1056 chauffait le décodeur À LA POSITION DE CHARGEMENT puis sautait vers la cible
+       -> le GOP de la cible restait froid (664 seeks rejoués, micro-saccade en tête de plan). Ordre corrigé : pré-position
+       PRÈS de la cible d'abord, lecture muette ensuite, seek strict final vers la cible après. Interne au décodeur :
+       ni vstart, ni durée, ni première image encodée ne changent. */
+    try{ var _preRoll=Math.max(0,target-0.12);
+      if(Math.abs((el.currentTime||0)-_preRoll)>0.012){ await seekClipStrict(el,_preRoll,2000,false); }
+      if(window.__EXPORT_DIAG) window.__EXPORT_DIAG.targetedPrimes=(window.__EXPORT_DIAG.targetedPrimes||0)+1;
+    }catch(_ps){}
     try{ var got=0; var pr=el.play(); if(pr&&pr.catch) pr.catch(function(){});
       await new Promise(function(res){ var done=false; var fin=function(){ if(!done){ done=true; res(); } };
         var tick=function(){ got++; if(got>=3){ fin(); return; } try{ el.requestVideoFrameCallback(tick); }catch(e){ fin(); } };
@@ -10736,15 +10742,22 @@ async function _ensureExportClipFrame(clipIndex,sourceTime){
         setTimeout(fin,600); });
       el.pause();
     }catch(_pe){ try{ el.pause(); }catch(_pp){} }
-    _xlog("amorçage décodeur", clipIndex, Math.round(performance.now()-_pt0)+" ms");
+    _xlog("amorçage ciblé", clipIndex, Math.round(performance.now()-_pt0)+" ms · pré-roll "+Math.max(0,target-0.12).toFixed(2)+" s");
   }
+  var _rply=false;
   if(Math.abs((el.currentTime||0)-target)>=0.008){
+    if(window.__EXPORT_DIAG) window.__EXPORT_DIAG.strictSeeks=(window.__EXPORT_DIAG.strictSeeks||0)+1;
     var ok=await seekClipStrict(el,target,2500,true);
-    if(!ok){ if(window.__EXPORT_DIAG) window.__EXPORT_DIAG.softSeeks=(window.__EXPORT_DIAG.softSeeks||0)+1;
+    if(!ok){ _rply=true; if(window.__EXPORT_DIAG) window.__EXPORT_DIAG.softSeeks=(window.__EXPORT_DIAG.softSeeks||0)+1;
       ok=await seekClipStrict(el,Math.max(0,target-0.001),2500,true); }   /* v1056 : rVFC muet = seek REJOUÉ (léger décalage pour forcer une vraie présentation) */
     if(!ok){ ok=await seekClipStrict(el,target,6000,false); }   /* dernier filet permissif : ne bloque jamais l'export, compté dans softSeeks */
     if(!ok) throw new Error("seek_export_echoue_"+clipIndex);
   }
+  try{ var _serr=Math.abs((el.currentTime||0)-target)*1000; var _d7=window.__EXPORT_DIAG; if(_d7 && _serr>(_d7.maxSeekErrMs||0)) _d7.maxSeekErrMs=_serr; }catch(e){}   /* v1062 : erreur max mediaTime/cible */
+  /* v1061 — INSTRUMENT hoquet ~0,7 s : écart (ms) entre temps source atteint et demandé, sur les 20 premières frames de chaque plan ; « r » = seek rejoué */
+  if(planEntry){ clip._trc=[]; }
+  if(clip._trc && clip._trc.length<20){ clip._trc.push(Math.round(((el.currentTime||0)-target)*1000)+(_rply?"r":""));
+    if(clip._trc.length===20){ _xlog("trace 20 frames", clipIndex, clip._trc.join(",")+" (ms vs demandé)"); clip._trc=null; } }
   clip._expPreparedTime=target; clip._expPreparedEpoch=(clip._loadEpoch||0);
   return clip;
 }
@@ -11024,9 +11037,10 @@ async function _turboExport(){
       renderMontageAt(_t);
       var _fsrc=glReady?gl.canvas:base;
       if(SUBS.length){ try{ if(glReady && gl && gl.canvas) bctx.drawImage(gl.canvas,0,0,base.width,base.height); _drawSubOnCanvas(bctx, base.width, base.height, _subExpTime(_t)); _fsrc=base; }catch(e){} }
+      if(fnum===0){ try{ var _d8=window.__EXPORT_DIAG; if(_d8){ _d8.encOut=W+"\u00d7"+H+"@"+FPS; _d8.encCodec=(vcfg&&vcfg.codec)||"?"; _d8.encCanvas=((_fsrc&&(_fsrc.width||_fsrc.videoWidth))||"?")+"\u00d7"+((_fsrc&&(_fsrc.height||_fsrc.videoHeight))||"?"); _d8.encTheo=(N/FPS).toFixed(3)+" s"; } }catch(e){} }   /* v1062 : vérité encodeur (le MP4 512\u00d7910@30 vu côté GPT = recompression du transfert, tranché par ces champs) */
       var frame=new VideoFrame(_fsrc,{timestamp:Math.round(fnum*1000000/FPS), duration:Math.round(1000000/FPS)});
       venc.encode(frame,{keyFrame:(fnum%FPS===0)}); frame.close();
-      if((fnum&7)===0){ try{ window.__expBeat=performance.now(); expShow(fnum/N*0.92); var _st=document.getElementById("expStage"); if(_st) _st.textContent="Rendu image par image\u2026 "+Math.round(fnum/FPS)+"/"+Math.round(DUR)+" s"; }catch(e){} await _expYield(); }
+      if((fnum&7)===0){ try{ var _d8b=window.__EXPORT_DIAG; if(_d8b) _d8b.encFrames=fnum+1; window.__expBeat=performance.now(); expShow(fnum/N*0.92); var _st=document.getElementById("expStage"); if(_st) _st.textContent="Rendu image par image\u2026 "+Math.round(fnum/FPS)+"/"+Math.round(DUR)+" s"; }catch(e){} await _expYield(); }
       var _qCap=(_sg&&_sg.video)?2:4;   /* file plus courte sur les clips vidéo (frames plus lourdes -> moins de mémoire accumulée, évite le crash ~80%) */
       var _qw=0; while(venc.encodeQueueSize>_qCap){ if(_vencErr) throw new Error("venc:"+_vencErr); await new Promise(function(r){ setTimeout(r,6); }); if(++_qw>1500){ throw new Error("queue"); } }   /* 4 frames en vol max (≈40 Mo) au lieu de 8 (≈80 Mo) */
       if((_sg&&_sg.video) ? ((fnum&7)===7) : ((fnum&15)===15)){ await new Promise(function(r){ setTimeout(r,0); }); }   /* respiration plus fréquente sur les clips vidéo (laisse iOS libérer la mémoire de décodage vidéo) */
@@ -11172,7 +11186,7 @@ async function exportStudio(){ try{ _reqWake(); }catch(e){} try{ _hideClipOverla
   try{ if(typeof essentia!=="undefined" && essentia && !window.__essentiaFreed){ if(essentia.shutdown) essentia.shutdown(); if(essentia.delete) essentia.delete(); essentia=null; window.__essentiaFreed=true; }   /* libère les ~285 Mo d'essentia-wasm pendant l'export (crash iOS 100%) ; rechargé à la fin via _expRestoreMem */
   }catch(e){}
   try{ if(typeof CLIPS!=="undefined" && CLIPS.length>2){ window.__expClipHold=true; for(var _ci=0;_ci<CLIPS.length;_ci++){ var _c=CLIPS[_ci]; if(!_c) continue; releaseClipSource(_c); _c._expPreparedEpoch=null; _c._expPreparedTime=null; } if(CLIPS.length){ await _exportSleep(180); } } }catch(error){ if(window.__EXPORT_DIAG){ window.__EXPORT_DIAG.sharedError=_exportErrText(error); window.__EXPORT_DIAG.failureStage="export_detach"; _saveExportDiag(); } }   /* détachement CENTRALISÉ + pause pour laisser WebKit finir */
-  window.__expTgt=1400;   /* ESSAI 1880 : on vise plus haut. Le prédicat de re-décodage (garde de convergence) accepte le plafond réel si le décodeur ne suit pas -> va au bout sans boucler. Réduire ce nombre par paliers si le fichier est trop lourd/lent. */
+  window.__expTgt=(window.IS_MOBILE?1400:3840);   /* v1061 ordinateur : décodage natif à l'export aussi (le rendu réduit vers le canvas -> netteté maximale). Téléphone : ESSAI 1880 : on vise plus haut. Le prédicat de re-décodage (garde de convergence) accepte le plafond réel si le décodeur ne suit pas -> va au bout sans boucler. Réduire ce nombre par paliers si le fichier est trop lourd/lent. */
   if(window.__srcRefreshBusy || window.__addBusy){   /* fusion Souvenirs (redécodage) OU ajout de photos (qui finit par buildPartition) en arrière-plan : on attend la fin AVANT d'exporter */
     var _wr0=performance.now(); while((window.__srcRefreshBusy || window.__addBusy) && (performance.now()-_wr0)<240000){ if(EXPORT_ABORT){ EXPORTING=false; expHide(); return; }
       try{ window.__expBeat=performance.now(); var _stW=document.getElementById("expStage"); if(_stW) _stW.textContent="Pr\u00e9paration des photos\u2026 "+(window.__addBusy?((window.__addN||0)+"/"+(window.__addTot||0)+" ajout\u00e9es"):((window.__srcRefreshN||0)+"/"+(window.__srcRefreshTot||PHOTOS.length))); }catch(e){}
@@ -11228,7 +11242,7 @@ async function exportStudio(){ try{ _reqWake(); }catch(e){} try{ _hideClipOverla
   try{
     var FPS=30;
     /* Compatible = rendu temps réel : priorité à la FLUIDITÉ (Turbo garde la haute définition). */
-    var W=EXPFMT.w, H=EXPFMT.h, cap=1440, mx=Math.max(W,H);
+    var W=EXPFMT.w, H=EXPFMT.h, cap=(window.IS_MOBILE?1440:3840), mx=Math.max(W,H);
     try{ var _srcCeil=0; for(var _sc=0;_sc<PHOTOS.length;_sc++){ var _sp2=PHOTOS[_sc]; if(_sp2){ var _n2=Math.max(_sp2._srcRes||0,_sp2._w||0,_sp2._h||0); if(_n2>_srcCeil)_srcCeil=_n2; } } if(_srcCeil>0) cap=Math.min(cap, Math.max(1920,_srcCeil)); }catch(e){}   /* jamais plus grand que la meilleure source du film : pixels interpolés = temps de rendu gaspillé */   /* pré-rendu (lecture) : 1600px = net écran + encode rapide/fiable ; export partage : 2160px */
     if(mx<cap){ var _up=cap/mx; W=Math.round(W*_up/2)*2; H=Math.round(H*_up/2)*2; }
     else if(mx>cap){ var s=cap/mx; W=Math.max(2,Math.round(W*s/2)*2); H=Math.max(2,Math.round(H*s/2)*2); }
