@@ -1242,7 +1242,7 @@ function renderPlanToBuffer(dur, sr){
 function analyzeBufferInto(buf, cb){ try{ essentiaReady.then(function(ok){ if(ok){ setTimeout(function(){ try{ toMono44(buf,function(sig,sr){ var An; try{ An=analyzeEssentia(sig,sr,buf.duration); }catch(e){ An=analyzeCustom(buf); } cb(An); }); }catch(e){ cb(analyzeCustom(buf)); } }, 20); } else { setTimeout(function(){ cb(analyzeCustom(buf)); }, 20); } }); }catch(e){ try{ cb(analyzeCustom(buf)); }catch(e2){ cb(null); } } }
 
 var CLIPS=[], clipVidReady=false, VIDACT=-1;
-window.STUDIO_VERSION="v1065";
+window.STUDIO_VERSION="v1066";
 window.MAGOT_EXPORT_ENGINE="auto"; try{ window.MAGOT_EXPORT_ENGINE=localStorage.getItem("magot_export_engine")||"auto"; }catch(e){}
 function setMagotExportEngine(mode){ if(mode!=="auto"&&mode!=="turbo"&&mode!=="mediarecorder") mode="auto"; window.MAGOT_EXPORT_ENGINE=mode; try{ localStorage.setItem("magot_export_engine",mode); }catch(e){} }
 function _exportEngineLabel(){ var m=window.MAGOT_EXPORT_ENGINE; return m==="turbo"?"Export : Turbo test":m==="mediarecorder"?"Export : Compatible":"Export : Automatique"; }
@@ -2689,7 +2689,7 @@ function drawSegAt(sg,t,ox,smul){
     }
     if(!img||!iw){ bctx.fillStyle="#0b0e16"; bctx.fillRect(0,0,Wd,Hd); return; }
   }
-  else { if(sg.img<0||!PHOTOS[sg.img]){ bctx.fillStyle="#000"; bctx.fillRect(0,0,Wd,Hd); return; } var _pp=PHOTOS[sg.img]; var _tgtR=_planTargetRes(sg); img=_pp.c||_pp.img; if(img){ _touchDec(sg.img); if((_pp._decRes||0)<Math.round(_tgtR*0.95) && !_pp._decoding){ ensurePhotoDecoded(sg.img,(!playing)?function(_cc){ try{ if(_cc && !playing && window._pauseRenderT!=null && typeof renderMontageAt==="function"){ renderMontageAt(window._pauseRenderT); } }catch(e){} }:null,_tgtR); } } else { ensurePhotoDecoded(sg.img, (!playing)?function(_cc){ try{ if(_cc && !playing && window._pauseRenderT!=null && typeof renderMontageAt==="function"){ renderMontageAt(window._pauseRenderT); } }catch(e){} }:null, _tgtR); img=_pp._fb||_pp._thumb||null; } iw=img?img.width:0; ih=img?img.height:0; try{ var _lag=(_pp.c&&(_pp._decRes||0)>=Math.round(_tgtR*0.95))?0:1; var _pin=window.__pinned||{}; var _nx=(_pin.next>=0&&PHOTOS[_pin.next])?((PHOTOS[_pin.next].c&&(PHOTOS[_pin.next]._decRes||0)>=Math.round(_planTargetRes({img:_pin.next})*0.9))?"pr\u00eat":"prépa"):"\u2014"; window.__photoDiag={idx:sg.img, src:(img&&(img===_pp.c||img===_pp.img))?"PLEINE":(img&&img===_pp._fb?"SECOURS":(img?"thumb":"—")), w:iw, h:ih, tgt:_tgtR, decR:(_pp._decRes||0), mb:Math.round(_cacheMB()), nb:_cacheCount(), lag:_lag, inf:(window._decInFlight||0), cur:(_pin.cur===sg.img?1:0), nx:_nx, ms:(window.__lastDecodeMs||0), adv:Math.round((window.__advance||0)*10)/10, ev:(window.__evictN||0)}; }catch(e){} if(!img||!iw){ bctx.fillStyle="#000"; bctx.fillRect(0,0,Wd,Hd); return; } }
+  else { if(sg.img<0||!PHOTOS[sg.img]){ bctx.fillStyle="#000"; bctx.fillRect(0,0,Wd,Hd); return; } var _pp=PHOTOS[sg.img]; var _tgtR=_planTargetRes(sg); img=_pp.c||_pp.img; if(img){ _touchDec(sg.img); if((_pp._decRes||0)<Math.round(_tgtR*0.95) && !_pp._decoding){ ensurePhotoDecoded(sg.img,(!playing)?function(_cc){ try{ if(_cc && !playing && window._pauseRenderT!=null && typeof renderMontageAt==="function"){ renderMontageAt(window._pauseRenderT); } }catch(e){} }:null,_tgtR); } } else { ensurePhotoDecoded(sg.img, (!playing)?function(_cc){ try{ if(_cc && !playing && window._pauseRenderT!=null && typeof renderMontageAt==="function"){ renderMontageAt(window._pauseRenderT); } }catch(e){} }:null, _tgtR); img=_pp._fb||_pp._thumb||null; if(typeof playing!=="undefined"&&playing){ window.__softFrames=(window.__softFrames||0)+1; if(window.__softSegKey!==sg.start){ window.__softSegKey=sg.start; window.__softStarts=(window.__softStarts||0)+1; } } } iw=img?img.width:0; ih=img?img.height:0; try{ var _lag=(_pp.c&&(_pp._decRes||0)>=Math.round(_tgtR*0.95))?0:1; var _pin=window.__pinned||{}; var _nx=(_pin.next>=0&&PHOTOS[_pin.next])?((PHOTOS[_pin.next].c&&(PHOTOS[_pin.next]._decRes||0)>=Math.round(_planTargetRes({img:_pin.next})*0.9))?"pr\u00eat":"prépa"):"\u2014"; window.__photoDiag={idx:sg.img, src:(img&&(img===_pp.c||img===_pp.img))?"PLEINE":(img&&img===_pp._fb?"SECOURS":(img?"thumb":"—")), w:iw, h:ih, tgt:_tgtR, decR:(_pp._decRes||0), mb:Math.round(_cacheMB()), nb:_cacheCount(), lag:_lag, inf:(window._decInFlight||0), cur:(_pin.cur===sg.img?1:0), nx:_nx, ms:(window.__lastDecodeMs||0), adv:Math.round((window.__advance||0)*10)/10, ev:(window.__evictN||0)}; }catch(e){} if(!img||!iw){ bctx.fillStyle="#000"; bctx.fillRect(0,0,Wd,Hd); return; } }
   var dur=Math.max(0.001,sg.end-sg.start), p=Math.max(0,Math.min(1,(t-sg.start)/dur));
   var M=MOODS[MOOD];
   /* fond : image en cover, assombrie -> pas de bandes noires */
@@ -9102,7 +9102,7 @@ function _openLangPicker(){
   bg.style.cssText="position:fixed;inset:0;z-index:100050;background:rgba(0,0,0,.62);backdrop-filter:blur(4px);display:flex;align-items:flex-end;justify-content:center;font-family:system-ui,-apple-system,sans-serif";
   var card=document.createElement("div");
   card.style.cssText="width:100%;max-width:520px;background:#0f0e0d;border:1px solid #282622;border-radius:22px 22px 0 0;padding:8px 10px 22px;max-height:78vh;overflow:auto;box-shadow:0 -10px 50px rgba(0,0,0,.7)";
-  var head="<div style=\"text-align:center;padding:12px 0 6px\"><div style=\"width:40px;height:4px;background:#3a3733;border-radius:3px;margin:0 auto 12px\"></div><div style=\"color:#f4f7fc;font:700 17px system-ui\">\uD83C\uDF10 "+_st("Langue des paroles")+"</div><div style=\"color:#8a93a6;font:500 12.5px system-ui;margin-top:3px\">"+_st("Traduction synchronisée au rythme")+" \u00b7 v1065</div></div>";
+  var head="<div style=\"text-align:center;padding:12px 0 6px\"><div style=\"width:40px;height:4px;background:#3a3733;border-radius:3px;margin:0 auto 12px\"></div><div style=\"color:#f4f7fc;font:700 17px system-ui\">\uD83C\uDF10 "+_st("Langue des paroles")+"</div><div style=\"color:#8a93a6;font:500 12.5px system-ui;margin-top:3px\">"+_st("Traduction synchronisée au rythme")+" \u00b7 v1066</div></div>";
   var rows="";
   for(var i=0;i<window._LYRICS_LANGS.length;i++){ var code=window._LYRICS_LANGS[i][0], name=window._LYRICS_LANGS[i][1], fl=_LANG_FLAGS[code]||"\uD83C\uDF10", on=(window._LYRICS_LANG===code);
     rows+="<button class=\"lang-opt\" data-l=\""+code+"\" style=\"display:flex;align-items:center;gap:13px;width:100%;text-align:left;background:"+(on?"rgba(122,208,160,.14)":"none")+";border:1px solid "+(on?"rgba(122,208,160,.5)":"transparent")+";color:#f4f7fc;font:600 15.5px system-ui;padding:14px 15px;border-radius:13px;cursor:pointer;margin:3px 0\"><span style=\"font-size:22px\">"+fl+"</span><span style=\"flex:1\">"+name+"</span>"+(on?"<span style=\"color:#7ad0a0;font-size:18px\">\u2713</span>":"")+"</button>";
@@ -9339,12 +9339,17 @@ function loop(){ try{ window.__MMT_BOTTOM_CAP_TOP=null; }catch(e){}
     window.__pinned={cur:_curImg, next:_nextImg};
     window.__advance=(_nextStart!=null)?Math.max(0,_nextStart-t):0;
     /* fenêtre qui RÉTRÉCIT sous pression mémoire : si le cache se remplit, on précharge moins loin plutôt que d'évincer une image imminente */
-    var _mbNow=_cacheMB(), _win=(_mbNow>=_CACHE_MB_CAP*0.85)?2.5:(_mbNow>=_CACHE_MB_CAP*0.7?5:7);
+    var _mbNow=_cacheMB(), _win=(_mbNow>=_CACHE_MB_CAP*0.85)?3.5:(_mbNow>=_CACHE_MB_CAP*0.7?5:7);
     var _seenP={};
     for(var _pj=idx; _pj<SEGS.length && (SEGS[_pj].start - t)<_win; _pj++){
-      if((window._decInFlight||0)>=2) break;
-      if(_cacheMB()>=_CACHE_MB_CAP*0.92) break;   /* plafond mémoire prioritaire */
-      var _sp=SEGS[_pj]; if(_sp && !_sp.video && _sp.img>=0 && !_seenP[_sp.img] && PHOTOS[_sp.img]){ _seenP[_sp.img]=1; var _tgt=_planTargetRes(_sp); if(!PHOTOS[_sp.img]._decoding && (!PHOTOS[_sp.img].c || (PHOTOS[_sp.img]._decRes||0)<Math.round(_tgt*0.95))){ ensurePhotoDecoded(_sp.img,null,_tgt); } }
+      var _sp=SEGS[_pj]; if(!_sp) continue;
+      /* v1066 — CAUSE DU FLOU EN LECTURE : les freins (2 décodages en vol, cache 92 %) stoppaient AUSSI la photo dont le plan
+         commence dans <2 s -> sous pression mémoire, son décodage partait pendant le fondu = secours flou à chaque entrée.
+         Une photo IMMINENTE se décode TOUJOURS ; les freins ne gouvernent que le préchargement lointain. */
+      var _urgent9=((_sp.start - t) < 2.0);
+      if(!_urgent9 && (window._decInFlight||0)>=2) break;
+      if(!_urgent9 && _cacheMB()>=_CACHE_MB_CAP*0.92) break;   /* plafond mémoire : lointain seulement */
+      if(!_sp.video && _sp.img>=0 && !_seenP[_sp.img] && PHOTOS[_sp.img]){ _seenP[_sp.img]=1; var _tgt=_planTargetRes(_sp); if(!PHOTOS[_sp.img]._decoding && (!PHOTOS[_sp.img].c || (PHOTOS[_sp.img]._decRes||0)<Math.round(_tgt*0.95))){ ensurePhotoDecoded(_sp.img,null,_tgt); } }
     }
   } }catch(e){}
   var trName=next?next.trans:"none";
@@ -10231,7 +10236,7 @@ function _toggleFilmsMenu(anchor){
                   +"Rendu natif : "+((p.modes&&p.modes.native)||0)+"\n"
                   +"Canvas plein écran : "+((p.modes&&p.modes["canvas-fullscreen"])||0)+"\n"
                   +"Canvas commandes visibles : "+((p.modes&&p.modes["canvas-controls"])||0)+"\n"
-                  +"Canvas autre : "+((p.modes&&p.modes["canvas-other"])||0)+"\n"
+                  +"Frames photo en SECOURS (lecture) : "+(window.__softFrames||0)+" · plans entrés flous : "+(window.__softStarts||0)+"\n"+"Canvas autre : "+((p.modes&&p.modes["canvas-other"])||0)+"\n"
                   +"Transitions : "+((p.modes&&p.modes.transition)||0)+"\n"
                   +"Changements de clip : "+(p.switches||0);
               }catch(e){ return "(fluidité indispo: "+e+")"; } })()
