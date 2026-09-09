@@ -1242,7 +1242,7 @@ function renderPlanToBuffer(dur, sr){
 function analyzeBufferInto(buf, cb){ try{ essentiaReady.then(function(ok){ if(ok){ setTimeout(function(){ try{ toMono44(buf,function(sig,sr){ var An; try{ An=analyzeEssentia(sig,sr,buf.duration); }catch(e){ An=analyzeCustom(buf); } cb(An); }); }catch(e){ cb(analyzeCustom(buf)); } }, 20); } else { setTimeout(function(){ cb(analyzeCustom(buf)); }, 20); } }); }catch(e){ try{ cb(analyzeCustom(buf)); }catch(e2){ cb(null); } } }
 
 var CLIPS=[], clipVidReady=false, VIDACT=-1;
-window.STUDIO_VERSION="v1068";
+window.STUDIO_VERSION="v1072";
 window.MAGOT_EXPORT_ENGINE="auto"; try{ window.MAGOT_EXPORT_ENGINE=localStorage.getItem("magot_export_engine")||"auto"; }catch(e){}
 function setMagotExportEngine(mode){ if(mode!=="auto"&&mode!=="turbo"&&mode!=="mediarecorder") mode="auto"; window.MAGOT_EXPORT_ENGINE=mode; try{ localStorage.setItem("magot_export_engine",mode); }catch(e){} }
 function _exportEngineLabel(){ var m=window.MAGOT_EXPORT_ENGINE; return m==="turbo"?"Export : Turbo test":m==="mediarecorder"?"Export : Compatible":"Export : Automatique"; }
@@ -1636,6 +1636,12 @@ function buildPartition(){
     else if(window.LOOP_ON){ _audioCovers=true; }
     else { _audioCovers=((A.dur||0)>=_montageEnd-0.05); }
     var _gridCoversCuts=(_gEnd + Math.max(_beatStep||0,0.25) >= _mediaEnd);   /* la grille couvre les MÉDIAS, pas l'outro */
+    try{ var _bts9=(A&&A.beats)||window._BEATS||[]; var _cd={n:0,sum:0,max:0,o60:0,o80:0,o120:0};
+      if(_bts9.length && typeof SEGS!=="undefined" && SEGS.length>1){ for(var _ci9=1;_ci9<SEGS.length;_ci9++){ var _bt0=SEGS[_ci9].start, _bd9=1e9;
+        for(var _bj9=0;_bj9<_bts9.length;_bj9++){ var _dd9=Math.abs(_bts9[_bj9]-_bt0); if(_dd9<_bd9)_bd9=_dd9; else if(_bts9[_bj9]>_bt0+1.5) break; }
+        if(_bd9<1e9){ _cd.n++; _cd.sum+=_bd9; if(_bd9>_cd.max)_cd.max=_bd9; if(_bd9>0.06)_cd.o60++; if(_bd9>0.08)_cd.o80++; if(_bd9>0.12)_cd.o120++; } } }
+      window.__CUTDIAG=_cd.n?{n:_cd.n, avg:Math.round(_cd.sum/_cd.n*1000), max:Math.round(_cd.max*1000), o60:_cd.o60, o80:_cd.o80, o120:_cd.o120}:null;
+    }catch(e){}   /* v1072 — GPT n°2 : distance RÉELLE de chaque coupe au beat le plus proche, mesurée sur la partition finale */
     window._MUSICDIAG={ mode:(window.MULTI?"multi":(window.LOOP_ON?"single-loop":"single")), mediaNeed:Math.round(bdur), musicNeed:Math.round(_iD+bdur+_oD), mediaEnd:Math.round(_mediaEnd), montageEnd:Math.round(_montageEnd), gridEnd:Math.round(_gEnd), planEnd:Math.round(_planEnd), audioCoversFilm:_audioCovers, gridCoversCuts:_gridCoversCuts };
     console.log("[MUSIC GRID]", window._MUSICDIAG);
     if(!_audioCovers) console.warn("[MUSIC GRID] audio ne couvre pas tout le film");
@@ -9102,7 +9108,7 @@ function _openLangPicker(){
   bg.style.cssText="position:fixed;inset:0;z-index:100050;background:rgba(0,0,0,.62);backdrop-filter:blur(4px);display:flex;align-items:flex-end;justify-content:center;font-family:system-ui,-apple-system,sans-serif";
   var card=document.createElement("div");
   card.style.cssText="width:100%;max-width:520px;background:#0f0e0d;border:1px solid #282622;border-radius:22px 22px 0 0;padding:8px 10px 22px;max-height:78vh;overflow:auto;box-shadow:0 -10px 50px rgba(0,0,0,.7)";
-  var head="<div style=\"text-align:center;padding:12px 0 6px\"><div style=\"width:40px;height:4px;background:#3a3733;border-radius:3px;margin:0 auto 12px\"></div><div style=\"color:#f4f7fc;font:700 17px system-ui\">\uD83C\uDF10 "+_st("Langue des paroles")+"</div><div style=\"color:#8a93a6;font:500 12.5px system-ui;margin-top:3px\">"+_st("Traduction synchronisée au rythme")+" \u00b7 v1068</div></div>";
+  var head="<div style=\"text-align:center;padding:12px 0 6px\"><div style=\"width:40px;height:4px;background:#3a3733;border-radius:3px;margin:0 auto 12px\"></div><div style=\"color:#f4f7fc;font:700 17px system-ui\">\uD83C\uDF10 "+_st("Langue des paroles")+"</div><div style=\"color:#8a93a6;font:500 12.5px system-ui;margin-top:3px\">"+_st("Traduction synchronisée au rythme")+" \u00b7 v1072</div></div>";
   var rows="";
   for(var i=0;i<window._LYRICS_LANGS.length;i++){ var code=window._LYRICS_LANGS[i][0], name=window._LYRICS_LANGS[i][1], fl=_LANG_FLAGS[code]||"\uD83C\uDF10", on=(window._LYRICS_LANG===code);
     rows+="<button class=\"lang-opt\" data-l=\""+code+"\" style=\"display:flex;align-items:center;gap:13px;width:100%;text-align:left;background:"+(on?"rgba(122,208,160,.14)":"none")+";border:1px solid "+(on?"rgba(122,208,160,.5)":"transparent")+";color:#f4f7fc;font:600 15.5px system-ui;padding:14px 15px;border-radius:13px;cursor:pointer;margin:3px 0\"><span style=\"font-size:22px\">"+fl+"</span><span style=\"flex:1\">"+name+"</span>"+(on?"<span style=\"color:#7ad0a0;font-size:18px\">\u2713</span>":"")+"</button>";
@@ -9422,7 +9428,7 @@ function loop(){ try{ window.__MMT_BOTTOM_CAP_TOP=null; }catch(e){}
        - après la coupe (prev.video, into<halfPrev) : entrante déjà à son vrai temps, noir décroît 1->0
        Aucune lecture anticipée de l'entrante -> pas de saut arrière. */
     var _vid2vid=(inTrans && sg && next && sg.video && next.video);
-    var _halfPrev=(prev && prev.video && sg && sg.video && trName!=="cut")?Math.min((prev.trDur!=null?prev.trDur:0.5),(sg.end-sg.start)*0.5):0;
+    var _halfPrev=(prev && prev.video && sg && sg.video && sg.trans!=="cut" && sg.trans!=="none")?Math.min((sg.trDur!=null?sg.trDur:0.5),(sg.end-sg.start)*0.5):0;   /* v1072 — GPT n°1 : le noir APRÈS la coupe appartient à la transition qui a AMENÉ le plan courant (sg.trans/sg.trDur), pas à celle du plan suivant (trName/prev.trDur) */
     var _postBlack=(_halfPrev>0 && prev && prev.video && sg.video && into<_halfPrev)?(1-(into/_halfPrev)):0;
     if(glReady && TR.ready && inTrans && !_vid2vid){
       drawSegAt(sg,t,0,1); trUpload(TR.texFrom);
@@ -9461,7 +9467,7 @@ function _memGuardStart(){ try{ if(_memGuardIv) return; _memGuardIv=setInterval(
   }
 }catch(e){} }, 2500); }catch(e){} }
 function _memGuardStop(){ try{ if(_memGuardIv){ clearInterval(_memGuardIv); _memGuardIv=null; } }catch(e){} }
-function startPlay(){
+function startPlay(){ try{ window.__PLAYLOG=[]; window.__PLAYSTATS={}; }catch(e){}   /* v1069 : journal remis à zéro au LANCEMENT de la lecture (le reset à la réouverture effaçait la preuve) */ 
   _iosUnlock(); try{ _reqWake(); }catch(e){} try{ _memGuardStart(); }catch(e){}
   if(!A){ setState(_st("Choisis d'abord une musique.")); return; }
   if(!PHOTOS.length && !clipVidReady){ setState(_st("Ajoute des photos ou des vid\u00e9os.")); return; }
@@ -9898,7 +9904,6 @@ function _afterOpenFilm(proj){ try{ _linkSources(); }catch(e){} try{
       }).catch(function(){ return null; });
     });
     try{ if(_clipsP && _clipsP.then) _clipsP.then(function(){ try{ _videoImportSample(); _videoImportEnd(); }catch(e){}
-      try{ window.__PLAYLOG=[]; window.__PLAYSTATS={}; }catch(e){}   /* v1068 : journal de lecture propre par film */
       try{ _verifyClipBlobsAlive().then(function(_r){ try{ if(_r&&_r.lost&&_r.lost.length){ setState("\u26a0\ufe0f Clip"+(_r.lost.length>1?"s":"")+" "+_r.lost.map(function(i){return i+1;}).join(", ")+" : données perdues par Safari — supprime-le"+(_r.lost.length>1?"s":"")+" et ré-importe depuis la source."); } }catch(_e){} }).catch(function(){}); }catch(e){}   /* v1068 : sonde de vie dès l'ouverture du film, pas seulement à l'export */
       /* préparer la fenêtre initiale (3 premiers clips utiles) après restauration */
       try{ if(typeof SEGS!=="undefined" && SEGS){ var _fv=-1; for(var _i=0;_i<SEGS.length;_i++){ if(SEGS[_i]&&SEGS[_i].video){ _fv=_i; break; } } if(_fv>=0) _syncClipWindow(_fv); } }catch(e){}
@@ -10224,7 +10229,7 @@ function _toggleFilmsMenu(anchor){
         var msg="DIAGNOSTIC MONTAGE — "+(window.STUDIO_VERSION||"?")+"\n\n"
           +"Photos : "+((_cv.photos&&_cv.photos.placed)||0)+"/"+((_cv.photos&&_cv.photos.need)||0)+_pM+"\n"
           +"Clips : "+((_cv.clips&&_cv.clips.placed)||0)+"/"+((_cv.clips&&_cv.clips.need)||0)+_cM+"\n"
-          +"Plans totaux : "+_nSeg+" (dont "+_nVid+" vidéo)\n"
+          +"Plans totaux : "+_nSeg+" (dont "+_nVid+" vidéo)"+(_nSeg?"":" \u26a0\ufe0f partition pas encore reconstruite (film en cours de chargement) — rouvre ce diagnostic après le message « Montage rechargé »")+"\n"
           +"Durée médias : "+(_cv.pDur||0)+"s photos + "+(_cv.vDur||0)+"s vidéos\n"
           +"DÉTAIL CLIPS :"+(_clipInfo||" (aucun)")+"\n\n"
           +(function(){ try{ var L="PROFIL & QUALITÉ PHOTO\n"+"Profil : "+(window.PLATFORM||"?")+"\n"+"Stockage persistant : "+(window.__storagePersist||"inconnu")+"\n"+"Aperçu _PCAP : "+(window._PCAP||"?")+" px · plafond lecture _resMax : "+_resMax()+" px · cible export __expTgt : "+(window.__expTgt!=null?window.__expTgt:"(posée à l'export)")+"\n";
@@ -10248,7 +10253,7 @@ function _toggleFilmsMenu(anchor){
               +"Déchargements confirmés : "+(_W.unloadConfirmed||0)+"\n"
               +"Déchargements échoués : "+(_W.unloadFailed||0)+"\n"
               +(function(){ try{ var ps=window.__PLAYSTATS||{}; return "Entrées de clip : "+(ps.entries||0)+" \u00b7 prêtes à l\u2019entrée : "+(ps.readyAtEntry||0)+" \u00b7 1re image >300 ms : "+(ps.slow1st||0)+" \u00b7 relances play : "+(ps.retries||0)+" \u00b7 ré-attaches : "+(ps.reattaches||0)+" \u00b7 relances load : "+(ps.staleReloads||0)+" \u00b7 play rejetés : "+(ps.playRejected||0)+" \u00b7 ressuscités en lecture : "+(ps.revived||0)+" \u00b7 perdus : "+(ps.lost||0)+"\n"+"JOURNAL LECTURE VIDÉO (20 derniers)\n"+(((window.__PLAYLOG||[]).slice(-20).join("\n"))||"vide")+"\n"; }catch(e){ return ""; } })()+"Violations fenêtre : "+(_W.syncErr||0)
-              +(function(){ try{ var td=window._TIMELINEDIAG||{}; return "\n\nTIMELINE\n"+"Continue : "+(td.contiguous?"OUI":"NON")+"\n"+"Trous : "+((td.gaps&&td.gaps.length)||0)+"\n"+"Chevauchements : "+((td.overlaps&&td.overlaps.length)||0)+"\n"+"Dépassements vidéo : "+((td.overruns&&td.overruns.length)||0)+"\n"+"Médias physiquement valides : "+(td.mediaValid?"OUI":"NON"); }catch(e){ return ""; } })()
+              +(function(){ try{ var td=window._TIMELINEDIAG||{}; return "\n\nTIMELINE\n"+"Continue : "+(td.contiguous?"OUI":"NON")+"\n"+"Trous : "+((td.gaps&&td.gaps.length)||0)+"\n"+"Chevauchements : "+((td.overlaps&&td.overlaps.length)||0)+"\n"+(function(){ try{ var cd=window.__CUTDIAG; return cd?("Coupes vs beats : moyenne "+cd.avg+" ms · max "+cd.max+" ms · >60 ms : "+cd.o60+"/"+cd.n+" · >80 ms : "+cd.o80+" · >120 ms : "+cd.o120+"\n"):"Coupes vs beats : non mesuré (pas de grille)\n"; }catch(e){ return ""; } })()+"Dépassements vidéo : "+((td.overruns&&td.overruns.length)||0)+"\n"+"Médias physiquement valides : "+(td.mediaValid?"OUI":"NON"); }catch(e){ return ""; } })()
               +(function(){ try{ var vi=window.__VIMPORT||{}; return "\n\nIMPORT VIDÉO\n"+"Mode : "+(vi.mode||"?")+"\n"+"Sources attachées maintenant : "+(vi.attachedNow||0)+"\n"+"Sources attachées MAX réel : "+(vi.attachedMax||0)+"\n"+"Chargements simultanés MAX : "+(vi.loadingMax||0); }catch(e){ return ""; } })()
               +"\n\nFLUIDITÉ\n"+(function(){ try{
                 var p=window.__VPERF||{}; var recent=p.recent||[]; var sum=0; for(var _q=0;_q<recent.length;_q++) sum+=recent[_q];
@@ -10267,7 +10272,7 @@ function _toggleFilmsMenu(anchor){
                   +"Transitions : "+((p.modes&&p.modes.transition)||0)+"\n"
                   +"Changements de clip : "+(p.switches||0);
               }catch(e){ return "(fluidité indispo: "+e+")"; } })()
-              +(function(){ try{ var xd=window.__EXPORT_DIAG; if(!xd){ try{ xd=JSON.parse(localStorage.getItem("magot:lastExportDiag")||"null"); }catch(e){ xd=null; } } xd=xd||{}; return "\n\nEXPORT\n"+"Demandé : "+(xd.requested||"aucun")+"\n"+"Réellement utilisé : "+(xd.used||"aucun")+"\n"+"Résultat Turbo : "+(xd.turboResult||"non_tente")+"\n"+"Erreur Turbo : "+(xd.turboError||"aucune")+"\n"+"Résultat Compatible : "+(xd.mediaRecorderResult||"non_tente")+"\n"+"Erreur Compatible : "+(xd.mediaRecorderError||"aucune")+"\n"+"Etape echec : "+(xd.failureStage||xd.stage||"inconnue")+"\n"+"Temps : "+(xd.atSeconds!=null?xd.atSeconds+" s":"inconnu")+"\n"+"Segment : "+(xd.segment!=null?xd.segment:"inconnu")+"\n"+"Clip : "+(xd.clip!=null?xd.clip:"inconnu")+"\n"+"Statut : "+(xd.status||"inconnu")+"\n"+"Lecteur export : "+(window.__EXPORT_READER_KIND||"?")+"\n"+"URLs blob renouvelées : "+(xd.urlRenewals||0)+"\n"+"Blobs au départ : "+(xd.blobCheck||"non vérifiés")+"\n"+"Chargements clip.el réels : "+(xd.clipElRealLoads||0)+" · déjà prêts : "+(xd.clipElHits||0)+" · seeks rejoués : "+(xd.softSeeks||0)+" · éléments dédiés créés : "+(xd.readerElsCreated||0)+"\n"+"Amorçages ciblés : "+(xd.targetedPrimes||0)+" · Seeks stricts : "+(xd.strictSeeks||0)+" · erreur max seek : "+Math.round(xd.maxSeekErrMs||0)+" ms\n"+"Attentes photos pleine résolution : "+(xd.photoWaits||0)+" · restées en secours : "+(xd.softPhotos||0)+"\n"+"SORTIE ENCODEUR : demandé "+(xd.encOut||"?")+" · canvas "+(xd.encCanvas||"?")+" · codec "+(xd.encCodec||"?")+" · frames "+(xd.encFrames||0)+" · durée théorique "+(xd.encTheo||"?")+"\n"+"VERDICT TRIAGE : "+(xd.triageVerdict||"aucun échec triagé")+"\n"+"SOLUTION : "+(xd.triageSolution||"—")+"\n"+"Étapes triage : "+(xd.triageSteps||"—")+"\n\nJOURNAL EXPORT (40 derniers événements)\n"+(xd.journal||"vide")+"\n"+"Motif du repli : "+(xd.fallbackReason||"aucun")+"\n\nDOUBLONS SOURCES\n"+(xd.duplicateSources||"Non mesurés"); }catch(e){ return ""; } })();
+              +(function(){ try{ var xd=window.__EXPORT_DIAG; if(!xd){ try{ xd=JSON.parse(localStorage.getItem("magot:lastExportDiag")||"null"); }catch(e){ xd=null; } } xd=xd||{}; return "\n\nEXPORT\n"+"Demandé : "+(xd.requested||"aucun")+"\n"+"Réellement utilisé : "+(xd.used||"aucun")+"\n"+"Résultat Turbo : "+(xd.turboResult||"non_tente")+"\n"+"Erreur Turbo : "+(xd.turboError||"aucune")+"\n"+"Résultat Compatible : "+(xd.mediaRecorderResult||"non_tente")+"\n"+"Erreur Compatible : "+(xd.mediaRecorderError||"aucune")+"\n"+"Etape echec : "+(xd.failureStage||xd.stage||"inconnue")+"\n"+"Temps : "+(xd.atSeconds!=null?xd.atSeconds+" s":"inconnu")+"\n"+"Segment : "+(xd.segment!=null?xd.segment:"inconnu")+"\n"+"Clip : "+(xd.clip!=null?xd.clip:"inconnu")+"\n"+"Statut : "+(xd.status||"inconnu")+"\n"+"Lecteur export : "+(window.__EXPORT_READER_KIND||"?")+"\n"+"URLs blob renouvelées : "+(xd.urlRenewals||0)+"\n"+"Blobs au départ : "+(xd.blobCheck||"non vérifiés")+"\n"+"Chargements clip.el réels : "+(xd.clipElRealLoads||0)+" · déjà prêts : "+(xd.clipElHits||0)+" · seeks rejoués : "+(xd.softSeeks||0)+" · éléments dédiés créés : "+(xd.readerElsCreated||0)+"\n"+"Amorçages ciblés : "+(xd.targetedPrimes||0)+" · Seeks stricts : "+(xd.strictSeeks||0)+" · erreur max seek : "+Math.round(xd.maxSeekErrMs||0)+" ms\n"+"Attentes photos pleine résolution : "+(xd.photoWaits||0)+" · restées en secours : "+(xd.softPhotos||0)+"\n"+"Fondu audio de fin : "+(xd.audioFade||"aucun")+"\n"+"SORTIE ENCODEUR : demandé "+(xd.encOut||"?")+" · canvas "+(xd.encCanvas||"?")+" · codec "+(xd.encCodec||"?")+" · frames "+(xd.encFrames||0)+" · durée théorique "+(xd.encTheo||"?")+"\n"+"VERDICT TRIAGE : "+(xd.triageVerdict||"aucun échec triagé")+"\n"+"SOLUTION : "+(xd.triageSolution||"—")+"\n"+"Étapes triage : "+(xd.triageSteps||"—")+"\n\nJOURNAL EXPORT (40 derniers événements)\n"+(xd.journal||"vide")+"\n"+"Motif du repli : "+(xd.fallbackReason||"aucun")+"\n\nDOUBLONS SOURCES\n"+(xd.duplicateSources||"Non mesurés"); }catch(e){ return ""; } })();
           }catch(e){ return "(indispo: "+e+")"; } })();
         (function(txt){ try{
           var dp=document.getElementById("diagMontagePanel"); if(dp) dp.remove();
@@ -10902,7 +10907,7 @@ function renderMontageAt(t){ try{ window.__MMT_BOTTOM_CAP_TOP=null; }catch(e){}
   _atmo=sg?(sg.atmo||null):null; _atmoAmt=(ATMO_AMT[MOOD]!=null?ATMO_AMT[MOOD]:0.6);
   /* FONDU AU NOIR vidéo->vidéo CENTRÉ sur la coupe (identique lecture) : avant = sortante->noir, après = noir->entrante réelle. Pas de saut arrière. */
   var _vid2vidX=(inTrans && sg && next && sg.video && next.video);
-  var _halfPrevX=(prev && prev.video && sg && sg.video && trName!=="cut")?Math.min((prev.trDur!=null?prev.trDur:0.5),(sg.end-sg.start)*0.5):0;
+  var _halfPrevX=(prev && prev.video && sg && sg.video && sg.trans!=="cut" && sg.trans!=="none")?Math.min((sg.trDur!=null?sg.trDur:0.5),(sg.end-sg.start)*0.5):0;   /* v1072 — GPT n°1 (côté rendu/export) */
   var _postBlackX=(_halfPrevX>0 && prev && prev.video && sg.video && into<_halfPrevX)?(1-(into/_halfPrevX)):0;
   if(glReady && TR.ready && inTrans && !_vid2vidX){
     drawSegAt(sg,t,0,1); trUpload(TR.texFrom);
@@ -11085,7 +11090,7 @@ async function _turboExport(){
     for(var fnum=0; fnum<N; fnum++){
       if(EXPORT_ABORT){ _aborted=true; throw new Error("abort"); }
       if(_vencErr) throw new Error("venc:"+_vencErr);
-      var _t=fnum/FPS;
+      var _t=fnum/FPS; try{ _t=Math.max(0,Math.min(DUR,_t+((typeof curSync==="function")?curSync():0))); }catch(e){}   /* v1070 — P3 horloge unique : le réglage Sync s'applique au Turbo comme à l'aperçu et au mode Compatible */
       var _si=-1; for(var _q=0;_q<SEGS.length;_q++){ if(_t>=SEGS[_q].start && _t<SEGS[_q].end){ _si=_q; break; } }
       var _sg=(_si>=0)?SEGS[_si]:null;
       var _diag=window.__EXPORT_DIAG; _diag.stage="turbo_frame"; _diag.atSeconds=+_t.toFixed(3); _diag.frame=fnum; _diag.segment=_si; _diag.clip=(_sg && _sg.video && _sg.vclip!=null)?_sg.vclip+1:null; _checkpointExportDiag();
@@ -11148,6 +11153,11 @@ async function _turboExport(){
     var tot=Math.min(_srcBuf.length, Math.floor(DUR*Asr));
     var Lc=new Float32Array(_Lc.subarray(0,tot)), Rc=new Float32Array(_Rc.subarray(0,tot));
     if(window.VIDSOUND){ try{ await _mixVideoAudioExport(Lc,Rc,Asr); }catch(e){} }
+    /* v1071 — P4 fondu audio UNIFIÉ : même loi de fin que la lecture (masterVol pow 0,7, fenêtre min(9, max(4, durée×0,16))) — le mixdown coupait sec. */
+    try{ var _fadeS=Math.min(9,Math.max(4,DUR*0.16)), _f0=Math.max(0,Math.floor((DUR-_fadeS)*Asr));
+      for(var _fi=_f0;_fi<tot;_fi++){ var _g9=Math.pow(Math.max(0,(tot-_fi)/(tot-_f0)),0.7); Lc[_fi]*=_g9; Rc[_fi]*=_g9; }
+      if(window.__EXPORT_DIAG) window.__EXPORT_DIAG.audioFade=_fadeS.toFixed(1)+" s (loi aperçu)";
+    }catch(e){}
     var _aencErr=null;
     var aenc=new AudioEncoder({ output:function(chunk,meta){ try{ if(meta&&meta.decoderConfig){ meta.decoderConfig.description=makeASC(Asr,Ach); } else { meta={decoderConfig:{description:makeASC(Asr,Ach)}}; } }catch(e){} muxer.addAudioChunk(chunk,meta); }, error:function(e){ _aencErr=(e&&e.message)||String(e); } });
     aenc.configure({codec:"mp4a.40.2", sampleRate:Asr, numberOfChannels:Ach, bitrate:128000});
@@ -11672,6 +11682,11 @@ async function exportFast(){ return exportStudio(); /* MOTEUR UNIFIÉ : tout pas
     var tot=Math.min(_srcBuf.length, Math.floor(DUR*Asr));
     var Lc=new Float32Array(_Lc.subarray(0,tot)), Rc=new Float32Array(_Rc.subarray(0,tot));
     if(window.VIDSOUND){ try{ await _mixVideoAudioExport(Lc,Rc,Asr); }catch(e){} }
+    /* v1071 — P4 fondu audio UNIFIÉ : même loi de fin que la lecture (masterVol pow 0,7, fenêtre min(9, max(4, durée×0,16))) — le mixdown coupait sec. */
+    try{ var _fadeS=Math.min(9,Math.max(4,DUR*0.16)), _f0=Math.max(0,Math.floor((DUR-_fadeS)*Asr));
+      for(var _fi=_f0;_fi<tot;_fi++){ var _g9=Math.pow(Math.max(0,(tot-_fi)/(tot-_f0)),0.7); Lc[_fi]*=_g9; Rc[_fi]*=_g9; }
+      if(window.__EXPORT_DIAG) window.__EXPORT_DIAG.audioFade=_fadeS.toFixed(1)+" s (loi aperçu)";
+    }catch(e){}
     var aenc=new AudioEncoder({ output:function(chunk,meta){ try{ if(meta&&meta.decoderConfig){ meta.decoderConfig.description=makeASC(Asr,Ach); } else { meta={decoderConfig:{description:makeASC(Asr,Ach)}}; } }catch(e){} muxer.addAudioChunk(chunk,meta); }, error:function(e){ _aencErr=(e&&e.message)||String(e); } });
     aenc.configure({codec:"mp4a.40.2", sampleRate:Asr, numberOfChannels:Ach, bitrate:128000});
     for(var off=0; off<tot; off+=1024){ var n=Math.min(1024,tot-off); var data=new Float32Array(n*2); data.set(Lc.subarray(off,off+n),0); data.set(Rc.subarray(off,off+n),n); var ad=new AudioData({format:"f32-planar",sampleRate:Asr,numberOfFrames:n,numberOfChannels:2,timestamp:Math.round(off*1000000/Asr),data:data}); aenc.encode(ad); ad.close(); }
