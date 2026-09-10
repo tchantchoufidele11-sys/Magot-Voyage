@@ -9905,6 +9905,19 @@ function studioOpen(w, tr){ if(!w||!tr) return; var fid="trip:"+tr.id;
       var missing=items.filter(function(it){ return have.indexOf(it.id)<0; });
       if(missing.length && w.studioAddPhotos) w.studioAddPhotos(missing);
     }catch(e){} })(); }, 1600);
+    /* SIGNATURE IA pour les FILMS EXISTANTS : l'appel Mistral ne tournait qu'à la CRÉATION du film
+       (studioFeed -> studioAutoMontage). Un film créé sans texte (ancienne version, réseau, 404 d'époque)
+       restait générique pour toujours. Ici : si le film restauré n'a pas de texte, on le génère UNE fois,
+       on le pousse au studio et on le fait sauvegarder — même règle de réalité (prompt worker : lieux fournis
+       uniquement). Échec réseau = silencieux, le studio garde son repli thématisé. */
+    setTimeout(function(){ (async function(){ try{
+      if(w.SIGN_TEXT) return;                                  /* déjà rédigé (restauré du film) */
+      var sig=await magotSignText(tr); if(!sig) return;
+      w.SIGN_TEXT=sig;
+      try{ if(w.SIGN) w.SIGN.data=null; }catch(e){}            /* forcer la reconstruction du carton */
+      try{ if(typeof w._signBuild==="function") w._signBuild(); }catch(e){}
+      try{ if(typeof w._projSaveSoon==="function") w._projSaveSoon(); }catch(e){}   /* persisté : généré une fois */
+    }catch(e){} })(); }, 2600);
     return;
   } }catch(e){}
   studioFeed(w, tr);

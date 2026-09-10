@@ -1035,7 +1035,7 @@ input[type=range]::-moz-range-thumb{width:22px;height:22px;border:0;border-radiu
       <button class="efmt" data-ef="c"><div class="ef-sh ef-c"></div><div class="ef-tx"><b>1:1</b><span data-i18n="Carré · fil Instagram">Carré · fil Instagram</span></div></button>
       <button class="efmt" data-ef="h"><div class="ef-sh ef-h"></div><div class="ef-tx"><b>16:9</b><span data-i18n="Paysage · YouTube">Paysage · YouTube</span></div></button>
     </div>
-    <div class="signrow"><div class="signrow-t">Signature Magot<em>Intro + fin cinématiques · au premier export</em></div><button class="vtog on" id="signTog" type="button" aria-label="Signature" onclick="try{SIGN.on=!SIGN.on;this.classList.toggle('on',SIGN.on);this.setAttribute('aria-checked',SIGN.on?'true':'false');}catch(e){}"><i class="vtog-dot"></i></button></div>
+    <div class="signrow"><div class="signrow-t">Signature Magot<em>Intro + fin cinématiques · au premier export</em></div><button class="vtog on" id="signTog" type="button" aria-label="Signature" onclick="try{SIGN.on=!SIGN.on;this.classList.toggle('on',SIGN.on);this.setAttribute('aria-checked',SIGN.on?'true':'false');if(typeof buildPartition==='function'&&A&&(PHOTOS.length||clipVidReady)){buildPartition();updateBadge();paintStrip(0);}if(typeof _projSaveSoon==='function')_projSaveSoon();}catch(e){}"><i class="vtog-dot"></i></button></div>
 
     <button class="doexp" id="doExport"><svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" stroke="none" style="display:inline-block;vertical-align:middle;margin-right:4px"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg> Exporter en 9:16</button>
   </div>
@@ -1242,7 +1242,7 @@ function renderPlanToBuffer(dur, sr){
 function analyzeBufferInto(buf, cb){ try{ essentiaReady.then(function(ok){ if(ok){ setTimeout(function(){ try{ toMono44(buf,function(sig,sr){ var An; try{ An=analyzeEssentia(sig,sr,buf.duration); }catch(e){ An=analyzeCustom(buf); } cb(An); }); }catch(e){ cb(analyzeCustom(buf)); } }, 20); } else { setTimeout(function(){ cb(analyzeCustom(buf)); }, 20); } }); }catch(e){ try{ cb(analyzeCustom(buf)); }catch(e2){ cb(null); } } }
 
 var CLIPS=[], clipVidReady=false, VIDACT=-1;
-window.STUDIO_VERSION="v1081";
+window.STUDIO_VERSION="v1082";
 window.MAGOT_EXPORT_ENGINE="auto"; try{ window.MAGOT_EXPORT_ENGINE=localStorage.getItem("magot_export_engine")||"auto"; }catch(e){}
 function setMagotExportEngine(mode){ if(mode!=="auto"&&mode!=="turbo"&&mode!=="mediarecorder") mode="auto"; window.MAGOT_EXPORT_ENGINE=mode; try{ localStorage.setItem("magot_export_engine",mode); }catch(e){} }
 function _exportEngineLabel(){ var m=window.MAGOT_EXPORT_ENGINE; return m==="turbo"?"Export : Turbo test":m==="mediarecorder"?"Export : Compatible":"Export : Automatique"; }
@@ -9140,7 +9140,7 @@ function _openLangPicker(){
   bg.style.cssText="position:fixed;inset:0;z-index:100050;background:rgba(0,0,0,.62);backdrop-filter:blur(4px);display:flex;align-items:flex-end;justify-content:center;font-family:system-ui,-apple-system,sans-serif";
   var card=document.createElement("div");
   card.style.cssText="width:100%;max-width:520px;background:#0f0e0d;border:1px solid #282622;border-radius:22px 22px 0 0;padding:8px 10px 22px;max-height:78vh;overflow:auto;box-shadow:0 -10px 50px rgba(0,0,0,.7)";
-  var head="<div style=\"text-align:center;padding:12px 0 6px\"><div style=\"width:40px;height:4px;background:#3a3733;border-radius:3px;margin:0 auto 12px\"></div><div style=\"color:#f4f7fc;font:700 17px system-ui\">\uD83C\uDF10 "+_st("Langue des paroles")+"</div><div style=\"color:#8a93a6;font:500 12.5px system-ui;margin-top:3px\">"+_st("Traduction synchronisée au rythme")+" \u00b7 v1081</div></div>";
+  var head="<div style=\"text-align:center;padding:12px 0 6px\"><div style=\"width:40px;height:4px;background:#3a3733;border-radius:3px;margin:0 auto 12px\"></div><div style=\"color:#f4f7fc;font:700 17px system-ui\">\uD83C\uDF10 "+_st("Langue des paroles")+"</div><div style=\"color:#8a93a6;font:500 12.5px system-ui;margin-top:3px\">"+_st("Traduction synchronisée au rythme")+" \u00b7 v1082</div></div>";
   var rows="";
   for(var i=0;i<window._LYRICS_LANGS.length;i++){ var code=window._LYRICS_LANGS[i][0], name=window._LYRICS_LANGS[i][1], fl=_LANG_FLAGS[code]||"\uD83C\uDF10", on=(window._LYRICS_LANG===code);
     rows+="<button class=\"lang-opt\" data-l=\""+code+"\" style=\"display:flex;align-items:center;gap:13px;width:100%;text-align:left;background:"+(on?"rgba(122,208,160,.14)":"none")+";border:1px solid "+(on?"rgba(122,208,160,.5)":"transparent")+";color:#f4f7fc;font:600 15.5px system-ui;padding:14px 15px;border-radius:13px;cursor:pointer;margin:3px 0\"><span style=\"font-size:22px\">"+fl+"</span><span style=\"flex:1\">"+name+"</span>"+(on?"<span style=\"color:#7ad0a0;font-size:18px\">\u2713</span>":"")+"</button>";
@@ -9815,7 +9815,7 @@ function studioApplyProject(proj){ if(!proj) return; try{
     if(_ps!=null){ window.PERSO_SYNC=_ps; window.PERSO_BASE=proj.persoBase||proj.mood||MOOD; SYNC_M[window.PERSO_BASE]=_ps; MOOD=window.PERSO_BASE;
       setTimeout(function(){ try{ if(window._persoUI)window._persoUI(); setState("Ambiance : <b>Personnalis\u00e9</b>"); }catch(e){} },900);
     } else { window.PERSO_SYNC=null; window.PERSO_BASE=null; } }catch(e){}
-  if(typeof SIGN!=="undefined") SIGN.on=(proj.sign && proj.sign.on===false)?false:true;   /* Signature AUTO par défaut */
+  if(typeof SIGN!=="undefined"){ SIGN.on=(proj.sign && proj.sign.on===false)?false:true; if(proj.sign&&proj.sign.text) window.SIGN_TEXT=proj.sign.text; try{ if(window._syncSignTog)window._syncSignTog(); }catch(e){} }   /* v1082 : vérité au bouton + texte IA/manuel restauré */
   if(proj.sign && proj.sign.text) window.SIGN_TEXT=proj.sign.text;
   var byId={}; for(var i=0;i<PHOTOS.length;i++){ if(PHOTOS[i]&&PHOTOS[i]._id) byId[PHOTOS[i]._id]=PHOTOS[i]; }
   (proj.photos||[]).forEach(function(m){ var p=byId[m.id]; if(!p) return;
@@ -9881,7 +9881,7 @@ function _studioResetAll(){   /* remet le studio à un état PROPRE */
   try{ if(typeof CLIPS!=="undefined"){ CLIPS.forEach(function(c){ try{ c.el.pause(); if(c.el._u) URL.revokeObjectURL(c.el._u); c.el.remove(); }catch(e){} }); CLIPS.length=0; } clipVidReady=false; VIDACT=-1; }catch(e){}
   try{ _hideClipOverlay(); }catch(e){}
   try{ window.USER_ORDER=null; window.SIGN_TEXT=null; window._restSeen={}; window.__activeMusicFile=null; }catch(e){}
-  try{ if(typeof SIGN!=="undefined"){ SIGN.on=false; } }catch(e){}
+  try{ if(typeof SIGN!=="undefined"){ SIGN.on=false; if(window._syncSignTog)window._syncSignTog(); } }catch(e){}
   try{ var _sm=document.getElementById("srcMus"); if(_sm)_sm.textContent="Choisir"; var _sp=document.getElementById("srcPho"); if(_sp)_sp.textContent="Ajouter"; var _sv=document.getElementById("srcVid"); if(_sv)_sv.textContent="Optionnel"; }catch(e){}
   try{ var te=document.getElementById("thumbs"); if(te) te.innerHTML=""; }catch(e){}
   try{ if(bctx&&base) bctx.clearRect(0,0,base.width,base.height); }catch(e){}
@@ -9915,7 +9915,7 @@ function _afterOpenFilm(proj){ try{ _linkSources(); }catch(e){} try{
     if(_ps!=null){ window.PERSO_SYNC=_ps; window.PERSO_BASE=proj.persoBase||proj.mood||MOOD; SYNC_M[window.PERSO_BASE]=_ps; MOOD=window.PERSO_BASE;
       setTimeout(function(){ try{ if(window._persoUI)window._persoUI(); setState("Ambiance : <b>Personnalis\u00e9</b>"); }catch(e){} },900);
     } else { window.PERSO_SYNC=null; window.PERSO_BASE=null; } }catch(e){}
-  if(typeof SIGN!=="undefined") SIGN.on=(proj.sign && proj.sign.on===false)?false:true;   /* Signature (intro/outro) AUTO par défaut ; coupée seulement si le film le demande explicitement */
+  if(typeof SIGN!=="undefined"){ SIGN.on=(proj.sign && proj.sign.on===false)?false:true; if(proj.sign&&proj.sign.text) window.SIGN_TEXT=proj.sign.text; try{ if(window._syncSignTog)window._syncSignTog(); }catch(e){} }   /* v1082 */
   if(proj.sign && proj.sign.text) window.SIGN_TEXT=proj.sign.text;
   try{ updateBadge(); paintStrip(0); }catch(e){}
   var _clipsP=Promise.resolve();
@@ -10310,7 +10310,7 @@ function _toggleFilmsMenu(anchor){
                   +"Transitions : "+((p.modes&&p.modes.transition)||0)+"\n"
                   +"Changements de clip : "+(p.switches||0);
               }catch(e){ return "(fluidité indispo: "+e+")"; } })()
-              +(function(){ try{ var xd=window.__EXPORT_DIAG; if(!xd){ try{ xd=JSON.parse(localStorage.getItem("magot:lastExportDiag")||"null"); }catch(e){ xd=null; } } xd=xd||{}; return "\n\nEXPORT\n"+"Demandé : "+(xd.requested||"aucun")+"\n"+"Réellement utilisé : "+(xd.used||"aucun")+"\n"+"Résultat Turbo : "+(xd.turboResult||"non_tente")+"\n"+"Erreur Turbo : "+(xd.turboError||"aucune")+"\n"+"Résultat Compatible : "+(xd.mediaRecorderResult||"non_tente")+"\n"+"Erreur Compatible : "+(xd.mediaRecorderError||"aucune")+"\n"+"Etape echec : "+(xd.failureStage||xd.stage||"inconnue")+"\n"+"Temps : "+(xd.atSeconds!=null?xd.atSeconds+" s":"inconnu")+"\n"+"Segment : "+(xd.segment!=null?xd.segment:"inconnu")+"\n"+"Clip : "+(xd.clip!=null?xd.clip:"inconnu")+"\n"+"Statut : "+(xd.status||"inconnu")+"\n"+"Lecteur export : "+(window.__EXPORT_READER_KIND||"?")+"\n"+"URLs blob renouvelées : "+(xd.urlRenewals||0)+"\n"+"Blobs au départ : "+(xd.blobCheck||"non vérifiés")+"\n"+"Chargements clip.el réels : "+(xd.clipElRealLoads||0)+" · déjà prêts : "+(xd.clipElHits||0)+" · seeks rejoués : "+(xd.softSeeks||0)+" · éléments dédiés créés : "+(xd.readerElsCreated||0)+"\n"+"Amorçages ciblés : "+(xd.targetedPrimes||0)+" · Seeks stricts : "+(xd.strictSeeks||0)+" · erreur max seek : "+Math.round(xd.maxSeekErrMs||0)+" ms\n"+"Attentes photos pleine résolution : "+(xd.photoWaits||0)+" · restées en secours : "+(xd.softPhotos||0)+"\n"+"Fondu audio de fin : "+(xd.audioFade||"aucun")+" \u00b7 D\u00e9part musical export\u00e9 : "+(xd.mstart||"0:00")+"\n"+"SORTIE ENCODEUR : demandé "+(xd.encOut||"?")+" · canvas "+(xd.encCanvas||"?")+" · codec "+(xd.encCodec||"?")+" · frames "+(xd.encFrames||0)+" · durée théorique "+(xd.encTheo||"?")+"\n"+"VERDICT TRIAGE : "+(xd.triageVerdict||"aucun échec triagé")+"\n"+"SOLUTION : "+(xd.triageSolution||"—")+"\n"+"Étapes triage : "+(xd.triageSteps||"—")+"\n\nJOURNAL EXPORT (40 derniers événements)\n"+(xd.journal||"vide")+"\n"+"Motif du repli : "+(xd.fallbackReason||"aucun")+"\n\nDOUBLONS SOURCES\n"+(xd.duplicateSources||"Non mesurés"); }catch(e){ return ""; } })();
+              +(function(){ try{ var xd=window.__EXPORT_DIAG; if(!xd){ try{ xd=JSON.parse(localStorage.getItem("magot:lastExportDiag")||"null"); }catch(e){ xd=null; } } xd=xd||{}; return "\n\nEXPORT\n"+"Demandé : "+(xd.requested||"aucun")+"\n"+"Réellement utilisé : "+(xd.used||"aucun")+"\n"+"Résultat Turbo : "+(xd.turboResult||"non_tente")+"\n"+"Erreur Turbo : "+(xd.turboError||"aucune")+"\n"+"Résultat Compatible : "+(xd.mediaRecorderResult||"non_tente")+"\n"+"Erreur Compatible : "+(xd.mediaRecorderError||"aucune")+"\n"+"Etape echec : "+(xd.failureStage||xd.stage||"inconnue")+"\n"+"Temps : "+(xd.atSeconds!=null?xd.atSeconds+" s":"inconnu")+"\n"+"Segment : "+(xd.segment!=null?xd.segment:"inconnu")+"\n"+"Clip : "+(xd.clip!=null?xd.clip:"inconnu")+"\n"+"Statut : "+(xd.status||"inconnu")+"\n"+"Lecteur export : "+(window.__EXPORT_READER_KIND||"?")+"\n"+"URLs blob renouvelées : "+(xd.urlRenewals||0)+"\n"+"Blobs au départ : "+(xd.blobCheck||"non vérifiés")+"\n"+"Chargements clip.el réels : "+(xd.clipElRealLoads||0)+" · déjà prêts : "+(xd.clipElHits||0)+" · seeks rejoués : "+(xd.softSeeks||0)+" · éléments dédiés créés : "+(xd.readerElsCreated||0)+"\n"+"Amorçages ciblés : "+(xd.targetedPrimes||0)+" · Seeks stricts : "+(xd.strictSeeks||0)+" · erreur max seek : "+Math.round(xd.maxSeekErrMs||0)+" ms\n"+"Attentes photos pleine résolution : "+(xd.photoWaits||0)+" · restées en secours : "+(xd.softPhotos||0)+"\n"+"Fondu audio de fin : "+(xd.audioFade||"aucun")+" \u00b7 D\u00e9part musical export\u00e9 : "+(xd.mstart||"0:00")+"\n"+"Signature : "+((typeof SIGN!=="undefined"&&SIGN.on)?("ON \u00b7 intro "+SIGN.introDur+" s / outro "+SIGN.outroDur+" s \u00b7 texte : "+(window.__signSource||"d\u00e9faut")):"OFF")+"\n"+"SORTIE ENCODEUR : demandé "+(xd.encOut||"?")+" · canvas "+(xd.encCanvas||"?")+" · codec "+(xd.encCodec||"?")+" · frames "+(xd.encFrames||0)+" · durée théorique "+(xd.encTheo||"?")+"\n"+"VERDICT TRIAGE : "+(xd.triageVerdict||"aucun échec triagé")+"\n"+"SOLUTION : "+(xd.triageSolution||"—")+"\n"+"Étapes triage : "+(xd.triageSteps||"—")+"\n\nJOURNAL EXPORT (40 derniers événements)\n"+(xd.journal||"vide")+"\n"+"Motif du repli : "+(xd.fallbackReason||"aucun")+"\n\nDOUBLONS SOURCES\n"+(xd.duplicateSources||"Non mesurés"); }catch(e){ return ""; } })();
           }catch(e){ return "(indispo: "+e+")"; } })();
         (function(txt){ try{
           var dp=document.getElementById("diagMontagePanel"); if(dp) dp.remove();
@@ -11227,7 +11227,9 @@ async function _turboExport(){
    Texte écrit par Mistral une fois greffé (via window.SIGN_TEXT) ; en attendant,
    proverbes variés tirés d'une petite bibliothèque locale + texte par défaut.
    =================================================================== */
-var SIGN={ on:true, introDur:4.8, outroDur:5.2, data:null };   /* plus long -> temps de lire l'intro/outro */
+var SIGN={ on:true, introDur:4.8, outroDur:5.2, data:null };
+function _syncSignTog(){ try{ var b=document.getElementById("signTog"); if(b){ b.classList.toggle("on",!!SIGN.on); b.setAttribute("aria-checked",SIGN.on?"true":"false"); } }catch(e){} }   /* v1082 : le bouton dit TOUJOURS la vérité (il affichait « on » en dur pendant que le moteur était éteint) */
+try{ window._syncSignTog=_syncSignTog; }catch(e){}   /* plus long -> temps de lire l'intro/outro */
 try{ if(typeof window.STUDIO_ADMIN==="undefined") window.STUDIO_ADMIN=true; }catch(e){}   /* greffe : MagotVoyage le met à isAdmin() */var SIGN_PROVERBS=[
   "Le vrai voyage ne consiste pas à chercher de nouveaux paysages, mais à avoir de nouveaux yeux.",
   "On ne part jamais vraiment : on emporte les lieux avec soi.",
@@ -11244,10 +11246,25 @@ try{ if(typeof window.STUDIO_ADMIN==="undefined") window.STUDIO_ADMIN=true; }cat
   "Partir, c'est offrir à demain de beaux souvenirs d'aujourd'hui.",
   "Les grands voyages laissent des traces là où on ne les attend pas."
 ];
-function _signPick2(){ var a=SIGN_PROVERBS, i=Math.floor(Math.random()*a.length), j; do{ j=Math.floor(Math.random()*a.length); }while(a.length>1&&j===i); return [a[i],a[j]]; }
+var SIGN_THEMES={ mer:["La mer efface les pas mais jamais les souvenirs.","Chaque vague raconte un départ, chaque marée un retour.","Face \u00e0 la mer, le temps apprend la patience."],
+  montagne:["La montagne se gravit pas \u00e0 pas, se garde pour toujours.","L\u00e0-haut, le silence dit plus que mille photos.","Chaque sommet commence par un premier matin."],
+  ville:["Une ville se visite \u00e0 pied et se garde au c\u0153ur.","Chaque rue traversée devient un peu la n\u00f4tre.","Les villes s\u2019oublient, leurs lumi\u00e8res jamais."],
+  route:["Les plus belles routes sont celles que l\u2019on n\u2019avait pas pr\u00e9vues.","La route donne toujours plus qu\u2019elle ne prend.","Partir loin, revenir plein."],
+  famille:["Le bonheur n\u2019est pas la destination, mais le chemin parcouru ensemble.","Ensemble, m\u00eame les d\u00e9tours deviennent des souvenirs.","Ce que l\u2019on vit \u00e0 plusieurs ne s\u2019oublie jamais seul."] };
+function _signThemeFromCtx(){ try{ var c=window.SIGN_CTX||{}; var t=((c.titre||c.title||"")+" "+((c.lieux||c.places||[]).join(" "))).toLowerCase();
+  if(/mer|plage|oc\u00e9an|ocean|\u00eele|ile|c\u00f4te|cote/.test(t)) return "mer";
+  if(/montagne|alpes|sommet|ski|randonn/.test(t)) return "montagne";
+  if(/paris|rome|bruxelles|londres|lisbonne|madrid|ville|city/.test(t)) return "ville";
+  if(/road|route|van|camping/.test(t)) return "route";
+  if(/famille|enfants|anniversaire|mariage/.test(t)) return "famille";
+}catch(e){} return null; }
+function _signPick2(){ var th=_signThemeFromCtx(); var pool=(th&&SIGN_THEMES[th])?SIGN_THEMES[th].concat(SIGN_PROVERBS):SIGN_PROVERBS;
+  var i=Math.floor(Math.random()*pool.length), j; do{ j=Math.floor(Math.random()*pool.length); }while(pool.length>1&&j===i);
+  try{ window.__signSource=(th?("biblioth\u00e8que \u00b7 th\u00e8me "+th):"biblioth\u00e8que"); }catch(e){}
+  return [pool[i],pool[j]]; }
 function _signBuild(){
-  var d=window.SIGN_TEXT||null;   /* fourni par Mistral après la greffe */
-  if(d && (d.introProverbe||d.introProverb)){
+  var d=window.SIGN_TEXT||null;   /* fourni par la greffe MagotVoyage (Mistral) ou restauré du film ; RÈGLE DURE : ne citer que des lieux RÉELLEMENT fournis */
+  if(d && (d.introProverbe||d.introProverb)){ try{ window.__signSource=(d._manuel?"manuel":"IA"); }catch(e){}
     SIGN.data={ introTitle:d.introTitre||d.introTitle||"Ton voyage", introText:d.introTexte||d.introText||"",
       introProverb:d.introProverbe||d.introProverb||"", outroText:d.outroTexte||d.outroText||"",
       outroProverb:d.outroProverbe||d.outroProverb||"" };
