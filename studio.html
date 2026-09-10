@@ -1242,7 +1242,7 @@ function renderPlanToBuffer(dur, sr){
 function analyzeBufferInto(buf, cb){ try{ essentiaReady.then(function(ok){ if(ok){ setTimeout(function(){ try{ toMono44(buf,function(sig,sr){ var An; try{ An=analyzeEssentia(sig,sr,buf.duration); }catch(e){ An=analyzeCustom(buf); } cb(An); }); }catch(e){ cb(analyzeCustom(buf)); } }, 20); } else { setTimeout(function(){ cb(analyzeCustom(buf)); }, 20); } }); }catch(e){ try{ cb(analyzeCustom(buf)); }catch(e2){ cb(null); } } }
 
 var CLIPS=[], clipVidReady=false, VIDACT=-1;
-window.STUDIO_VERSION="v1073";
+window.STUDIO_VERSION="v1074";
 window.MAGOT_EXPORT_ENGINE="auto"; try{ window.MAGOT_EXPORT_ENGINE=localStorage.getItem("magot_export_engine")||"auto"; }catch(e){}
 function setMagotExportEngine(mode){ if(mode!=="auto"&&mode!=="turbo"&&mode!=="mediarecorder") mode="auto"; window.MAGOT_EXPORT_ENGINE=mode; try{ localStorage.setItem("magot_export_engine",mode); }catch(e){} }
 function _exportEngineLabel(){ var m=window.MAGOT_EXPORT_ENGINE; return m==="turbo"?"Export : Turbo test":m==="mediarecorder"?"Export : Compatible":"Export : Automatique"; }
@@ -1638,12 +1638,7 @@ function buildPartition(){
     else if(window.LOOP_ON){ _audioCovers=true; }
     else { _audioCovers=((A.dur||0)>=_montageEnd-0.05); }
     var _gridCoversCuts=(_gEnd + Math.max(_beatStep||0,0.25) >= _mediaEnd);   /* la grille couvre les MÉDIAS, pas l'outro */
-    try{ var _bts9=(A&&A.beats)||window._BEATS||[]; var _cd={n:0,sum:0,max:0,o60:0,o80:0,o120:0};
-      if(_bts9.length && typeof SEGS!=="undefined" && SEGS.length>1){ for(var _ci9=1;_ci9<SEGS.length;_ci9++){ var _bt0=SEGS[_ci9].start, _bd9=1e9;
-        for(var _bj9=0;_bj9<_bts9.length;_bj9++){ var _dd9=Math.abs(_bts9[_bj9]-_bt0); if(_dd9<_bd9)_bd9=_dd9; else if(_bts9[_bj9]>_bt0+1.5) break; }
-        if(_bd9<1e9){ _cd.n++; _cd.sum+=_bd9; if(_bd9>_cd.max)_cd.max=_bd9; if(_bd9>0.06)_cd.o60++; if(_bd9>0.08)_cd.o80++; if(_bd9>0.12)_cd.o120++; } } }
-      window.__CUTDIAG=_cd.n?{n:_cd.n, avg:Math.round(_cd.sum/_cd.n*1000), max:Math.round(_cd.max*1000), o60:_cd.o60, o80:_cd.o80, o120:_cd.o120}:null;
-    }catch(e){}   /* v1072 — GPT n°2 : distance RÉELLE de chaque coupe au beat le plus proche, mesurée sur la partition finale */
+    try{ window.__GRIDBEATS=beats; }catch(e){}   /* v1074 : grille capturée ici (closure garnie), mesure déplacée à la FIN réelle de la partition */
     window._MUSICDIAG={ mode:(window.MULTI?"multi":(window.LOOP_ON?"single-loop":"single")), mediaNeed:Math.round(bdur), musicNeed:Math.round(_iD+bdur+_oD), mediaEnd:Math.round(_mediaEnd), montageEnd:Math.round(_montageEnd), gridEnd:Math.round(_gEnd), planEnd:Math.round(_planEnd), audioCoversFilm:_audioCovers, gridCoversCuts:_gridCoversCuts };
     console.log("[MUSIC GRID]", window._MUSICDIAG);
     if(!_audioCovers) console.warn("[MUSIC GRID] audio ne couvre pas tout le film");
@@ -2033,6 +2028,12 @@ function buildPartition(){
       else if(_sg.img!=null && _sg.img>=0){ _pSeen[_sg.img]=1; _pDur+=_len; } }
     var _pMiss=_keptP.filter(function(i){return !_pSeen[i];});
     var _cMiss=_readyC.filter(function(i){return !_cSeen[i];});
+    try{ var _bts9=(window.__GRIDBEATS&&window.__GRIDBEATS.length)?window.__GRIDBEATS:((A&&A.beats)||window._BEATS||[]); var _cd={n:0,sum:0,max:0,o60:0,o80:0,o120:0};
+      if(_bts9.length && SEGS.length>1){ for(var _ci9=1;_ci9<SEGS.length;_ci9++){ var _bt0=SEGS[_ci9].start, _bd9=1e9;
+        for(var _bj9=0;_bj9<_bts9.length;_bj9++){ var _dd9=Math.abs(_bts9[_bj9]-_bt0); if(_dd9<_bd9)_bd9=_dd9; else if(_bts9[_bj9]>_bt0+1.5) break; }
+        if(_bd9<1e9){ _cd.n++; _cd.sum+=_bd9; if(_bd9>_cd.max)_cd.max=_bd9; if(_bd9>0.06)_cd.o60++; if(_bd9>0.08)_cd.o80++; if(_bd9>0.12)_cd.o120++; } } }
+      window.__CUTDIAG=_cd.n?{n:_cd.n, avg:Math.round(_cd.sum/_cd.n*1000), max:Math.round(_cd.max*1000), o60:_cd.o60, o80:_cd.o80, o120:_cd.o120, mood:MOOD, bpm:((A&&(A.bpmFelt||A.bpm))||0)}:null;
+    }catch(e){}   /* v1074 — GPT n°2 réparé : mesuré sur les SEGS FINAUX avec la grille réellement utilisée, mode+BPM inclus */
     window._COVERAGE={ photos:{need:_keptP.length,placed:Object.keys(_pSeen).length,missing:_pMiss}, clips:{need:_readyC.length,placed:Object.keys(_cSeen).length,missing:_cMiss}, pDur:Math.round(_pDur), vDur:Math.round(_vDur) };
     /* PANNEAU DIAG VISIBLE (?diag=1) : pour tester sur iPhone sans console Safari */
     try{ if(/[?&]diag=1/.test(location.search)){
@@ -9110,7 +9111,7 @@ function _openLangPicker(){
   bg.style.cssText="position:fixed;inset:0;z-index:100050;background:rgba(0,0,0,.62);backdrop-filter:blur(4px);display:flex;align-items:flex-end;justify-content:center;font-family:system-ui,-apple-system,sans-serif";
   var card=document.createElement("div");
   card.style.cssText="width:100%;max-width:520px;background:#0f0e0d;border:1px solid #282622;border-radius:22px 22px 0 0;padding:8px 10px 22px;max-height:78vh;overflow:auto;box-shadow:0 -10px 50px rgba(0,0,0,.7)";
-  var head="<div style=\"text-align:center;padding:12px 0 6px\"><div style=\"width:40px;height:4px;background:#3a3733;border-radius:3px;margin:0 auto 12px\"></div><div style=\"color:#f4f7fc;font:700 17px system-ui\">\uD83C\uDF10 "+_st("Langue des paroles")+"</div><div style=\"color:#8a93a6;font:500 12.5px system-ui;margin-top:3px\">"+_st("Traduction synchronisée au rythme")+" \u00b7 v1073</div></div>";
+  var head="<div style=\"text-align:center;padding:12px 0 6px\"><div style=\"width:40px;height:4px;background:#3a3733;border-radius:3px;margin:0 auto 12px\"></div><div style=\"color:#f4f7fc;font:700 17px system-ui\">\uD83C\uDF10 "+_st("Langue des paroles")+"</div><div style=\"color:#8a93a6;font:500 12.5px system-ui;margin-top:3px\">"+_st("Traduction synchronisée au rythme")+" \u00b7 v1074</div></div>";
   var rows="";
   for(var i=0;i<window._LYRICS_LANGS.length;i++){ var code=window._LYRICS_LANGS[i][0], name=window._LYRICS_LANGS[i][1], fl=_LANG_FLAGS[code]||"\uD83C\uDF10", on=(window._LYRICS_LANG===code);
     rows+="<button class=\"lang-opt\" data-l=\""+code+"\" style=\"display:flex;align-items:center;gap:13px;width:100%;text-align:left;background:"+(on?"rgba(122,208,160,.14)":"none")+";border:1px solid "+(on?"rgba(122,208,160,.5)":"transparent")+";color:#f4f7fc;font:600 15.5px system-ui;padding:14px 15px;border-radius:13px;cursor:pointer;margin:3px 0\"><span style=\"font-size:22px\">"+fl+"</span><span style=\"flex:1\">"+name+"</span>"+(on?"<span style=\"color:#7ad0a0;font-size:18px\">\u2713</span>":"")+"</button>";
@@ -10255,7 +10256,7 @@ function _toggleFilmsMenu(anchor){
               +"Déchargements confirmés : "+(_W.unloadConfirmed||0)+"\n"
               +"Déchargements échoués : "+(_W.unloadFailed||0)+"\n"
               +(function(){ try{ var ps=window.__PLAYSTATS||{}; return "Entrées de clip : "+(ps.entries||0)+" \u00b7 prêtes à l\u2019entrée : "+(ps.readyAtEntry||0)+" \u00b7 1re image >300 ms : "+(ps.slow1st||0)+" \u00b7 relances play : "+(ps.retries||0)+" \u00b7 ré-attaches : "+(ps.reattaches||0)+" \u00b7 relances load : "+(ps.staleReloads||0)+" \u00b7 play rejetés : "+(ps.playRejected||0)+" \u00b7 ressuscités en lecture : "+(ps.revived||0)+" \u00b7 perdus : "+(ps.lost||0)+"\n"+"JOURNAL LECTURE VIDÉO (20 derniers)\n"+(((window.__PLAYLOG||[]).slice(-20).join("\n"))||"vide")+"\n"; }catch(e){ return ""; } })()+"Violations fenêtre : "+(_W.syncErr||0)
-              +(function(){ try{ var td=window._TIMELINEDIAG||{}; return "\n\nTIMELINE\n"+"Continue : "+(td.contiguous?"OUI":"NON")+"\n"+"Trous : "+((td.gaps&&td.gaps.length)||0)+"\n"+"Chevauchements : "+((td.overlaps&&td.overlaps.length)||0)+"\n"+(function(){ try{ var cd=window.__CUTDIAG; return cd?("Coupes vs beats : moyenne "+cd.avg+" ms · max "+cd.max+" ms · >60 ms : "+cd.o60+"/"+cd.n+" · >80 ms : "+cd.o80+" · >120 ms : "+cd.o120+"\n"):"Coupes vs beats : non mesuré (pas de grille)\n"; }catch(e){ return ""; } })()+"Dépassements vidéo : "+((td.overruns&&td.overruns.length)||0)+"\n"+"Médias physiquement valides : "+(td.mediaValid?"OUI":"NON"); }catch(e){ return ""; } })()
+              +(function(){ try{ var td=window._TIMELINEDIAG||{}; return "\n\nTIMELINE\n"+"Continue : "+(td.contiguous?"OUI":"NON")+"\n"+"Trous : "+((td.gaps&&td.gaps.length)||0)+"\n"+"Chevauchements : "+((td.overlaps&&td.overlaps.length)||0)+"\n"+(function(){ try{ var cd=window.__CUTDIAG; return cd?("Coupes vs beats ("+(cd.mood||"?")+(cd.bpm?(" · "+Math.round(cd.bpm)+" BPM"):"")+") : moyenne "+cd.avg+" ms · max "+cd.max+" ms · >60 ms : "+cd.o60+"/"+cd.n+" · >80 ms : "+cd.o80+" · >120 ms : "+cd.o120+"\n"):"Coupes vs beats : non mesuré (pas de grille)\n"; }catch(e){ return ""; } })()+"Dépassements vidéo : "+((td.overruns&&td.overruns.length)||0)+"\n"+"Médias physiquement valides : "+(td.mediaValid?"OUI":"NON"); }catch(e){ return ""; } })()
               +(function(){ try{ var vi=window.__VIMPORT||{}; return "\n\nIMPORT VIDÉO\n"+"Mode : "+(vi.mode||"?")+"\n"+"Sources attachées maintenant : "+(vi.attachedNow||0)+"\n"+"Sources attachées MAX réel : "+(vi.attachedMax||0)+"\n"+"Chargements simultanés MAX : "+(vi.loadingMax||0); }catch(e){ return ""; } })()
               +"\n\nFLUIDITÉ\n"+(function(){ try{
                 var p=window.__VPERF||{}; var recent=p.recent||[]; var sum=0; for(var _q=0;_q<recent.length;_q++) sum+=recent[_q];
