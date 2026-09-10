@@ -1242,7 +1242,7 @@ function renderPlanToBuffer(dur, sr){
 function analyzeBufferInto(buf, cb){ try{ essentiaReady.then(function(ok){ if(ok){ setTimeout(function(){ try{ toMono44(buf,function(sig,sr){ var An; try{ An=analyzeEssentia(sig,sr,buf.duration); }catch(e){ An=analyzeCustom(buf); } cb(An); }); }catch(e){ cb(analyzeCustom(buf)); } }, 20); } else { setTimeout(function(){ cb(analyzeCustom(buf)); }, 20); } }); }catch(e){ try{ cb(analyzeCustom(buf)); }catch(e2){ cb(null); } } }
 
 var CLIPS=[], clipVidReady=false, VIDACT=-1;
-window.STUDIO_VERSION="v1075";
+window.STUDIO_VERSION="v1077";
 window.MAGOT_EXPORT_ENGINE="auto"; try{ window.MAGOT_EXPORT_ENGINE=localStorage.getItem("magot_export_engine")||"auto"; }catch(e){}
 function setMagotExportEngine(mode){ if(mode!=="auto"&&mode!=="turbo"&&mode!=="mediarecorder") mode="auto"; window.MAGOT_EXPORT_ENGINE=mode; try{ localStorage.setItem("magot_export_engine",mode); }catch(e){} }
 function _exportEngineLabel(){ var m=window.MAGOT_EXPORT_ENGINE; return m==="turbo"?"Export : Turbo test":m==="mediarecorder"?"Export : Compatible":"Export : Automatique"; }
@@ -1581,7 +1581,7 @@ function buildPartition(){
      (la musique boucle par-dessus). Le nombre de plans vidéo suit la densité de mix du mode. */
   /* COUVERTURE CLIPS (Étape A) : le nombre de plans vidéo vient du NOMBRE DE CLIPS PRÊTS,
      plus des photos. Chaque clip apparaît au moins une fois ; la densité n'ajoute que des reprises. */
-  var _readyClips=[]; for(var _rcI=0;_rcI<CLIPS.length;_rcI++){ if(CLIPS[_rcI] && CLIPS[_rcI].ready) _readyClips.push(_rcI); }
+  var _readyClips=[]; for(var _rcI=0;_rcI<CLIPS.length;_rcI++){ if(CLIPS[_rcI] && CLIPS[_rcI].ready && !CLIPS[_rcI]._tooShortForBeat) _readyClips.push(_rcI); }   /* v1077 : seuil pro (flag du build précédent, exact dès le 2e passage) */
   var _clipCount=_readyClips.length;
   var VIDEO_TARGET=({cinema:3.4,doux:4.0,dynamique:2.2,voyage:3.0})[MOOD]||3.0;
   var _vTgt=0;
@@ -1632,6 +1632,18 @@ function buildPartition(){
   try{
     var _montageEnd=wEnd, _mediaEnd=(window.SIGN_PE||wEnd);
     var _gEnd=beats.length?beats[beats.length-1]:0, _beatStep=_mediaBeatP(beats);
+    /* v1077 — SEUIL PRO (mandat Loïc « quelque chose de pro ») : un clip dont la matière ne peut pas produire un plan
+       d'au moins max(0,9 s, ~1 temps) est ÉCARTÉ du montage (message + réinclusion en l'allongeant) — rien de subliminal,
+       tout sur la grille, rien de supprimé en silence. */
+    try{ var _minPlan9=Math.max(0.9, 0.95*(_beatStep||0.5)); window.__MIN_PLAN_PRO=_minPlan9; var _shortNames=[];
+      for(var _sc9=0;_sc9<CLIPS.length;_sc9++){ var _cq9=CLIPS[_sc9]; if(!_cq9||!_cq9.ready){ if(_cq9)_cq9._tooShortForBeat=false; continue; }
+        var _us9=Math.max(0,(((_cq9.trimEnd!=null?_cq9.trimEnd:_cq9.dur)||0)-(_cq9.trimStart||0))-0.15)/Math.max(0.5,_cq9.speed||1);
+        var _k9=Math.floor(_us9/Math.max(0.2,(_beatStep||0.5))), _planBest9=_k9*Math.max(0.2,(_beatStep||0.5));   /* v1077 : le critère est le PLAN CALÉ résultant (plus grand multiple de temps qui tient), pas la matière brute */
+        var _was9=!!_cq9._tooShortForBeat; _cq9._tooShortForBeat=(_planBest9<_minPlan9);
+        if(_cq9._tooShortForBeat && !_was9) _shortNames.push(_sc9+1);
+      }
+      if(_shortNames.length){ setTimeout(function(){ try{ setState("\u26a0\ufe0f Clip"+(_shortNames.length>1?"s":"")+" "+_shortNames.join(", ")+" \u00e9cart\u00e9"+(_shortNames.length>1?"s":"")+" : trop court"+(_shortNames.length>1?"s":"")+" pour un temps musical ("+_minPlan9.toFixed(1)+" s min). Allonge le moment de d\u00e9part/fin ou supprime-le."); }catch(e){} },50); }
+    }catch(e){}
     var _plan=window.MPLAN||[], _planEnd=_plan.length?(_plan[_plan.length-1].mStart+_plan[_plan.length-1].len):0;
     var _audioCovers;
     if(window.MULTI){ _audioCovers=(_planEnd>=_montageEnd-0.05); }
@@ -1731,7 +1743,7 @@ function buildPartition(){
   try{ window._DIAGC.guar=_diagMiss(); }catch(_e){}
   /* VIDÉO — placement PRO */
   if(clipVidReady && SEGS.length>=1){
-    var _rc=[]; for(var _c=0;_c<CLIPS.length;_c++){ if(CLIPS[_c].ready) _rc.push(_c); }
+    var _rc=[]; for(var _c=0;_c<CLIPS.length;_c++){ if(CLIPS[_c].ready && !CLIPS[_c]._tooShortForBeat) _rc.push(_c); }   /* v1077 : seuil pro */
     if(_rc.length && _nP===0){   /* VIDÉO-ONLY */
       /* RÈGLE : 1 clip = 1 plan (EXACTEMENT N plans pour N clips, AUCUNE répétition par défaut).
          Durée du plan = min(durée utilisable du clip / vitesse, cible du mode).
@@ -1748,11 +1760,14 @@ function buildPartition(){
         var _maxPlan=_availSrc/_spd;                                /* durée MAX du plan à cette vitesse (borne dure) */
         var _hardEnd=_cur+_maxPlan;                                 /* JAMAIS dépasser : sinon gel/rejeu */
         var _en2;
-        var _vtC=_clipTgt(_cl)||_vt;   /* v1057 : cible musicale du clip, sinon cible du mode (Auto inchangé) */
-        var _srcLim3=false, _onBeat3=false;
+        var _vtC=_clipTgt(_cl)||_vt;   /* v1057 : cible musicale du clip, sinon cible du mode */
+        var _srcLim3=false, _onBeat3=false, _subBt3=false;
         if(_maxPlan <= _vtC+0.05){
-          /* CLIP COURT : joue ENTIÈREMENT (pas de calage sur beat qui le raccourcirait). GPT point 7 */
-          _en2=_cur+_maxPlan; _srcLim3=!!_clipTgt(_cl);
+          /* v1076 — POLITIQUE 2 : le clip court est RACCOURCI au dernier temps qui tient dans sa matière ->
+             sortie sur la grille. Matière < 1 temps : joue entier (impossible à caler), nommé au diagnostic. */
+          var _sn6=null; for(var _b7=0;_b7<beats.length;_b7++){ var _bt7=beats[_b7]; if(_bt7<=_cur+0.4) continue; if(_bt7>_cur+_maxPlan) break; _sn6=_bt7; }
+          if(_sn6!=null){ _en2=_sn6; _onBeat3=true; } else { _en2=_cur+_maxPlan; _subBt3=true; }
+          _srcLim3=!!_clipTgt(_cl);
         } else {
           /* extrait de la cible, calé sur la MEILLEURE coupe AVANT ou APRÈS la cible, sans dépasser _hardEnd ;
              v1057 : fenêtre proportionnelle (~±cible×0,10) et départage par force du beat quand deux coupes sont proches */
@@ -1763,10 +1778,13 @@ function buildPartition(){
           }
           _onBeat3=(_bk3>=0);
           _en2=Math.min(_snap, _hardEnd);
-          var _consumed=(_en2-_cur)*_spd; if(_consumed > _availSrc+0.02){ _en2=_cur+_availSrc/_spd; _srcLim3=!!_clipTgt(_cl); }
+          var _consumed=(_en2-_cur)*_spd; if(_consumed > _availSrc+0.02){ _en2=_cur+_availSrc/_spd; _srcLim3=!!_clipTgt(_cl);
+            var _sn7=null; for(var _b8=0;_b8<beats.length;_b8++){ var _bt8=beats[_b8]; if(_bt8<=_cur+0.4) continue; if(_bt8>_en2+0.001) break; _sn7=_bt8; }
+            if(_sn7!=null && (_en2-_sn7)>0.03){ _en2=_sn7; _onBeat3=true; } else if(_sn7==null){ _subBt3=true; }   /* v1076 */ }
         }
         if(_en2-_cur < 0.4) _en2=_cur+Math.min(0.4,_maxPlan);
         var _nsg=({ start:_cur, end:_en2, strong:(_eAt(_cur)>0.55), e:_eAt(_cur), video:true, vclip:_rc[_gp2] });
+        if(_subBt3) _nsg._subBeat=true;
         if(_clipTgt(_cl)){ _nsg._durTgt=_vtC; _nsg._durOnBeat=_onBeat3; _nsg._durSrcLim=_srcLim3; }
         _newSegs.push(_nsg);
         _cur=_en2;
@@ -1919,6 +1937,13 @@ function buildPartition(){
           if(musical2){ seg._durOnBeat=hit||(seg._durOnBeat===true); seg._durCands=((_cPrev!=null?( (_cPrev-seg.start).toFixed(2)+" s"):"—")+" / "+(_cNext!=null?((_cNext-seg.start).toFixed(2)+" s"):"—")); if(!hit && !seg._durWhy) seg._durWhy="grille"; }
           newEnd=Math.min(best,maximum);
         } else if(musical2){ seg._durOnBeat=false; seg._durSrcLim=true; }
+        /* v1076 — POLITIQUE 2 (Loïc : « tout parfait ») : toute coupe raccourcie atterrit sur le DERNIER temps de la grille
+           qui tient dans la matière ; si aucun temps ne tient (matière < 1 temps), le plan joue entier et est nommé au diag. */
+        if(newEnd<oldEnd-0.05){ var _sb6=null;
+          for(var _b6=0;_b6<beats.length;_b6++){ var _bt6=beats[_b6]; if(_bt6<=seg.start+0.40) continue; if(_bt6>newEnd+0.001) break; _sb6=_bt6; }
+          if(_sb6!=null && (newEnd-_sb6)>0.03 && (_sb6-seg.start)>=0.4){ newEnd=_sb6; if(musical2) seg._durOnBeat=true; }
+          else if(_sb6==null){ seg._subBeat=true; }
+        }
         if(newEnd<=seg.start+0.08) continue;
         var remainder=oldEnd-newEnd; if(remainder<=0.05) continue;
         seg.end=newEnd;
@@ -2033,7 +2058,7 @@ function buildPartition(){
         for(var _bj9=0;_bj9<_bts9.length;_bj9++){ var _dd9=Math.abs(_bts9[_bj9]-_bt0); if(_dd9<_bd9)_bd9=_dd9; else if(_bts9[_bj9]>_bt0+1.5) break; }
         if(_bd9<1e9){ _cd.n++; _cd.sum+=_bd9; if(_bd9>_cd.max)_cd.max=_bd9; if(_bd9>0.06)_cd.o60++; if(_bd9>0.08)_cd.o80++; if(_bd9>0.12)_cd.o120++;
           if(_bd9>0.06){ var _pe9=SEGS[_ci9-1], _pl9=(_pe9.end-_pe9.start);   /* v1075 : le plan qui SE TERMINE à cette coupe explique la coupe */
-            var _why9=_pe9.video?("clip "+((_pe9.vclip!=null?_pe9.vclip:-1)+1)+" · "+_pl9.toFixed(1)+" s"+((CLIPS[_pe9.vclip]&&(CLIPS[_pe9.vclip].dur||99)<2.6)?" · SOURCE COURTE":(_pe9._durSrcLim?" · limité source":""))):("photo · "+_pl9.toFixed(1)+" s");
+            var _why9=_pe9.video?("clip "+((_pe9.vclip!=null?_pe9.vclip:-1)+1)+" · "+_pl9.toFixed(1)+" s"+(_pe9._subBeat?" · INFÉRIEUR À UN TEMPS (impossible à caler)":((CLIPS[_pe9.vclip]&&(CLIPS[_pe9.vclip].dur||99)<2.6)?" · SOURCE COURTE":(_pe9._durSrcLim?" · limité source":"")))):("photo · "+_pl9.toFixed(1)+" s");
             (_cd.list=_cd.list||[]).push("plan "+_ci9+" ("+_why9+") : "+Math.round(_bd9*1000)+" ms"); }
         } } }
       window.__CUTDIAG=_cd.n?{n:_cd.n, avg:Math.round(_cd.sum/_cd.n*1000), max:Math.round(_cd.max*1000), o60:_cd.o60, o80:_cd.o80, o120:_cd.o120, mood:MOOD, bpm:((A&&(A.bpmFelt||A.bpm))||0), list:(_cd.list||[]).slice(0,8)}:null;
@@ -9115,7 +9140,7 @@ function _openLangPicker(){
   bg.style.cssText="position:fixed;inset:0;z-index:100050;background:rgba(0,0,0,.62);backdrop-filter:blur(4px);display:flex;align-items:flex-end;justify-content:center;font-family:system-ui,-apple-system,sans-serif";
   var card=document.createElement("div");
   card.style.cssText="width:100%;max-width:520px;background:#0f0e0d;border:1px solid #282622;border-radius:22px 22px 0 0;padding:8px 10px 22px;max-height:78vh;overflow:auto;box-shadow:0 -10px 50px rgba(0,0,0,.7)";
-  var head="<div style=\"text-align:center;padding:12px 0 6px\"><div style=\"width:40px;height:4px;background:#3a3733;border-radius:3px;margin:0 auto 12px\"></div><div style=\"color:#f4f7fc;font:700 17px system-ui\">\uD83C\uDF10 "+_st("Langue des paroles")+"</div><div style=\"color:#8a93a6;font:500 12.5px system-ui;margin-top:3px\">"+_st("Traduction synchronisée au rythme")+" \u00b7 v1075</div></div>";
+  var head="<div style=\"text-align:center;padding:12px 0 6px\"><div style=\"width:40px;height:4px;background:#3a3733;border-radius:3px;margin:0 auto 12px\"></div><div style=\"color:#f4f7fc;font:700 17px system-ui\">\uD83C\uDF10 "+_st("Langue des paroles")+"</div><div style=\"color:#8a93a6;font:500 12.5px system-ui;margin-top:3px\">"+_st("Traduction synchronisée au rythme")+" \u00b7 v1077</div></div>";
   var rows="";
   for(var i=0;i<window._LYRICS_LANGS.length;i++){ var code=window._LYRICS_LANGS[i][0], name=window._LYRICS_LANGS[i][1], fl=_LANG_FLAGS[code]||"\uD83C\uDF10", on=(window._LYRICS_LANG===code);
     rows+="<button class=\"lang-opt\" data-l=\""+code+"\" style=\"display:flex;align-items:center;gap:13px;width:100%;text-align:left;background:"+(on?"rgba(122,208,160,.14)":"none")+";border:1px solid "+(on?"rgba(122,208,160,.5)":"transparent")+";color:#f4f7fc;font:600 15.5px system-ui;padding:14px 15px;border-radius:13px;cursor:pointer;margin:3px 0\"><span style=\"font-size:22px\">"+fl+"</span><span style=\"flex:1\">"+name+"</span>"+(on?"<span style=\"color:#7ad0a0;font-size:18px\">\u2713</span>":"")+"</button>";
