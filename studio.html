@@ -903,19 +903,13 @@ input[type=range]::-moz-range-thumb{width:22px;height:22px;border:0;border-radiu
 @media (max-height:740px){ .s-amb{display:none!important} }
 /* Qwen P2 — la forme d'onde devient une surface de contrôle ; chip lecteur du hero */
 .wave,#zoom{cursor:pointer;touch-action:none}
-.hero-chip{position:absolute;left:10px;top:10px;z-index:6;display:flex;align-items:center;gap:7px;
- padding:6px 11px;border-radius:999px;border:1px solid rgba(212,175,55,.35);background:rgba(5,5,5,.55);
- backdrop-filter:blur(4px);-webkit-backdrop-filter:blur(4px);color:#D4AF37;
- font:700 11px ui-monospace,monospace;letter-spacing:.5px;opacity:0;transform:translateY(-4px);
- transition:opacity .25s ease,transform .25s ease;pointer-events:none}
-.hero.is-playing .hero-chip{opacity:1;transform:translateY(0);pointer-events:auto}
-.hero-chip:active{background:rgba(212,175,55,.18)}
-.hero-chip .hc-ic{width:9px;height:9px;display:inline-block}
+/* v1103 : styles hero-chip retirés (fonction supprimée en v1102) */
 </style>
 <style id="fsClean">/* v1098 : en plein écran (mode cinéma), l'image règne seule — ni bandeau d'app ni badge */
 body:has(.hero.cinema) .header{display:none!important}
 body:has(.hero.cinema) #badge{display:none!important}
 </style>
+<style id="photoTabs">.pTab{display:flex;gap:8px;margin:0 0 12px}.pTab button{flex:1;padding:9px;border-radius:9px;border:1px solid #313a49;background:#1d232e;color:#dfe7f4;font:700 12.5px system-ui;letter-spacing:.04em}.pTab button.on{border-color:#c9a44a;background:#c9a44a;color:#181510}</style>
 </head>
 <body>
 <!-- ====== INTERFACE KIMI (greffée) ====== -->
@@ -1111,7 +1105,6 @@ body:has(.hero.cinema) #badge{display:none!important}
     <button class="mood" data-mood="doux" data-i18n="Doux">Doux</button>
     <button class="mood" data-mood="dynamique" data-i18n="Dynamique">Dynamique</button>
     <button class="mood" data-mood="voyage" data-i18n="Voyage">Voyage</button>
-    <div id="modeMatchLine" style="display:none;width:100%;font:500 12px system-ui;color:#c8d2e4;background:#131a28;border:1px solid #24304a;border-radius:10px;padding:8px 10px;margin-top:8px;line-height:1.5"></div>
   </div>
 
   <div class="row">
@@ -1275,7 +1268,7 @@ function renderPlanToBuffer(dur, sr){
 function analyzeBufferInto(buf, cb){ try{ essentiaReady.then(function(ok){ if(ok){ setTimeout(function(){ try{ toMono44(buf,function(sig,sr){ var An; try{ An=analyzeEssentia(sig,sr,buf.duration); }catch(e){ An=analyzeCustom(buf); } cb(An); }); }catch(e){ cb(analyzeCustom(buf)); } }, 20); } else { setTimeout(function(){ cb(analyzeCustom(buf)); }, 20); } }); }catch(e){ try{ cb(analyzeCustom(buf)); }catch(e2){ cb(null); } } }
 
 var CLIPS=[], clipVidReady=false, VIDACT=-1;
-window.STUDIO_VERSION="v1101";
+window.STUDIO_VERSION="v1105";
 window.MAGOT_EXPORT_ENGINE="auto"; try{ window.MAGOT_EXPORT_ENGINE=localStorage.getItem("magot_export_engine")||"auto"; }catch(e){}
 function setMagotExportEngine(mode){ if(mode!=="auto"&&mode!=="turbo"&&mode!=="mediarecorder") mode="auto"; window.MAGOT_EXPORT_ENGINE=mode; try{ localStorage.setItem("magot_export_engine",mode); }catch(e){} }
 function _exportEngineLabel(){ var m=window.MAGOT_EXPORT_ENGINE; return m==="turbo"?"Export : Turbo test":m==="mediarecorder"?"Export : Compatible":"Export : Automatique"; }
@@ -1340,6 +1333,17 @@ var SYNC_M={cinema:autoSync("cinema",120),doux:autoSync("doux",120),dynamique:au
 function recomputeSync(){ var bpm=(A&&A.bpmFelt)?A.bpmFelt:((A&&A.bpm)?A.bpm:120); SYNC_M={cinema:autoSync("cinema",bpm),doux:autoSync("doux",bpm),dynamique:autoSync("dynamique",bpm),voyage:autoSync("voyage",bpm)};
   try{ if(window.PERSO_SYNC!=null && window.PERSO_BASE){ SYNC_M[window.PERSO_BASE]=window.PERSO_SYNC; } }catch(e){}   /* v1079 : seul le mode Personnalisé survit au recalcul auto */
   if(typeof syncApply==="function") syncApply(); }
+function syncAt(mt){ /* v1105 : décalage EFFECTIF à l'instant mt — piste résolue depuis MPLAN, indépendant de la tête de lecture */
+  var base=SYNC_M[MOOD]||0;
+  try{ if(window.MULTI && window.MPLAN && window.MPLAN.length && typeof TRACKS!=="undefined" && TRACKS.length && TRACKS[0] && TRACKS[0].A){
+    var pi=window.MPLAN[0].ti; for(var i=window.MPLAN.length-1;i>=0;i--){ if(mt>=window.MPLAN[i].mStart-0.001){ pi=window.MPLAN[i].ti; break; } }
+    if(pi>=0 && TRACKS[pi] && TRACKS[pi].A){
+      var bC=(TRACKS[pi].A.bpmFelt||TRACKS[pi].A.bpm||120), bR=(TRACKS[0].A.bpmFelt||TRACKS[0].A.bpm||120);
+      var fC=Math.max(0.6,Math.min(1.8,(60/bC)/0.5)), fR=Math.max(0.6,Math.min(1.8,(60/bR)/0.5));
+      if(fR>0) return Math.max(-0.35,Math.min(0.35, base*(fC/fR)));
+    } } }catch(e){}
+  return base;
+}
 function curSync(){ var base=SYNC_M[MOOD]||0;
   if(window.MULTI && window.MPLAN && typeof TRACKS!=="undefined" && TRACKS.length && TRACKS[0] && TRACKS[0].A){
     var pi=(typeof _curPlanTrackIdx==="function")?_curPlanTrackIdx():-1;
@@ -1433,22 +1437,59 @@ function modeMatch(An){ /* v1099 : Accord musique-mode — calculé UNIQUEMENT d
     sc.cinema  =clamp3((bpm>=78&&bpm<=118?2.4:1) + (reg?0.6:0) + (calm?0.4:0));
     sc.doux    =clamp3((bpm<=88?2.4:bpm<=100?1.4:0.6) + (calm?1:0) + (fortsMin<18?0.4:0));
     sc.voyage  =clamp3((bpm>=82&&bpm<=124?2.2:1.2) + (fortsMin>=16?0.5:0) + (reg?0.3:0));
-    var best="cinema",bs=-1; ["cinema","voyage","doux","dynamique"].forEach(function(k){ if(sc[k]>bs){ bs=sc[k]; best=k; } });
+    var raw={dynamique:(bpm>=112?3:bpm>=100?2:bpm>=90?1:0)+(fortsMin>=26?0.6:0)+(reg?0.4:0)-(calm?1.5:0), cinema:(bpm>=78&&bpm<=118?2.4:1)+(reg?0.6:0)+(calm?0.4:0), doux:(bpm<=88?2.4:bpm<=100?1.4:0.6)+(calm?1:0)+(fortsMin<18?0.4:0), voyage:(bpm>=82&&bpm<=124?2.2:1.2)+(fortsMin>=16?0.5:0)+(reg?0.3:0)};
+    var best="cinema",bs=-1e9,second=null,ss=-1e9; ["cinema","voyage","doux","dynamique"].forEach(function(k){ if(raw[k]>bs){ second=best; ss=bs; bs=raw[k]; best=k; } else if(raw[k]>ss){ second=k; ss=raw[k]; } });   /* v1104 : départage aux scores NON arrondis */
+    var nearTie=(second&&(bs-ss)<0.25)?second:null;
     var faits=bpm+" BPM"+(_hasStr?(" \u00b7 temps forts "+(fortsMin>=24?"nombreux":fortsMin>=14?"pr\u00e9sents":"rares")):"")+" \u00b7 grille "+(reg?"r\u00e9guli\u00e8re":"flottante")+(calm?" \u00b7 morceau calme":"");
-    return { sc:sc, best:best, faits:faits };
+    return { sc:sc, best:best, nearTie:nearTie, faits:faits };
   }catch(e){ return null; } }
 function _dots(n){ var o=""; for(var i=0;i<3;i++) o+=(i<n?"\u25cf":"\u25cb"); return o; }
 function _moodName(k){ return ({cinema:"Cin\u00e9ma",voyage:"Voyage",doux:"Doux",dynamique:"Dynamique"})[k]||k; }
+function _syncObtenue(){ try{ /* v1105 : SYNCHRONISATION À L'EXPORT — vérité du fichier : instants effectifs par coupe (syncAt),
+   temps fort compté SEULEMENT si la coupe est alignée, ancre par type de transition, frontières après cartons exclues du comptage transitions */
+  if(typeof SEGS==="undefined"||!SEGS||SEGS.length<3) return null;
+  var B=window.__GRIDBEATS||[]; if(!B.length) return null;
+  var GS=window.__GRIDSTR||[];
+  var n=0,ok60=0,forts=0,sum=0,mx=0, trN=0,trOK=0;
+  for(var i=1;i<SEGS.length;i++){ var g=SEGS[i]; if(!g||g.sign) continue;
+    var cs=0; try{ cs=(typeof syncAt==="function")?(syncAt(g.start)||0):((typeof curSync==="function")?(curSync()||0):0); }catch(e){}
+    var t=g.start-cs; n++;
+    var bd=1e9,bj=-1; for(var j=0;j<B.length;j++){ var d=Math.abs(B[j]-t); if(d<bd){ bd=d; bj=j; } }
+    var aligned=(bd<=0.060); if(aligned) ok60++;
+    sum+=bd; if(bd>mx&&bd<1.5) mx=bd;
+    if(aligned && bj>=0 && (GS[bj]||0)>=0.6) forts++;   /* fort SEULEMENT si aligné */
+    var trn=g.trans, prevSign=!!(SEGS[i-1]&&SEGS[i-1].sign);
+    if(trn&&trn!=="none"&&trn!=="cut"&&!prevSign){ trN++; if(aligned) trOK++; }   /* l'ancre (fin classique / noir max v2v) EST cet instant */
+  }
+  if(!n) return null;
+  return { p60:Math.round(ok60/n*100), pfAligned:(GS.length&&ok60?Math.round(forts/ok60*100):null), n:n,
+           trN:trN, trOK:trOK, mean:Math.round(sum/n*1000), max:Math.round(mx*1000) };
+}catch(e){ return null; } }
 function _paintModeMatch(){ try{
-  var mm=(typeof A!=="undefined"&&A)?modeMatch(A):null; var line=document.getElementById("modeMatchLine");
-  document.querySelectorAll(".mood").forEach(function(b){ var st=b.querySelector(".mm-star"); if(st) st.remove(); });
-  try{ if(!window.__mmMoodWired){ window.__mmMoodWired=true; document.querySelectorAll(".mood").forEach(function(b){ b.addEventListener("click",function(){ setTimeout(function(){ try{ _paintModeMatch(); }catch(e){} },60); setTimeout(function(){ try{ _paintModeMatch(); }catch(e){} },1600); }); }); } }catch(e){}   /* v1101 : re-peint au tap d'un mode (immédiat) et après le chargement éventuel d'une musique du mode (1,6 s) */
-  if(!mm){ if(line){ line.style.display="none"; } return; }
-  var bb=document.querySelector('.mood[data-mood="'+mm.best+'"]');
-  if(bb){ var st2=document.createElement("span"); st2.className="mm-star"; st2.textContent=" \u2605"; st2.style.cssText="color:#e3a531;font-size:11px"; bb.appendChild(st2); }
-  if(line){ line.style.display=""; line.innerHTML='<span style="color:#c9a44a;font-weight:700">Accord avec ta musique</span> \u2014 '
-    +["cinema","voyage","doux","dynamique"].map(function(k){ return _moodName(k)+" <span style=\"color:#e3a531\">"+_dots(mm.sc[k])+"</span>"; }).join(" \u00b7 ")
-    +'<div style="color:#8a93a6;margin-top:3px">'+mm.faits+' \u00b7 \u2605 recommand\u00e9</div>'; }
+  var MAP={"cinema":"cinema","cin\u00e9ma":"cinema","doux":"doux","voyage":"voyage","dynamique":"dynamique"};
+  var cards=document.querySelectorAll(".choice[data-name]"); if(!cards.length) return;
+  var mm=(typeof A!=="undefined"&&A)?modeMatch(A):null;
+  var last=null;
+  cards.forEach(function(c){ var key=MAP[(c.getAttribute("data-name")||"").toLowerCase()]; last=c;
+    var mini=c.querySelector(".mm-mini");
+    if(!mini){ mini=document.createElement("div"); mini.className="mm-mini"; mini.style.cssText="font:600 11.5px system-ui;color:#e3a531;margin-top:4px;letter-spacing:1px"; c.appendChild(mini); }
+    if(mm&&key){ var _star=(mm.best===key)||(mm.nearTie===key); mini.textContent=_dots(mm.sc[key])+(_star?(mm.nearTie?"  \u2605 excellent accord":"  \u2605 recommand\u00e9"):""); }
+    else { mini.textContent=""; }
+  });
+  var line=document.getElementById("modeMatchLine2");
+  if(!line&&last&&last.parentNode){ line=document.createElement("div"); line.id="modeMatchLine2";
+    line.style.cssText="font:500 12px system-ui;color:#c8d2e4;background:#131a28;border:1px solid #24304a;border-radius:10px;padding:8px 10px;margin-top:10px;line-height:1.55";
+    last.parentNode.insertBefore(line,last.nextSibling); }
+  if(!line) return;
+  if(!mm){ line.innerHTML='<span style="color:#c9a44a;font-weight:700">Compatibilit\u00e9 de la musique</span> \u2014 <span style="color:#8a93a6">en attente de l\u2019analyse\u2026</span>'; return; }
+  var so=_syncObtenue();
+  line.innerHTML='<span style="color:#c9a44a;font-weight:700">Compatibilit\u00e9 de la musique</span> \u2014 '+mm.faits
+    +(mm.nearTie?('<div style="color:#9aa5bb;margin-top:2px">'+_moodName(mm.best)+' ou '+_moodName(mm.nearTie)+' recommand\u00e9s (scores tr\u00e8s proches)</div>'):'')
+    +(so?('<div style="margin-top:4px"><span style="color:#c9a44a;font-weight:700">Synchronisation \u00e0 l\u2019export</span> \u2014 '+so.p60+' % des coupes \u00e0 \u226460 ms d\u2019un temps'
+      +(so.pfAligned!=null?(' \u00b7 '+so.pfAligned+' % des coupes align\u00e9es sur un temps FORT'):'')
+      +(so.trN?(' \u00b7 ancre musicale des transitions : '+so.trOK+'/'+so.trN+' sur un temps (fin \u00b7 noir max pour vid\u00e9o\u2192vid\u00e9o)'):'')
+      +' \u00b7 \u00e9cart moyen '+so.mean+' ms \u00b7 max '+so.max+' ms \u00b7 '+so.n+' coupes'
+      +'<div style="color:#7f8aa0;margin-top:2px">L\u2019aper\u00e7u compense en plus la latence audio de l\u2019appareil \u2014 le fichier export\u00e9 est la r\u00e9f\u00e9rence mesur\u00e9e ici.</div></div>'):'');
 }catch(e){} }
 function inferMetric(beats,strength){
   var n=beats.length; var m=new Array(n);
@@ -1718,7 +1759,7 @@ function buildPartition(){
     else if(window.LOOP_ON){ _audioCovers=true; }
     else { _audioCovers=((A.dur||0)>=_montageEnd-0.05); }
     var _gridCoversCuts=(_gEnd + Math.max(_beatStep||0,0.25) >= _mediaEnd);   /* la grille couvre les MÉDIAS, pas l'outro */
-    try{ window.__GRIDBEATS=beats; }catch(e){}   /* v1074 : grille capturée ici (closure garnie), mesure déplacée à la FIN réelle de la partition */
+    try{ window.__GRIDBEATS=beats; window.__GRIDSTR=(typeof str!=="undefined"&&str)?str.slice():[]; }catch(e){}   /* v1074/v1104 : grille + FORCES parallèles (boucle et multi-musique corrects) */
     window._MUSICDIAG={ mode:(window.MULTI?"multi":(window.LOOP_ON?"single-loop":"single")), mediaNeed:Math.round(bdur), musicNeed:Math.round(_iD+bdur+_oD), mediaEnd:Math.round(_mediaEnd), montageEnd:Math.round(_montageEnd), gridEnd:Math.round(_gEnd), planEnd:Math.round(_planEnd), audioCoversFilm:_audioCovers, gridCoversCuts:_gridCoversCuts };
     console.log("[MUSIC GRID]", window._MUSICDIAG);
     if(!_audioCovers) console.warn("[MUSIC GRID] audio ne couvre pas tout le film");
@@ -9209,7 +9250,7 @@ function _openLangPicker(){
   bg.style.cssText="position:fixed;inset:0;z-index:100050;background:rgba(0,0,0,.62);backdrop-filter:blur(4px);display:flex;align-items:flex-end;justify-content:center;font-family:system-ui,-apple-system,sans-serif";
   var card=document.createElement("div");
   card.style.cssText="width:100%;max-width:520px;background:#0f0e0d;border:1px solid #282622;border-radius:22px 22px 0 0;padding:8px 10px 22px;max-height:78vh;overflow:auto;box-shadow:0 -10px 50px rgba(0,0,0,.7)";
-  var head="<div style=\"text-align:center;padding:12px 0 6px\"><div style=\"width:40px;height:4px;background:#3a3733;border-radius:3px;margin:0 auto 12px\"></div><div style=\"color:#f4f7fc;font:700 17px system-ui\">\uD83C\uDF10 "+_st("Langue des paroles")+"</div><div style=\"color:#8a93a6;font:500 12.5px system-ui;margin-top:3px\">"+_st("Traduction synchronisée au rythme")+" \u00b7 v1101</div></div>";
+  var head="<div style=\"text-align:center;padding:12px 0 6px\"><div style=\"width:40px;height:4px;background:#3a3733;border-radius:3px;margin:0 auto 12px\"></div><div style=\"color:#f4f7fc;font:700 17px system-ui\">\uD83C\uDF10 "+_st("Langue des paroles")+"</div><div style=\"color:#8a93a6;font:500 12.5px system-ui;margin-top:3px\">"+_st("Traduction synchronisée au rythme")+" \u00b7 v1105</div></div>";
   var rows="";
   for(var i=0;i<window._LYRICS_LANGS.length;i++){ var code=window._LYRICS_LANGS[i][0], name=window._LYRICS_LANGS[i][1], fl=_LANG_FLAGS[code]||"\uD83C\uDF10", on=(window._LYRICS_LANG===code);
     rows+="<button class=\"lang-opt\" data-l=\""+code+"\" style=\"display:flex;align-items:center;gap:13px;width:100%;text-align:left;background:"+(on?"rgba(122,208,160,.14)":"none")+";border:1px solid "+(on?"rgba(122,208,160,.5)":"transparent")+";color:#f4f7fc;font:600 15.5px system-ui;padding:14px 15px;border-radius:13px;cursor:pointer;margin:3px 0\"><span style=\"font-size:22px\">"+fl+"</span><span style=\"flex:1\">"+name+"</span>"+(on?"<span style=\"color:#7ad0a0;font-size:18px\">\u2713</span>":"")+"</button>";
@@ -10555,11 +10596,20 @@ function finishAnalyze(){
     A.bpmFelt=_fb; A._calm=_calm;
     try{ _paintModeMatch(); var _mm9=modeMatch(A);
       if(_mm9){ var _cur9=(typeof MOOD!=="undefined")?MOOD:"cinema";
-        if(_mm9.best!==_cur9 && (_mm9.sc[_mm9.best]-( _mm9.sc[_cur9]||0))>=1){
-          setState("\u2728 Cette musique s'accorde mieux au mode <b>"+_moodName(_mm9.best)+"</b> ("+_mm9.faits+"). "
-            +'<button onclick="try{var b=document.querySelector(\'.mood[data-mood=\\\'"+_mm9.best+"\\\']\'); if(b) b.click(); setState(\'\');}catch(e){}" style="margin-left:6px;padding:5px 12px;border-radius:9px;border:0;background:#c9a44a;color:#181510;font:700 12px system-ui">L\u2019appliquer</button>');
-        } else if(_mm9.best===_cur9){ setState("\u2713 Mode "+_moodName(_cur9)+" bien accord\u00e9 \u00e0 cette musique ("+_mm9.faits+")."); }
-      } }catch(e){}   /* v1099 : proposition d'accord \u00e0 l'import — jamais bloquante, l'utilisateur garde le dernier mot */
+        var _old9=document.getElementById("mmProposal"); if(_old9)_old9.remove();
+        if(_mm9.best!==_cur9 && (_mm9.sc[_mm9.best]-(_mm9.sc[_cur9]||0))>=1){
+          var _bn=document.createElement("div"); _bn.id="mmProposal";
+          _bn.style.cssText="position:fixed;left:12px;right:12px;bottom:calc(86px + env(safe-area-inset-bottom));z-index:8000;background:#171410;border:1px solid #c9a44a;border-radius:14px;padding:11px 12px;font:500 13px system-ui;color:#efe9dc;box-shadow:0 12px 30px rgba(0,0,0,.55);display:flex;align-items:center;gap:10px";
+          _bn.innerHTML='<div style="flex:1">\u2728 Cette musique s\u2019accorde mieux au mode <b>'+_moodName(_mm9.best)+'</b><div style="color:#9a948c;font-size:11.5px;margin-top:2px">'+_mm9.faits+'</div></div>'
+            +'<button id="mmApply" style="padding:9px 13px;border-radius:10px;border:0;background:#c9a44a;color:#181510;font:700 12.5px system-ui;white-space:nowrap">Appliquer ce mode</button>'
+            +'<button id="mmClose" style="padding:9px 10px;border-radius:10px;border:1px solid #3a3630;background:none;color:#9a948c;font:700 13px system-ui">\u2715</button>';
+          document.body.appendChild(_bn);
+          var _nm9=_moodName(_mm9.best);
+          _bn.querySelector("#mmApply").onclick=function(){ try{ var cd=document.querySelector('.choice[data-name="'+_nm9+'"]'); if(cd) cd.click(); }catch(e){} _bn.remove(); };
+          _bn.querySelector("#mmClose").onclick=function(){ _bn.remove(); };
+          setTimeout(function(){ try{ _bn.remove(); }catch(e){} }, 25000);
+        }
+      } }catch(e){}   /* v1103 : proposition PERSISTANTE (bandeau dédié) — plus jamais écrasée ; applique via la carte VISIBLE */
   }
   if(A.bpm) setState("Moteur : <b>"+eng+"</b> · "+A.bpm+" BPM"+((A.bpmFelt&&A.bpmFelt!==A.bpm)?(" (ressenti "+A.bpmFelt+(_calm?" · calme":"")+")"):(_calm?" (calme)":""))+" · "+A.beats.length+" temps"+(A.engine==="essentia"&&A.conf?(" · confiance "+A.conf.toFixed(1)):"")+". Ajoute des photos puis « Lire ».");
   else setState("Moteur : <b>"+eng+"</b> · pas de tempo net. Ajoute des photos puis « Lire ».");
@@ -12675,6 +12725,7 @@ essentiaReady.then(function(ok){ if(!ok && !A){ /* silencieux : le repli se fait
     function opts(arr,cur){ return arr.map(function(o){ return '<option value="'+esc(o[0])+'"'+((o[0]===cur)?' selected':'')+'>'+esc(o[1])+'</option>'; }).join(""); }
     var ov=document.createElement("div"); ov.className="clipPrev txtEd";
     ov.innerHTML='<div class="cp-card te-card">'
+      +'<div class="pTab"><button type="button" class="on">TEXTE</button><button type="button" id="teGoImg">IMAGE</button></div>'
       +'<div class="te-head"><span class="te-title">Texte</span><div class="te-tools"><button class="te-tool" id="teAI" aria-label="Fid\u00e8le : g\u00e9n\u00e9rer"><svg width="19" height="19" viewBox="0 0 24 24" fill="currentColor"><path d="M6.5 21.5l-2-2 11-11 2 2-11 11zM17.6 5.1l1.1-1.1 1.4 1.4-1.1 1.1 1.1 1.1-1.4 1.4-1.1-1.1-1.1 1.1-1.4-1.4 1.1-1.1-1.1-1.1 1.4-1.4z"/><circle cx="20.5" cy="12" r="1.1"/><circle cx="12.5" cy="3.5" r="1.1"/></svg></button><button class="te-doneb" id="teDone" aria-label="Termin\u00e9"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12l5 5L20 6"/></svg></button></div></div>'
       +'<div class="te-prevwrap"><canvas class="te-cv" width="360" height="640"></canvas></div>'
       +'<div class="te-inputwrap"><textarea class="te-input" id="teInput" maxlength="'+MAXLEN+'" rows="2" placeholder="'+_st("\u00c9cris ton texte\u2026")+'">'+esc(p._cap||"")+'</textarea><span class="te-count" id="teCount">'+(""+(p._cap||"")).length+'/'+MAXLEN+'</span></div>'
@@ -12694,6 +12745,7 @@ essentiaReady.then(function(ok){ if(!ok && !A){ /* silencieux : le repli se fait
     /* Taille du texte : câblée sur celle du sous-titre (plus de sélecteur) */
     var caEl=ov.querySelector(".te-cA");
     var co=ov.querySelector("#teColor"); if(co){ var cbtn=ov.querySelector('.te-cbtn'); function _paintA(v){ if(caEl) caEl.style.color=v; if(cbtn) cbtn.style.color=v; } _paintA(p._capColor||'#f5f7fb'); co.oninput=function(){ p._capColor=co.value; setAll('_capColor',p._capColor); _paintA(co.value); rp(); }; }
+    try{ var _gi=ov.querySelector("#teGoImg"); if(_gi) _gi.onclick=function(){ try{ var d9=ov.querySelector("#teDone"); if(d9) d9.click(); else ov.remove(); }catch(e){} setTimeout(function(){ try{ openPhotoRetouch(i); }catch(e){} },40); }; }catch(e){}   /* v1102 : panneaux photo jumelés — onglet IMAGE */
     var ta=ov.querySelector("#teInput"), cnt=ov.querySelector("#teCount"); if(ta) ta.oninput=function(){ p._cap=ta.value; if(cnt) cnt.textContent=ta.value.length+"/"+MAXLEN; rp(); };
     var all=ov.querySelector("#teAll"); if(all) all.onclick=function(){ window._capApplyAll=!window._capApplyAll; all.classList.toggle("on",window._capApplyAll); if(window._capApplyAll){ setAll("_capStyle",p._capStyle); setAll("_capAnim",p._capAnim); setAll("_capColor",p._capColor); setAll("_capFont",p._capFont); setAll("_capPos",p._capPos); setAll("_capAlign",p._capAlign); } };
     var ai=ov.querySelector("#teAI"); var _aiBusy=false;
@@ -12749,6 +12801,7 @@ essentiaReady.then(function(ok){ if(!ok && !A){ /* silencieux : le repli se fait
     var applyAll=!!window._gradeApplyAll;
     var ov=document.createElement("div"); ov.className="clipPrev";
     ov.innerHTML='<div class="cp-card">'
+      +'<div class="pTab"><button type="button" id="prgGoTxt">TEXTE</button><button type="button" class="on">IMAGE</button></div>'
       +'<div class="prg-prev"><canvas class="prg-cv"></canvas></div>'
       +'<div class="cp-title">Retouche <small>Photo '+(i+1)+'</small></div>'
       +'<div class="cp-sec" style="margin:2px 2px 8px">Dur\u00e9e du plan</div><select class="te-sel" id="prgDur" style="width:100%;margin-bottom:8px">'+DURS.map(function(o){ var sel=(Math.abs((+o[0])-(p._dur||0))<0.1)?" selected":""; return '<option value="'+o[0]+'"'+sel+'>'+o[1]+'</option>'; }).join("")+'</select>'
@@ -12780,6 +12833,7 @@ essentiaReady.then(function(ok){ if(!ok && !A){ /* silencieux : le repli se fait
     var _du=ov.querySelector("#prgDur"); if(_du) _du.onchange=function(){ p._dur=(+_du.value||0); if(window._gradeApplyAll) setAll(); try{ if(A&&(PHOTOS.length||clipVidReady)){ buildPartition(); paintStrip(playing?visualTime():0); } }catch(e){} };
     var _fi=ov.querySelector("#prgFit"); if(_fi) _fi.onchange=function(){ p._fit=_fi.value; if(window._gradeApplyAll) setAll(); try{ paintStrip(playing?visualTime():0); }catch(e){} };
     var dn=ov.querySelector("#prgDone"); if(dn)dn.onclick=done;
+    try{ var _gt=ov.querySelector("#prgGoTxt"); if(_gt) _gt.onclick=function(){ try{ done(); }catch(e){ try{ ov.remove(); }catch(_){} } setTimeout(function(){ try{ openTextEditor(i); }catch(e){} },40); }; }catch(e){}   /* v1102 : panneaux photo jumelés — onglet TEXTE */
     ov.onclick=function(e){ if(e.target===ov) done(); };
     try{ _paintAllRanges(); }catch(e){}
   }
@@ -13531,20 +13585,7 @@ window.addEventListener("load",function(){ setTimeout(function(){
   var gt=q("#gradeTog"); if(gt) gt.addEventListener("click",function(){ setTimeout(gradeLabel,0); });
   setInterval(musicTile,2000);
 },400); });
-var hero=q(".hero");
-if(hero && !document.getElementById("heroChip")){
-  var chip=document.createElement("button"); chip.id="heroChip"; chip.className="hero-chip"; chip.type="button";
-  chip.innerHTML='<svg class="hc-ic" viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="4" width="4" height="16" rx="1"/><rect x="14" y="4" width="4" height="16" rx="1"/></svg><span id="hcTc">0:00 / 0:00</span>';
-  hero.appendChild(chip);
-  chip.addEventListener("click",function(e){ e.stopPropagation(); var p2=document.getElementById("play"); if(p2) p2.click(); });
-}
-(function chipLoop(){ try{
-  var pl=(typeof playing!=="undefined")&&playing;
-  if(hero) hero.classList.toggle("is-playing",pl);
-  if(pl){ var mst=window.MSTART_EFF||0, end=window.MONTAGE_DUR||((typeof A!=="undefined"&&A)?A.dur:0)||0;
-    var t=(typeof montageNow==="function")?montageNow():0;
-    var tc=document.getElementById("hcTc"); if(tc) tc.textContent=mmss(Math.max(0,t-mst))+" / "+mmss(Math.max(0,end-mst)); }
-}catch(e){} requestAnimationFrame(chipLoop); })();
+/* v1102 : chip timecode du hero RETIRÉ sur consigne de Loïc */
 window.__zoomWin=2.2;
 window.paintZoom=function(t){
   var zc=document.getElementById("zoom"); if(!zc||!zc.getContext) return;
