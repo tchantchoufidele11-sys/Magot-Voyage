@@ -468,8 +468,8 @@ input[type=range]::-moz-range-thumb{width:16px;height:16px;border-radius:50%;bac
 .clipPrev{position:fixed;inset:0;z-index:9999;background:rgba(4,8,14,.72);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);display:flex;align-items:center;justify-content:center;padding:18px;animation:cpin .18s ease}
 @keyframes cpin{from{opacity:0}to{opacity:1}}
 .cp-card{width:100%;max-width:460px;max-height:92vh;overflow-y:auto;-webkit-overflow-scrolling:touch;background:linear-gradient(180deg,#111a2e,#0c1424);border:1px solid rgba(255,255,255,.09);border-radius:22px;padding:16px 16px 16px;box-shadow:0 24px 60px rgba(0,0,0,.6)}
-.cp-vidwrap{width:auto;aspect-ratio:9/16;max-height:30vh;max-width:min(46vw,190px);margin:0 auto 6px;border-radius:14px;overflow:hidden;background:#000;box-shadow:0 6px 20px rgba(0,0,0,.5)}
-.cp-vid{width:100%;height:100%;object-fit:cover;display:block}
+.cp-vidwrap{width:100%;aspect-ratio:16/10;max-height:26vh;max-width:none;margin:0 auto 6px;border-radius:14px;overflow:hidden;background:#000;box-shadow:0 6px 20px rgba(0,0,0,.5)}   /* v1097 : aperçu PLEINE LARGEUR */
+.cp-vid{width:100%;height:100%;object-fit:contain;display:block}   /* v1097 : la vidéo portrait s'affiche entière dans le cadre large */
 .cp-title{font:800 clamp(18px,5vw,22px) system-ui;color:#fff;margin:12px 2px 12px;display:flex;align-items:baseline;gap:9px}
 .cp-title small{font:600 clamp(11px,3.2vw,13px) ui-monospace,monospace;color:#8b98b3}
 .cp-title small{font:600 13px ui-monospace,monospace;color:#9ca8b8}
@@ -630,7 +630,7 @@ input[type=range]::-moz-range-thumb{width:22px;height:22px;border:0;border-radiu
      ============================================================ */
   .clipPrev{ background:rgba(3,6,12,.80); backdrop-filter:blur(20px) saturate(1.1); -webkit-backdrop-filter:blur(20px) saturate(1.1); padding:14px; }
   .cp-card{ max-width:430px; max-height:94vh; overflow-y:auto; background:radial-gradient(130% 90% at 50% -12%, #17243f 0%, #0f1828 52%, #0a111d 100%); border:1px solid rgba(244,189,74,.16); border-radius:22px; padding:14px 15px; box-shadow:0 28px 66px rgba(0,0,0,.62), inset 0 1px 0 rgba(255,255,255,.05); }
-  .cp-vidwrap{ max-height:21vh; max-width:min(36vw,148px); margin:0 auto 8px; border-radius:14px; border:1px solid rgba(255,255,255,.09); box-shadow:0 10px 26px rgba(0,0,0,.5); position:relative; }
+  .cp-vidwrap{ width:100%; aspect-ratio:16/10; max-height:24vh; max-width:none; margin:0 auto 8px; border-radius:14px; border:1px solid rgba(255,255,255,.09); box-shadow:0 10px 26px rgba(0,0,0,.5); position:relative; }   /* v1097 */
   .cp-vidwrap::after{ content:""; position:absolute; inset:0; border-radius:14px; pointer-events:none; box-shadow:inset 0 0 0 1px rgba(244,189,74,.14), inset 0 0 34px rgba(0,0,0,.28); }
   .cp-title{ font-family:"Playfair Display",Georgia,serif !important; font-weight:800; font-size:clamp(18px,4.8vw,22px); color:#fdf3df; letter-spacing:.2px; margin:2px 2px 10px; justify-content:center; text-align:center; }
   .cp-title small{ font-family:ui-monospace,monospace !important; font-weight:600; font-size:11.5px; color:#e8c069; background:rgba(244,189,74,.10); border:1px solid rgba(244,189,74,.24); padding:2px 8px; border-radius:999px; letter-spacing:normal; }
@@ -912,6 +912,10 @@ input[type=range]::-moz-range-thumb{width:22px;height:22px;border:0;border-radiu
 .hero-chip:active{background:rgba(212,175,55,.18)}
 .hero-chip .hc-ic{width:9px;height:9px;display:inline-block}
 </style>
+<style id="fsClean">/* v1098 : en plein écran (mode cinéma), l'image règne seule — ni bandeau d'app ni badge */
+body:has(.hero.cinema) .header{display:none!important}
+body:has(.hero.cinema) #badge{display:none!important}
+</style>
 </head>
 <body>
 <!-- ====== INTERFACE KIMI (greffée) ====== -->
@@ -1107,6 +1111,7 @@ input[type=range]::-moz-range-thumb{width:22px;height:22px;border:0;border-radiu
     <button class="mood" data-mood="doux" data-i18n="Doux">Doux</button>
     <button class="mood" data-mood="dynamique" data-i18n="Dynamique">Dynamique</button>
     <button class="mood" data-mood="voyage" data-i18n="Voyage">Voyage</button>
+    <div id="modeMatchLine" style="display:none;width:100%;font:500 12px system-ui;color:#c8d2e4;background:#131a28;border:1px solid #24304a;border-radius:10px;padding:8px 10px;margin-top:8px;line-height:1.5"></div>
   </div>
 
   <div class="row">
@@ -1270,7 +1275,7 @@ function renderPlanToBuffer(dur, sr){
 function analyzeBufferInto(buf, cb){ try{ essentiaReady.then(function(ok){ if(ok){ setTimeout(function(){ try{ toMono44(buf,function(sig,sr){ var An; try{ An=analyzeEssentia(sig,sr,buf.duration); }catch(e){ An=analyzeCustom(buf); } cb(An); }); }catch(e){ cb(analyzeCustom(buf)); } }, 20); } else { setTimeout(function(){ cb(analyzeCustom(buf)); }, 20); } }); }catch(e){ try{ cb(analyzeCustom(buf)); }catch(e2){ cb(null); } } }
 
 var CLIPS=[], clipVidReady=false, VIDACT=-1;
-window.STUDIO_VERSION="v1096";
+window.STUDIO_VERSION="v1099";
 window.MAGOT_EXPORT_ENGINE="auto"; try{ window.MAGOT_EXPORT_ENGINE=localStorage.getItem("magot_export_engine")||"auto"; }catch(e){}
 function setMagotExportEngine(mode){ if(mode!=="auto"&&mode!=="turbo"&&mode!=="mediarecorder") mode="auto"; window.MAGOT_EXPORT_ENGINE=mode; try{ localStorage.setItem("magot_export_engine",mode); }catch(e){} }
 function _exportEngineLabel(){ var m=window.MAGOT_EXPORT_ENGINE; return m==="turbo"?"Export : Turbo test":m==="mediarecorder"?"Export : Compatible":"Export : Automatique"; }
@@ -1410,6 +1415,39 @@ function toMono44(audioBuffer, cb){
 }
 
 /* ================= Analyse Essentia ================= */
+function modeMatch(An){ /* v1099 : Accord musique-mode — calculé UNIQUEMENT depuis l'analyse réelle (bpm ressenti, densité de temps forts, régularité, calme) */
+  try{
+    if(!An||!An.beats||An.beats.length<8) return null;
+    var bpm=Math.round(An.bpmFelt||An.bpm||0); if(!bpm) return null;
+    var st=An.strength||[], nb=An.beats.length, dur=An.beats[nb-1]-An.beats[0]; if(dur<10) return null;
+    var forts=0; for(var i=0;i<st.length;i++){ if((st[i]||0)>=0.6) forts++; }
+    var fortsMin=forts/(dur/60);
+    var iv=[], mean=0; for(var j=1;j<nb;j++){ iv.push(An.beats[j]-An.beats[j-1]); }
+    iv.forEach(function(x){ mean+=x; }); mean/=iv.length; var va=0; iv.forEach(function(x){ va+=(x-mean)*(x-mean); }); 
+    var cv=Math.sqrt(va/iv.length)/(mean||1);   /* coefficient de variation : régulier < 0,08 */
+    var calm=!!An._calm, reg=(cv<0.08);
+    function clamp3(x){ return Math.max(0,Math.min(3,Math.round(x))); }
+    var sc={};
+    sc.dynamique=clamp3((bpm>=112?3:bpm>=100?2:bpm>=90?1:0) + (fortsMin>=26?0.6:0) + (reg?0.4:0) - (calm?1.5:0));
+    sc.cinema  =clamp3((bpm>=78&&bpm<=118?2.4:1) + (reg?0.6:0) + (calm?0.4:0));
+    sc.doux    =clamp3((bpm<=88?2.4:bpm<=100?1.4:0.6) + (calm?1:0) + (fortsMin<18?0.4:0));
+    sc.voyage  =clamp3((bpm>=82&&bpm<=124?2.2:1.2) + (fortsMin>=16?0.5:0) + (reg?0.3:0));
+    var best="cinema",bs=-1; ["cinema","voyage","doux","dynamique"].forEach(function(k){ if(sc[k]>bs){ bs=sc[k]; best=k; } });
+    var faits=bpm+" BPM \u00b7 temps forts "+(fortsMin>=24?"nombreux":fortsMin>=14?"pr\u00e9sents":"rares")+" \u00b7 grille "+(reg?"r\u00e9guli\u00e8re":"flottante")+(calm?" \u00b7 morceau calme":"");
+    return { sc:sc, best:best, faits:faits };
+  }catch(e){ return null; } }
+function _dots(n){ var o=""; for(var i=0;i<3;i++) o+=(i<n?"\u25cf":"\u25cb"); return o; }
+function _moodName(k){ return ({cinema:"Cin\u00e9ma",voyage:"Voyage",doux:"Doux",dynamique:"Dynamique"})[k]||k; }
+function _paintModeMatch(){ try{
+  var mm=(typeof A!=="undefined"&&A)?modeMatch(A):null; var line=document.getElementById("modeMatchLine");
+  document.querySelectorAll(".mood").forEach(function(b){ var st=b.querySelector(".mm-star"); if(st) st.remove(); });
+  if(!mm){ if(line){ line.style.display="none"; } return; }
+  var bb=document.querySelector('.mood[data-mood="'+mm.best+'"]');
+  if(bb){ var st2=document.createElement("span"); st2.className="mm-star"; st2.textContent=" \u2605"; st2.style.cssText="color:#e3a531;font-size:11px"; bb.appendChild(st2); }
+  if(line){ line.style.display=""; line.innerHTML='<span style="color:#c9a44a;font-weight:700">Accord avec ta musique</span> \u2014 '
+    +["cinema","voyage","doux","dynamique"].map(function(k){ return _moodName(k)+" <span style=\"color:#e3a531\">"+_dots(mm.sc[k])+"</span>"; }).join(" \u00b7 ")
+    +'<div style="color:#8a93a6;margin-top:3px">'+mm.faits+' \u00b7 \u2605 recommand\u00e9</div>'; }
+}catch(e){} }
 function inferMetric(beats,strength){
   var n=beats.length; var m=new Array(n);
   if(n<8){ for(var i=0;i<n;i++) m[i]=0.5; return m; }
@@ -9169,7 +9207,7 @@ function _openLangPicker(){
   bg.style.cssText="position:fixed;inset:0;z-index:100050;background:rgba(0,0,0,.62);backdrop-filter:blur(4px);display:flex;align-items:flex-end;justify-content:center;font-family:system-ui,-apple-system,sans-serif";
   var card=document.createElement("div");
   card.style.cssText="width:100%;max-width:520px;background:#0f0e0d;border:1px solid #282622;border-radius:22px 22px 0 0;padding:8px 10px 22px;max-height:78vh;overflow:auto;box-shadow:0 -10px 50px rgba(0,0,0,.7)";
-  var head="<div style=\"text-align:center;padding:12px 0 6px\"><div style=\"width:40px;height:4px;background:#3a3733;border-radius:3px;margin:0 auto 12px\"></div><div style=\"color:#f4f7fc;font:700 17px system-ui\">\uD83C\uDF10 "+_st("Langue des paroles")+"</div><div style=\"color:#8a93a6;font:500 12.5px system-ui;margin-top:3px\">"+_st("Traduction synchronisée au rythme")+" \u00b7 v1096</div></div>";
+  var head="<div style=\"text-align:center;padding:12px 0 6px\"><div style=\"width:40px;height:4px;background:#3a3733;border-radius:3px;margin:0 auto 12px\"></div><div style=\"color:#f4f7fc;font:700 17px system-ui\">\uD83C\uDF10 "+_st("Langue des paroles")+"</div><div style=\"color:#8a93a6;font:500 12.5px system-ui;margin-top:3px\">"+_st("Traduction synchronisée au rythme")+" \u00b7 v1099</div></div>";
   var rows="";
   for(var i=0;i<window._LYRICS_LANGS.length;i++){ var code=window._LYRICS_LANGS[i][0], name=window._LYRICS_LANGS[i][1], fl=_LANG_FLAGS[code]||"\uD83C\uDF10", on=(window._LYRICS_LANG===code);
     rows+="<button class=\"lang-opt\" data-l=\""+code+"\" style=\"display:flex;align-items:center;gap:13px;width:100%;text-align:left;background:"+(on?"rgba(122,208,160,.14)":"none")+";border:1px solid "+(on?"rgba(122,208,160,.5)":"transparent")+";color:#f4f7fc;font:600 15.5px system-ui;padding:14px 15px;border-radius:13px;cursor:pointer;margin:3px 0\"><span style=\"font-size:22px\">"+fl+"</span><span style=\"flex:1\">"+name+"</span>"+(on?"<span style=\"color:#7ad0a0;font-size:18px\">\u2713</span>":"")+"</button>";
@@ -10512,6 +10550,13 @@ function finishAnalyze(){
     var _e=A.energy||[], _em=0, _i; for(_i=0;_i<_e.length;_i++) _em+=_e[_i]; _em=_e.length?_em/_e.length:0.4;
     if(_fb>110 && _em<0.40){ var _k=(0.40-_em)/0.40; _fb=Math.round(_fb*(1-Math.min(0.20,_k*0.4))); _calm=true; }
     A.bpmFelt=_fb; A._calm=_calm;
+    try{ _paintModeMatch(); var _mm9=modeMatch(A);
+      if(_mm9){ var _cur9=(typeof MOOD!=="undefined")?MOOD:"cinema";
+        if(_mm9.best!==_cur9 && (_mm9.sc[_mm9.best]-( _mm9.sc[_cur9]||0))>=1){
+          setState("\u2728 Cette musique s'accorde mieux au mode <b>"+_moodName(_mm9.best)+"</b> ("+_mm9.faits+"). "
+            +'<button onclick="try{var b=document.querySelector(\'.mood[data-mood=\\\'"+_mm9.best+"\\\']\'); if(b) b.click(); setState(\'\');}catch(e){}" style="margin-left:6px;padding:5px 12px;border-radius:9px;border:0;background:#c9a44a;color:#181510;font:700 12px system-ui">L\u2019appliquer</button>');
+        } else if(_mm9.best===_cur9){ setState("\u2713 Mode "+_moodName(_cur9)+" bien accord\u00e9 \u00e0 cette musique ("+_mm9.faits+")."); }
+      } }catch(e){}   /* v1099 : proposition d'accord \u00e0 l'import — jamais bloquante, l'utilisateur garde le dernier mot */
   }
   if(A.bpm) setState("Moteur : <b>"+eng+"</b> · "+A.bpm+" BPM"+((A.bpmFelt&&A.bpmFelt!==A.bpm)?(" (ressenti "+A.bpmFelt+(_calm?" · calme":"")+")"):(_calm?" (calme)":""))+" · "+A.beats.length+" temps"+(A.engine==="essentia"&&A.conf?(" · confiance "+A.conf.toFixed(1)):"")+". Ajoute des photos puis « Lire ».");
   else setState("Moteur : <b>"+eng+"</b> · pas de tempo net. Ajoute des photos puis « Lire ».");
@@ -11962,8 +12007,8 @@ essentiaReady.then(function(ok){ if(!ok && !A){ /* silencieux : le repli se fait
   function $(id){ return document.getElementById(id); }
   function q(s){ return document.querySelector(s); }
   function qa(s){ return Array.prototype.slice.call(document.querySelectorAll(s)); }
-  function mmss(s){ s=Math.max(0,s||0); var m=Math.floor(s/60),x=Math.round(s%60); return m+":"+(x<10?"0":"")+x; }
-  function durTxt(s){ s=Math.max(0,s||0); var m=Math.floor(s/60),x=Math.round(s%60); return m>0?(m+" min "+(x<10?"0":"")+x):(x+" s"); }
+  function mmss(s){ s=Math.max(0,Math.round(s||0)); var m=Math.floor(s/60),x=s%60; return m+":"+(x<10?"0":"")+x; }
+  function durTxt(s){ s=Math.max(0,Math.round(s||0)); var m=Math.floor(s/60),x=s%60; return m>0?(m+" min "+(x<10?"0":"")+x):(x+" s"); }
 
   var PLAY_HERO='<svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor" stroke="none"><path d="M8 5l14 7-14 7z"/></svg>';
   var PAUSE_HERO='<svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor" stroke="none"><rect x="6" y="4" width="4" height="16" rx="1"/><rect x="14" y="4" width="4" height="16" rx="1"/></svg>';
@@ -12989,15 +13034,15 @@ function renderVNav(){
         +'<button data-p="D" style="flex:1;padding:9px;border-radius:9px;border:1px solid #c9a44a;background:#c9a44a;color:#181510;font:700 12.5px system-ui">D\u00c9COUPE</button>'
         +'<button data-p="S" style="flex:1;padding:9px;border-radius:9px;border:1px solid #313a49;background:#1d232e;color:#dfe7f4;font:600 12.5px system-ui">VITESSE</button>'
         +'<button data-p="C" style="flex:1;padding:9px;border-radius:9px;border:1px solid #313a49;background:#1d232e;color:#dfe7f4;font:600 12.5px system-ui">COULEUR</button></div>'
-      +'<div id="cpPgD">'
+      +'<div id="cpPgD" style="min-height:300px">'
       +'<div class="cp-trim"><div class="cp-sec">Moment de d\u00e9part <b id="cpTrimT">'+clock(c.trimStart||0)+'</b></div><input type="range" id="cpTrim" min="0" max="'+Math.round((c.dur||1)*100)+'" value="'+Math.round((c.trimStart||0)*100)+'"><div class="vsb-hint">Fais glisser pour choisir le meilleur passage \u2014 c\u2019est de l\u00e0 que le clip d\u00e9marre dans le montage.</div></div>'
       +'<div class="cp-speed"><div class="cp-sec">Dur\u00e9e du plan<b id="cpDurRes" style="font-weight:600"></b></div>'
         +'<select class="te-sel" id="cpDur" style="width:100%;margin-bottom:8px">'
         +[["0","Automatique"],["3","3 s"],["5","5 s"],["8","8 s"],["10","10 s"],["15","15 s"],["20","20 s"],["30","30 s"]].map(function(o){ var on=((c.durMode==="musical"&&String(c.durTarget)===o[0])||((c.durMode||"auto")!=="musical"&&o[0]==="0")); return '<option value="'+o[0]+'"'+(on?' selected':'')+'>'+o[1]+'</option>'; }).join("")
         +'</select><div class="vsb-hint" id="cpDurHint"></div><div class="cp-row"><button class="vtog" id="cpDurAll" type="button"><span class="vtog-dot"></span></button><span class="cp-lab">Appliquer \u00e0 tous les clips</span></div></div>'
       +'</div>'
-      +'<div id="cpPgS" style="display:none"><div class="cp-speed"><div class="cp-sec">Vitesse</div><div class="cp-spd-seg" id="cpSpd"><button data-s="0.5">Ralenti</button><button data-s="1">Normal</button><button data-s="1.5">Rapide</button><button data-s="2">\u00d72</button></div></div></div>'
-      +'<div id="cpPgC" style="display:none">'
+      +'<div id="cpPgS" style="display:none;min-height:300px"><div class="cp-speed"><div class="cp-sec">Vitesse</div><div class="cp-spd-seg" id="cpSpd"><button data-s="0.5">Ralenti</button><button data-s="1">Normal</button><button data-s="1.5">Rapide</button><button data-s="2">\u00d72</button></div></div></div>'
+      +'<div id="cpPgC" style="display:none;min-height:300px">'
       +'<div class="cp-color"><div class="cp-sec">Couleur & teinte</div>'
         +'<div class="cp-presets">'+VPRESETS.map(function(p,pi){ return '<button class="cp-pre'+(pi===(c.preset||0)?" on":"")+'" data-pre="'+pi+'">'+p.n+'</button>'; }).join("")+'</div>'
         +'<div class="cp-adj">'
@@ -13375,7 +13420,7 @@ function renderVNav(){
       var hasA=(typeof A!=="undefined")&&A;
       var np=(typeof SEGS!=="undefined"&&SEGS)?SEGS.length:0;
       if(hasA){
-        var cur=(typeof montageNow==="function")?montageNow():((typeof audioEl!=="undefined"&&audioEl?audioEl.currentTime:0)||0);
+        var cur=((typeof playing!=="undefined")&&playing)?((typeof montageNow==="function")?montageNow():((typeof audioEl!=="undefined"&&audioEl?audioEl.currentTime:0)||0)):(((typeof pausedOffset!=="undefined")?pausedOffset:0)||(window.MSTART_EFF||0));   /* v1097 : hors lecture, la barre du hero montre la POSITION DE PAUSE — jamais l'horloge murale */
         var _mst=(window.MSTART_EFF||0), _mEnd=(window.MONTAGE_DUR||A.dur||0), _mlen=Math.max(0.1,_mEnd-_mst);
         var _mcur=Math.max(0,Math.min(_mlen,cur-_mst));
         var dur=_mlen;
@@ -13460,7 +13505,7 @@ function renderVNav(){
 "use strict";
 function q(s){return document.querySelector(s);}
 function qa(s){return Array.prototype.slice.call(document.querySelectorAll(s));}
-function mmss(s){s=Math.max(0,s||0);var m=Math.floor(s/60),x=Math.round(s%60);return m+":"+(x<10?"0":"")+x;}
+function mmss(s){s=Math.max(0,Math.round(s||0));var m=Math.floor(s/60),x=s%60;return m+":"+(x<10?"0":"")+x;}
 function brandSub(){ try{ var p=q(".brand p"); if(!p) return; var nm="";
   var idx=JSON.parse(localStorage.getItem("studioMagotFilms")||"[]");
   var f=idx.filter(function(x){return x.id===window._curFilmId;})[0];
