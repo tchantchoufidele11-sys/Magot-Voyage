@@ -1275,7 +1275,7 @@ function renderPlanToBuffer(dur, sr){
 function analyzeBufferInto(buf, cb){ try{ essentiaReady.then(function(ok){ if(ok){ setTimeout(function(){ try{ toMono44(buf,function(sig,sr){ var An; try{ An=analyzeEssentia(sig,sr,buf.duration); }catch(e){ An=analyzeCustom(buf); } cb(An); }); }catch(e){ cb(analyzeCustom(buf)); } }, 20); } else { setTimeout(function(){ cb(analyzeCustom(buf)); }, 20); } }); }catch(e){ try{ cb(analyzeCustom(buf)); }catch(e2){ cb(null); } } }
 
 var CLIPS=[], clipVidReady=false, VIDACT=-1;
-window.STUDIO_VERSION="v1099";
+window.STUDIO_VERSION="v1101";
 window.MAGOT_EXPORT_ENGINE="auto"; try{ window.MAGOT_EXPORT_ENGINE=localStorage.getItem("magot_export_engine")||"auto"; }catch(e){}
 function setMagotExportEngine(mode){ if(mode!=="auto"&&mode!=="turbo"&&mode!=="mediarecorder") mode="auto"; window.MAGOT_EXPORT_ENGINE=mode; try{ localStorage.setItem("magot_export_engine",mode); }catch(e){} }
 function _exportEngineLabel(){ var m=window.MAGOT_EXPORT_ENGINE; return m==="turbo"?"Export : Turbo test":m==="mediarecorder"?"Export : Compatible":"Export : Automatique"; }
@@ -1420,8 +1420,9 @@ function modeMatch(An){ /* v1099 : Accord musique-mode — calculé UNIQUEMENT d
     if(!An||!An.beats||An.beats.length<8) return null;
     var bpm=Math.round(An.bpmFelt||An.bpm||0); if(!bpm) return null;
     var st=An.strength||[], nb=An.beats.length, dur=An.beats[nb-1]-An.beats[0]; if(dur<10) return null;
+    var _hasStr=(st.length>=nb*0.5);
     var forts=0; for(var i=0;i<st.length;i++){ if((st[i]||0)>=0.6) forts++; }
-    var fortsMin=forts/(dur/60);
+    var fortsMin=_hasStr?(forts/(dur/60)):18;   /* v1100 : analyse ancienne sans forces -> densité neutre, on score sur tempo+régularité */
     var iv=[], mean=0; for(var j=1;j<nb;j++){ iv.push(An.beats[j]-An.beats[j-1]); }
     iv.forEach(function(x){ mean+=x; }); mean/=iv.length; var va=0; iv.forEach(function(x){ va+=(x-mean)*(x-mean); }); 
     var cv=Math.sqrt(va/iv.length)/(mean||1);   /* coefficient de variation : régulier < 0,08 */
@@ -1433,7 +1434,7 @@ function modeMatch(An){ /* v1099 : Accord musique-mode — calculé UNIQUEMENT d
     sc.doux    =clamp3((bpm<=88?2.4:bpm<=100?1.4:0.6) + (calm?1:0) + (fortsMin<18?0.4:0));
     sc.voyage  =clamp3((bpm>=82&&bpm<=124?2.2:1.2) + (fortsMin>=16?0.5:0) + (reg?0.3:0));
     var best="cinema",bs=-1; ["cinema","voyage","doux","dynamique"].forEach(function(k){ if(sc[k]>bs){ bs=sc[k]; best=k; } });
-    var faits=bpm+" BPM \u00b7 temps forts "+(fortsMin>=24?"nombreux":fortsMin>=14?"pr\u00e9sents":"rares")+" \u00b7 grille "+(reg?"r\u00e9guli\u00e8re":"flottante")+(calm?" \u00b7 morceau calme":"");
+    var faits=bpm+" BPM"+(_hasStr?(" \u00b7 temps forts "+(fortsMin>=24?"nombreux":fortsMin>=14?"pr\u00e9sents":"rares")):"")+" \u00b7 grille "+(reg?"r\u00e9guli\u00e8re":"flottante")+(calm?" \u00b7 morceau calme":"");
     return { sc:sc, best:best, faits:faits };
   }catch(e){ return null; } }
 function _dots(n){ var o=""; for(var i=0;i<3;i++) o+=(i<n?"\u25cf":"\u25cb"); return o; }
@@ -1441,6 +1442,7 @@ function _moodName(k){ return ({cinema:"Cin\u00e9ma",voyage:"Voyage",doux:"Doux"
 function _paintModeMatch(){ try{
   var mm=(typeof A!=="undefined"&&A)?modeMatch(A):null; var line=document.getElementById("modeMatchLine");
   document.querySelectorAll(".mood").forEach(function(b){ var st=b.querySelector(".mm-star"); if(st) st.remove(); });
+  try{ if(!window.__mmMoodWired){ window.__mmMoodWired=true; document.querySelectorAll(".mood").forEach(function(b){ b.addEventListener("click",function(){ setTimeout(function(){ try{ _paintModeMatch(); }catch(e){} },60); setTimeout(function(){ try{ _paintModeMatch(); }catch(e){} },1600); }); }); } }catch(e){}   /* v1101 : re-peint au tap d'un mode (immédiat) et après le chargement éventuel d'une musique du mode (1,6 s) */
   if(!mm){ if(line){ line.style.display="none"; } return; }
   var bb=document.querySelector('.mood[data-mood="'+mm.best+'"]');
   if(bb){ var st2=document.createElement("span"); st2.className="mm-star"; st2.textContent=" \u2605"; st2.style.cssText="color:#e3a531;font-size:11px"; bb.appendChild(st2); }
@@ -9207,7 +9209,7 @@ function _openLangPicker(){
   bg.style.cssText="position:fixed;inset:0;z-index:100050;background:rgba(0,0,0,.62);backdrop-filter:blur(4px);display:flex;align-items:flex-end;justify-content:center;font-family:system-ui,-apple-system,sans-serif";
   var card=document.createElement("div");
   card.style.cssText="width:100%;max-width:520px;background:#0f0e0d;border:1px solid #282622;border-radius:22px 22px 0 0;padding:8px 10px 22px;max-height:78vh;overflow:auto;box-shadow:0 -10px 50px rgba(0,0,0,.7)";
-  var head="<div style=\"text-align:center;padding:12px 0 6px\"><div style=\"width:40px;height:4px;background:#3a3733;border-radius:3px;margin:0 auto 12px\"></div><div style=\"color:#f4f7fc;font:700 17px system-ui\">\uD83C\uDF10 "+_st("Langue des paroles")+"</div><div style=\"color:#8a93a6;font:500 12.5px system-ui;margin-top:3px\">"+_st("Traduction synchronisée au rythme")+" \u00b7 v1099</div></div>";
+  var head="<div style=\"text-align:center;padding:12px 0 6px\"><div style=\"width:40px;height:4px;background:#3a3733;border-radius:3px;margin:0 auto 12px\"></div><div style=\"color:#f4f7fc;font:700 17px system-ui\">\uD83C\uDF10 "+_st("Langue des paroles")+"</div><div style=\"color:#8a93a6;font:500 12.5px system-ui;margin-top:3px\">"+_st("Traduction synchronisée au rythme")+" \u00b7 v1101</div></div>";
   var rows="";
   for(var i=0;i<window._LYRICS_LANGS.length;i++){ var code=window._LYRICS_LANGS[i][0], name=window._LYRICS_LANGS[i][1], fl=_LANG_FLAGS[code]||"\uD83C\uDF10", on=(window._LYRICS_LANG===code);
     rows+="<button class=\"lang-opt\" data-l=\""+code+"\" style=\"display:flex;align-items:center;gap:13px;width:100%;text-align:left;background:"+(on?"rgba(122,208,160,.14)":"none")+";border:1px solid "+(on?"rgba(122,208,160,.5)":"transparent")+";color:#f4f7fc;font:600 15.5px system-ui;padding:14px 15px;border-radius:13px;cursor:pointer;margin:3px 0\"><span style=\"font-size:22px\">"+fl+"</span><span style=\"flex:1\">"+name+"</span>"+(on?"<span style=\"color:#7ad0a0;font-size:18px\">\u2713</span>":"")+"</button>";
@@ -9617,7 +9619,8 @@ function _paintRange(el){ try{ var mn=+el.min||0, mx=+el.max||100, v=+el.value; 
 function _paintAllRanges(){ try{ var r=document.querySelectorAll('input[type=range]'); for(var i=0;i<r.length;i++) _paintRange(r[i]); }catch(e){} }
 document.addEventListener("input",function(e){ if(e.target&&e.target.type==="range") _paintRange(e.target); },true);
 function _curPlanTrackIdx(){ if(!window.MULTI||!window.MPLAN||!window.MPLAN.length) return -1; var m=(typeof montageNow==="function")?montageNow():0; var plan=window.MPLAN; for(var i=plan.length-1;i>=0;i--){ if(m>=plan[i].mStart-0.001) return plan[i].ti; } return plan[0].ti; }
-function updateBadge(){
+function updateBadge(){ try{ if(typeof _paintModeMatch==="function") _paintModeMatch(); }catch(e){}   /* v1100 : l'accord s'affiche aussi pour les musiques déjà en cache */
+
   var parts=[], _A=A, _nm=null;
   if(window.MULTI && typeof TRACKS!=="undefined" && TRACKS.length){ var _pi=_curPlanTrackIdx(); if(_pi>=0 && TRACKS[_pi]){ _A=TRACKS[_pi].A||A; _nm=TRACKS[_pi].name; } }
   if(_nm) parts.push("\u266A "+_nm);
@@ -12068,7 +12071,7 @@ essentiaReady.then(function(ok){ if(!ok && !A){ /* silencieux : le repli se fait
   function openSheet(n){ try{ if(typeof stopPlay==="function"){ stopPlay(); } }catch(e){} try{ var _pp=document.getElementById("play"); if(_pp) _pp.textContent="\u25B6 Lire le film"; }catch(e){} try{ if(window._refreshPlayUI) window._refreshPlayUI(); }catch(e){} try{ if(typeof _hideClipOverlay==="function") _hideClipOverlay(); }catch(e){} var s=q('.sheet-bg[data-bg="'+n+'"]'); if(s) s.classList.add("show"); }
   function closeSheets(){ qa(".sheet-bg").forEach(function(e){ e.classList.remove("show"); }); if(typeof stopPreview==="function") stopPreview(); }
   qa(".source[data-sheet]").forEach(function(b){ b.onclick=function(){ var n=b.getAttribute("data-sheet"); openSheet(n); if(n==="photos"&&typeof renderPGrid==="function"){ try{ renderPGrid(); }catch(e){} } if(n==="video"&&typeof renderVideoSheet==="function"){ try{ renderVideoSheet(); }catch(e){} } }; });
-  var oa=$("openAmbience"); if(oa) oa.onclick=function(){ openSheet("amb"); };
+  var oa=$("openAmbience"); if(oa) oa.onclick=function(){ openSheet("amb"); try{ if(typeof _paintModeMatch==="function")_paintModeMatch(); }catch(e){} };   /* v1101 : la ligne d'accord est fraîche À L'OUVERTURE de la feuille */
   var eb=$("expBtn"); if(eb) eb.onclick=function(){ openSheet("export"); };
   qa("[data-close]").forEach(function(b){ b.onclick=closeSheets; });
   qa(".sheet-bg").forEach(function(bg){ bg.onclick=function(e){ if(e.target===bg) closeSheets(); }; });
