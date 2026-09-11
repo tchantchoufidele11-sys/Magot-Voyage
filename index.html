@@ -9821,17 +9821,32 @@ let _studioTrip=null; let _studioURLs=[];
    et la mappe au format attendu par STUDIO_CATALOG. cover/artist/lyrics restent optionnels. */
 let _studioTranscribing=new Set(); let _studioTranscribeWarned=false;
 /* Signature intro/outro du film (Mistral via worker), dans la langue du voyage -> SIGN_TEXT */
-async function magotSignText(tr){ try{
+async function magotSignText(tr, mood){ try{
   if(!tr) return null;
   const dest=(tr.dest&&tr.dest.name)||"";
   const lieux=(tr.places||[]).map(function(p){return p&&p.name;}).filter(Boolean).slice(0,12);
   const dates=(tr.dateStart&&tr.dateEnd)?(tr.dateStart+" -> "+tr.dateEnd):"";
-  const payload={ destination:dest, dates:dates, lieux:lieux, lang:_studioLang(), title:tr.title||"", seed:Math.floor(Math.random()*1e6) };
+  const etapes=(tr.plan||[]).map(function(x){return x&&(x.title||x.name||x.place||x.lieu);}).filter(Boolean).slice(0,10);
+  const _mph=(tr.memories||[]).filter(function(m){return m&&!m.video;}).length, _mvd=(tr.memories||[]).filter(function(m){return m&&m.video;}).length;
+  const payload={ destination:dest, dates:dates, lieux:lieux, lieuxReperes:lieux, etapesPlanifiees:etapes, medias:{photos:_mph, videos:_mvd}, lang:_studioLang(), title:tr.title||"", seed:Math.floor(Math.random()*1e6) }; if(mood) payload.mood=mood;   /* contexte STRUCTURÉ : repéré ≠ visité ; les médias prouvent le séjour, pas les lieux */
   const r=await fetch(WORKER_URL+"/agent/signature",{ method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify(payload) });
   if(!r.ok) return null; const d=await r.json().catch(function(){return null;}); let raw=(d&&d.text)||"";
   let o=null; try{ o=JSON.parse(String(raw).replace(/```json|```/gi,"").trim()); }catch(e){}
   if(o && (o.introProverbe||o.introTexte||o.introProverb)){
-    return { introTitre:o.introTitre||o.introTitle||"", introTexte:o.introTexte||o.introText||"", introProverbe:o.introProverbe||o.introProverb||"", outroTexte:o.outroTexte||o.outroText||"", outroProverbe:o.outroProverbe||o.outroProverb||"", mood:(o.mood||"") };
+    var _ids=Array.isArray(o.evidenceIds)?o.evidenceIds:[]; var _pv=[], _badId=false;
+    for(var _ei=0;_ei<_ids.length;_ei++){ var _id=String(_ids[_ei]||"");
+      if(_id==="destination"&&dest){ _pv.push("Destination : "+dest); }
+      else if(_id==="dates"&&dates){ _pv.push("Dates : "+dates); }
+      else if(_id==="title"&&(tr.title||"")){ _pv.push("Titre du voyage : "+tr.title); }
+      else if(_id==="media-count"&&(_mph+_mvd)>0){ _pv.push(_mph+" photo"+(_mph>1?"s":"")+" \u00b7 "+_mvd+" vid\u00e9o"+(_mvd>1?"s":"")+" rapport\u00e9es"); }
+      else if(_id.indexOf("lieu:")===0&&lieux.indexOf(_id.slice(5))>=0){ _pv.push("Lieu rep\u00e9r\u00e9 : "+_id.slice(5)); }
+      else if(_id.indexOf("etape:")===0&&etapes.indexOf(_id.slice(6))>=0){ _pv.push("\u00c9tape planifi\u00e9e : "+_id.slice(6)); }
+      else { _badId=true; break; }   /* identifiant inconnu ou absent du contexte -> signature ENTIÈRE rejetée */
+    }
+    if(_badId) return null;
+    var _sig={ introTitre:o.introTitre||o.introTitle||"", introTexte:o.introTexte||o.introText||"", introProverbe:o.introProverbe||o.introProverb||"", outroTexte:o.outroTexte||o.outroText||"", outroProverbe:o.outroProverbe||o.outroProverb||"", mood:(o.mood||""), evidenceIds:_ids, preuves:_pv, _genAt:Date.now() };   /* preuves RECONSTRUITES par l'app depuis les ids validés — jamais du texte libre IA */
+    if(!(_sig.introTitre&&_sig.introTexte&&_sig.introProverbe&&_sig.outroTexte&&_sig.outroProverbe)) return null;
+    return _sig;
   }
   return null;
 }catch(e){ return null; } }

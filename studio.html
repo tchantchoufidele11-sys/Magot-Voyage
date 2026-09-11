@@ -1242,7 +1242,7 @@ function renderPlanToBuffer(dur, sr){
 function analyzeBufferInto(buf, cb){ try{ essentiaReady.then(function(ok){ if(ok){ setTimeout(function(){ try{ toMono44(buf,function(sig,sr){ var An; try{ An=analyzeEssentia(sig,sr,buf.duration); }catch(e){ An=analyzeCustom(buf); } cb(An); }); }catch(e){ cb(analyzeCustom(buf)); } }, 20); } else { setTimeout(function(){ cb(analyzeCustom(buf)); }, 20); } }); }catch(e){ try{ cb(analyzeCustom(buf)); }catch(e2){ cb(null); } } }
 
 var CLIPS=[], clipVidReady=false, VIDACT=-1;
-window.STUDIO_VERSION="v1083";
+window.STUDIO_VERSION="v1087";
 window.MAGOT_EXPORT_ENGINE="auto"; try{ window.MAGOT_EXPORT_ENGINE=localStorage.getItem("magot_export_engine")||"auto"; }catch(e){}
 function setMagotExportEngine(mode){ if(mode!=="auto"&&mode!=="turbo"&&mode!=="mediarecorder") mode="auto"; window.MAGOT_EXPORT_ENGINE=mode; try{ localStorage.setItem("magot_export_engine",mode); }catch(e){} }
 function _exportEngineLabel(){ var m=window.MAGOT_EXPORT_ENGINE; return m==="turbo"?"Export : Turbo test":m==="mediarecorder"?"Export : Compatible":"Export : Automatique"; }
@@ -9140,7 +9140,7 @@ function _openLangPicker(){
   bg.style.cssText="position:fixed;inset:0;z-index:100050;background:rgba(0,0,0,.62);backdrop-filter:blur(4px);display:flex;align-items:flex-end;justify-content:center;font-family:system-ui,-apple-system,sans-serif";
   var card=document.createElement("div");
   card.style.cssText="width:100%;max-width:520px;background:#0f0e0d;border:1px solid #282622;border-radius:22px 22px 0 0;padding:8px 10px 22px;max-height:78vh;overflow:auto;box-shadow:0 -10px 50px rgba(0,0,0,.7)";
-  var head="<div style=\"text-align:center;padding:12px 0 6px\"><div style=\"width:40px;height:4px;background:#3a3733;border-radius:3px;margin:0 auto 12px\"></div><div style=\"color:#f4f7fc;font:700 17px system-ui\">\uD83C\uDF10 "+_st("Langue des paroles")+"</div><div style=\"color:#8a93a6;font:500 12.5px system-ui;margin-top:3px\">"+_st("Traduction synchronisée au rythme")+" \u00b7 v1083</div></div>";
+  var head="<div style=\"text-align:center;padding:12px 0 6px\"><div style=\"width:40px;height:4px;background:#3a3733;border-radius:3px;margin:0 auto 12px\"></div><div style=\"color:#f4f7fc;font:700 17px system-ui\">\uD83C\uDF10 "+_st("Langue des paroles")+"</div><div style=\"color:#8a93a6;font:500 12.5px system-ui;margin-top:3px\">"+_st("Traduction synchronisée au rythme")+" \u00b7 v1087</div></div>";
   var rows="";
   for(var i=0;i<window._LYRICS_LANGS.length;i++){ var code=window._LYRICS_LANGS[i][0], name=window._LYRICS_LANGS[i][1], fl=_LANG_FLAGS[code]||"\uD83C\uDF10", on=(window._LYRICS_LANG===code);
     rows+="<button class=\"lang-opt\" data-l=\""+code+"\" style=\"display:flex;align-items:center;gap:13px;width:100%;text-align:left;background:"+(on?"rgba(122,208,160,.14)":"none")+";border:1px solid "+(on?"rgba(122,208,160,.5)":"transparent")+";color:#f4f7fc;font:600 15.5px system-ui;padding:14px 15px;border-radius:13px;cursor:pointer;margin:3px 0\"><span style=\"font-size:22px\">"+fl+"</span><span style=\"flex:1\">"+name+"</span>"+(on?"<span style=\"color:#7ad0a0;font-size:18px\">\u2713</span>":"")+"</button>";
@@ -9800,7 +9800,7 @@ function _filmThumb(){ try{ for(var i=0;i<PHOTOS.length;i++){ var p=PHOTOS[i]; i
 
 function _projMusic(){ try{ if(!A) return null; var m=(window.__activeMusicMeta)?{ id:window.__activeMusicMeta.id, catId:(window.__activeMusicMeta.catId!=null?window.__activeMusicMeta.catId:null), title:window.__activeMusicMeta.title, url:window.__activeMusicMeta.url, type:window.__activeMusicMeta.type, cover:window.__activeMusicMeta.cover }:{}; m.mst=(window.MSTART||0); if(window.MULTI&&typeof MIX!=="undefined"&&MIX) m.mix=MIX.slice(); try{ if(window.__origLRC) m.lyrics=window.__origLRC; }catch(e){} return m; }catch(e){ return null; } }
 function studioExportProject(){
-  var proj={ v:1, mood:MOOD, dayMarkers:(window.DAY_MARKERS!==false), persoSync:(window.PERSO_SYNC!=null?window.PERSO_SYNC:null), persoBase:(window.PERSO_BASE||null), sign:{ on:!!(typeof SIGN!=="undefined"&&SIGN.on), text:(window.SIGN_TEXT||null) }, music:_projMusic(), photos:[] };   /* v1073 : Sync manuel par mode sauvegardé */
+  var proj={ v:1, mood:MOOD, dayMarkers:(window.DAY_MARKERS!==false), persoSync:(window.PERSO_SYNC!=null?window.PERSO_SYNC:null), persoBase:(window.PERSO_BASE||null), sign:{ on:!!(typeof SIGN!=="undefined"&&SIGN.on), text:(window.SIGN_TEXT||null), meta:{ source:(window.__signSource||null), generatedAt:(window.SIGN_TEXT&&window.SIGN_TEXT._genAt)||null, mode:(typeof MOOD!=="undefined"?MOOD:null), evidenceIds:(window.SIGN_TEXT&&window.SIGN_TEXT.evidenceIds)||null } }, music:_projMusic(), photos:[] };   /* v1073 : Sync manuel par mode sauvegardé */
   for(var i=0;i<PHOTOS.length;i++){ var p=PHOTOS[i]; if(!p||!p._id) continue;
     proj.photos.push({ id:p._id, skip:!!(p.feat&&p.feat.skip), day:(p._day!=null?p._day:null), cap:(p._cap||null),
       capStyle:p._capStyle||null, capAnim:p._capAnim||null, capColor:p._capColor||null, capBand:p._capBand||null,
@@ -9815,7 +9815,7 @@ function studioApplyProject(proj){ if(!proj) return; try{
     if(_ps!=null){ window.PERSO_SYNC=_ps; window.PERSO_BASE=proj.persoBase||proj.mood||MOOD; SYNC_M[window.PERSO_BASE]=_ps; MOOD=window.PERSO_BASE;
       setTimeout(function(){ try{ if(window._persoUI)window._persoUI(); setState("Ambiance : <b>Personnalis\u00e9</b>"); }catch(e){} },900);
     } else { window.PERSO_SYNC=null; window.PERSO_BASE=null; } }catch(e){}
-  if(typeof SIGN!=="undefined"){ SIGN.on=(proj.sign && proj.sign.on===false)?false:true; if(proj.sign&&proj.sign.text) window.SIGN_TEXT=proj.sign.text; try{ if(window._syncSignTog)window._syncSignTog(); }catch(e){} }   /* v1082 : vérité au bouton + texte IA/manuel restauré */
+  if(typeof SIGN!=="undefined"){ SIGN.on=(proj.sign && proj.sign.on===false)?false:true; window.SIGN_TEXT=(proj.sign&&proj.sign.text)||null; window.__signSource=(proj.sign&&proj.sign.meta&&proj.sign.meta.source)||null; SIGN.data=null; try{ if(window._syncSignTog)window._syncSignTog(); }catch(e){} }   /* v1086a : CHAQUE film porte SA signature — plus d'héritage du film précédent (fuite inter-films) */
   if(proj.sign && proj.sign.text) window.SIGN_TEXT=proj.sign.text;
   var byId={}; for(var i=0;i<PHOTOS.length;i++){ if(PHOTOS[i]&&PHOTOS[i]._id) byId[PHOTOS[i]._id]=PHOTOS[i]; }
   (proj.photos||[]).forEach(function(m){ var p=byId[m.id]; if(!p) return;
@@ -9915,7 +9915,7 @@ function _afterOpenFilm(proj){ try{ _linkSources(); }catch(e){} try{
     if(_ps!=null){ window.PERSO_SYNC=_ps; window.PERSO_BASE=proj.persoBase||proj.mood||MOOD; SYNC_M[window.PERSO_BASE]=_ps; MOOD=window.PERSO_BASE;
       setTimeout(function(){ try{ if(window._persoUI)window._persoUI(); setState("Ambiance : <b>Personnalis\u00e9</b>"); }catch(e){} },900);
     } else { window.PERSO_SYNC=null; window.PERSO_BASE=null; } }catch(e){}
-  if(typeof SIGN!=="undefined"){ SIGN.on=(proj.sign && proj.sign.on===false)?false:true; if(proj.sign&&proj.sign.text) window.SIGN_TEXT=proj.sign.text; try{ if(window._syncSignTog)window._syncSignTog(); }catch(e){} }   /* v1082 */
+  if(typeof SIGN!=="undefined"){ SIGN.on=(proj.sign && proj.sign.on===false)?false:true; window.SIGN_TEXT=(proj.sign&&proj.sign.text)||null; window.__signSource=(proj.sign&&proj.sign.meta&&proj.sign.meta.source)||null; SIGN.data=null; try{ if(window._syncSignTog)window._syncSignTog(); }catch(e){} }   /* v1086a */
   if(proj.sign && proj.sign.text) window.SIGN_TEXT=proj.sign.text;
   try{ updateBadge(); paintStrip(0); }catch(e){}
   var _clipsP=Promise.resolve();
@@ -10239,6 +10239,7 @@ function _toggleFilmsMenu(anchor){
       +'<button class="fm-i" data-a="save" style="'+_bs+'">\uD83D\uDCBE '+_st("Enregistrer le montage")+'</button>'
       +'<button class="fm-i" data-a="new" style="'+_bs+';color:#e6c15a">\u2728 '+_st("Nouveau montage")+'</button>'
       +'<button class="fm-i" data-a="tuto" style="'+_bs+'">\uD83E\uDDED '+_st("Revoir le tutoriel")+'</button>'
+      +'<button class="fm-i" data-a="signedit" style="'+_bs+'">\u270D\uFE0F Intro & outro</button>'
       +'<button class="fm-i" data-a="diag" style="'+_bs+';color:#c9a44a">\uD83D\uDD0D Diagnostic paroles</button>'
       +'<button class="fm-i" data-a="diagmontage" style="'+_bs+';color:#c9a44a">\uD83C\uDFAC Diagnostic montage</button>'
       +'<button class="fm-i" data-a="expengine" style="'+_bs+';color:#c9a44a">\uD83E\uDDEA '+_exportEngineLabel()+'</button>'
@@ -10248,6 +10249,7 @@ function _toggleFilmsMenu(anchor){
     document.body.appendChild(m);
     Array.prototype.forEach.call(m.querySelectorAll(".fm-i"), function(it){ it.onclick=function(ev){ ev.stopPropagation(); var a=it.getAttribute("data-a"); if(a!=="lyrics"){ m.style.display="none"; }   /* le toggle Lyrique garde le menu ouvert pour montrer la bascule */
       if(a==="expengine"){ try{ var _cur=window.MAGOT_EXPORT_ENGINE||"auto"; var _next=(_cur==="auto")?"turbo":(_cur==="turbo")?"mediarecorder":"auto"; setMagotExportEngine(_next); if(typeof setState==="function") setState(_exportEngineLabel()); }catch(e){} return; }
+      if(a==="signedit"){ try{ _openSignEditor(); }catch(e){} return; }
       if(a==="diagmontage"){ try{
         var _cv=window._COVERAGE||{}, _md=window._MUSICDIAG||{};
         var _pM=(_cv.photos&&_cv.photos.missing&&_cv.photos.missing.length)?(" MANQUE "+_cv.photos.missing.join(",")):" OK";
@@ -11228,6 +11230,40 @@ async function _turboExport(){
    proverbes variés tirés d'une petite bibliothèque locale + texte par défaut.
    =================================================================== */
 var SIGN={ on:true, introDur:4.8, outroDur:5.2, data:null };
+function _openSignEditor(){ try{
+  var d=window.SIGN_TEXT||{}; var ov=document.createElement("div");
+  ov.style.cssText="position:fixed;inset:0;z-index:9005;background:rgba(8,8,7,.82);display:flex;align-items:flex-end;justify-content:center";
+  var _in=function(id,lab,val,rows){ return '<div style="font:700 12px system-ui;color:#c9a44a;letter-spacing:.06em;margin:10px 2px 5px">'+lab+'</div><textarea id="'+id+'" rows="'+(rows||2)+'" style="width:100%;box-sizing:border-box;background:#151413;border:1px solid #2a2824;border-radius:10px;color:#f4f7fc;font:400 14px system-ui;padding:9px;resize:vertical">'+String(val||"").replace(/</g,"&lt;")+'</textarea>'; };
+  var box=document.createElement("div");
+  box.style.cssText="background:#0f0e0d;border:1px solid #282622;border-radius:18px 18px 0 0;padding:16px 16px 20px;width:min(560px,100%);max-height:82vh;overflow:auto";
+  box.innerHTML='<div style="font:700 17px Playfair Display,serif;color:#f4f7fc;margin-bottom:2px">Intro & outro</div>'
+    +'<div style="font:400 12.5px system-ui;color:#9a948c;margin-bottom:6px">Chaque film a sa signature. Modifie librement — ton texte gagne toujours sur l\u2019IA.</div>'
+    +_in("sgTi","TITRE (intro)",d.introTitre||d.introTitle||"",1)
+    +_in("sgIt","PHRASE D\u2019INTRO",d.introTexte||d.introText||"")
+    +_in("sgIp","PROVERBE D\u2019INTRO",d.introProverbe||d.introProverb||"")
+    +_in("sgOt","PHRASE D\u2019OUTRO",d.outroTexte||d.outroText||"")
+    +_in("sgOp","PROVERBE D\u2019OUTRO",d.outroProverbe||d.outroProverb||"")
+    +((d._manuel)?('<div style="font:400 12.5px system-ui;color:#8f8a82;margin:12px 2px 0">Source : manuel \u00b7 Preuves automatiques : non applicables</div>'):((d.preuves&&d.preuves.length)?('<div style="font:700 12px system-ui;color:#c9a44a;letter-spacing:.06em;margin:12px 2px 5px">PREUVES V\u00c9RIFI\u00c9ES (reconstruites par l\u2019app)</div><div style="font:400 12.5px system-ui;color:#b8b2a8;background:#141311;border:1px solid #262420;border-radius:10px;padding:9px">'+d.preuves.map(function(x){return String(x).replace(/</g,"&lt;");}).join(" \u00b7 ")+'</div>'):""))
+    +'<div style="display:flex;gap:9px;margin-top:15px">'
+    +'<button id="sgRegen" style="flex:1;padding:12px;border-radius:11px;border:1px solid #3a4356;background:#232b38;color:#dfe7f4;font:600 14px system-ui">\u2728 R\u00e9g\u00e9n\u00e9rer</button>'
+    +'<button id="sgSave" style="flex:1.4;padding:12px;border-radius:11px;border:0;background:#c9a44a;color:#181510;font:700 14px system-ui">Enregistrer</button>'
+    +'</div>';
+  ov.appendChild(box); document.body.appendChild(ov);
+  ov.onclick=function(ev){ if(ev.target===ov) ov.remove(); };
+  function _apply(o){ window.SIGN_TEXT=o; try{ if(typeof SIGN!=="undefined"){ SIGN.data=null; SIGN.on=true; if(window._syncSignTog)_syncSignTog(); } }catch(e){}
+    try{ if(typeof _signBuild==="function")_signBuild(); }catch(e){}
+    try{ if(typeof buildPartition==="function"&&A&&(PHOTOS.length||clipVidReady)){ buildPartition(); updateBadge(); paintStrip(0); } }catch(e){}
+    try{ if(typeof _projSaveSoon==="function")_projSaveSoon(); }catch(e){} }
+  document.getElementById("sgSave").onclick=function(){ var g=function(i){ return (document.getElementById(i).value||"").trim(); };
+    _apply({ introTitre:g("sgTi"), introTexte:g("sgIt"), introProverbe:g("sgIp"), outroTexte:g("sgOt"), outroProverbe:g("sgOp"), mood:(d.mood||""), _manuel:true, preuves:null, evidenceIds:null });   /* v1087 : le texte manuel n'hérite JAMAIS des preuves IA */
+    try{ window.__signSource="manuel"; }catch(e){} try{ setState("Signature enregistr\u00e9e."); }catch(e){} ov.remove(); };
+  document.getElementById("sgRegen").onclick=async function(){ var b=this; b.textContent="\u2026"; b.disabled=true;
+    try{ var P=null; try{ P=window.parent&&window.parent!==window?window.parent:null; }catch(e){}
+      var tr=P&&P._studioTrip, fn=P&&P.magotSignText;
+      if(tr&&typeof fn==="function"){ var sig=await fn(tr, (typeof MOOD!=="undefined"?MOOD:undefined)); var _ok5=sig&&[sig.introTitre,sig.introTexte,sig.introProverbe,sig.outroTexte,sig.outroProverbe].every(function(x){return String(x||"").trim().length>0;}); if(!_ok5&&sig){ sig=null; } if(sig){ try{ window.__signSource="IA"; }catch(e){} _apply(sig); ov.remove(); try{ setState("Nouvelle signature r\u00e9dig\u00e9e."); }catch(e){} return; } }
+      try{ setState("R\u00e9g\u00e9n\u00e9ration indisponible ici \u2014 rouvre le film depuis Magot Voyage."); }catch(e){}
+    }catch(e){} b.textContent="\u2728 R\u00e9g\u00e9n\u00e9rer"; b.disabled=false; };
+}catch(e){} }   /* v1085 : \u00e9diteur Intro & outro (menu \u2261) \u2014 \u00e9dition manuelle prioritaire, r\u00e9g\u00e9n\u00e9ration IA via l\u2019app h\u00f4te */
 function _syncSignTog(){ try{ var b=document.getElementById("signTog"); if(b){ b.classList.toggle("on",!!SIGN.on); b.setAttribute("aria-checked",SIGN.on?"true":"false"); } }catch(e){} }   /* v1082 : le bouton dit TOUJOURS la vérité (il affichait « on » en dur pendant que le moteur était éteint) */
 try{ window._syncSignTog=_syncSignTog; }catch(e){}   /* plus long -> temps de lire l'intro/outro */
 try{ if(typeof window.STUDIO_ADMIN==="undefined") window.STUDIO_ADMIN=true; }catch(e){}   /* greffe : MagotVoyage le met à isAdmin() */var SIGN_PROVERBS=[
@@ -12878,7 +12914,7 @@ function renderVNav(){
       +'<div class="cp-speed"><div class="cp-sec">Dur\u00e9e du plan<b id="cpDurRes" style="font-weight:600"></b></div>'
         +'<select id="cpDur" style="width:100%;padding:9px 10px;border-radius:10px;background:#1d232e;color:#e8edf6;border:1px solid #313a49;font:500 14px system-ui">'
         +[["0","Automatique"],["3","3 s"],["5","5 s"],["8","8 s"],["10","10 s"],["15","15 s"],["20","20 s"],["30","30 s"]].map(function(o){ var on=((c.durMode==="musical"&&String(c.durTarget)===o[0])||((c.durMode||"auto")!=="musical"&&o[0]==="0")); return '<option value="'+o[0]+'"'+(on?' selected':'')+'>'+o[1]+'</option>'; }).join("")
-        +'</select><div class="vsb-hint" id="cpDurHint"></div></div>'
+        +'</select><div class="vsb-hint" id="cpDurHint"></div><button id="cpDurAll" type="button" style="width:100%;margin-top:8px;padding:10px;border-radius:10px;border:1px solid #3a4356;background:#232b38;color:#dfe7f4;font:600 13px system-ui">Appliquer cette dur\u00e9e \u00e0 tous les clips</button></div>'
       +'<div class="cp-speed"><div class="cp-sec">Vitesse</div><div class="cp-spd-seg" id="cpSpd"><button data-s="0.5">Ralenti</button><button data-s="1">Normal</button><button data-s="1.5">Rapide</button><button data-s="2">\u00d72</button></div></div>'
       +'<div class="cp-color"><div class="cp-sec">Couleur & teinte</div>'
         +'<div class="cp-presets">'+VPRESETS.map(function(p,pi){ return '<button class="cp-pre'+(pi===(c.preset||0)?" on":"")+'" data-pre="'+pi+'">'+p.n+'</button>'; }).join("")+'</div>'
@@ -12914,6 +12950,17 @@ function renderVNav(){
         var extra=(occ.length>1)?(" \u00b7 "+occ.length+" passages ("+occ.map(function(g){return (g.end-g.start).toFixed(1);}).join(" / ")+" s)"):"";
         if(_dh2)_dh2.textContent="Cible "+(+c.durTarget)+" s \u00b7 \u00e9cart "+(ec>=0?"+":"")+ec.toFixed(2)+" s"+(g0._durSrcLim?" \u00b7 mati\u00e8re dispo "+_mat.toFixed(1)+" s":"")+extra;
       }catch(e){} }
+
+      try{ var _da2=document.getElementById("cpDurAll"); if(_da2){ _da2.onclick=function(){ try{
+        var v9=+_du2.value||0; var _n9=0;
+        for(var _ci9=0;_ci9<CLIPS.length;_ci9++){ var _c9=CLIPS[_ci9]; if(!_c9) continue;
+          if(v9>0){ _c9.durMode="musical"; _c9.durTarget=v9; } else { _c9.durMode="auto"; _c9.durTarget=null; } _n9++; }
+        try{ window.__studioDirty=true; }catch(e){}
+        try{ if(typeof buildPartition==="function"&&A&&(PHOTOS.length||clipVidReady)){ buildPartition(); updateBadge(); paintStrip(0); } }catch(e){}
+        try{ if(typeof _projSaveSoon==="function") _projSaveSoon(); }catch(e){}
+        try{ if(typeof setState==="function") setState((v9>0?("Dur\u00e9e "+v9+" s appliqu\u00e9e"):"Dur\u00e9e Automatique appliqu\u00e9e")+" \u00e0 "+_n9+" clips."); }catch(e){}
+        try{ _da2.textContent="\u2713 Appliqu\u00e9 \u00e0 "+_n9+" clips"; setTimeout(function(){ try{ _da2.textContent="Appliquer cette dur\u00e9e \u00e0 tous les clips"; }catch(e){} },1800); }catch(e){}
+      }catch(e){} }; } }catch(e){}   /* v1084 : bouton demandé par Loïc — la durée choisie s'applique d'un geste à tous les clips */
       _du2.onchange=function(){ var v2=+_du2.value||0; if(v2>0){ c.durMode="musical"; c.durTarget=v2; } else { c.durMode="auto"; c.durTarget=null; }
         try{ if(typeof A!=="undefined"&&A&&(PHOTOS.length||clipVidReady)){ buildPartition(); updateBadge(); paintStrip((typeof playing!=="undefined"&&playing)?visualTime():0); } }catch(e){}
         refresh(); };
