@@ -9914,7 +9914,7 @@ async function studioBuildItems(tr){ if(!tr) return []; _studioRevoke();
   return items; }
 /* Lot 6 : 1 voyage = 1 film. Si le film existe -> restaurer (éditions/musique/format),
    puis (choix B) ajouter automatiquement les nouvelles photos. Sinon -> auto-montage. */
-function studioOpen(w, tr){ if(!w||!tr) return; var fid="trip:"+tr.id;
+function studioOpen(w, tr){ if(!w||!tr) return; try{ w.__magotHost={ trip:tr, signText:function(t,m){ return magotSignText(t||tr,m); } }; }catch(e){}   /* v1092 : pont explicite — let/portées ne traversent pas les fenêtres */ var fid="trip:"+tr.id;
   try{ if(w.studioHasFilm && w.studioHasFilm(fid)){
     try{ w.studioOpenFilm(fid); }catch(e){}
     setTimeout(function(){ (async function(){ try{
@@ -10395,7 +10395,7 @@ function openMontage(tr,version,autoplay){ tr=tr||souvTrip()||null; return openS
     try{ requestAnimationFrame(()=>{ mvGeoInvalidate(); mvGeoMeasure(); mvSeekUpdate(); }); }catch(e){} };
   /* Reconstruit le film sur-le-champ avec les nouveaux réglages (même musique). */
   const rebuild=(msg)=>{ if(msg) toast(msg);
-    if(_mvState.segs && _mvState.segs.length && _mvState.audio){ mvStageRestart(0); if(_mvState._refreshStudio) _mvState._refreshStudio(); return; }
+    if(_mvState.segs && _mvState.segs.length && _mvState.audio){ mvStageRestart(0, true); if(_mvState._refreshStudio) _mvState._refreshStudio(); return; }   /* v1093 : la barre reste \u00e0 0:00 tant que l'utilisateur n'a pas tap\u00e9 \u25b6 */
     const g2=ov.querySelector("#mvGo"); if(g2){ try{ g2.click(); }catch(e){} } else toast("Cr\u00e9e d\u2019abord le film."); };
   _mvState._rebuild=rebuild;
   /* Ces quatre-là existent aussi AVANT la création : ils lancent le film au lieu de rester muets. */
@@ -11528,7 +11528,7 @@ function mvTogglePlay(){ const A=_mvState.audio; if(!A) return; mvAudioResume();
   mvOverlayPlayAll(true);
   if(A.ended || A.currentTime>=total-0.15){ _mvState.playing=true; mvStageRestart(0); mvSetPlaying(true); return; }  /* fini → on relance proprement (une seule boucle) */
   A.play().then(()=>mvSetPlaying(true)).catch(()=>mvSetPlaying(false)); }
-function mvStageRestart(fromTime){
+function mvStageRestart(fromTime, _armOnly){
   const au=_mvState.audio; if(!au){ return; }
   const wasPlaying=!!_mvState.playing;
   if(_mvState.raf){ try{ cancelAnimationFrame(_mvState.raf); }catch(e){} _mvState.raf=0; }
@@ -13008,7 +13008,8 @@ function mvRun(tr,total){
     }
     _mvState.raf=requestAnimationFrame(step);
   };
-  if(au){ mvAudioResume(); mvOverlayPlayAll(true); au.play().then(()=>{ mvSetPlaying(true); }).catch(()=>{ mvSetPlaying(false); toast("Appuie sur \u25b6 pour lancer le film (iOS bloque le son automatique)."); }); }
+  if(au && !_armOnly){ mvAudioResume(); mvOverlayPlayAll(true); au.play().then(()=>{ mvSetPlaying(true); }).catch(()=>{ mvSetPlaying(false); toast("Appuie sur \u25b6 pour lancer le film (iOS bloque le son automatique)."); }); }
+  else if(au){ try{ au.pause(); au.currentTime=fromTime||0; }catch(e){} _mvState.playing=false; mvSetPlaying(false); }   /* v1093 : ouverture ARMÉE — poster à zéro, aucun démarrage sans geste utilisateur */
   step();
 }
 function _souvStudioTop(){ try{ var lang=(typeof _studioLang==="function"&&_studioLang())||"fr"; var lbl=({fr:"Ouvrir le studio",en:"Open the studio",es:"Abrir el estudio",it:"Apri lo studio",de:"Studio \u00f6ffnen"})[lang]||"Ouvrir le studio"; var _tr=(typeof souvTrip==="function")?souvTrip():null; var _fm=_tr?_studioFilmMeta(_tr.id):null; if(_fm && _fm.thumb){ var lplay=({fr:"Voir ton film",en:"Watch your film",es:"Ver tu pel\u00edcula",it:"Guarda il tuo film",de:"Deinen Film ansehen"})[lang]||"Voir ton film"; var lsub=({fr:"Appuie pour jouer ou modifier",en:"Tap to play or edit",es:"Toca para reproducir o editar",it:"Tocca per riprodurre o modificare",de:"Zum Abspielen oder Bearbeiten tippen"})[lang]||"Appuie pour jouer ou modifier"; var lmed=({fr:"m\u00e9dias",en:"media",es:"medios",it:"media",de:"Medien"})[lang]||"m\u00e9dias"; return '<button onclick="openStudio(souvTrip())" style="display:flex;align-items:center;gap:12px;width:100%;text-align:left;background:linear-gradient(135deg,#0E2148,#1a2f5c);color:#fff;border:1px solid rgba(212,175,55,.4);font:inherit;padding:10px;border-radius:14px;cursor:pointer;margin:2px 0 14px;box-shadow:0 4px 16px rgba(0,0,0,.25)"><span style="flex:0 0 auto;width:60px;height:90px;border-radius:10px;background:#000 center/cover no-repeat;background-image:url(\''+_fm.thumb+'\');position:relative;box-shadow:0 2px 8px rgba(0,0,0,.4)"><span style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:22px;color:#fff;text-shadow:0 1px 4px rgba(0,0,0,.6)">\u25B6</span></span><span style="flex:1;min-width:0"><span style="display:block;font:700 15px system-ui;color:#D4AF37">\uD83C\uDFAC '+lplay+'</span><span style="display:block;font:400 12.5px system-ui;color:#c7d3ee;margin-top:2px">'+lsub+(_fm.count?(" \u00b7 "+_fm.count+" "+lmed):"")+'</span></span></button>'; } return '<button onclick="openStudio(souvTrip())" style="display:flex;align-items:center;justify-content:center;gap:8px;width:100%;background:linear-gradient(135deg,#D4AF37,#b8952f);color:#1a1710;border:0;font:700 15px system-ui;padding:14px;border-radius:14px;cursor:pointer;margin:2px 0 14px;box-shadow:0 4px 16px rgba(212,175,55,.3)">\uD83C\uDFAC '+lbl+'</button>'; }catch(e){ return ""; } }
