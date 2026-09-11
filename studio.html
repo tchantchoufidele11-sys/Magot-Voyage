@@ -884,6 +884,34 @@ input[type=range]::-moz-range-thumb{width:22px;height:22px;border:0;border-radiu
   .mcat.on::before{ background:linear-gradient(180deg,rgba(244,189,74,.12),rgba(8,12,22,.68)); }
 </style>
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;700&family=Playfair+Display:wght@400;700&family=Lora:wght@400;600&family=Caveat:wght@400;700&family=Montserrat:wght@400;700&family=Raleway:wght@400;700&family=DM+Serif+Display&family=Cormorant+Garamond:ital,wght@0,400;0,500;0,600;1,500&display=swap" rel="stylesheet">
+<style id="homePolish">
+/* Qwen P0 — accueil : Sources lisibles, Sync doré, cibles tactiles, palette Fidèle/Ciné, tiles boutons */
+.source{gap:6px;padding:6px 7px}
+.source .ico{width:24px;height:24px;border-radius:7px}
+.source .ico svg{width:13px;height:13px}
+.source .chev{display:none}
+.source h4{font-size:11.5px}
+.syncline input[type=range]::-webkit-slider-thumb{background:radial-gradient(circle at 34% 30%,#ffe6ad,#f4bd4a 46%,#d99a2f 100%);border:2px solid #17100a;box-shadow:0 2px 7px rgba(0,0,0,.5)}
+.syncline input[type=range]::-moz-range-thumb{background:#f4bd4a;border:2px solid #17100a}
+.progress-row{padding:9px 0;margin:-4px 0}
+.trk span:after{width:16px;height:16px}
+.gtog.nat{border-color:#282622;background:#151413;color:#A8A6A1}
+.gtog:not(.nat){border-color:#D4AF37;color:#D4AF37;background:rgba(212,175,55,.12)}
+.info>div{cursor:pointer}
+.info>div:active{background:rgba(255,255,255,.05)}
+/* Qwen P1 — écrans courts : l'ambiance vit dans le tile 1, le CTA reste visible */
+@media (max-height:740px){ .s-amb{display:none!important} }
+/* Qwen P2 — la forme d'onde devient une surface de contrôle ; chip lecteur du hero */
+.wave,#zoom{cursor:pointer;touch-action:none}
+.hero-chip{position:absolute;left:10px;top:10px;z-index:6;display:flex;align-items:center;gap:7px;
+ padding:6px 11px;border-radius:999px;border:1px solid rgba(212,175,55,.35);background:rgba(5,5,5,.55);
+ backdrop-filter:blur(4px);-webkit-backdrop-filter:blur(4px);color:#D4AF37;
+ font:700 11px ui-monospace,monospace;letter-spacing:.5px;opacity:0;transform:translateY(-4px);
+ transition:opacity .25s ease,transform .25s ease;pointer-events:none}
+.hero.is-playing .hero-chip{opacity:1;transform:translateY(0);pointer-events:auto}
+.hero-chip:active{background:rgba(212,175,55,.18)}
+.hero-chip .hc-ic{width:9px;height:9px;display:inline-block}
+</style>
 </head>
 <body>
 <!-- ====== INTERFACE KIMI (greffée) ====== -->
@@ -1242,7 +1270,7 @@ function renderPlanToBuffer(dur, sr){
 function analyzeBufferInto(buf, cb){ try{ essentiaReady.then(function(ok){ if(ok){ setTimeout(function(){ try{ toMono44(buf,function(sig,sr){ var An; try{ An=analyzeEssentia(sig,sr,buf.duration); }catch(e){ An=analyzeCustom(buf); } cb(An); }); }catch(e){ cb(analyzeCustom(buf)); } }, 20); } else { setTimeout(function(){ cb(analyzeCustom(buf)); }, 20); } }); }catch(e){ try{ cb(analyzeCustom(buf)); }catch(e2){ cb(null); } } }
 
 var CLIPS=[], clipVidReady=false, VIDACT=-1;
-window.STUDIO_VERSION="v1092";
+window.STUDIO_VERSION="v1096";
 window.MAGOT_EXPORT_ENGINE="auto"; try{ window.MAGOT_EXPORT_ENGINE=localStorage.getItem("magot_export_engine")||"auto"; }catch(e){}
 function setMagotExportEngine(mode){ if(mode!=="auto"&&mode!=="turbo"&&mode!=="mediarecorder") mode="auto"; window.MAGOT_EXPORT_ENGINE=mode; try{ localStorage.setItem("magot_export_engine",mode); }catch(e){} }
 function _exportEngineLabel(){ var m=window.MAGOT_EXPORT_ENGINE; return m==="turbo"?"Export : Turbo test":m==="mediarecorder"?"Export : Compatible":"Export : Automatique"; }
@@ -9141,7 +9169,7 @@ function _openLangPicker(){
   bg.style.cssText="position:fixed;inset:0;z-index:100050;background:rgba(0,0,0,.62);backdrop-filter:blur(4px);display:flex;align-items:flex-end;justify-content:center;font-family:system-ui,-apple-system,sans-serif";
   var card=document.createElement("div");
   card.style.cssText="width:100%;max-width:520px;background:#0f0e0d;border:1px solid #282622;border-radius:22px 22px 0 0;padding:8px 10px 22px;max-height:78vh;overflow:auto;box-shadow:0 -10px 50px rgba(0,0,0,.7)";
-  var head="<div style=\"text-align:center;padding:12px 0 6px\"><div style=\"width:40px;height:4px;background:#3a3733;border-radius:3px;margin:0 auto 12px\"></div><div style=\"color:#f4f7fc;font:700 17px system-ui\">\uD83C\uDF10 "+_st("Langue des paroles")+"</div><div style=\"color:#8a93a6;font:500 12.5px system-ui;margin-top:3px\">"+_st("Traduction synchronisée au rythme")+" \u00b7 v1092</div></div>";
+  var head="<div style=\"text-align:center;padding:12px 0 6px\"><div style=\"width:40px;height:4px;background:#3a3733;border-radius:3px;margin:0 auto 12px\"></div><div style=\"color:#f4f7fc;font:700 17px system-ui\">\uD83C\uDF10 "+_st("Langue des paroles")+"</div><div style=\"color:#8a93a6;font:500 12.5px system-ui;margin-top:3px\">"+_st("Traduction synchronisée au rythme")+" \u00b7 v1096</div></div>";
   var rows="";
   for(var i=0;i<window._LYRICS_LANGS.length;i++){ var code=window._LYRICS_LANGS[i][0], name=window._LYRICS_LANGS[i][1], fl=_LANG_FLAGS[code]||"\uD83C\uDF10", on=(window._LYRICS_LANG===code);
     rows+="<button class=\"lang-opt\" data-l=\""+code+"\" style=\"display:flex;align-items:center;gap:13px;width:100%;text-align:left;background:"+(on?"rgba(122,208,160,.14)":"none")+";border:1px solid "+(on?"rgba(122,208,160,.5)":"transparent")+";color:#f4f7fc;font:600 15.5px system-ui;padding:14px 15px;border-radius:13px;cursor:pointer;margin:3px 0\"><span style=\"font-size:22px\">"+fl+"</span><span style=\"flex:1\">"+name+"</span>"+(on?"<span style=\"color:#7ad0a0;font-size:18px\">\u2713</span>":"")+"</button>";
@@ -9707,7 +9735,7 @@ window._studioTuto=function(force){ try{
     {sel:'.source[data-sheet="photos"]', t:T("1. On commence par tes photos \u2014 ajoute-les ici.")},
     {sel:'.source[data-sheet="music"]', t:T("2. Choisis la musique \u2014 ou laisse-moi la choisir pour toi.")},
     {sel:'.source[data-sheet="video"]', t:T("3. Ajoute aussi tes clips vid\u00e9o, si tu en as.")},
-    {sel:'#openAmbience', t:T("4. L\u2019ambiance donne le ton : voyage, doux, cin\u00e9ma\u2026")},
+    {sel:((window.matchMedia&&matchMedia('(max-height:740px)').matches)?'.info>div':'#openAmbience'), t:T("4. L\u2019ambiance donne le ton : voyage, doux, cin\u00e9ma\u2026")},
     {sel:'#fmtBar', t:T("5. Le format : Origine, 9:16 pour les r\u00e9seaux, 16:9\u2026")},
     {sel:'.syncline', t:T("6. Ce curseur cale l\u2019image sur le rythme de la musique, \u00e0 la milliseconde.")},
     {sel:'#watchBtn', t:T("7. Quand tout est pr\u00eat, appuie ici pour regarder ton film.")},
@@ -12957,13 +12985,19 @@ function renderVNav(){
     ov.innerHTML='<div class="cp-card" role="dialog">'
       +'<div class="cp-vidwrap"><video class="cp-vid" playsinline webkit-playsinline loop></video></div>'
       +'<div class="cp-title">Clip '+(ci+1)+' <small>'+clock(c.dur||0)+'</small></div>'
-      +''
+      +'<div style="display:flex;gap:8px;margin:2px 0 10px" id="cpTabs">'
+        +'<button data-p="D" style="flex:1;padding:9px;border-radius:9px;border:1px solid #c9a44a;background:#c9a44a;color:#181510;font:700 12.5px system-ui">D\u00c9COUPE</button>'
+        +'<button data-p="S" style="flex:1;padding:9px;border-radius:9px;border:1px solid #313a49;background:#1d232e;color:#dfe7f4;font:600 12.5px system-ui">VITESSE</button>'
+        +'<button data-p="C" style="flex:1;padding:9px;border-radius:9px;border:1px solid #313a49;background:#1d232e;color:#dfe7f4;font:600 12.5px system-ui">COULEUR</button></div>'
+      +'<div id="cpPgD">'
       +'<div class="cp-trim"><div class="cp-sec">Moment de d\u00e9part <b id="cpTrimT">'+clock(c.trimStart||0)+'</b></div><input type="range" id="cpTrim" min="0" max="'+Math.round((c.dur||1)*100)+'" value="'+Math.round((c.trimStart||0)*100)+'"><div class="vsb-hint">Fais glisser pour choisir le meilleur passage \u2014 c\u2019est de l\u00e0 que le clip d\u00e9marre dans le montage.</div></div>'
       +'<div class="cp-speed"><div class="cp-sec">Dur\u00e9e du plan<b id="cpDurRes" style="font-weight:600"></b></div>'
-        +'<select id="cpDur" style="width:100%;padding:9px 10px;border-radius:10px;background:#1d232e;color:#e8edf6;border:1px solid #313a49;font:500 14px system-ui">'
+        +'<select class="te-sel" id="cpDur" style="width:100%;margin-bottom:8px">'
         +[["0","Automatique"],["3","3 s"],["5","5 s"],["8","8 s"],["10","10 s"],["15","15 s"],["20","20 s"],["30","30 s"]].map(function(o){ var on=((c.durMode==="musical"&&String(c.durTarget)===o[0])||((c.durMode||"auto")!=="musical"&&o[0]==="0")); return '<option value="'+o[0]+'"'+(on?' selected':'')+'>'+o[1]+'</option>'; }).join("")
-        +'</select><div class="vsb-hint" id="cpDurHint"></div><button id="cpDurAll" type="button" style="width:100%;margin-top:8px;padding:10px;border-radius:10px;border:1px solid #3a4356;background:#232b38;color:#dfe7f4;font:600 13px system-ui">Appliquer cette dur\u00e9e \u00e0 tous les clips</button></div>'
-      +'<div class="cp-speed"><div class="cp-sec">Vitesse</div><div class="cp-spd-seg" id="cpSpd"><button data-s="0.5">Ralenti</button><button data-s="1">Normal</button><button data-s="1.5">Rapide</button><button data-s="2">\u00d72</button></div></div>'
+        +'</select><div class="vsb-hint" id="cpDurHint"></div><div class="cp-row"><button class="vtog" id="cpDurAll" type="button"><span class="vtog-dot"></span></button><span class="cp-lab">Appliquer \u00e0 tous les clips</span></div></div>'
+      +'</div>'
+      +'<div id="cpPgS" style="display:none"><div class="cp-speed"><div class="cp-sec">Vitesse</div><div class="cp-spd-seg" id="cpSpd"><button data-s="0.5">Ralenti</button><button data-s="1">Normal</button><button data-s="1.5">Rapide</button><button data-s="2">\u00d72</button></div></div></div>'
+      +'<div id="cpPgC" style="display:none">'
       +'<div class="cp-color"><div class="cp-sec">Couleur & teinte</div>'
         +'<div class="cp-presets">'+VPRESETS.map(function(p,pi){ return '<button class="cp-pre'+(pi===(c.preset||0)?" on":"")+'" data-pre="'+pi+'">'+p.n+'</button>'; }).join("")+'</div>'
         +'<div class="cp-adj">'
@@ -12971,6 +13005,7 @@ function renderVNav(){
           +'<label><span>Saturation</span><input type="range" id="cpSat" min="-100" max="60" value="'+Math.round((c.color.sat||0)*100)+'"></label>'
           +'<label><span>Lumi\u00e8re</span><input type="range" id="cpExpo" min="-20" max="20" value="'+Math.round((c.color.expo||0)*100)+'"></label>'
         +'</div></div>'
+      +'</div>'
       +'<div class="cp-actions"><button class="cp-del" id="cpDel">Supprimer</button><button class="cp-del" id="cpDup" style="background:#243044;color:#cfe0ff;border-color:#35507c">Dupliquer</button><button class="cp-done" id="cpDone">Termin\u00e9</button></div>' 
     +'</div>';
     document.body.appendChild(ov);
@@ -12999,17 +13034,22 @@ function renderVNav(){
         if(_dh2)_dh2.textContent="Cible "+(+c.durTarget)+" s \u00b7 \u00e9cart "+(ec>=0?"+":"")+ec.toFixed(2)+" s"+(g0._durSrcLim?" \u00b7 mati\u00e8re dispo "+_mat.toFixed(1)+" s":"")+extra;
       }catch(e){} }
 
-      try{ var _da2=document.getElementById("cpDurAll"); if(_da2){ _da2.onclick=function(){ try{
-        var v9=+_du2.value||0; var _n9=0;
-        for(var _ci9=0;_ci9<CLIPS.length;_ci9++){ var _c9=CLIPS[_ci9]; if(!_c9) continue;
-          if(v9>0){ _c9.durMode="musical"; _c9.durTarget=v9; } else { _c9.durMode="auto"; _c9.durTarget=null; } _n9++; }
-        try{ window.__studioDirty=true; }catch(e){}
-        try{ if(typeof buildPartition==="function"&&A&&(PHOTOS.length||clipVidReady)){ buildPartition(); updateBadge(); paintStrip(0); } }catch(e){}
-        try{ if(typeof _projSaveSoon==="function") _projSaveSoon(); }catch(e){}
-        try{ if(typeof setState==="function") setState((v9>0?("Dur\u00e9e "+v9+" s appliqu\u00e9e"):"Dur\u00e9e Automatique appliqu\u00e9e")+" \u00e0 "+_n9+" clips."); }catch(e){}
-        try{ _da2.textContent="\u2713 Appliqu\u00e9 \u00e0 "+_n9+" clips"; setTimeout(function(){ try{ _da2.textContent="Appliquer cette dur\u00e9e \u00e0 tous les clips"; }catch(e){} },1800); }catch(e){}
-      }catch(e){} }; } }catch(e){}   /* v1084 : bouton demandé par Loïc — la durée choisie s'applique d'un geste à tous les clips */
-      _du2.onchange=function(){ var v2=+_du2.value||0; if(v2>0){ c.durMode="musical"; c.durTarget=v2; } else { c.durMode="auto"; c.durTarget=null; }
+      try{ var _da2=ov.querySelector("#cpDurAll"); if(_da2){ _da2.onclick=function(){ try{
+        _da2.classList.toggle("on"); var _on9=_da2.classList.contains("on");
+        if(_on9){ var v9=+_du2.value||0; var _n9=_durApplyAll9(v9);
+          try{ window.__studioDirty=true; }catch(e){}
+          try{ if(typeof buildPartition==="function"&&A&&(PHOTOS.length||clipVidReady)){ buildPartition(); updateBadge(); paintStrip(0); } }catch(e){}
+          try{ if(typeof _projSaveSoon==="function") _projSaveSoon(); }catch(e){}
+          try{ if(typeof setState==="function") setState((v9>0?("Dur\u00e9e "+v9+" s appliqu\u00e9e"):"Dur\u00e9e Automatique appliqu\u00e9e")+" \u00e0 "+_n9+" clips."); }catch(e){}
+        }
+      }catch(e){} }; } }catch(e){}   /* v1095 : interrupteur « Appliquer à tous » identique au panneau photos (ON = tous, maintenant et à chaque changement) */
+      try{ var _tb9=ov.querySelector("#cpTabs"); if(_tb9){ _tb9.querySelectorAll("button").forEach(function(bt){ bt.onclick=function(){
+        ["D","S","C"].forEach(function(k){ var pg=ov.querySelector("#cpPg"+k); if(pg) pg.style.display=(k===bt.dataset.p)?"":"none"; });
+        _tb9.querySelectorAll("button").forEach(function(x){ var on=(x===bt); x.style.background=on?"#c9a44a":"#1d232e"; x.style.color=on?"#181510":"#dfe7f4"; x.style.borderColor=on?"#c9a44a":"#313a49"; });
+      }; }); } }catch(e){}
+      /* v1095 : durée en menu déroulant (te-sel) — les pastilles v1094 sont retirées sur consigne de Loïc */
+      function _durApplyAll9(v9){ var _n9=0; for(var _ci9=0;_ci9<CLIPS.length;_ci9++){ var _c9=CLIPS[_ci9]; if(!_c9) continue; if(v9>0){ _c9.durMode="musical"; _c9.durTarget=v9; } else { _c9.durMode="auto"; _c9.durTarget=null; } _n9++; } return _n9; }
+      _du2.onchange=function(){ var v2=+_du2.value||0; var _tg2=ov.querySelector("#cpDurAll"); if(_tg2&&_tg2.classList.contains("on")){ _durApplyAll9(v2); } if(v2>0){ c.durMode="musical"; c.durTarget=v2; } else { c.durMode="auto"; c.durTarget=null; }
         try{ if(typeof A!=="undefined"&&A&&(PHOTOS.length||clipVidReady)){ buildPartition(); updateBadge(); paintStrip((typeof playing!=="undefined"&&playing)?visualTime():0); } }catch(e){}
         refresh(); };
       refresh();
@@ -13414,5 +13454,104 @@ function renderVNav(){
   </div>
 
 
+<script>
+/* Qwen P0+P1+P2 — intégré v1096 : accueil poli, tiles raccourcis, chip lecteur, seek/pinch sur l'onde */
+(function(){
+"use strict";
+function q(s){return document.querySelector(s);}
+function qa(s){return Array.prototype.slice.call(document.querySelectorAll(s));}
+function mmss(s){s=Math.max(0,s||0);var m=Math.floor(s/60),x=Math.round(s%60);return m+":"+(x<10?"0":"")+x;}
+function brandSub(){ try{ var p=q(".brand p"); if(!p) return; var nm="";
+  var idx=JSON.parse(localStorage.getItem("studioMagotFilms")||"[]");
+  var f=idx.filter(function(x){return x.id===window._curFilmId;})[0];
+  if(f&&f.name) nm=f.name; p.textContent=nm||"Montage vid\u00e9o"; }catch(e){} }
+function musicTile(){ try{ var t=qa(".info>div")[1]; if(!t) return;
+  var sm=t.querySelector("small"); if(!sm) return;
+  var m=window.__activeMusicMeta;
+  if(m&&m.title){ sm.textContent=m.title; sm.removeAttribute("data-i18n"); } }catch(e){} }
+function tiles(){ var t=qa(".info>div");
+  if(t[0]) t[0].onclick=function(){ var o=q("#openAmbience"); if(o) o.click(); };
+  if(t[1]) t[1].onclick=function(){ var s2=q('.source[data-sheet="music"]'); if(s2) s2.click(); };
+  if(t[2]) t[2].onclick=function(){ var b=q(".s-seq .title button"); if(b) b.click(); };
+  if(t[3]) t[3].onclick=function(){ var e=q("#expBtn"); if(e) e.click(); }; }
+var IC_NAT='<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" style="vertical-align:-2px;margin-right:4px"><path d="M12 3c-4 3-6 6-6 10a6 6 0 0 0 12 0c0-4-2-7-6-10z"/></svg>';
+var IC_CINE='<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" style="vertical-align:-2px;margin-right:4px"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="M2 8h20M2 16h20M7 4v4M17 4v4"/></svg>';
+function gradeLabel(){ try{ var gt=q("#gradeTog"); if(!gt) return;
+  gt.innerHTML=(gt.classList.contains("nat")?IC_NAT+"Fid\u00e8le":IC_CINE+"Cin\u00e9"); }catch(e){} }
+window.addEventListener("load",function(){ setTimeout(function(){
+  brandSub(); musicTile(); tiles(); gradeLabel();
+  var gt=q("#gradeTog"); if(gt) gt.addEventListener("click",function(){ setTimeout(gradeLabel,0); });
+  setInterval(musicTile,2000);
+},400); });
+var hero=q(".hero");
+if(hero && !document.getElementById("heroChip")){
+  var chip=document.createElement("button"); chip.id="heroChip"; chip.className="hero-chip"; chip.type="button";
+  chip.innerHTML='<svg class="hc-ic" viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="4" width="4" height="16" rx="1"/><rect x="14" y="4" width="4" height="16" rx="1"/></svg><span id="hcTc">0:00 / 0:00</span>';
+  hero.appendChild(chip);
+  chip.addEventListener("click",function(e){ e.stopPropagation(); var p2=document.getElementById("play"); if(p2) p2.click(); });
+}
+(function chipLoop(){ try{
+  var pl=(typeof playing!=="undefined")&&playing;
+  if(hero) hero.classList.toggle("is-playing",pl);
+  if(pl){ var mst=window.MSTART_EFF||0, end=window.MONTAGE_DUR||((typeof A!=="undefined"&&A)?A.dur:0)||0;
+    var t=(typeof montageNow==="function")?montageNow():0;
+    var tc=document.getElementById("hcTc"); if(tc) tc.textContent=mmss(Math.max(0,t-mst))+" / "+mmss(Math.max(0,end-mst)); }
+}catch(e){} requestAnimationFrame(chipLoop); })();
+window.__zoomWin=2.2;
+window.paintZoom=function(t){
+  var zc=document.getElementById("zoom"); if(!zc||!zc.getContext) return;
+  var zx=zc.getContext("2d"), W=zc.width, H=zc.height;
+  zx.clearRect(0,0,W,H);
+  if((typeof A==="undefined")||!A||!A.dur){ return; }
+  zx.fillStyle="#0c1730"; zx.fillRect(0,0,W,H);
+  var center=(t&&t>0.4)?t:((typeof SEGS!=="undefined"&&SEGS&&SEGS[1])?SEGS[1].start:2.0);
+  var win=Math.max(0.6,Math.min(8,window.__zoomWin||2.2)), lo=center-win, hi=center+win, span=(hi-lo)||1;
+  function X(tt){ return (tt-lo)/span*W; }
+  if(A.beats){ zx.strokeStyle="rgba(255,255,255,0.55)"; zx.lineWidth=1;
+    for(var i=0;i<A.beats.length;i++){ var b=A.beats[i]; if(b<lo||b>hi) continue; var x=X(b);
+      zx.beginPath(); zx.moveTo(x,H*0.18); zx.lineTo(x,H*0.82); zx.stroke(); } }
+  var off=(typeof LEAD!=="undefined"?LEAD:0.05)+((typeof curSync==="function")?curSync():0);
+  if(typeof SEGS!=="undefined"&&SEGS){ zx.strokeStyle="#E0A33E"; zx.lineWidth=2.5;
+    for(var j=0;j<SEGS.length;j++){ var c=SEGS[j].start-off; if(c<lo||c>hi) continue; var x2=X(c);
+      zx.beginPath(); zx.moveTo(x2,0); zx.lineTo(x2,H); zx.stroke(); } }
+  zx.strokeStyle="rgba(255,255,255,0.9)"; zx.lineWidth=1;
+  var xc=X(center); zx.beginPath(); zx.moveTo(xc,0); zx.lineTo(xc,H); zx.stroke();
+};
+function winBounds(){ var w0=window.MSTART_EFF||0, w1=window.MONTAGE_DUR||((typeof A!=="undefined"&&A)?A.dur:0)||0;
+  return {w0:w0,len:Math.max(0.1,w1-w0)}; }
+function centerNow(){ var t=((typeof playing!=="undefined")&&playing)?((typeof montageNow==="function")?montageNow():0)
+  :((typeof pausedOffset!=="undefined")?pausedOffset:0);
+  return (t&&t>0.4)?t:((typeof SEGS!=="undefined"&&SEGS&&SEGS[1])?SEGS[1].start:2.0); }
+function seekTo(t){ t=Math.max(0,t);
+  if((typeof playing!=="undefined")&&playing){ try{ if(typeof seekMontageTo==="function") seekMontageTo(t); }catch(e){} }
+  else { try{ pausedOffset=t; }catch(e){}
+    if(!window.LOOP_ON && !window.MULTI){ try{ if(typeof audioEl!=="undefined"&&audioEl) audioEl.currentTime=t; }catch(e){} }
+    try{ if(typeof renderMontageAt==="function") renderMontageAt(t); }catch(e){} }
+  try{ if(typeof paintStrip==="function") paintStrip(t); }catch(e){} }
+function bindSurface(el, mode){ if(!el) return;
+  var pts={}, pinch=null, drag=false;
+  function n(){ return Object.keys(pts).length; }
+  function doSeek(cx){ var r=el.getBoundingClientRect(), f=Math.max(0,Math.min(1,(cx-r.left)/(r.width||1)));
+    if(mode==="global"){ var b=winBounds(); seekTo(b.w0+f*b.len); }
+    else { var c=centerNow(), w=Math.max(0.6,Math.min(8,window.__zoomWin||2.2)); seekTo(c-w+f*2*w); } }
+  el.addEventListener("pointerdown",function(e){ if((typeof A==="undefined")||!A||!A.dur) return;
+    pts[e.pointerId]=e.clientX;
+    if(n()===2){ var k=Object.keys(pts); pinch={d0:Math.abs(pts[k[0]]-pts[k[1]])||1,w0:window.__zoomWin||2.2}; drag=false; }
+    else if(n()===1){ drag=true; doSeek(e.clientX); }
+    try{ el.setPointerCapture(e.pointerId); }catch(_){}
+    if(e.cancelable) e.preventDefault(); });
+  el.addEventListener("pointermove",function(e){ if(pts[e.pointerId]==null) return; pts[e.pointerId]=e.clientX;
+    if(pinch&&n()>=2){ var k=Object.keys(pts), d=Math.abs(pts[k[0]]-pts[k[1]])||1;
+      window.__zoomWin=Math.max(0.6,Math.min(8,pinch.w0*pinch.d0/d));
+      try{ if(typeof paintStrip==="function") paintStrip(centerNow()); }catch(_){}
+      if(e.cancelable) e.preventDefault(); return; }
+    if(drag) doSeek(e.clientX); });
+  function up(e){ if(pts[e.pointerId]!=null){ delete pts[e.pointerId]; } if(n()<2) pinch=null; if(n()===0) drag=false; }
+  el.addEventListener("pointerup",up); el.addEventListener("pointercancel",up);
+}
+bindSurface(document.getElementById("wave"),"global");
+bindSurface(document.getElementById("zoom"),"local");
+})();
+</script>
 </body>
 </html>
