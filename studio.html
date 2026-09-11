@@ -1268,7 +1268,7 @@ function renderPlanToBuffer(dur, sr){
 function analyzeBufferInto(buf, cb){ try{ essentiaReady.then(function(ok){ if(ok){ setTimeout(function(){ try{ toMono44(buf,function(sig,sr){ var An; try{ An=analyzeEssentia(sig,sr,buf.duration); }catch(e){ An=analyzeCustom(buf); } cb(An); }); }catch(e){ cb(analyzeCustom(buf)); } }, 20); } else { setTimeout(function(){ cb(analyzeCustom(buf)); }, 20); } }); }catch(e){ try{ cb(analyzeCustom(buf)); }catch(e2){ cb(null); } } }
 
 var CLIPS=[], clipVidReady=false, VIDACT=-1;
-window.STUDIO_VERSION="v1105";
+window.STUDIO_VERSION="v1106";
 window.MAGOT_EXPORT_ENGINE="auto"; try{ window.MAGOT_EXPORT_ENGINE=localStorage.getItem("magot_export_engine")||"auto"; }catch(e){}
 function setMagotExportEngine(mode){ if(mode!=="auto"&&mode!=="turbo"&&mode!=="mediarecorder") mode="auto"; window.MAGOT_EXPORT_ENGINE=mode; try{ localStorage.setItem("magot_export_engine",mode); }catch(e){} }
 function _exportEngineLabel(){ var m=window.MAGOT_EXPORT_ENGINE; return m==="turbo"?"Export : Turbo test":m==="mediarecorder"?"Export : Compatible":"Export : Automatique"; }
@@ -1344,6 +1344,9 @@ function syncAt(mt){ /* v1105 : décalage EFFECTIF à l'instant mt — piste ré
     } } }catch(e){}
   return base;
 }
+function exportVisualTime(audioTime){ /* v1106 : HORLOGE CENTRALE D'EXPORT — temps audio -> temps visuel, piste résolue AU TEMPS AUDIO (GPT) */
+  try{ return audioTime + ((typeof syncAt==="function")?(syncAt(audioTime)||0):0); }catch(e){ return audioTime; } }
+try{ window.exportVisualTime=exportVisualTime; }catch(e){}
 function curSync(){ var base=SYNC_M[MOOD]||0;
   if(window.MULTI && window.MPLAN && typeof TRACKS!=="undefined" && TRACKS.length && TRACKS[0] && TRACKS[0].A){
     var pi=(typeof _curPlanTrackIdx==="function")?_curPlanTrackIdx():-1;
@@ -1452,8 +1455,8 @@ function _syncObtenue(){ try{ /* v1105 : SYNCHRONISATION À L'EXPORT — vérit�
   var GS=window.__GRIDSTR||[];
   var n=0,ok60=0,forts=0,sum=0,mx=0, trN=0,trOK=0;
   for(var i=1;i<SEGS.length;i++){ var g=SEGS[i]; if(!g||g.sign) continue;
-    var cs=0; try{ cs=(typeof syncAt==="function")?(syncAt(g.start)||0):((typeof curSync==="function")?(curSync()||0):0); }catch(e){}
-    var t=g.start-cs; n++;
+    var t=g.start; try{ var _t0=g.start-((typeof syncAt==="function")?(syncAt(g.start)||0):0); t=g.start-((typeof syncAt==="function")?(syncAt(_t0)||0):0); }catch(e){}   /* v1106 : temps AUDIO visé — piste résolue côté audio, juste aux frontières multi-pistes */
+    n++;
     var bd=1e9,bj=-1; for(var j=0;j<B.length;j++){ var d=Math.abs(B[j]-t); if(d<bd){ bd=d; bj=j; } }
     var aligned=(bd<=0.060); if(aligned) ok60++;
     sum+=bd; if(bd>mx&&bd<1.5) mx=bd;
@@ -1489,7 +1492,7 @@ function _paintModeMatch(){ try{
       +(so.pfAligned!=null?(' \u00b7 '+so.pfAligned+' % des coupes align\u00e9es sur un temps FORT'):'')
       +(so.trN?(' \u00b7 ancre musicale des transitions : '+so.trOK+'/'+so.trN+' sur un temps (fin \u00b7 noir max pour vid\u00e9o\u2192vid\u00e9o)'):'')
       +' \u00b7 \u00e9cart moyen '+so.mean+' ms \u00b7 max '+so.max+' ms \u00b7 '+so.n+' coupes'
-      +'<div style="color:#7f8aa0;margin-top:2px">L\u2019aper\u00e7u compense en plus la latence audio de l\u2019appareil \u2014 le fichier export\u00e9 est la r\u00e9f\u00e9rence mesur\u00e9e ici.</div></div>'):'');
+      +'<div style="color:#7f8aa0;margin-top:2px">L\u2019aper\u00e7u applique une compensation propre \u00e0 la lecture en direct. Le fichier export\u00e9 constitue la r\u00e9f\u00e9rence mesur\u00e9e.</div></div>'):'');
 }catch(e){} }
 function inferMetric(beats,strength){
   var n=beats.length; var m=new Array(n);
@@ -9250,7 +9253,7 @@ function _openLangPicker(){
   bg.style.cssText="position:fixed;inset:0;z-index:100050;background:rgba(0,0,0,.62);backdrop-filter:blur(4px);display:flex;align-items:flex-end;justify-content:center;font-family:system-ui,-apple-system,sans-serif";
   var card=document.createElement("div");
   card.style.cssText="width:100%;max-width:520px;background:#0f0e0d;border:1px solid #282622;border-radius:22px 22px 0 0;padding:8px 10px 22px;max-height:78vh;overflow:auto;box-shadow:0 -10px 50px rgba(0,0,0,.7)";
-  var head="<div style=\"text-align:center;padding:12px 0 6px\"><div style=\"width:40px;height:4px;background:#3a3733;border-radius:3px;margin:0 auto 12px\"></div><div style=\"color:#f4f7fc;font:700 17px system-ui\">\uD83C\uDF10 "+_st("Langue des paroles")+"</div><div style=\"color:#8a93a6;font:500 12.5px system-ui;margin-top:3px\">"+_st("Traduction synchronisée au rythme")+" \u00b7 v1105</div></div>";
+  var head="<div style=\"text-align:center;padding:12px 0 6px\"><div style=\"width:40px;height:4px;background:#3a3733;border-radius:3px;margin:0 auto 12px\"></div><div style=\"color:#f4f7fc;font:700 17px system-ui\">\uD83C\uDF10 "+_st("Langue des paroles")+"</div><div style=\"color:#8a93a6;font:500 12.5px system-ui;margin-top:3px\">"+_st("Traduction synchronisée au rythme")+" \u00b7 v1106</div></div>";
   var rows="";
   for(var i=0;i<window._LYRICS_LANGS.length;i++){ var code=window._LYRICS_LANGS[i][0], name=window._LYRICS_LANGS[i][1], fl=_LANG_FLAGS[code]||"\uD83C\uDF10", on=(window._LYRICS_LANG===code);
     rows+="<button class=\"lang-opt\" data-l=\""+code+"\" style=\"display:flex;align-items:center;gap:13px;width:100%;text-align:left;background:"+(on?"rgba(122,208,160,.14)":"none")+";border:1px solid "+(on?"rgba(122,208,160,.5)":"transparent")+";color:#f4f7fc;font:600 15.5px system-ui;padding:14px 15px;border-radius:13px;cursor:pointer;margin:3px 0\"><span style=\"font-size:22px\">"+fl+"</span><span style=\"flex:1\">"+name+"</span>"+(on?"<span style=\"color:#7ad0a0;font-size:18px\">\u2713</span>":"")+"</button>";
@@ -11267,7 +11270,7 @@ async function _turboExport(){
     for(var fnum=0; fnum<N; fnum++){
       if(EXPORT_ABORT){ _aborted=true; throw new Error("abort"); }
       if(_vencErr) throw new Error("venc:"+_vencErr);
-      var _t=_MST+fnum/FPS; try{ _t=Math.max(_MST,Math.min(DUR,_t+((typeof curSync==="function")?curSync():0))); }catch(e){}   /* v1070 P3 + v1081 P2 : horloge unique, décalée du Point de départ */
+      var _t=_MST+fnum/FPS; try{ _t=Math.max(_MST,Math.min(DUR,exportVisualTime(_t))); }catch(e){}   /* v1106 : horloge CENTRALE (syncAt par piste au temps audio) — plus jamais curSync ici */
       var _si=-1; for(var _q=0;_q<SEGS.length;_q++){ if(_t>=SEGS[_q].start && _t<SEGS[_q].end){ _si=_q; break; } }
       var _sg=(_si>=0)?SEGS[_si]:null;
       var _diag=window.__EXPORT_DIAG; _diag.stage="turbo_frame"; _diag.atSeconds=+_t.toFixed(3); _diag.frame=fnum; _diag.segment=_si; _diag.clip=(_sg && _sg.video && _sg.vclip!=null)?_sg.vclip+1:null; _checkpointExportDiag();
@@ -11685,7 +11688,7 @@ async function exportStudio(){ try{ _reqWake(); }catch(e){} try{ _hideClipOverla
     rec.onstop=_finish; rec.onerror=function(ev){ var raw=(ev && ev.error)||rec.error||new Error("MediaRecorder_error_event"); _mrNativeError=raw; var d=window.__EXPORT_DIAG||{}; d.failureStage="mediarecorder_native"; d.mediaRecorderResult="fail"; d.mediaRecorderError=_exportErrText(raw); d.bytes=_bytes; d.recorderState=rec.state; _saveExportDiag(); try{ if(rec.state!=="inactive")rec.stop(); }catch(e){} _finish(); };
 
     var _expVidAct=-1;
-    function _renderFrameTo(t){ try{ var _cs=(typeof curSync==="function")?curSync():0; t=Math.max(0, Math.min((typeof DUR!=="undefined"?DUR:t), t+_cs)); }catch(e){}   /* applique le réglage Sync -> export aligné comme l'aperçu */
+    function _renderFrameTo(t){ try{ t=Math.max(0, Math.min((typeof DUR!=="undefined"?DUR:t), exportVisualTime(t))); }catch(e){}   /* v1106 : horloge CENTRALE — même conversion que le Turbo et le diagnostic */
       var si=-1; for(var q=0;q<SEGS.length;q++){ if(t>=SEGS[q].start&&t<SEGS[q].end){si=q;break;} } var sg=(si>=0)?SEGS[si]:null;
       /* MediaRecorder (temps réel) : fenêtre de sources ≤3 au changement de segment (courant + prochains préchargés) */
       if(window.__mrExportSeg!==si){ _scheduleMRWindow(si,false); }   /* prépare la fenêtre suivante en avance (jeton, non bloquant) */
