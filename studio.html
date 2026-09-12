@@ -1282,7 +1282,7 @@ function renderPlanToBuffer(dur, sr){
 function analyzeBufferInto(buf, cb){ try{ essentiaReady.then(function(ok){ if(ok){ setTimeout(function(){ try{ toMono44(buf,function(sig,sr){ var An; try{ An=analyzeEssentia(sig,sr,buf.duration); if(!_analysisOK(An)) An=analyzeCustom(buf); }catch(e){ An=analyzeCustom(buf); } cb(An); }); }catch(e){ cb(analyzeCustom(buf)); } }, 20); } else { setTimeout(function(){ cb(analyzeCustom(buf)); }, 20); } }); }catch(e){ try{ cb(analyzeCustom(buf)); }catch(e2){ cb(null); } } }
 
 var CLIPS=[], clipVidReady=false, VIDACT=-1;
-window.STUDIO_VERSION="v1122";
+window.STUDIO_VERSION="v1125";
 window.MAGOT_EXPORT_ENGINE="auto"; try{ window.MAGOT_EXPORT_ENGINE=localStorage.getItem("magot_export_engine")||"auto"; }catch(e){}
 function setMagotExportEngine(mode){ if(mode!=="auto"&&mode!=="turbo"&&mode!=="mediarecorder") mode="auto"; window.MAGOT_EXPORT_ENGINE=mode; try{ localStorage.setItem("magot_export_engine",mode); }catch(e){} }
 function _exportEngineLabel(){ var m=window.MAGOT_EXPORT_ENGINE; return m==="turbo"?"Export : Turbo test":m==="mediarecorder"?"Export : Compatible":"Export : Automatique"; }
@@ -1872,10 +1872,7 @@ function buildPartition(){
     sg.kbDir=(idx%2===0)?1:-1; sg.slideDir=(idx%2===0)?1:-1;
     sg.move=MOVES[idx%MOVES.length];
     sg.atmo=atmChoose(idx,sg,MOOD,_eAt(sg.start));
-    if(idx===0){ sg.trans="none"; return; }
-    sg._prev=SEGS[idx-1];
-    sg.trans=gtChoose(idx,sg,SEGS[idx-1],PHOTOS,_eAt(sg.start),MOOD);
-  });
+  });   /* v1124 : 1re passe de transition supprimee (etait morte, sac double-consomme) — attribution UNIQUE plus bas, sur la partition MEDIA finale, avant signature */
   try{ window._DIAGC.assign=_diagMiss(); }catch(_e){}
   /* GARANTIE DÉTERMINISTE : chaque photo non-écartée apparaît au moins une fois (sinon on remplace une photo répétée). */
   if(_PORDER.length){ try{
@@ -2138,6 +2135,18 @@ function buildPartition(){
   (function(){ var _ld=null; for(var _dm=0; _dm<SEGS.length; _dm++){ var _sgd=SEGS[_dm]; if(_sgd.sign||_sgd.video||_sgd.img==null||_sgd.img<0){ continue; } var _dv=(PHOTOS[_sgd.img]&&PHOTOS[_sgd.img]._day!=null)?PHOTOS[_sgd.img]._day:null; if(_dv==null){ continue; } _sgd._dayStart=(_dv!==_ld)?_dv:null; _ld=_dv; } })();
   /* SIGNATURE : intro au tout début, outro à la toute fin -> plans à part entière de la timeline.
      La musique joue par-dessus (elle démarre sur l'intro, se termine sur l'outro). */
+  /* v1124 — ATTRIBUTION UNIQUE des transitions, sur la partition MEDIA finale (AVANT la signature) :
+     sac neuf ; index MEDIA (independant de intro/outro) ; 1er media = "none" ; transitions forcees par une
+     mutation (fade/cut) PRESERVEES ; gtChoose seulement sur les frontieres media qui n'ont pas de transition. */
+  trReset();
+  for(var _mi=0; _mi<SEGS.length; _mi++){ var _ms=SEGS[_mi];
+    if(_ms.slideDir==null)_ms.slideDir=(_mi%2===0)?1:-1;   /* v1125 : direction figee sur l'index MEDIA (avant signature) -> stable (corrige photoTail sans slideDir dont la direction s'inversait avec l'intro) */
+    if(_mi===0){ _ms.trans="none"; _ms._prev=null; continue; }
+    var _mp=SEGS[_mi-1]; _ms._prev=_mp;
+    if(_ms.trans!=null){ continue; }   /* transition forcee (fade/cut) -> preservee */
+    var _mv="crossfade"; try{ _mv=gtChoose(_mi,_ms,_mp,PHOTOS,_eAt(_ms.start),MOOD)||"crossfade"; }catch(_ge){ _mv="crossfade"; }
+    _ms.trans=_mv;
+  }
   if((typeof SIGN!=="undefined"&&SIGN.on) && SEGS.length){
     try{ _signBuild(); }catch(e){}
     if(_iD>0) SEGS.unshift({start:MST, end:pStart, sign:"intro", img:-1, trans:"none"});
@@ -2199,15 +2208,14 @@ function buildPartition(){
       else if(_sg.img!=null && _sg.img>=0){ _pSeen[_sg.img]=1; _pDur+=_len; } }
     var _pMiss=_keptP.filter(function(i){return !_pSeen[i];});
     var _cMiss=_readyC.filter(function(i){return !_cSeen[i];});
-    /* v1081 — n°3 Loïc : les segs VIDÉO créés par les placements n'avaient JAMAIS de transition (assignées avant, P8)
-       -> cut sec photo↔clip. Réassignation FINALE ciblée : trans seulement, là où absente ou au contact d'une vidéo ;
-       les transitions photo↔photo déjà tirées restent stables ; clip↔clip garde son fondu au noir (rendu). */
+    /* v1124 : transitions deja attribuees sur la partition MEDIA (avant signature) -> AUCUN gtChoose ici.
+       On relie seulement _prev (indices decales par intro/outro) et on garantit "none" sur cartons + 1er plan.
+       Activer/desactiver la signature ne change donc plus les transitions entre medias. */
     try{ for(var _ta=0;_ta<SEGS.length;_ta++){ var _tg=SEGS[_ta];
-      if(_ta===0){ _tg.trans="none"; continue; }
-      var _tp=SEGS[_ta-1]; _tg._prev=_tp;
-      if(_tg.sign){ _tg.trans="none"; continue; }   /* v1088 : les cartons ne passent JAMAIS par gtChoose (sg.img indéfini) */
-      if(_tg.trans==null || _tg.video || _tp.video || _tp.sign){ var _tv9="crossfade"; try{ _tv9=gtChoose(_ta,_tg,_tp,PHOTOS,_eAt(_tg.start),MOOD)||"crossfade"; }catch(_ge){ _tv9="crossfade"; } _tg.trans=_tv9; if(_tg.slideDir==null)_tg.slideDir=(_ta%2===0)?1:-1; }
-    } }catch(e){}
+      _tg._prev=(_ta>0)?SEGS[_ta-1]:null;
+      if(_tg.sign){ _tg.trans="none"; continue; }
+      if(_ta===0) _tg.trans="none";
+    } }catch(e){}   /* v1125 : slideDir n'est plus fixe ici (index decale par l'intro) -> fait dans la passe media */
     try{ var _bts9=(window.__GRIDBEATS&&window.__GRIDBEATS.length)?window.__GRIDBEATS:((A&&A.beats)||window._BEATS||[]); var _cd={n:0,sum:0,max:0,o60:0,o80:0,o120:0};
       if(_bts9.length && SEGS.length>1){ for(var _ci9=1;_ci9<SEGS.length;_ci9++){ var _bt0=SEGS[_ci9].start, _bd9=1e9;
         for(var _bj9=0;_bj9<_bts9.length;_bj9++){ var _dd9=Math.abs(_bts9[_bj9]-_bt0); if(_dd9<_bd9)_bd9=_dd9; else if(_bts9[_bj9]>_bt0+1.5) break; }
