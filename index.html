@@ -9884,11 +9884,37 @@ async function studioCatalog(){ try{
   })).filter(t=>t.url);
 }catch(e){ return []; } }
 function _studioLang(){ const l=String((typeof lang==="function"?lang():"fr")||"fr").slice(0,2).toLowerCase(); return ["fr","en","es","it","de"].includes(l)?l:"fr"; }
+/* v1108 : VOIE UNIQUE de publication appelée par le Studio (STUDIO_UPLOAD). Storage + music_catalog. */
+async function studioUploadToSupabase(file, title, mood, artist, coverData){
+  try{ const r=await magotUpload(file, title||"", mood||"", artist||"", coverData||""); return r; }
+  catch(e){ return "\u00c9chec r\u00e9seau : "+((e&&e.message)||String(e)); }
+}
+async function magotSetField(id, field, value){
+  if(!isAdmin()) return "R\u00e9serv\u00e9 \u00e0 l'administrateur.";
+  const tok=await sbAccessToken(); if(!tok || tok===SB_ANON) return "Session admin introuvable. Reconnecte-toi.";
+  try{ const body={}; body[field]=value;
+    const r=await fetch(SB_URL+"/rest/v1/music_catalog?id=eq."+encodeURIComponent(id),{
+      method:"PATCH", headers:{ apikey:SB_ANON, Authorization:"Bearer "+tok, "Content-Type":"application/json", Prefer:"return=minimal" },
+      body: JSON.stringify(body) });
+    if(!r.ok){ const t=await r.text().catch(()=>""); return "\u00c9chec ("+r.status+"). "+String(t).slice(0,120); }
+    return true;
+  }catch(e){ return "\u00c9chec r\u00e9seau : "+((e&&e.message)||String(e)); }
+}
+function magotSetArtist(id, artist){ return magotSetField(id, "artist", artist); }
+function magotSetCover(id, cover){ return magotSetField(id, "cover", cover); }
+function _studioBridge(w){ try{
+  w.STUDIO_UPLOAD=studioUploadToSupabase;
+  w.STUDIO_SET_MOOD=magotSetMood;
+  w.STUDIO_DELETE=magotDelete;
+  w.STUDIO_SET_ARTIST=magotSetArtist;
+  w.STUDIO_SET_COVER=magotSetCover;
+}catch(e){} }
 function _studioSync(){ const fr=document.getElementById("studioFrame"); if(!fr) return; let w=null; try{ w=fr.contentWindow; }catch(e){} if(!w) return;
   try{ w.STUDIO_LANG=_studioLang(); }catch(e){}
   try{ w.STUDIO_ADMIN=(typeof isAdmin==="function")?!!isAdmin():false; }catch(e){}
   try{ w.STUDIO_CATALOG=studioCatalog; }catch(e){}
   try{ w.STUDIO_AICAPTION=window.magotCaptionSuggest; }catch(e){}
+  _studioBridge(w);
   try{ if(typeof w._applyStudioLang==="function") w._applyStudioLang(w.STUDIO_LANG); }catch(e){}
 }
 function _studioRevoke(){ try{ _studioURLs.forEach(u=>{ try{ URL.revokeObjectURL(u); }catch(e){} }); }catch(e){} _studioURLs=[]; }
@@ -9914,7 +9940,7 @@ async function studioBuildItems(tr){ if(!tr) return []; _studioRevoke();
   return items; }
 /* Lot 6 : 1 voyage = 1 film. Si le film existe -> restaurer (éditions/musique/format),
    puis (choix B) ajouter automatiquement les nouvelles photos. Sinon -> auto-montage. */
-function studioOpen(w, tr){ if(!w||!tr) return; try{ w.__magotHost={ trip:tr, signText:function(t,m){ return magotSignText(t||tr,m); } }; }catch(e){}   /* v1092 : pont explicite — let/portées ne traversent pas les fenêtres */ var fid="trip:"+tr.id;
+function studioOpen(w, tr){ if(!w||!tr) return; try{ w.__magotHost={ trip:tr, signText:function(t,m){ return magotSignText(t||tr,m); } }; }catch(e){} try{ _studioBridge(w); }catch(e){}   /* v1092 : pont explicite — let/portées ne traversent pas les fenêtres */ var fid="trip:"+tr.id;
   try{ if(w.studioHasFilm && w.studioHasFilm(fid)){
     try{ w.studioOpenFilm(fid); }catch(e){}
     setTimeout(function(){ (async function(){ try{
@@ -9983,6 +10009,7 @@ function ensureTripFilm(tr){ try{
     try{ w.STUDIO_LANG=_studioLang(); }catch(e){}
     try{ w.STUDIO_ADMIN=(typeof isAdmin==="function")?!!isAdmin():false; }catch(e){}
     try{ w.STUDIO_CATALOG=studioCatalog; }catch(e){}
+    try{ _studioBridge(w); }catch(e){}
     try{ w.STUDIO_AICAPTION=window.magotCaptionSuggest; }catch(e){}
     try{ if(typeof w._applyStudioLang==="function") w._applyStudioLang(w.STUDIO_LANG); }catch(e){}
     var tries=0, iv=setInterval(function(){ tries++;
@@ -13873,14 +13900,7 @@ function magotModeFromAnalysis(bpm, beats, strength){
 function _moodFr(k){ return ({cinema:"Cin\u00e9ma",doux:"Doux",voyage:"Voyage",dynamique:"Dynamique"})[k]||k; }
 window.magotUploadFromStudio=async function(file){ try{
   if(typeof isAdmin!=="function" || !isAdmin() || !file) return;
-  const title=String(file.name||"Musique").replace(/\.[^.]+$/,"");
-  var sug=null; try{ toast("Analyse de la musique\u2026"); var an=await mvBeats(file); sug=magotModeFromAnalysis(an&&an.bpm, an&&an.beats, an&&an.strength); }catch(e){}
-  var chosen=await magotAskMode(title, sug);
-  if(chosen===null){ toast("Publication annul\u00e9e."); return; }
-  toast("Publication au catalogue\u2026");
-  const r=await magotUpload(file, title, chosen);
-  if(r===true) toast("\u00ab "+title+" \u00bb publi\u00e9e au catalogue partag\u00e9 ("+_moodFr(chosen)+") \u2713");
-  else toast(typeof r==="string"?r:"Publication au catalogue \u00e9chou\u00e9e.");
+  openPublishForm(file);   /* v1108 : une SEULE voie de publication (la vraie fiche Supabase), avec mode conseillé */
 }catch(e){ toast("Publication impossible (r\u00e9seau ?)."); } };
 async function magotDelete(id, path){
   if(!isAdmin()) return "Action r\u00e9serv\u00e9e \u00e0 l'administrateur.";
@@ -13904,29 +13924,30 @@ async function magotDownload(tr2){
     return true;
   }catch(e){ toast("T\u00e9l\u00e9chargement impossible (r\u00e9seau ?)."); return false; }
 }
-function magotAskMode(title, sug){ return new Promise(function(resolve){ try{
-  var ov=document.createElement("div"); ov.style.cssText="position:fixed;inset:0;z-index:9600;background:rgba(6,6,10,.72);display:flex;align-items:center;justify-content:center;padding:18px";
-  var best=sug&&sug.best; var MO=[["cinema","Cin\u00e9ma"],["voyage","Voyage"],["doux","Doux"],["dynamique","Dynamique"]];
-  var box=document.createElement("div"); box.style.cssText="background:#0f0e0d;border:1px solid #2a2824;border-radius:16px;padding:18px;max-width:420px;width:100%;color:#f4f2ea;font-family:system-ui";
-  box.innerHTML='<div style="font:700 17px Georgia,serif;margin-bottom:3px">Classer la musique</div>'
-    +'<div style="color:#9a948c;font-size:13px;margin-bottom:12px">\u00ab '+String(title).replace(/</g,"&lt;")+' \u00bb'+(sug?(' \u00b7 '+sug.bpm+' BPM'):'')+'</div>'
-    +(best?('<div style="background:#171410;border:1px solid #c9a44a;border-radius:11px;padding:11px;margin-bottom:12px">\u2728 Mode conseill\u00e9 : <b>'+_moodFr(best)+'</b><div style="color:#9a948c;font-size:12px;margin-top:2px">D\u2019apr\u00e8s l\u2019analyse du tempo et du rythme.</div></div>'):'')
-    +'<div style="font:700 11px system-ui;letter-spacing:.06em;color:#c9a44a;margin:4px 2px 6px">CHOISIR AUTREMENT</div>'
-    +'<div id="amMo" style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:14px">'+MO.map(function(o){ var on=(o[0]===best); return '<button data-m="'+o[0]+'" style="padding:9px 14px;border-radius:999px;border:1px solid '+(on?"#c9a44a":"#3a3630")+';background:'+(on?"#c9a44a":"#1a1815")+';color:'+(on?"#181510":"#dcd6cc")+';font:600 13px system-ui">'+o[1]+'</button>'; }).join("")+'</div>'
-    +'<div style="display:flex;gap:9px">'
-    +'<button id="amCancel" style="padding:11px 14px;border-radius:11px;border:1px solid #3a3630;background:none;color:#9a948c;font:700 13px system-ui">Annuler</button>'
-    +(best?'<button id="amKeep" style="flex:1;padding:11px;border-radius:11px;border:0;background:#c9a44a;color:#181510;font:700 14px system-ui">Classer en '+_moodFr(best)+'</button>':'<button id="amKeep" style="flex:1;padding:11px;border-radius:11px;border:0;background:#c9a44a;color:#181510;font:700 14px system-ui" disabled>Choisis un mode</button>')
-    +'</div>';
+/* v1108 : classer/reclasser une musique déjà en ligne — PATCH Supabase (admin) */
+async function magotSetMood(id, mood){
+  if(!isAdmin()) return "R\u00e9serv\u00e9 \u00e0 l'administrateur.";
+  const tok=await sbAccessToken(); if(!tok || tok===SB_ANON) return "Session admin introuvable. Reconnecte-toi.";
+  try{ const r=await fetch(SB_URL+"/rest/v1/music_catalog?id=eq."+encodeURIComponent(id),{
+      method:"PATCH", headers:{ apikey:SB_ANON, Authorization:"Bearer "+tok, "Content-Type":"application/json", Prefer:"return=minimal" },
+      body: JSON.stringify({ mood:mood }) });
+    if(!r.ok){ const t=await r.text().catch(()=>""); return "\u00c9chec ("+r.status+"). "+String(t).slice(0,120); }
+    return true;
+  }catch(e){ return "\u00c9chec r\u00e9seau : "+((e&&e.message)||String(e)); }
+}
+function magotPickModeSheet(cur){ return new Promise(function(resolve){ try{
+  var ov=document.createElement("div"); ov.style.cssText="position:fixed;inset:0;z-index:9650;background:rgba(6,6,10,.72);display:flex;align-items:center;justify-content:center;padding:18px";
+  var MO=[["cinema","Cin\u00e9ma"],["voyage","Voyage"],["doux","Doux"],["dynamique","Dynamique"]];
+  var box=document.createElement("div"); box.style.cssText="background:#0f0e0d;border:1px solid #2a2824;border-radius:16px;padding:18px;max-width:380px;width:100%;color:#f4f2ea;font-family:system-ui";
+  box.innerHTML='<div style="font:700 16px Georgia,serif;margin-bottom:12px">Mode de la musique</div>'
+    +'<div style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:14px">'+MO.map(function(o){ var on=(o[0]===cur); return '<button data-m="'+o[0]+'" style="padding:10px 15px;border-radius:999px;border:1px solid '+(on?"#c9a44a":"#3a3630")+';background:'+(on?"#c9a44a":"#1a1815")+';color:'+(on?"#181510":"#dcd6cc")+';font:600 14px system-ui">'+o[1]+'</button>'; }).join("")+'</div>'
+    +'<button id="pmCancel" style="width:100%;padding:11px;border-radius:11px;border:1px solid #3a3630;background:none;color:#9a948c;font:700 13px system-ui">Annuler</button>';
   ov.appendChild(box); document.body.appendChild(ov);
-  var pick=best||null;
-  box.querySelectorAll("#amMo button").forEach(function(b){ b.onclick=function(){ pick=b.getAttribute("data-m");
-    box.querySelectorAll("#amMo button").forEach(function(x){ var on=(x===b); x.style.background=on?"#c9a44a":"#1a1815"; x.style.color=on?"#181510":"#dcd6cc"; x.style.borderColor=on?"#c9a44a":"#3a3630"; });
-    var kp=box.querySelector("#amKeep"); if(kp){ kp.disabled=false; kp.textContent="Classer en "+_moodFr(pick); } }; });
-  box.querySelector("#amKeep").onclick=function(){ if(!pick) return; try{ ov.remove(); }catch(e){} resolve(pick); };
-  box.querySelector("#amCancel").onclick=function(){ try{ ov.remove(); }catch(e){} resolve(null); };
+  box.querySelectorAll("[data-m]").forEach(function(b){ b.onclick=function(){ try{ ov.remove(); }catch(e){} resolve(b.getAttribute("data-m")); }; });
+  box.querySelector("#pmCancel").onclick=function(){ try{ ov.remove(); }catch(e){} resolve(null); };
   ov.onclick=function(e){ if(e.target===ov){ try{ ov.remove(); }catch(_){} resolve(null); } };
 }catch(e){ resolve(null); } }); }
-async function magotUpload(file, title, mood){
+async function magotUpload(file, title, mood, artist, coverData){
   if(!isAdmin()){ return "R\u00e9serv\u00e9 \u00e0 l'administrateur."; }
   if(!currentUser){ return "Tu n'es pas connect\u00e9."; }
   const tok=await sbAccessToken(); const path=Date.now()+"_"+String(file.name||"track.mp3").replace(/[^\w.\-]/g,"_");
@@ -13938,7 +13959,7 @@ async function magotUpload(file, title, mood){
     if(!up.ok){ const t2=await up.text().catch(()=>""); toast("Envoi refus\u00e9 ("+up.status+"). V\u00e9rifie le bucket et les droits."); console.warn(t2); return false; }
     const ins=await fetch(SB_URL+"/rest/v1/music_catalog",{
       method:"POST", headers:{ apikey:SB_ANON, Authorization:"Bearer "+tok, "Content-Type":"application/json", Prefer:"return=minimal" },
-      body: JSON.stringify({ title:title||String(file.name||"").replace(/\.[^.]+$/,""), path, mood:mood||"", bpm, duration:dur }) });
+      body: JSON.stringify({ title:title||String(file.name||"").replace(/\.[^.]+$/,""), path, mood:mood||"", bpm, duration:dur, artist:(artist||""), cover:(coverData||"") }) });
     if(!ins.ok){ const t3=await ins.text().catch(()=>""); let msg=""; try{ const j3=JSON.parse(t3); msg=j3.message||j3.error||j3.hint||""; }catch(e){ msg=t3; }
       return "Fiche non enregistr\u00e9e ("+ins.status+"). "+(ins.status===403?"La table refuse l\u2019\u00e9criture \u2014 ex\u00e9cute le SQL FINAL dans Supabase. ":"")+(msg?("D\u00e9tail : "+String(msg).slice(0,140)):""); }
     return true;
@@ -13977,8 +13998,8 @@ function openPublishForm(file, done){
       <div class="crop-hint">Fichier : <b>${escapeHtml(file.name||"musique")}</b></div>
       <div class="mv-lab">Titre</div>
       <input type="text" id="pfTitle" value="${escapeHtml(base)}" style="width:100%;border:1px solid var(--line);border-radius:11px;padding:11px;font:600 16px system-ui">
-      <div class="mv-lab" style="margin-top:10px">Ambiance (optionnel)</div>
-      <div class="mv-durs" id="pfMoods">${["romantique","aventure","nature","calme","f\u00eate","voyage"].map(m=>`<button class="mv-dur" data-mood="${m}">${m}</button>`).join("")}</div>
+      <div class="mv-lab" style="margin-top:10px">Mode <span id="pfSug" style="color:#c9a44a;font-weight:700"></span></div>
+      <div class="mv-durs" id="pfMoods">${[["cinema","Cin\u00e9ma"],["voyage","Voyage"],["doux","Doux"],["dynamique","Dynamique"]].map(o=>`<button class="mv-dur" data-mood="${o[0]}">${o[1]}</button>`).join("")}</div>
       <div id="pfStatus" style="margin-top:12px;font-size:12.5px;color:var(--muted)"></div>
     </div>
     <div class="cal-foot"><button class="btn navy block" id="pfGo" type="button">Publier</button></div></div>`;
@@ -13987,6 +14008,9 @@ function openPublishForm(file, done){
   const close=()=>ov.remove();
   ov.querySelector("#pfX").onclick=close;
   ov.querySelectorAll("[data-mood]").forEach(b=>b.onclick=()=>{ ov.querySelectorAll("[data-mood]").forEach(x=>x.classList.remove("on")); b.classList.add("on"); mood=b.dataset.mood; });
+  (async()=>{ try{ const an=await mvBeats(file); const sg=magotModeFromAnalysis(an&&an.bpm, an&&an.beats, an&&an.strength);
+    if(sg&&sg.best){ const st=ov.querySelector("#pfSug"); if(st) st.textContent="\u2728 conseill\u00e9 : "+_moodFr(sg.best)+(sg.bpm?(" \u00b7 "+sg.bpm+" BPM"):"");
+      const b=ov.querySelector('[data-mood="'+sg.best+'"]'); if(b && !mood){ b.classList.add("on"); mood=sg.best; } } }catch(e){} })();
   ov.querySelector("#pfGo").onclick=async()=>{
     const go=ov.querySelector("#pfGo"), st=ov.querySelector("#pfStatus");
     const title=(ov.querySelector("#pfTitle").value||base||"Musique").trim();
@@ -14048,10 +14072,11 @@ function openMusicLib(fromMontage){
         <span class="mus-b"><b>${escapeHtml(x.title||"Musique")}</b>
           <span>${x.duration?_fmtDur(x.duration):""}${x.bpm?" \u00b7 "+x.bpm+" BPM":""}</span>
           ${x.mood?`<span class="mus-tags"><span class="mus-tag">${escapeHtml(x.mood)}</span></span>`:``}</span>
-        <span class="mus-act"><button class="mus-use" data-dl="${escapeHtml(x.path)}" data-title="${escapeHtml(x.title||"")}" data-bpm="${x.bpm||0}" data-dur="${x.duration||0}" data-mood="${escapeHtml(x.mood||"")}">\u2b07 Obtenir</button>${isAdmin()?`<button class="mus-del" data-mdel="${escapeHtml(String(x.id||""))}" data-mpath="${escapeHtml(x.path||"")}" title="Supprimer (admin)">\u2715</button>`:""}</span></div>`).join("");
+        <span class="mus-act"><button class="mus-use" data-dl="${escapeHtml(x.path)}" data-title="${escapeHtml(x.title||"")}" data-bpm="${x.bpm||0}" data-dur="${x.duration||0}" data-mood="${escapeHtml(x.mood||"")}">\u2b07 Obtenir</button>${isAdmin()?`<button class="mus-def" data-setmood="${escapeHtml(String(x.id||""))}" data-cur="${escapeHtml(x.mood||"")}" title="Changer le mode (admin)">\u{1F3AC}</button><button class="mus-del" data-mdel="${escapeHtml(String(x.id||""))}" data-mpath="${escapeHtml(x.path||"")}" title="Supprimer (admin)">\u2715</button>`:""}</span></div>`).join("");
       el.querySelectorAll("[data-prev]").forEach(b=>b.onclick=()=>musPreview("url",b.dataset.prev,b.dataset.src));
       musPreviewPaint();
       el.querySelectorAll("[data-mdel]").forEach(b=>b.onclick=()=>{ askConfirm("Supprimer cette musique de la biblioth\u00e8que Magot ?","Supprimer",async()=>{ b.disabled=true; const r=await magotDelete(b.dataset.mdel,b.dataset.mpath); if(r===true){ toast("Musique supprim\u00e9e"); close(); window._musTab="magot"; openMusicLib(fromMontage); } else { b.disabled=false; toast(typeof r==="string"?r:"\u00c9chec de suppression"); } }); });
+      el.querySelectorAll("[data-setmood]").forEach(b=>b.onclick=async()=>{ const chosen=await magotPickModeSheet(b.dataset.cur||""); if(!chosen) return; b.disabled=true; const r=await magotSetMood(b.dataset.setmood, chosen); if(r===true){ toast("Mode \u2192 "+_moodFr(chosen)+" \u2713"); close(); window._musTab="magot"; openMusicLib(fromMontage); } else { b.disabled=false; toast(typeof r==="string"?r:"\u00c9chec de mise \u00e0 jour."); } });
       el.querySelectorAll("[data-dl]").forEach(b=>b.onclick=async()=>{ b.disabled=true; b.textContent="\u2026";
         const okd=await magotDownload({path:b.dataset.dl,title:b.dataset.title,bpm:b.dataset.bpm,duration:b.dataset.dur,mood:b.dataset.mood||""});
         if(okd){ close(); window._musTab="mine"; openMusicLib(fromMontage); } else { b.disabled=false; b.textContent="\u2b07 Obtenir"; } });

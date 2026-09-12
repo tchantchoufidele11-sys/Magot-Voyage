@@ -1272,7 +1272,7 @@ function renderPlanToBuffer(dur, sr){
 function analyzeBufferInto(buf, cb){ try{ essentiaReady.then(function(ok){ if(ok){ setTimeout(function(){ try{ toMono44(buf,function(sig,sr){ var An; try{ An=analyzeEssentia(sig,sr,buf.duration); }catch(e){ An=analyzeCustom(buf); } cb(An); }); }catch(e){ cb(analyzeCustom(buf)); } }, 20); } else { setTimeout(function(){ cb(analyzeCustom(buf)); }, 20); } }); }catch(e){ try{ cb(analyzeCustom(buf)); }catch(e2){ cb(null); } } }
 
 var CLIPS=[], clipVidReady=false, VIDACT=-1;
-window.STUDIO_VERSION="v1107";
+window.STUDIO_VERSION="v1109";
 window.MAGOT_EXPORT_ENGINE="auto"; try{ window.MAGOT_EXPORT_ENGINE=localStorage.getItem("magot_export_engine")||"auto"; }catch(e){}
 function setMagotExportEngine(mode){ if(mode!=="auto"&&mode!=="turbo"&&mode!=="mediarecorder") mode="auto"; window.MAGOT_EXPORT_ENGINE=mode; try{ localStorage.setItem("magot_export_engine",mode); }catch(e){} }
 function _exportEngineLabel(){ var m=window.MAGOT_EXPORT_ENGINE; return m==="turbo"?"Export : Turbo test":m==="mediarecorder"?"Export : Compatible":"Export : Automatique"; }
@@ -9257,7 +9257,7 @@ function _openLangPicker(){
   bg.style.cssText="position:fixed;inset:0;z-index:100050;background:rgba(0,0,0,.62);backdrop-filter:blur(4px);display:flex;align-items:flex-end;justify-content:center;font-family:system-ui,-apple-system,sans-serif";
   var card=document.createElement("div");
   card.style.cssText="width:100%;max-width:520px;background:#0f0e0d;border:1px solid #282622;border-radius:22px 22px 0 0;padding:8px 10px 22px;max-height:78vh;overflow:auto;box-shadow:0 -10px 50px rgba(0,0,0,.7)";
-  var head="<div style=\"text-align:center;padding:12px 0 6px\"><div style=\"width:40px;height:4px;background:#3a3733;border-radius:3px;margin:0 auto 12px\"></div><div style=\"color:#f4f7fc;font:700 17px system-ui\">\uD83C\uDF10 "+_st("Langue des paroles")+"</div><div style=\"color:#8a93a6;font:500 12.5px system-ui;margin-top:3px\">"+_st("Traduction synchronisée au rythme")+" \u00b7 v1107</div></div>";
+  var head="<div style=\"text-align:center;padding:12px 0 6px\"><div style=\"width:40px;height:4px;background:#3a3733;border-radius:3px;margin:0 auto 12px\"></div><div style=\"color:#f4f7fc;font:700 17px system-ui\">\uD83C\uDF10 "+_st("Langue des paroles")+"</div><div style=\"color:#8a93a6;font:500 12.5px system-ui;margin-top:3px\">"+_st("Traduction synchronisée au rythme")+" \u00b7 v1109</div></div>";
   var rows="";
   for(var i=0;i<window._LYRICS_LANGS.length;i++){ var code=window._LYRICS_LANGS[i][0], name=window._LYRICS_LANGS[i][1], fl=_LANG_FLAGS[code]||"\uD83C\uDF10", on=(window._LYRICS_LANG===code);
     rows+="<button class=\"lang-opt\" data-l=\""+code+"\" style=\"display:flex;align-items:center;gap:13px;width:100%;text-align:left;background:"+(on?"rgba(122,208,160,.14)":"none")+";border:1px solid "+(on?"rgba(122,208,160,.5)":"transparent")+";color:#f4f7fc;font:600 15.5px system-ui;padding:14px 15px;border-radius:13px;cursor:pointer;margin:3px 0\"><span style=\"font-size:22px\">"+fl+"</span><span style=\"flex:1\">"+name+"</span>"+(on?"<span style=\"color:#7ad0a0;font-size:18px\">\u2713</span>":"")+"</button>";
@@ -12232,7 +12232,20 @@ essentiaReady.then(function(ok){ if(!ok && !A){ /* silencieux : le repli se fait
   }
   function _catCover(type){ for(var i=0;i<LIB.length;i++){ if((LIB[i].type||"")===type && LIB[i].cover) return LIB[i].cover; } return ""; }
   function _modeLabel(k){ return ({cinema:"Cin\u00e9ma",doux:"Doux",voyage:"Voyage",dynamique:"Dynamique"})[String(k||"").toLowerCase()]||""; }
-  function _studioPickMode(current, cb){
+  function _studioModeFromAnalysis(bpm, beats, strength){ try{ bpm=Math.round(bpm||0); if(!bpm) return null;
+    var fortsMin=18, reg=true, calm=(bpm<=84);
+    if(beats&&beats.length>8){ var dur=beats[beats.length-1]-beats[0];
+      if(strength&&strength.length){ var f=0; for(var i=0;i<strength.length;i++){ if((strength[i]||0)>=0.6) f++; } fortsMin=f/(dur/60); }
+      var iv=[],mean=0; for(var j=1;j<beats.length;j++){ iv.push(beats[j]-beats[j-1]); } iv.forEach(function(x){mean+=x;}); mean/=iv.length;
+      var va=0; iv.forEach(function(x){va+=(x-mean)*(x-mean);}); reg=(Math.sqrt(va/iv.length)/(mean||1))<0.08; }
+    function c3(x){ return Math.max(0,Math.min(3,Math.round(x))); }
+    var sc={ dynamique:c3((bpm>=112?3:bpm>=100?2:bpm>=90?1:0)+(fortsMin>=26?0.6:0)+(reg?0.4:0)-(calm?1.5:0)),
+      cinema:c3((bpm>=78&&bpm<=118?2.4:1)+(reg?0.6:0)+(calm?0.4:0)),
+      doux:c3((bpm<=88?2.4:bpm<=100?1.4:0.6)+(calm?1:0)+(fortsMin<18?0.4:0)),
+      voyage:c3((bpm>=82&&bpm<=124?2.2:1.2)+(fortsMin>=16?0.5:0)+(reg?0.3:0)) };
+    var best="cinema",bs=-1; ["cinema","voyage","doux","dynamique"].forEach(function(k){ if(sc[k]>bs){bs=sc[k];best=k;} });
+    return best; }catch(e){ return null; } }
+function _studioPickMode(current, cb){
     try{ var ex=document.getElementById("modePick"); if(ex) ex.remove(); }catch(e){}
     var ov=document.createElement("div"); ov.id="modePick";
     ov.style.cssText="position:fixed;inset:0;z-index:100002;background:rgba(4,6,10,.62);display:flex;align-items:flex-end;justify-content:center;opacity:0;transition:opacity .2s ease";
@@ -12413,6 +12426,9 @@ essentiaReady.then(function(ok){ if(!ok && !A){ /* silencieux : le repli se fait
           +dlBtn
           +'<button class="mt-addbtn" data-id="'+t.id+'">'+addBtn+'</button>'
         +'</div>'
+        +((window.STUDIO_ADMIN && !t.remote && (t._file||t.file) && typeof window.STUDIO_UPLOAD==="function")?(
+            '<div class="mt-admin"><button class="mt-modepill empty" data-pub="'+t.id+'" title="Publier au catalogue (admin)">\u2b06 Publier au catalogue</button></div>'
+          ):'')
         +((window.STUDIO_ADMIN && t.remote && t.catId!=null)?(
             '<div class="mt-admin">'
             +'<button class="mt-modepill'+(t.type?'':' empty')+'" data-id="'+t.id+'" title="Changer l\u2019ambiance (admin)">'+esc(_modeLabel(t.type)||"Ranger")+'</button>'
@@ -12425,6 +12441,17 @@ essentiaReady.then(function(ok){ if(!ok && !A){ /* silencieux : le repli se fait
     }).join("");
     Array.prototype.forEach.call(lib.querySelectorAll(".mt-dl"),function(b){
       b.onclick=function(e){ if(e&&e.stopPropagation)e.stopPropagation(); var t=byId(b.getAttribute("data-id")); if(t) downloadTrack(t); };
+    });
+    Array.prototype.forEach.call(lib.querySelectorAll("[data-pub]"),function(b){   /* v1108 : publier une musique LOCALE déjà importée */
+      b.onclick=function(e){ if(e&&e.stopPropagation)e.stopPropagation(); var t=byId(b.getAttribute("data-pub")); if(!t) return; var _f=t._file||t.file; if(!_f){ try{ setState("Fichier introuvable pour la publication."); }catch(_){} return; }
+        _studioPickMode(t.type||null, function(mode){ if(!mode) return; b.disabled=true; b.textContent="Publication\u2026";
+          Promise.resolve(window.STUDIO_UPLOAD(_f, t.title||"Musique", mode, t.artist||"", t.cover||"")).then(function(r){
+            if(r===true){ try{ setState("\u2713 Publi\u00e9 au catalogue ("+(_modeLabel(mode)||mode)+")."); }catch(_){} 
+              try{ var _il=LIB.indexOf(t); if(_il>=0) LIB.splice(_il,1); }catch(_e){}   /* v1109 : retire la ligne LOCALE après succès (plus de doublon avec la version distante) */
+              try{ if(typeof window.__reloadCatalog==="function") window.__reloadCatalog(); else renderLib(); }catch(_e){ try{ renderLib(); }catch(__e){} } }
+            else { b.disabled=false; b.textContent="\u2b06 Publier au catalogue"; try{ setState(typeof r==="string"?r:"\u00c9chec de publication."); }catch(_){} }
+          }).catch(function(){ b.disabled=false; b.textContent="\u2b06 Publier au catalogue"; try{ setState("\u00c9chec r\u00e9seau."); }catch(_){} });
+        }); };
     });
     Array.prototype.forEach.call(lib.querySelectorAll(".mt-main"),function(b){
       b.onclick=function(){ var t=byId(b.getAttribute("data-id")); if(t) togglePreview(t); };
@@ -12616,6 +12643,9 @@ essentiaReady.then(function(ok){ if(!ok && !A){ /* silencieux : le repli se fait
       }catch(e){ cb(""); }
     }
     function _showImportDiag(d){ try{ var el=document.getElementById("impDiag"); if(!el){ el=document.createElement("div"); el.id="impDiag"; el.style.cssText="position:fixed;left:6px;top:150px;z-index:2147483647;max-width:94vw;background:rgba(20,60,140,.96);color:#fff;font:600 11px/1.45 system-ui;padding:9px 11px;border-radius:9px;white-space:pre-wrap;box-shadow:0 2px 14px rgba(0,0,0,.6);pointer-events:none"; document.body.appendChild(el); } el.textContent="IMPORT DIAG\nID3 pochette: "+d.id3+"\ndataURL Studio: "+d.durl+" Ko (reçu MV: "+(d.durlMV!=null?d.durlMV:"?")+" Ko)\nupload: "+d.r+" · body="+d.body+" · http="+d.http+(d.err?("\nerr: "+d.err):"")+"\nrelecture pochette: "+d.back; }catch(e){} }
+    function _suggestModeFromFile(f, cb){ try{ if(typeof mvBeats!=="function"){ cb(null); return; }
+        Promise.resolve(mvBeats(f)).then(function(an){ try{ cb(_studioModeFromAnalysis(an&&an.bpm, an&&an.beats, an&&an.strength)); }catch(e){ cb(null); } }).catch(function(){ cb(null); });
+      }catch(e){ cb(null); } }
     myMusicIn.onchange=function(){ var f=this.files&&this.files[0]; if(!f) return; this.value="";
       if(window.STUDIO_ADMIN && typeof window.STUDIO_UPLOAD==="function"){
         _readID3(f, function(meta){ meta=meta||{};
@@ -12625,7 +12655,7 @@ essentiaReady.then(function(ok){ if(!ok && !A){ /* silencieux : le repli se fait
           var _dg={ id3:(_coverUrl?"OUI":"NON"), durl:0, durlMV:null, r:"?", body:"?", http:0, err:"", back:"…" };
           /* NOUVELLE ÉTAPE : coller les paroles (Suno) — optionnel, "Passer" pour ignorer */
           _studioPromptLyrics("", function(_lyrics){
-          _studioPickMode(null, function(mode){ if(!mode) return; try{ setState("Publication au catalogue\u2026"); }catch(_){}
+          _suggestModeFromFile(f, function(_sug){ _studioPickMode(_sug, function(mode){ if(!mode) return; try{ setState("Publication au catalogue\u2026"); }catch(_){}
             _coverToDataURL(_coverUrl, function(coverData){
               _dg.durl=coverData?Math.round(coverData.length/1024):0; _showImportDiag(_dg);
               Promise.resolve(window.STUDIO_UPLOAD(f,_title,mode,_artist,coverData||"")).then(function(r){
@@ -12639,6 +12669,7 @@ essentiaReady.then(function(ok){ if(!ok && !A){ /* silencieux : le repli se fait
                 } else { _dg.back="(upload échoué)"; _showImportDiag(_dg); try{ setState(typeof r==="string"?r:"Publication impossible."); }catch(_){} }
               }).catch(function(){ _dg.r="exception"; _showImportDiag(_dg); try{ setState("Publication impossible (r\u00e9seau ?)."); }catch(_){} });
             });
+          });
           });
           });
         });
