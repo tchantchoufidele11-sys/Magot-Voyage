@@ -140,7 +140,9 @@ body{display:flex;justify-content:center}
 .info .ico{color:var(--gold);display:grid;place-items:center}
 .info .ico svg{width:16px;height:16px}
 .info b{font-size:11.5px;white-space:nowrap;line-height:1.1}
-.info small{font-size:9.5px;color:var(--muted);line-height:1.1;white-space:nowrap}
+.info small{font-size:9.5px;color:var(--muted);line-height:1.1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;display:block;max-width:100%}
+.info>div{min-width:0;overflow:hidden}
+.info b{overflow:hidden;text-overflow:ellipsis;max-width:100%}
 
 /* Sections */
 .section{min-width:0;display:grid;grid-template-rows:20px 1fr}
@@ -562,7 +564,8 @@ input[type=range]::-moz-range-thumb{width:22px;height:22px;border:0;border-radiu
 .ptl-list{display:block;padding:2px 0 12px}
 .ptl-rail{position:relative}
 .ptl-rail::before{content:"";position:absolute;left:15px;top:28px;bottom:28px;width:2px;background:linear-gradient(rgba(224,163,62,.45),rgba(224,163,62,.12));border-radius:2px}
-.prow{position:relative;display:grid;grid-template-columns:30px 58px 1fr 32px 30px;align-items:center;gap:9px;padding:8px 2px;border-bottom:1px solid rgba(255,255,255,.05)}
+.prow{position:relative;display:grid;grid-template-columns:30px 58px 1fr 32px;align-items:center;gap:9px;padding:8px 2px;border-bottom:1px solid rgba(255,255,255,.05)}
+.pr-num{cursor:grab;touch-action:none}
 .pr-fx{width:32px;height:38px;background:none;border:0;color:#8b7bf0;cursor:pointer;display:grid;place-items:center}
 .prow.drag{background:rgba(224,163,62,.10);border-radius:12px;box-shadow:0 10px 24px rgba(0,0,0,.55);z-index:5;border-bottom-color:transparent}
 .pr-num{width:30px;height:30px;border-radius:50%;background:var(--gold);color:#1c1305;font:800 13px system-ui;display:grid;place-items:center;position:relative;z-index:2;box-shadow:0 0 0 4px #0b1322}
@@ -913,6 +916,13 @@ body:has(.hero.cinema) #badge{display:none!important}
 .ph-hosted .cp-card{width:100%!important;max-width:none!important;box-shadow:none!important;border:0!important;background:none!important;padding:0 2px!important;max-height:none!important}
 .ph-hosted .te-cv,.ph-hosted canvas{max-height:clamp(180px,26svh,250px)}
 #phTabs button.on{border-color:#c9a44a;background:#c9a44a;color:#181510}
+.photo-editor-card{width:min(calc(100vw - 28px),430px);height:min(82svh,720px);background:#0f0e0d;border:1px solid #282622;border-radius:18px;padding:14px;display:grid;grid-template-rows:auto 240px minmax(0,1fr) auto;gap:10px;box-sizing:border-box}
+.photo-editor-card .pTab{margin:0}
+.pe-preview{height:240px;border-radius:12px;background:#000;overflow:hidden;display:flex;align-items:center;justify-content:center}
+.pe-canvas{max-width:100%;max-height:240px;width:auto;height:auto;object-fit:contain}
+.pe-controls{overflow-y:auto;min-height:0}
+.pe-done{width:100%;padding:13px;border-radius:12px;border:0;background:#c9a44a;color:#181510;font:700 15px system-ui}
+.ph-hosted .te-cv,.ph-hosted .prg-cv{display:none!important}
 .pTab{display:flex;gap:8px;margin:0 0 12px}.pTab button{flex:1;padding:9px;border-radius:9px;border:1px solid #313a49;background:#1d232e;color:#dfe7f4;font:700 12.5px system-ui;letter-spacing:.04em}.pTab button.on{border-color:#c9a44a;background:#c9a44a;color:#181510}</style>
 </head>
 <body>
@@ -1272,7 +1282,7 @@ function renderPlanToBuffer(dur, sr){
 function analyzeBufferInto(buf, cb){ try{ essentiaReady.then(function(ok){ if(ok){ setTimeout(function(){ try{ toMono44(buf,function(sig,sr){ var An; try{ An=analyzeEssentia(sig,sr,buf.duration); }catch(e){ An=analyzeCustom(buf); } cb(An); }); }catch(e){ cb(analyzeCustom(buf)); } }, 20); } else { setTimeout(function(){ cb(analyzeCustom(buf)); }, 20); } }); }catch(e){ try{ cb(analyzeCustom(buf)); }catch(e2){ cb(null); } } }
 
 var CLIPS=[], clipVidReady=false, VIDACT=-1;
-window.STUDIO_VERSION="v1111";
+window.STUDIO_VERSION="v1112";
 window.MAGOT_EXPORT_ENGINE="auto"; try{ window.MAGOT_EXPORT_ENGINE=localStorage.getItem("magot_export_engine")||"auto"; }catch(e){}
 function setMagotExportEngine(mode){ if(mode!=="auto"&&mode!=="turbo"&&mode!=="mediarecorder") mode="auto"; window.MAGOT_EXPORT_ENGINE=mode; try{ localStorage.setItem("magot_export_engine",mode); }catch(e){} }
 function _exportEngineLabel(){ var m=window.MAGOT_EXPORT_ENGINE; return m==="turbo"?"Export : Turbo test":m==="mediarecorder"?"Export : Compatible":"Export : Automatique"; }
@@ -12837,17 +12847,22 @@ function _studioPickMode(current, cb){
     try{
       tab=tab||window.__phLastTab||"text";
       var ov=document.createElement("div"); ov.className="clipPrev"; ov.id="photoEditor";
-      ov.innerHTML='<div class="cp-card" style="width:min(calc(100vw - 28px),430px);max-height:min(88svh,760px);display:flex;flex-direction:column">'
-        +'<div class="pTab" id="phTabs" style="margin:0 0 10px"><button type="button" data-t="text">TEXTE</button><button type="button" data-t="image">IMAGE</button></div>'
-        +'<div id="phBody" style="overflow:auto;flex:1;min-height:0"><div id="phHostT"></div><div id="phHostI" style="display:none"></div></div>'
-        +'<div style="padding-top:10px"><button id="phDone" style="width:100%;padding:13px;border-radius:12px;border:0;background:#c9a44a;color:#181510;font:700 15px system-ui">Termin\u00e9</button></div>'
+      ov.innerHTML='<div class="photo-editor-card">'
+        +'<div class="pTab" id="phTabs"><button type="button" data-t="text">TEXTE</button><button type="button" data-t="image">IMAGE</button></div>'
+        +'<div class="pe-preview" id="phPrev"></div>'
+        +'<div class="pe-controls" id="phBody"><div id="phHostT"></div><div id="phHostI" style="display:none"></div></div>'
+        +'<button id="phDone" class="pe-done">Termin\u00e9</button>'
         +'</div>';
       document.body.appendChild(ov);
       ov.onclick=function(ev){ if(ev.target===ov){ try{ ov.querySelector("#phDone").click(); }catch(e){ ov.remove(); } } };
-      var hT=ov.querySelector("#phHostT"), hI=ov.querySelector("#phHostI");
+      var hT=ov.querySelector("#phHostT"), hI=ov.querySelector("#phHostI"), prev=ov.querySelector("#phPrev");
       openTextEditor(i, hT); openPhotoRetouch(i, hI);
+      var _pvT=null,_pvI=null;
+      try{ _pvT=hT.querySelector(".te-cv"); if(_pvT){ _pvT.classList.add("pe-canvas"); prev.appendChild(_pvT); } }catch(e){}
+      try{ _pvI=hI.querySelector(".prg-cv")||hI.querySelector("canvas"); if(_pvI){ _pvI.classList.add("pe-canvas"); prev.appendChild(_pvI); } }catch(e){}
       function _sel(t){ window.__phLastTab=t;
         hT.style.display=(t==="text")?"":"none"; hI.style.display=(t==="image")?"":"none";
+        if(_pvT) _pvT.style.display=(t==="text")?"":"none"; if(_pvI) _pvI.style.display=(t==="image")?"":"none";
         ov.querySelectorAll("#phTabs button").forEach(function(b){ b.classList.toggle("on", b.dataset.t===t); }); }
       ov.querySelectorAll("#phTabs button").forEach(function(b){ b.onclick=function(){ _sel(b.dataset.t); }; });
       _sel(tab);
@@ -13002,7 +13017,7 @@ function _studioPickMode(current, cb){
       el.onclick=function(e){ if(e&&e.target&&e.target.closest&&e.target.closest(".pr-del")) return; tapExclude(+el.getAttribute("data-i")); };
       return;
     }
-    var h=el.querySelector(".pr-drag");
+    var h=el.querySelector(".pr-num");
     if(h){ h.style.touchAction="none";
       h.onpointerdown=function(e){ if(_drag) pgUp(e); _drag={ el:el, id:+el.getAttribute("data-i"), sx:e.clientX, sy:e.clientY, on:false }; document.addEventListener("pointermove",pgMove,true); document.addEventListener("pointerup",pgUp,true); document.addEventListener("pointercancel",pgUp,true); if(e.cancelable) e.preventDefault(); };
     }
@@ -13023,7 +13038,7 @@ function _studioPickMode(current, cb){
         +'<input class="pr-cap" type="text" value="'+esc(capOf(p))+'" placeholder="'+_st("Ajouter un texte\u2026")+'">'
         +'<div class="pr-meta">'+(dtxt?'<span class="pr-dur">'+dtxt+'</span>':'')+(tag?(dtxt?' \u00b7 ':'')+'<span class="pr-tag">'+esc(tag)+'</span>':'')+(p&&p._capStyle?' \u00b7 <span class="pr-style">'+esc(styleLabel(p._capStyle))+'</span>':'')+'</div>'
       +'</div>'
-      +'<button class="pr-fx" aria-label="Retouche"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="4" y1="7" x2="20" y2="7"/><circle cx="9" cy="7" r="2.4" fill="#0e1a30"/><line x1="4" y1="17" x2="20" y2="17"/><circle cx="15" cy="17" r="2.4" fill="#0e1a30"/></svg></button>'+'<button class="pr-drag" aria-label="D\u00e9placer">\u2261</button>'
+      +'<button class="pr-fx" aria-label="Retouche"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="4" y1="7" x2="20" y2="7"/><circle cx="9" cy="7" r="2.4" fill="#0e1a30"/><line x1="4" y1="17" x2="20" y2="17"/><circle cx="15" cy="17" r="2.4" fill="#0e1a30"/></svg></button>'   /* v1112 : bouton unique, drag sur pastille */
     +'</div>';
   }
   function renderPGrid(){
