@@ -1282,7 +1282,7 @@ function renderPlanToBuffer(dur, sr){
 function analyzeBufferInto(buf, cb){ try{ essentiaReady.then(function(ok){ if(ok){ setTimeout(function(){ try{ toMono44(buf,function(sig,sr){ var An; try{ An=analyzeEssentia(sig,sr,buf.duration); if(!_analysisOK(An)) An=analyzeCustom(buf); }catch(e){ An=analyzeCustom(buf); } cb(An); }); }catch(e){ cb(analyzeCustom(buf)); } }, 20); } else { setTimeout(function(){ cb(analyzeCustom(buf)); }, 20); } }); }catch(e){ try{ cb(analyzeCustom(buf)); }catch(e2){ cb(null); } } }
 
 var CLIPS=[], clipVidReady=false, VIDACT=-1;
-window.STUDIO_VERSION="v1121";
+window.STUDIO_VERSION="v1122";
 window.MAGOT_EXPORT_ENGINE="auto"; try{ window.MAGOT_EXPORT_ENGINE=localStorage.getItem("magot_export_engine")||"auto"; }catch(e){}
 function setMagotExportEngine(mode){ if(mode!=="auto"&&mode!=="turbo"&&mode!=="mediarecorder") mode="auto"; window.MAGOT_EXPORT_ENGINE=mode; try{ localStorage.setItem("magot_export_engine",mode); }catch(e){} }
 function _exportEngineLabel(){ var m=window.MAGOT_EXPORT_ENGINE; return m==="turbo"?"Export : Turbo test":m==="mediarecorder"?"Export : Compatible":"Export : Automatique"; }
@@ -1392,16 +1392,29 @@ function setMusicEl(file){ try{ if(audioURL) URL.revokeObjectURL(audioURL); }cat
 
 /* ================= Essentia (chargement asynchrone + repli) ================= */
 var essentia=null, ESSENTIA_STATE="loading";
-function _essentiaLoad(){   /* v1121 : (re)chargement Essentia — la Promise resout true SEULEMENT apres creation EFFECTIVE de l'objet ; recreee a chaque appel (repli apres liberation d'export). __essentiaFreed remis a false UNIQUEMENT en cas de succes. */
-  return new Promise(function(resolve){
+var _essLoading=null;   /* v1122 : verrou single-flight — un seul chargement WASM a la fois ; tous les appelants attendent LA MEME Promise */
+function _essentiaLoad(){   /* v1122 : (re)chargement Essentia — single-flight, etat "loading" au depart ; l'instance neuve n'est INSTALLEE que si aucun export n'a (re)demarre pendant le chargement ; __essentiaFreed=false seulement apres installation reussie */
+  if(_essLoading) return _essLoading;
+  ESSENTIA_STATE="loading";
+  _essLoading=new Promise(function(resolve){
     setTimeout(function(){
-      if(typeof EssentiaWASM==="undefined"||typeof Essentia==="undefined"){ essentia=null; ESSENTIA_STATE="fail"; resolve(false); return; }
+      if(typeof EssentiaWASM==="undefined"||typeof Essentia==="undefined"){ essentia=null; ESSENTIA_STATE="fail"; _essLoading=null; resolve(false); return; }
       try{
-        EssentiaWASM().then(function(wasm){ try{ essentia=new Essentia(wasm); ESSENTIA_STATE="ok"; try{ window.__essentiaFreed=false; }catch(e){} resolve(true); }catch(e){ essentia=null; ESSENTIA_STATE="fail"; resolve(false); } })
-        .catch(function(){ essentia=null; ESSENTIA_STATE="fail"; resolve(false); });
-      }catch(e){ essentia=null; ESSENTIA_STATE="fail"; resolve(false); }
+        EssentiaWASM().then(function(wasm){
+          var inst=null; try{ inst=new Essentia(wasm); }catch(e){ inst=null; }
+          if(!inst){ essentia=null; ESSENTIA_STATE="fail"; _essLoading=null; resolve(false); return; }
+          var _exporting=(typeof EXPORTING!=="undefined" && EXPORTING);
+          if(_exporting){   /* un export a (re)demarre pendant le chargement -> NE PAS installer : detruire l'instance neuve (protege les ~285 Mo pendant l'encodage) ; rechargee au _expRestoreMem apres l'export */
+            try{ if(inst.shutdown) inst.shutdown(); if(inst.delete) inst.delete(); }catch(e){}
+            essentia=null; try{ window.__essentiaFreed=true; }catch(e){} ESSENTIA_STATE="freed"; _essLoading=null; resolve(false); return;
+          }
+          essentia=inst; ESSENTIA_STATE="ok"; try{ window.__essentiaFreed=false; }catch(e){} _essLoading=null; resolve(true);
+        })
+        .catch(function(){ essentia=null; ESSENTIA_STATE="fail"; _essLoading=null; resolve(false); });
+      }catch(e){ essentia=null; ESSENTIA_STATE="fail"; _essLoading=null; resolve(false); }
     },0);
   });
+  return _essLoading;
 }
 var essentiaReady=_essentiaLoad();
 
@@ -10502,7 +10515,7 @@ function _toggleFilmsMenu(anchor){
         var libN=0, libLyr=0, libTitles=[];
         try{ if(typeof LIB!=="undefined"){ for(var _i=0;_i<LIB.length;_i++){ var _t=LIB[_i]; if(_t&&_t.remote){ libN++; if(_t.lyrics||_t.lrc) libLyr++; if(libTitles.length<6) libTitles.push(_t.title+(( _t.lyrics||_t.lrc)?"[LRC]":"")); } } } }catch(e){}
         var _sn=0; try{ _sn=(window._SUBS?window._SUBS().length:0); }catch(e){}
-        var msg="VERSION "+(window.STUDIO_VERSION||"?")+"\n SUBS chargés: "+_sn+"\n\nMUSIQUE ACTIVE\n titre: "+(am.title||"(vide)")+"\n catId: "+(am.catId!=null?am.catId:"(vide)")+"\n\nMOTEUR ANALYSE\n moteur: "+((typeof A!=="undefined"&&A&&A.engine)?A.engine:"(aucun)")+"\n beats: "+((typeof A!=="undefined"&&A&&A.beats)?A.beats.length:0)+"\n essentia: "+(essentia?"vivant":"libere")+" \u00b7 etat: "+ESSENTIA_STATE
+        var msg="VERSION "+(window.STUDIO_VERSION||"?")+"\n SUBS chargés: "+_sn+"\n\nMUSIQUE ACTIVE\n titre: "+(am.title||"(vide)")+"\n catId: "+(am.catId!=null?am.catId:"(vide)")+"\n\nMOTEUR ANALYSE\n moteur: "+((typeof A!=="undefined"&&A&&A.engine)?A.engine:"(aucun)")+"\n beats: "+((typeof A!=="undefined"&&A&&A.beats)?A.beats.length:0)+"\n moteur essentia: "+(essentia?"vivant":(ESSENTIA_STATE==="loading"?"chargement":(ESSENTIA_STATE==="fail"?"echec":"libere")))+" \u00b7 etat: "+ESSENTIA_STATE
           +"\n\nÉTAT PAROLES\n hasLyrics: "+window.__hasLyrics+"\n origLRC: "+((window.__origLRC||"").slice(0,30)||"(vide)")
           +"\n\nCATALOGUE\n pistes: "+libN+" | avec paroles: "+libLyr
           +"\n titres: "+(libTitles.join(", ")||"(catalogue vide)")
@@ -11634,7 +11647,7 @@ async function exportStudio(){ try{ _reqWake(); }catch(e){} try{ _hideClipOverla
   if(typeof MediaRecorder==="undefined"){ _expMsg("Enregistrement non supporté ici. Ouvre la page dans Safari (\u2197 en bas \u2192 \u00ab Ouvrir dans Safari \u00bb)."); return; }
   stopPlay(); EXPORTING=true; EXPORT_ABORT=false; expShow(0); try{ _expSizeRing(); }catch(e){}
   try{ _memGuardStart(); }catch(e){}   /* gardien mémoire actif pendant l'export/pré-rendu (évite le crash sur gros films) */
-  try{ if(typeof essentia!=="undefined" && essentia && !window.__essentiaFreed){ if(essentia.shutdown) essentia.shutdown(); if(essentia.delete) essentia.delete(); essentia=null; window.__essentiaFreed=true; }   /* libère les ~285 Mo d'essentia-wasm pendant l'export (crash iOS 100%) ; rechargé à la fin via _expRestoreMem */
+  try{ if(typeof essentia!=="undefined" && essentia && !window.__essentiaFreed){ if(essentia.shutdown) essentia.shutdown(); if(essentia.delete) essentia.delete(); essentia=null; window.__essentiaFreed=true; ESSENTIA_STATE="freed"; }   /* libère les ~285 Mo d'essentia-wasm pendant l'export (crash iOS 100%) ; rechargé à la fin via _expRestoreMem */
   }catch(e){}
   try{ if(typeof CLIPS!=="undefined" && CLIPS.length>2){ window.__expClipHold=true; for(var _ci=0;_ci<CLIPS.length;_ci++){ var _c=CLIPS[_ci]; if(!_c) continue; releaseClipSource(_c); _c._expPreparedEpoch=null; _c._expPreparedTime=null; } if(CLIPS.length){ await _exportSleep(180); } } }catch(error){ if(window.__EXPORT_DIAG){ window.__EXPORT_DIAG.sharedError=_exportErrText(error); window.__EXPORT_DIAG.failureStage="export_detach"; _saveExportDiag(); } }   /* détachement CENTRALISÉ + pause pour laisser WebKit finir */
   window.__expTgt=(window.IS_MOBILE?1400:Math.min(3840, Math.ceil(Math.max((typeof EXPFMT!=="undefined"&&EXPFMT.w)||1920,(typeof EXPFMT!=="undefined"&&EXPFMT.h)||1920)*1.32)));   /* v1063 ordinateur : résolution UTILE = grand côté de sortie × zoom max réel (1,32) — assez pour zéro agrandissement flou, sans décoder 6000 px pour rien. Téléphone : ESSAI 1880 : on vise plus haut. Le prédicat de re-décodage (garde de convergence) accepte le plafond réel si le décodeur ne suit pas -> va au bout sans boucler. Réduire ce nombre par paliers si le fichier est trop lourd/lent. */
