@@ -1282,7 +1282,7 @@ function renderPlanToBuffer(dur, sr){
 function analyzeBufferInto(buf, cb){ try{ essentiaReady.then(function(ok){ if(ok){ setTimeout(function(){ try{ toMono44(buf,function(sig,sr){ var An; try{ An=analyzeEssentia(sig,sr,buf.duration); if(!_analysisOK(An)) An=analyzeCustom(buf); }catch(e){ An=analyzeCustom(buf); } cb(An); }); }catch(e){ cb(analyzeCustom(buf)); } }, 20); } else { setTimeout(function(){ cb(analyzeCustom(buf)); }, 20); } }); }catch(e){ try{ cb(analyzeCustom(buf)); }catch(e2){ cb(null); } } }
 
 var CLIPS=[], clipVidReady=false, VIDACT=-1;
-window.STUDIO_VERSION="v1130";
+window.STUDIO_VERSION="v1131";
 window.MAGOT_EXPORT_ENGINE="auto"; try{ window.MAGOT_EXPORT_ENGINE=localStorage.getItem("magot_export_engine")||"auto"; }catch(e){}
 function setMagotExportEngine(mode){ if(mode!=="auto"&&mode!=="turbo"&&mode!=="mediarecorder") mode="auto"; window.MAGOT_EXPORT_ENGINE=mode; try{ localStorage.setItem("magot_export_engine",mode); }catch(e){} }
 function _exportEngineLabel(){ var m=window.MAGOT_EXPORT_ENGINE; return m==="turbo"?"Export : Turbo test":m==="mediarecorder"?"Export : Compatible":"Export : Automatique"; }
@@ -10657,8 +10657,7 @@ function _studioCutDiag(){
     var sync=(typeof SYNC_M!=="undefined"&&SYNC_M[MOOD]!=null)?SYNC_M[MOOD]:0;
     var clean=[], off=[], total=0;   /* clean = offsets des coupes CENSEES etre sur la grille (exclut les clips courts joues en entier, voulus) */
     for(var i=1;i<SEGS.length;i++){ var g=SEGS[i]; if(!g||g.sign) continue; total++;
-      var cs=0; try{ cs=(typeof syncAt==="function")?(syncAt(g.start)||0):0; }catch(e){}
-      var t=g.start-cs, best=1e9;
+      var t=g.start, best=1e9;   /* v1131 : placement BRUT vs grille. La phase du mode (SYNC_M) est un decalage VOULU au rendu (dynamique -60ms "claque en avance", doux +80, voyage +20, cinema 0), PAS une erreur de coupe. */
       for(var j=0;j<B.length;j++){ var d=t-B[j]; if(Math.abs(d)<Math.abs(best)) best=d; }
       if(Math.abs(best)>=1.5) continue;
       var pr=SEGS[i-1], accepted=false, reason=null, fix=null;
@@ -10694,11 +10693,11 @@ function _studioCutDiagText(d){
   var L=[];
   L.push("🎯 COUPES & MUSIQUE");
   L.push("Mode : "+d.mood+" · "+d.bpm+" BPM · 1 temps = "+d.period+" ms");
-  L.push("Sync active : "+(d.sync>0?"+":"")+d.sync+" ms");
+  L.push("Phase du mode (voulue) : "+(d.sync>0?"+":"")+d.sync+" ms  — normal, pas une erreur");
   L.push("");
   L.push("COUPES vs BEATS ("+d.total+" coupes)");
   L.push("  mediane : "+d.med+" ms · max : "+d.max+" ms  (coupes calables)");
-  L.push("  biais systematique : "+(d.bias>0?"+":"")+d.bias+" ms"+(d.bias>=12?" (en retard)":(d.bias<=-12?" (en avance)":"")));
+  L.push("  biais de placement (hors phase) : "+(d.bias>0?"+":"")+d.bias+" ms"+(d.bias>=12?" (en retard)":(d.bias<=-12?" (en avance)":"")));
   L.push("  hors grille (>60ms) : "+d.off.length+"/"+d.total);
   if(d.off.length){ d.off.slice(0,8).forEach(function(o){ L.push("   • plan "+o.plan+" : "+(o.ms>0?"+":"")+o.ms+" ms — "+o.reason+(o.accepted?" [clip court, voulu]":"")); }); }
   L.push("");
