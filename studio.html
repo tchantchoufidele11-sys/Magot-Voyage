@@ -1282,7 +1282,7 @@ function renderPlanToBuffer(dur, sr){
 function analyzeBufferInto(buf, cb){ try{ essentiaReady.then(function(ok){ if(ok){ setTimeout(function(){ try{ toMono44(buf,function(sig,sr){ var An; try{ An=analyzeEssentia(sig,sr,buf.duration); }catch(e){ An=analyzeCustom(buf); } cb(An); }); }catch(e){ cb(analyzeCustom(buf)); } }, 20); } else { setTimeout(function(){ cb(analyzeCustom(buf)); }, 20); } }); }catch(e){ try{ cb(analyzeCustom(buf)); }catch(e2){ cb(null); } } }
 
 var CLIPS=[], clipVidReady=false, VIDACT=-1;
-window.STUDIO_VERSION="v1113";
+window.STUDIO_VERSION="v1120";
 window.MAGOT_EXPORT_ENGINE="auto"; try{ window.MAGOT_EXPORT_ENGINE=localStorage.getItem("magot_export_engine")||"auto"; }catch(e){}
 function setMagotExportEngine(mode){ if(mode!=="auto"&&mode!=="turbo"&&mode!=="mediarecorder") mode="auto"; window.MAGOT_EXPORT_ENGINE=mode; try{ localStorage.setItem("magot_export_engine",mode); }catch(e){} }
 function _exportEngineLabel(){ var m=window.MAGOT_EXPORT_ENGINE; return m==="turbo"?"Export : Turbo test":m==="mediarecorder"?"Export : Compatible":"Export : Automatique"; }
@@ -1341,7 +1341,7 @@ function _expForceReset(msg){
   try{ if(msg && typeof _expMsg==="function") _expMsg(msg); }catch(e){}
 }
 var EXPFMT={w:1080,h:1920,name:"9:16"};
-var SYNC_BASE={cinema:0, doux:0, dynamique:0, voyage:0};   /* v1110 (LOT B) : offsets de mode À ZÉRO — le mode choisit les DURÉES et le style, plus jamais la PHASE. Le curseur Sync (manuel, parti de 0) est le seul décalage. */
+var SYNC_BASE={cinema:0, doux:0.08, dynamique:-0.06, voyage:0.02};   /* v1118 : RESTAURATION du système par mode (réglé à l\u2019oreille) — chaque mode a sa phase : Doux +80 ms (posé), Dynamique -60 ms (claque en avance), Voyage +20 ms. Le Lot B v1110 avait tout mis à zéro et cassé la synchro — annulé. */
 function autoSync(mode,bpm){ var bi=(bpm&&bpm>0)?60/bpm:0.5; var fct=Math.max(0.6,Math.min(1.8, bi/0.5)); return Math.max(-0.35,Math.min(0.35,(SYNC_BASE[mode]||0)*fct)); }
 var SYNC_M={cinema:autoSync("cinema",120),doux:autoSync("doux",120),dynamique:autoSync("dynamique",120),voyage:autoSync("voyage",120)};
 function recomputeSync(){ var bpm=(A&&A.bpmFelt)?A.bpmFelt:((A&&A.bpm)?A.bpm:120); SYNC_M={cinema:autoSync("cinema",bpm),doux:autoSync("doux",bpm),dynamique:autoSync("dynamique",bpm),voyage:autoSync("voyage",bpm)};
@@ -1350,12 +1350,18 @@ function recomputeSync(){ var bpm=(A&&A.bpmFelt)?A.bpmFelt:((A&&A.bpm)?A.bpm:120
 function syncAt(mt){ /* v1105 : décalage EFFECTIF à l'instant mt — piste résolue depuis MPLAN, indépendant de la tête de lecture */
   var base=SYNC_M[MOOD]||0;
   try{ if(window.MULTI && window.MPLAN && window.MPLAN.length && typeof TRACKS!=="undefined" && TRACKS.length && TRACKS[0] && TRACKS[0].A){
-    var pi=window.MPLAN[0].ti; for(var i=window.MPLAN.length-1;i>=0;i--){ if(mt>=window.MPLAN[i].mStart-0.001){ pi=window.MPLAN[i].ti; break; } }
-    if(pi>=0 && TRACKS[pi] && TRACKS[pi].A){
-      var bC=(TRACKS[pi].A.bpmFelt||TRACKS[pi].A.bpm||120), bR=(TRACKS[0].A.bpmFelt||TRACKS[0].A.bpm||120);
+    var P=window.MPLAN, idx=0; for(var i=P.length-1;i>=0;i--){ if(mt>=P[i].mStart-0.001){ idx=i; break; } }
+    function _offOf(ti){ if(ti<0||!TRACKS[ti]||!TRACKS[ti].A) return base;
+      var bC=(TRACKS[ti].A.bpmFelt||TRACKS[ti].A.bpm||120), bR=(TRACKS[0].A.bpmFelt||TRACKS[0].A.bpm||120);
       var fC=Math.max(0.6,Math.min(1.8,(60/bC)/0.5)), fR=Math.max(0.6,Math.min(1.8,(60/bR)/0.5));
-      if(fR>0) return Math.max(-0.35,Math.min(0.35, base*(fC/fR)));
-    } } }catch(e){}
+      return (fR>0)?Math.max(-0.35,Math.min(0.35, base*(fC/fR))):base; }
+    var cur=_offOf(P[idx].ti);
+    /* v1114 : CONTINUITÉ — pendant le crossfade [mStart-xfIn, mStart] du segment suivant, l'offset INTERPOLE
+       linéairement de la piste sortante vers l'entrante : l'horloge visuelle ne saute plus au raccord. */
+    var nx=P[idx+1]; if(nx && nx.xfIn>0){ var x0=nx.mStart-nx.xfIn, x1=nx.mStart;
+      if(mt>=x0 && mt<x1){ var a=(mt-x0)/Math.max(1e-4,(x1-x0)); var nxt=_offOf(nx.ti); return cur+(nxt-cur)*a; } }
+    return cur;
+  } }catch(e){}
   return base;
 }
 function exportVisualTime(audioTime){ /* v1106 : HORLOGE CENTRALE D'EXPORT — temps audio -> temps visuel, piste résolue AU TEMPS AUDIO (GPT) */
@@ -1500,13 +1506,18 @@ function _paintModeMatch(){ try{
   if(!line) return;
   if(!mm){ line.innerHTML='<span style="color:#c9a44a;font-weight:700">Compatibilit\u00e9 de la musique</span> \u2014 <span style="color:#8a93a6">en attente de l\u2019analyse\u2026</span>'; return; }
   var so=_syncObtenue();
-  line.innerHTML='<span style="color:#c9a44a;font-weight:700">Compatibilit\u00e9 de la musique</span> \u2014 '+mm.faits
-    +(mm.nearTie?('<div style="color:#9aa5bb;margin-top:2px">'+_moodName(mm.best)+' ou '+_moodName(mm.nearTie)+' recommand\u00e9s (scores tr\u00e8s proches)</div>'):'')
-    +(so?('<div style="margin-top:4px"><span style="color:#c9a44a;font-weight:700">Synchronisation \u00e0 l\u2019export</span> \u2014 '+so.p60+' % des coupes \u00e0 \u226460 ms d\u2019un temps'
-      +(so.pfAligned!=null?(' \u00b7 '+so.pfAligned+' % des coupes align\u00e9es sur un temps FORT'):'')
-      +(so.trN?(' \u00b7 ancre musicale des transitions : '+so.trOK+'/'+so.trN+' sur un temps (fin \u00b7 noir max pour vid\u00e9o\u2192vid\u00e9o)'):'')
-      +' \u00b7 \u00e9cart moyen '+so.mean+' ms \u00b7 max '+so.max+' ms \u00b7 '+so.n+' coupes'
-      +'<div style="color:#7f8aa0;margin-top:2px">L\u2019aper\u00e7u applique une compensation propre \u00e0 la lecture en direct. Le fichier export\u00e9 constitue la r\u00e9f\u00e9rence mesur\u00e9e.</div></div>'):'');
+  /* v1114 LOT E : résumé compact (≤3 lignes) ; le détail technique passe dans « Voir l'analyse » (replié par défaut) */
+  var _reco=_moodName(mm.best)+(mm.nearTie?(' ou '+_moodName(mm.nearTie)):'');
+  var _sum='<div><span style="color:#c9a44a;font-weight:700">Recommandé :</span> '+_reco+'</div>'
+    +'<div style="color:#9aa5bb">'+mm.faits+'</div>'
+    +(so?('<div><span style="color:#c9a44a;font-weight:700">Synchronisation :</span> '+so.p60+' %</div>'):'');
+  var _det=so?('<div style="font:400 12px system-ui;color:#b8c0d0;line-height:1.6;margin-top:6px">'
+      +so.p60+' % des coupes \u00e0 \u226460 ms d\u2019un temps'
+      +(so.pfAligned!=null?('<br>'+so.pfAligned+' % des coupes align\u00e9es sur un temps FORT'):'')
+      +(so.trN?('<br>ancre des transitions : '+so.trOK+'/'+so.trN+' sur un temps (fin \u00b7 noir max pour vid\u00e9o\u2192vid\u00e9o)'):'')
+      +'<br>\u00e9cart moyen '+so.mean+' ms \u00b7 max '+so.max+' ms \u00b7 '+so.n+' coupes'
+      +'<br><span style="color:#7f8aa0">L\u2019aper\u00e7u applique une compensation propre \u00e0 la lecture en direct ; le fichier export\u00e9 est la r\u00e9f\u00e9rence mesur\u00e9e.</span></div>'):'';
+  line.innerHTML=_sum+(_det?('<details style="margin-top:6px"><summary style="cursor:pointer;color:#c9a44a;font:600 12px system-ui">Voir l\u2019analyse</summary>'+_det+'</details>'):'');
 }catch(e){} }
 function inferMetric(beats,strength){
   var n=beats.length; var m=new Array(n);
@@ -2188,7 +2199,14 @@ function buildPartition(){
             var _why9=_pe9.video?("clip "+((_pe9.vclip!=null?_pe9.vclip:-1)+1)+" · "+_pl9.toFixed(1)+" s"+(_pe9._subBeat?" · INFÉRIEUR À UN TEMPS (impossible à caler)":((CLIPS[_pe9.vclip]&&(CLIPS[_pe9.vclip].dur||99)<2.6)?" · SOURCE COURTE":(_pe9._durSrcLim?" · limité source":"")))):("photo · "+_pl9.toFixed(1)+" s");
             (_cd.list=_cd.list||[]).push("plan "+_ci9+" ("+_why9+") : "+Math.round(_bd9*1000)+" ms"); }
         } } }
-      window.__CUTDIAG=_cd.n?{n:_cd.n, avg:Math.round(_cd.sum/_cd.n*1000), max:Math.round(_cd.max*1000), o60:_cd.o60, o80:_cd.o80, o120:_cd.o120, mood:MOOD, bpm:((A&&(A.bpmFelt||A.bpm))||0), list:(_cd.list||[]).slice(0,8)}:null;
+      /* v1114 : diagnostic UNIQUE — mesure des coupes aux instants EFFECTIFS (syncAt), cohérente avec « Synchronisation à l'export » */
+      try{ var _c2={n:0,sum:0,max:0,o60:0,o80:0,o120:0,list:[]}; var _B2=(window.__GRIDBEATS||[]);
+        if(_B2.length){ for(var _si=1;_si<SEGS.length;_si++){ var _g2=SEGS[_si]; if(!_g2||_g2.sign) continue;
+          var _cs2=0; try{ _cs2=(typeof syncAt==="function")?(syncAt(_g2.start)||0):0; }catch(e){} var _t2=_g2.start-_cs2;
+          var _bd=1e9; for(var _j2=0;_j2<_B2.length;_j2++){ var _dd=Math.abs(_B2[_j2]-_t2); if(_dd<_bd)_bd=_dd; }
+          _c2.n++; _c2.sum+=_bd; if(_bd>_c2.max&&_bd<1.5)_c2.max=_bd; if(_bd>0.06)_c2.o60++; if(_bd>0.08)_c2.o80++; if(_bd>0.12){_c2.o120++; if(_c2.list.length<8)_c2.list.push("plan "+(_si+1)+" : "+Math.round(_bd*1000)+" ms");} } }
+        window.__CUTDIAG=_c2.n?{n:_c2.n, avg:Math.round(_c2.sum/_c2.n*1000), max:Math.round(_c2.max*1000), o60:_c2.o60, o80:_c2.o80, o120:_c2.o120, mood:MOOD, bpm:((A&&(A.bpmFelt||A.bpm))||0), list:_c2.list, eff:true}:null;
+      }catch(e){ window.__CUTDIAG=null; }
     }catch(e){}   /* v1074 — GPT n°2 réparé : mesuré sur les SEGS FINAUX avec la grille réellement utilisée, mode+BPM inclus */
     window._COVERAGE={ photos:{need:_keptP.length,placed:Object.keys(_pSeen).length,missing:_pMiss}, clips:{need:_readyC.length,placed:Object.keys(_cSeen).length,missing:_cMiss}, pDur:Math.round(_pDur), vDur:Math.round(_vDur) };
     /* PANNEAU DIAG VISIBLE (?diag=1) : pour tester sur iPhone sans console Safari */
@@ -8931,7 +8949,7 @@ function gtChoose(idx,sg,prev,photos,energy,mood){
   var name=bagPick(order, k);
   var _bpm=(A&&A.bpmFelt)?A.bpmFelt:((A&&A.bpm>0)?A.bpm:100);
   var _bi=60/_bpm;
-  var _tf=Math.max(0.7,Math.min(2.0,_bi/0.5));   /* lent -> transition plus longue/douce ; rapide -> plus serrée (tempo ressenti) */
+  var _tf=Math.max(0.7,Math.min(2.0,_bi/0.5));   /* v1119 : RESTAURATION du calcul d'origine (réglé à l'oreille) — lent -> transition plus longue/douce ; rapide -> plus serrée (tempo ressenti). Le Lot D v1115 l'avait remplacé par une quantification qui a cassé les transitions — annulé. */
   sg.trDur=prof.dur*_tf;
   return name;
 }
@@ -9066,11 +9084,14 @@ function drawGL(time,pulse,srcTex){
 /* ================= Bande rythme ================= */
 var strip=document.getElementById("strip"), sctx=strip.getContext("2d");
 var stripBg=document.createElement("canvas"); stripBg.width=strip.width; stripBg.height=strip.height; var sbx=stripBg.getContext("2d"); var stripDirty=true;
+function _gridBeats(){ try{ if(window.__GRIDBEATS&&window.__GRIDBEATS.length) return window.__GRIDBEATS; }catch(e){} return (A&&A.beats)||[]; }
+function _gridStr(){ try{ if(window.__GRIDSTR&&window.__GRIDSTR.length) return window.__GRIDSTR; }catch(e){} return (A&&A.strength)||[]; }
 function renderStripBg(){
   var Wd=stripBg.width,Hd=stripBg.height; sbx.clearRect(0,0,Wd,Hd); sbx.fillStyle="#0e1630"; sbx.fillRect(0,0,Wd,Hd);
   if(!A||!A.dur) return; var dur=A.dur; var w0=(window.MSTART_EFF||0), w1=(window.MONTAGE_DUR||A.dur), wlen=Math.max(0.1,w1-w0);
   if(A.energy&&A.energy.length){ sbx.beginPath(); for(var x=0;x<Wd;x++){ var tt=w0 + x/Wd*wlen; var i=Math.round(tt*A.fps); var e=A.energy[Math.max(0,Math.min(A.energy.length-1,i))]||0; var y=Hd-6-e*(Hd-14); if(x===0) sbx.moveTo(x,y); else sbx.lineTo(x,y); } sbx.strokeStyle="rgba(120,150,220,.5)"; sbx.lineWidth=1.5; sbx.stroke(); }
-  (A.beats||[]).forEach(function(b,i){ var x=(b-w0)/wlen*Wd; if(x<-2||x>Wd+2) return; var s=A.strength[i]||0; var hgt=6+s*(Hd-16); var acc=s>=MOODS[MOOD].accent;
+  var _gb=_gridBeats(), _gs=_gridStr();   /* v1114 LOT C : la bande affiche la grille RÉELLEMENT utilisée (boucle/multi corrects) */
+  _gb.forEach(function(b,i){ var x=(b-w0)/wlen*Wd; if(x<-2||x>Wd+2) return; var s=_gs[i]||0; var hgt=6+s*(Hd-16); var acc=s>=MOODS[MOOD].accent;
     sbx.strokeStyle=acc?"rgba(224,163,62,.9)":"rgba(140,160,200,.35)"; sbx.lineWidth=acc?2:1; sbx.beginPath(); sbx.moveTo(x,Hd-4); sbx.lineTo(x,Hd-4-hgt); sbx.stroke(); });
   SEGS.forEach(function(sg){ var x=(sg.start-w0)/wlen*Wd; sbx.fillStyle=sg.strong?"#E0A33E":"#7fd0ff"; sbx.fillRect(x-1,0,2,8); });
 }
@@ -9081,7 +9102,8 @@ function paintZoom(t){
   var center=(t&&t>0.4)?t:((SEGS&&SEGS[1])?SEGS[1].start:2.0);
   var win=2.2, lo=center-win, hi=center+win, span=(hi-lo)||1;
   function X(tt){ return (tt-lo)/span*W; }
-  if(A.beats){ zctx.strokeStyle="rgba(255,255,255,0.55)"; zctx.lineWidth=1; for(var i=0;i<A.beats.length;i++){ var b=A.beats[i]; if(b<lo||b>hi) continue; var x=X(b); zctx.beginPath(); zctx.moveTo(x,H*0.18); zctx.lineTo(x,H*0.82); zctx.stroke(); } }
+  var _zgb=_gridBeats();   /* v1114 LOT C : le zoom affiche la grille RÉELLE */
+  if(_zgb.length){ zctx.strokeStyle="rgba(255,255,255,0.55)"; zctx.lineWidth=1; for(var i=0;i<_zgb.length;i++){ var b=_zgb[i]; if(b<lo||b>hi) continue; var x=X(b); zctx.beginPath(); zctx.moveTo(x,H*0.18); zctx.lineTo(x,H*0.82); zctx.stroke(); } }
   var off=LEAD+curSync();
   if(SEGS){ zctx.strokeStyle="#E0A33E"; zctx.lineWidth=2.5; for(var j=0;j<SEGS.length;j++){ var c=SEGS[j].start-off; if(c<lo||c>hi) continue; var x2=X(c); zctx.beginPath(); zctx.moveTo(x2,0); zctx.lineTo(x2,H); zctx.stroke(); } }
   zctx.strokeStyle="rgba(255,255,255,0.9)"; zctx.lineWidth=1; var xc=X(center); zctx.beginPath(); zctx.moveTo(xc,0); zctx.lineTo(xc,H); zctx.stroke();
@@ -9537,9 +9559,24 @@ function _loopBody(){ try{ window.__MMT_BOTTOM_CAP_TOP=null; }catch(e){}
   } }catch(e){}
   var trName=next?next.trans:"none";
   var TRd=(next&&trName!=="cut"&&trName!=="none")?Math.min((next.trDur!=null?next.trDur:0.5),(sg?(sg.end-sg.start)*0.5:0)):0;
-  var preStart=next?(next.start-TRd):Infinity;
-  var inTrans=(sg&&next&&TRd>0&&t>=preStart&&t<next.start);
-  var trProg=inTrans?((t-preStart)/TRd):0;
+  /* v1120 — MIXAGE : une coupe sèche PHOTO->PHOTO reçoit un micro fondu enchaîné CENTRÉ sur le beat
+     (le milieu du fondu tombe pile sur next.start) — durée = punch du mode. Zéro désynchronisation : le
+     point de bascule reste sur le temps. Les clips vidéo et les vraies transitions ne sont pas touchés. */
+  var _pp2=(next&&(trName==="cut"||trName==="none")&&sg&&!sg.video&&!next.video&&!sg.sign&&!next.sign);
+  var _mixHalf=0; var _mixCentered=false;
+  if(_pp2){ try{ var _pu=(typeof MOODS!=="undefined"&&MOODS[MOOD]&&MOODS[MOOD].punch!=null)?MOODS[MOOD].punch:0.05;
+    _mixHalf=Math.max(0.02,Math.min(_pu, (sg.end-sg.start)*0.45, (next.end-next.start)*0.45)); _mixCentered=true; }catch(e){ _mixHalf=0; } }
+  var preStart, inTrans, trProg;
+  if(_mixCentered && _mixHalf>0){
+    preStart=next.start-_mixHalf; var _mixEnd=next.start+_mixHalf;
+    inTrans=(t>=preStart && t<_mixEnd);
+    trProg=inTrans?((t-preStart)/(2*_mixHalf)):0;   /* 0->1 : 0.5 exactement sur le beat */
+    if(inTrans) trName="crossfade";
+  } else {
+    preStart=next?(next.start-TRd):Infinity;
+    inTrans=(sg&&next&&TRd>0&&t>=preStart&&t<next.start);
+    trProg=inTrans?((t-preStart)/TRd):0;
+  }
   if(sg && sg.video && sg.vclip!=null && CLIPS[sg.vclip] && CLIPS[sg.vclip].ready){ var _clA=CLIPS[sg.vclip];
     if(VIDACT!==idx){ VIDACT=idx; for(var _c=0;_c<CLIPS.length;_c++){ if(_c!==sg.vclip){ try{ CLIPS[_c].el.pause(); }catch(e){} } }
       /* LECTURE SIMPLE : rattacher la source si besoin (non bloquant) et jouer directement.
@@ -11093,9 +11130,24 @@ function renderMontageAt(t){ try{ window.__MMT_BOTTOM_CAP_TOP=null; }catch(e){}
   var next=(idx>=0 && idx+1<SEGS.length)?SEGS[idx+1]:null;
   var trName=next?next.trans:"none";
   var TRd=(next&&trName!=="cut"&&trName!=="none")?Math.min((next.trDur!=null?next.trDur:0.5),(sg?(sg.end-sg.start)*0.5:0)):0;
-  var preStart=next?(next.start-TRd):Infinity;
-  var inTrans=(sg&&next&&TRd>0&&t>=preStart&&t<next.start);
-  var trProg=inTrans?((t-preStart)/TRd):0;
+  /* v1120 — MIXAGE : une coupe sèche PHOTO->PHOTO reçoit un micro fondu enchaîné CENTRÉ sur le beat
+     (le milieu du fondu tombe pile sur next.start) — durée = punch du mode. Zéro désynchronisation : le
+     point de bascule reste sur le temps. Les clips vidéo et les vraies transitions ne sont pas touchés. */
+  var _pp2=(next&&(trName==="cut"||trName==="none")&&sg&&!sg.video&&!next.video&&!sg.sign&&!next.sign);
+  var _mixHalf=0; var _mixCentered=false;
+  if(_pp2){ try{ var _pu=(typeof MOODS!=="undefined"&&MOODS[MOOD]&&MOODS[MOOD].punch!=null)?MOODS[MOOD].punch:0.05;
+    _mixHalf=Math.max(0.02,Math.min(_pu, (sg.end-sg.start)*0.45, (next.end-next.start)*0.45)); _mixCentered=true; }catch(e){ _mixHalf=0; } }
+  var preStart, inTrans, trProg;
+  if(_mixCentered && _mixHalf>0){
+    preStart=next.start-_mixHalf; var _mixEnd=next.start+_mixHalf;
+    inTrans=(t>=preStart && t<_mixEnd);
+    trProg=inTrans?((t-preStart)/(2*_mixHalf)):0;   /* 0->1 : 0.5 exactement sur le beat */
+    if(inTrans) trName="crossfade";
+  } else {
+    preStart=next?(next.start-TRd):Infinity;
+    inTrans=(sg&&next&&TRd>0&&t>=preStart&&t<next.start);
+    trProg=inTrans?((t-preStart)/TRd):0;
+  }
   var strongPulse=(sg&&sg.strong&&into<0.10)?(1-into/0.10):0;
   _atmo=sg?(sg.atmo||null):null; _atmoAmt=(ATMO_AMT[MOOD]!=null?ATMO_AMT[MOOD]:0.6);
   /* FONDU AU NOIR vidéo->vidéo CENTRÉ sur la coupe (identique lecture) : avant = sortante->noir, après = noir->entrante réelle. Pas de saut arrière. */
