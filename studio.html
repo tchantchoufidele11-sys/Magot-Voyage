@@ -1282,7 +1282,7 @@ function renderPlanToBuffer(dur, sr){
 function analyzeBufferInto(buf, cb){ try{ essentiaReady.then(function(ok){ if(ok){ setTimeout(function(){ try{ toMono44(buf,function(sig,sr){ var An; try{ An=analyzeEssentia(sig,sr,buf.duration); if(!_analysisOK(An)) An=analyzeCustom(buf); }catch(e){ An=analyzeCustom(buf); } cb(An); }); }catch(e){ cb(analyzeCustom(buf)); } }, 20); } else { setTimeout(function(){ cb(analyzeCustom(buf)); }, 20); } }); }catch(e){ try{ cb(analyzeCustom(buf)); }catch(e2){ cb(null); } } }
 
 var CLIPS=[], clipVidReady=false, VIDACT=-1;
-window.STUDIO_VERSION="v1127";
+window.STUDIO_VERSION="v1129";
 window.MAGOT_EXPORT_ENGINE="auto"; try{ window.MAGOT_EXPORT_ENGINE=localStorage.getItem("magot_export_engine")||"auto"; }catch(e){}
 function setMagotExportEngine(mode){ if(mode!=="auto"&&mode!=="turbo"&&mode!=="mediarecorder") mode="auto"; window.MAGOT_EXPORT_ENGINE=mode; try{ localStorage.setItem("magot_export_engine",mode); }catch(e){} }
 function _exportEngineLabel(){ var m=window.MAGOT_EXPORT_ENGINE; return m==="turbo"?"Export : Turbo test":m==="mediarecorder"?"Export : Compatible":"Export : Automatique"; }
@@ -10448,6 +10448,7 @@ function _toggleFilmsMenu(anchor){
       +'<button class="fm-i" data-a="signedit" style="'+_bs+'">\u270D\uFE0F Intro & outro</button>'
       +'<button class="fm-i" data-a="diag" style="'+_bs+';color:#c9a44a">\uD83D\uDD0D Diagnostic paroles</button>'
       +'<button class="fm-i" data-a="diagmontage" style="'+_bs+';color:#c9a44a">\uD83C\uDFAC Diagnostic montage</button>'
+      +'<button class="fm-i" data-a="cutdiag" style="'+_bs+';color:#c9a44a">\uD83C\uDFAF Coupes & musique</button>'
       +'<button class="fm-i" data-a="expengine" style="'+_bs+';color:#c9a44a">\uD83E\uDDEA '+_exportEngineLabel()+'</button>'
       +'<button class="fm-i" data-a="lyrics" style="width:100%;text-align:left;background:none;border:0;color:#f4f7fc;font:600 15px system-ui;padding:13px 14px;border-radius:11px;cursor:pointer;display:flex;align-items:center;gap:10px"><span style="pointer-events:none">\uD83C\uDFA4</span><span style="flex:1;pointer-events:none">'+_st("Lyrique")+'</span><span id="lyrTrack" style="pointer-events:none;display:inline-block;width:46px;height:27px;border-radius:14px;background:'+(window._LYRICS_ON===true?"#7ad0a0":"#3a3733")+';position:relative;transition:background .2s;flex:none"><span id="lyrKnob" style="position:absolute;top:3px;left:'+(window._LYRICS_ON===true?"22px":"3px")+';width:21px;height:21px;border-radius:50%;background:#fff;transition:left .2s;box-shadow:0 1px 3px rgba(0,0,0,.4)"></span></span></button>'
       +((window.__hasLyrics || (window._SUBS && window._SUBS().length>0))?('<button class="fm-i" data-a="lyrlang" style="'+_bs+'">\uD83C\uDF10 '+_st("Langue des paroles")+'  <span style="float:right;font-size:.82em;opacity:.7">'+((function(){ for(var _l=0;_l<window._LYRICS_LANGS.length;_l++){ if(window._LYRICS_LANGS[_l][0]===window._LYRICS_LANG) return window._LYRICS_LANGS[_l][1]; } return "Original"; })())+' \u203A</span></button>'):"")
@@ -10456,6 +10457,7 @@ function _toggleFilmsMenu(anchor){
     Array.prototype.forEach.call(m.querySelectorAll(".fm-i"), function(it){ it.onclick=function(ev){ ev.stopPropagation(); var a=it.getAttribute("data-a"); if(a!=="lyrics"){ m.style.display="none"; }   /* le toggle Lyrique garde le menu ouvert pour montrer la bascule */
       if(a==="expengine"){ try{ var _cur=window.MAGOT_EXPORT_ENGINE||"auto"; var _next=(_cur==="auto")?"turbo":(_cur==="turbo")?"mediarecorder":"auto"; setMagotExportEngine(_next); if(typeof setState==="function") setState(_exportEngineLabel()); }catch(e){} return; }
       if(a==="signedit"){ try{ _openSignEditor(); }catch(e){} return; }
+      if(a==="cutdiag"){ try{ alert(_studioCutDiagText(_studioCutDiag())); }catch(e){ try{ alert("diag coupes err: "+e); }catch(_e){} } return; }
       if(a==="diagmontage"){ try{
         var _cv=window._COVERAGE||{}, _md=window._MUSICDIAG||{};
         var _pM=(_cv.photos&&_cv.photos.missing&&_cv.photos.missing.length)?(" MANQUE "+_cv.photos.missing.join(",")):" OK";
@@ -10625,6 +10627,76 @@ ovlFile.onchange=function(e){ var fl=e.target.files&&e.target.files[0]; e.target
 if(ovlAmt) ovlAmt.oninput=function(){ OVL.amt=(+ovlAmt.value)/100; };
 document.getElementById("ovlOff").onclick=function(){ OVL.on=false; try{ ovVid.pause(); }catch(e){} };
 var syncEl=document.getElementById("sync"), syncVal=document.getElementById("syncVal");
+function _studioCutDiag(){
+  try{
+    if(typeof A==="undefined"||!A||typeof SEGS==="undefined"||!SEGS.length) return {nodata:true};
+    var B=(window.__GRIDBEATS&&window.__GRIDBEATS.length)?window.__GRIDBEATS:((A.beats)||[]);
+    if(!B.length) return {noBeats:true};
+    var bpm=(A.bpmFelt||A.bpm)||0, period=bpm>0?60/bpm:0;
+    var sync=(typeof SYNC_M!=="undefined"&&SYNC_M[MOOD]!=null)?SYNC_M[MOOD]:0;
+    var clean=[], off=[], total=0;   /* clean = offsets des coupes CENSEES etre sur la grille (exclut les clips courts joues en entier, voulus) */
+    for(var i=1;i<SEGS.length;i++){ var g=SEGS[i]; if(!g||g.sign) continue; total++;
+      var cs=0; try{ cs=(typeof syncAt==="function")?(syncAt(g.start)||0):0; }catch(e){}
+      var t=g.start-cs, best=1e9;
+      for(var j=0;j<B.length;j++){ var d=t-B[j]; if(Math.abs(d)<Math.abs(best)) best=d; }
+      if(Math.abs(best)>=1.5) continue;
+      var pr=SEGS[i-1], accepted=false, reason=null, fix=null;
+      if(Math.abs(best)>0.06){
+        if(pr&&pr.video&&pr.vclip!=null&&typeof CLIPS!=="undefined"&&CLIPS[pr.vclip]){ var cl=CLIPS[pr.vclip];
+          var dur=((((cl.trimEnd!=null?cl.trimEnd:cl.dur)||0)-(cl.trimStart||0)))/Math.max(0.5,cl.speed||1);
+          if(period>0 && dur<period){ accepted=true; reason="clip "+(pr.vclip+1)+" : "+dur.toFixed(1)+"s (< 1 temps "+Math.round(period*1000)+"ms)"; fix="clip "+(pr.vclip+1)+" trop court pour tomber sur un temps → allonge-le d'au moins "+Math.round((period-dur)*1000)+" ms ou duplique-le"; }
+          else { reason="clip "+(pr.vclip+1)+" : "+dur.toFixed(1)+"s"; fix="clip "+(pr.vclip+1)+" : cale sa fin sur un temps (ajuste ~"+Math.round(Math.abs(best)*1000)+" ms)"; } }
+        else { reason="photo "+(pr?(pr.end-pr.start).toFixed(1):"?")+"s"; fix="plan "+(i+1)+" (photo) hors grille : ajuste sa duree a un multiple du temps"; }
+        off.push({plan:i+1, ms:Math.round(best*1000), reason:reason, fix:fix, accepted:accepted});
+      }
+      if(!accepted) clean.push(best);
+    }
+    var n=clean.length; if(!n) return {allShort:true, off:off, total:total, mood:MOOD};
+    var absArr=clean.map(function(x){return Math.abs(x);}).sort(function(a,b){return a-b;});
+    var sgn=clean.slice().sort(function(a,b){return a-b;});
+    var bias=sgn[n>>1];   /* mediane signee = biais systematique robuste */
+    var pool=(typeof MODE_TRANS!=="undefined")?[].concat(MODE_TRANS[MOOD]||[],MODE_TRANS._universal||[],(typeof _transGeneral==="function"?_transGeneral():[])):[];
+    var av=(typeof TR!=="undefined"&&TR.okNames&&TR.okNames.length)?TR.okNames:(typeof GT_NAMES!=="undefined"?GT_NAMES:[]);
+    var seen={}, transCount=0; pool.forEach(function(x){ if(!seen[x]&&av.indexOf(x)>=0){ seen[x]=1; transCount++; } });
+    var md=window._MUSICDIAG||{};
+    return { n:n, total:total, mood:MOOD, bpm:Math.round(bpm), period:Math.round(period*1000), sync:Math.round(sync*1000),
+      bias:Math.round(bias*1000), med:Math.round(absArr[n>>1]*1000), max:Math.round(absArr[n-1]*1000),
+      off:off, transCount:transCount, gridCovers:(md.gridCoversCuts!==false), gridEnd:md.gridEnd, mediaEnd:md.mediaEnd };
+  }catch(e){ return {err:String(e)}; }
+}
+function _studioCutDiagText(d){
+  if(!d) return "Diagnostic indisponible.";
+  if(d.err) return "Diagnostic : erreur — "+d.err;
+  if(d.nodata) return "Charge une musique + des medias et construis le montage d'abord.";
+  if(d.noBeats) return "Pas de grille de beats — la musique n'a pas ete analysee (ou aucune coupe).";
+  if(d.allShort) return "🎯 COUPES & MUSIQUE\nToutes les coupes tombent sur des clips courts joues en entier (voulu).\n✅ VERDICT : rien a caler.";
+  var L=[];
+  L.push("🎯 COUPES & MUSIQUE");
+  L.push("Mode : "+d.mood+" · "+d.bpm+" BPM · 1 temps = "+d.period+" ms");
+  L.push("Sync active : "+(d.sync>0?"+":"")+d.sync+" ms");
+  L.push("");
+  L.push("COUPES vs BEATS ("+d.total+" coupes)");
+  L.push("  mediane : "+d.med+" ms · max : "+d.max+" ms  (coupes calables)");
+  L.push("  biais systematique : "+(d.bias>0?"+":"")+d.bias+" ms"+(d.bias>=12?" (en retard)":(d.bias<=-12?" (en avance)":"")));
+  L.push("  hors grille (>60ms) : "+d.off.length+"/"+d.total);
+  if(d.off.length){ d.off.slice(0,8).forEach(function(o){ L.push("   • plan "+o.plan+" : "+(o.ms>0?"+":"")+o.ms+" ms — "+o.reason+(o.accepted?" [clip court, voulu]":"")); }); }
+  L.push("");
+  L.push("TRANSITIONS : "+d.transCount+" du mode "+d.mood+" (aucune etrangere)");
+  L.push("GRILLE : "+(d.gridCovers?"couvre les coupes ✓":("trop courte — s'arrete a "+d.gridEnd+"s, medias jusqu'a "+d.mediaEnd+"s")));
+  L.push("");
+  var sol=[];
+  if(Math.abs(d.bias)>=12) sol.push("Recale la sync du mode "+d.mood+" : "+d.sync+" ms → "+(d.sync+d.bias)+" ms (curseur Personnalise), puis relance ce diagnostic.");
+  if(!d.gridCovers) sol.push("Musique trop courte : active la boucle ou prends un morceau couvrant "+d.mediaEnd+"s.");
+  d.off.forEach(function(o){ if(o.fix && !o.accepted) sol.push(o.fix); });
+  var realProblems=(Math.abs(d.bias)>=12?1:0)+(d.gridCovers?0:1)+d.off.filter(function(o){return !o.accepted;}).length;
+  if(realProblems===0 && d.med<=25){
+    L.push("✅ VERDICT : PREMIUM — coupes calees, transitions dans le mode, sync bonne."+(d.off.length?" (Les hors-grille sont des clips courts joues en entier, voulu.)":""));
+  } else {
+    L.push("⚠️ VERDICT : "+realProblems+" ajustement(s) pour atteindre le premium :");
+    sol.slice(0,6).forEach(function(x,i){ L.push("  "+(i+1)+". "+x); });
+  }
+  return L.join("\n");
+}
 function syncLabel(){ var v=Math.round(curSync()*1000); if(syncVal) syncVal.textContent=(v>0?"+":"")+v+" ms"; var _svl=document.getElementById("syncV"); if(_svl) _svl.textContent=(v>0?"+":"")+v+" ms"; }
 function syncApply(){ var _sv=Math.round((SYNC_M[MOOD]||0)*1000); if(syncEl) syncEl.value=_sv; var _sr=document.getElementById("syncR"); if(_sr) _sr.value=_sv; syncLabel(); try{ if(typeof _paintAllRanges==="function") _paintAllRanges(); }catch(e){} if(A) paintStrip(playing?visualTime():0); }
 function _persoUI(){ try{ var on=(window.PERSO_SYNC!=null); var _an=document.getElementById("ambName");
@@ -10636,17 +10708,8 @@ function _applyMoodUI(md){ try{ document.querySelectorAll(".mood").forEach(funct
 if(syncEl) syncEl.oninput=function(){ SYNC_M[MOOD]=(+syncEl.value)/1000; window.PERSO_SYNC=SYNC_M[MOOD]; window.PERSO_BASE=MOOD; try{ window.__syncOverrides=null; }catch(e){} _persoUI();   /* v1079 : bouger le curseur = MODE PERSONNALISÉ (les 4 presets restent purs) */ syncLabel(); if(A){ paintStrip(playing?visualTime():0); try{ if(SEGS&&SEGS.length) renderMontageAt(playing?visualTime():0); }catch(e){} } };
 var srst=document.getElementById("syncReset"); if(srst) srst.onclick=function(){ window.PERSO_SYNC=null; window.PERSO_BASE=null; try{ window.__syncOverrides=null; }catch(e){} SYNC_M[MOOD]=autoSync(MOOD,(A&&A.bpmFelt)?A.bpmFelt:((A&&A.bpm)?A.bpm:120)); _persoUI(); syncApply(); };
 syncApply();
-document.querySelectorAll(".mood").forEach(function(btn){ btn.onclick=function(){ document.querySelectorAll(".mood").forEach(function(x){ x.classList.remove("on"); }); btn.classList.add("on"); MOOD=btn.dataset.mood; window.PERSO_SYNC=null; window.PERSO_BASE=null; SYNC_M[MOOD]=autoSync(MOOD,(A&&(A.bpmFelt||A.bpm))||120); _persoUI();   /* v1079 : taper un preset = preset PUR, sync auto */ try{ window.__studioDirty=true; }catch(e){} syncApply(); try{ if(_ovEl) _ovEl._flt=null; }catch(e){} var _swap=false;
-    var _hasManualMusic = (typeof A!=="undefined" && A && window._musicAuto!==true);   /* l'utilisateur a choisi SA musique à la main */
-    if(_hasManualMusic && typeof _studioConfirm==="function"){
-      _studioConfirm("Tu as chang\u00e9 de style. Veux-tu la musique qui va avec ce style, ou garder ta musique actuelle ?", "Musique du style", function(){
-        try{ if(typeof window._autoMusicForMood==="function") window._autoMusicForMood(_curFilmId||"seed", true); }catch(e){}
-      });
-      /* s'il annule : on garde sa musique, on reconstruit juste le montage avec le nouveau style */
-      try{ if(A&&(PHOTOS.length||clipVidReady)){ buildPartition(); updateBadge(); } }catch(e){}
-    } else {
-      try{ if(typeof window._autoMusicForMood==="function") _swap=window._autoMusicForMood(_curFilmId||"seed", true); }catch(e){}
-    } if(!_swap && A&&(PHOTOS.length||clipVidReady)){ var _wasP=playing, _pos=(playing?montageNow():pausedOffset)||0; buildPartition(); updateBadge(); if(_wasP){ try{ var _mx=(window.MONTAGE_DUR||_pos)-0.05; seekMontageTo(Math.max(0,Math.min(_pos,_mx))); }catch(e){} paintStrip(visualTime()); } else { paintStrip(0); try{ renderMontageAt(0); }catch(e){} } } setState("Ambiance : <b>"+btn.textContent+"</b> · "+(A?( (SEGS.length)+" plans"):"")); }; });
+document.querySelectorAll(".mood").forEach(function(btn){ btn.onclick=function(){ document.querySelectorAll(".mood").forEach(function(x){ x.classList.remove("on"); }); btn.classList.add("on"); MOOD=btn.dataset.mood; window.PERSO_SYNC=null; window.PERSO_BASE=null; SYNC_M[MOOD]=autoSync(MOOD,(A&&(A.bpmFelt||A.bpm))||120); _persoUI();   /* v1079 : taper un preset = preset PUR, sync auto */ try{ window.__studioDirty=true; }catch(e){} syncApply(); try{ if(_ovEl) _ovEl._flt=null; }catch(e){} /* v1128 : changer de mode ne change JAMAIS la musique — l'utilisateur choisit mode ET musique separement (auto-swap _autoMusicForMood + pop-up "musique du style" RETIRES). On reconstruit juste le montage avec le nouveau mode, musique conservee. */
+    if(A&&(PHOTOS.length||clipVidReady)){ var _wasP=playing, _pos=(playing?montageNow():pausedOffset)||0; buildPartition(); updateBadge(); if(_wasP){ try{ var _mx=(window.MONTAGE_DUR||_pos)-0.05; seekMontageTo(Math.max(0,Math.min(_pos,_mx))); }catch(e){} paintStrip(visualTime()); } else { paintStrip(0); try{ renderMontageAt(0); }catch(e){} } } setState("Ambiance : <b>"+btn.textContent+"</b> · "+(A?( (SEGS.length)+" plans"):"")); }; });
 
 document.getElementById("fMusic").onchange=function(e){
   var file=e.target.files&&e.target.files[0]; if(!file) return; setMusicEl(file);
