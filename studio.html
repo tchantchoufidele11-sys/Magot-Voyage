@@ -1282,7 +1282,7 @@ function renderPlanToBuffer(dur, sr){
 function analyzeBufferInto(buf, cb){ try{ essentiaReady.then(function(ok){ if(ok){ setTimeout(function(){ try{ toMono44(buf,function(sig,sr){ var An; try{ An=analyzeEssentia(sig,sr,buf.duration); if(!_analysisOK(An)) An=analyzeCustom(buf); }catch(e){ An=analyzeCustom(buf); } cb(An); }); }catch(e){ cb(analyzeCustom(buf)); } }, 20); } else { setTimeout(function(){ cb(analyzeCustom(buf)); }, 20); } }); }catch(e){ try{ cb(analyzeCustom(buf)); }catch(e2){ cb(null); } } }
 
 var CLIPS=[], clipVidReady=false, VIDACT=-1;
-window.STUDIO_VERSION="v1131";
+window.STUDIO_VERSION="v1140";
 window.MAGOT_EXPORT_ENGINE="auto"; try{ window.MAGOT_EXPORT_ENGINE=localStorage.getItem("magot_export_engine")||"auto"; }catch(e){}
 function setMagotExportEngine(mode){ if(mode!=="auto"&&mode!=="turbo"&&mode!=="mediarecorder") mode="auto"; window.MAGOT_EXPORT_ENGINE=mode; try{ localStorage.setItem("magot_export_engine",mode); }catch(e){} }
 function _exportEngineLabel(){ var m=window.MAGOT_EXPORT_ENGINE; return m==="turbo"?"Export : Turbo test":m==="mediarecorder"?"Export : Compatible":"Export : Automatique"; }
@@ -1484,6 +1484,19 @@ function modeMatch(An){ /* v1099 : Accord musique-mode — calculé UNIQUEMENT d
   }catch(e){ return null; } }
 function _dots(n){ var o=""; for(var i=0;i<3;i++) o+=(i<n?"\u25cf":"\u25cb"); return o; }
 function _moodName(k){ return ({cinema:"Cin\u00e9ma",voyage:"Voyage",doux:"Doux",dynamique:"Dynamique"})[k]||k; }
+try{ window._reflectMood=function(md){ try{
+  var nm=_moodName(md);
+  var ch=document.querySelector('.choice[data-name="'+nm+'"]'); if(!ch) return;
+  var icoSpan=ch.querySelector(".cem");
+  var shortD=ch.getAttribute("data-short")||"", fullD=ch.getAttribute("data-desc")||shortD;
+  var lab=document.getElementById("infoLabel"), desc=document.getElementById("infoDesc"), ico=document.getElementById("infoIco");
+  if(lab) lab.textContent=nm; if(desc) desc.textContent=shortD||fullD; if(ico&&icoSpan) ico.innerHTML=icoSpan.innerHTML;
+  var aN=document.getElementById("ambName"), aD=document.getElementById("ambDesc"), aI=document.getElementById("ambIcon");
+  if(aN){ aN.setAttribute("data-i18n",nm); aN.textContent=(typeof _st==="function"?_st(nm):nm); }
+  if(aD){ aD.setAttribute("data-i18n",fullD); aD.textContent=(typeof _st==="function"?_st(fullD):fullD); }
+  if(aI&&icoSpan) aI.innerHTML=icoSpan.innerHTML;
+}catch(e){} }; }catch(e){}
+
 function _syncObtenue(){ try{ /* v1105 : SYNCHRONISATION À L'EXPORT — vérité du fichier : instants effectifs par coupe (syncAt),
    temps fort compté SEULEMENT si la coupe est alignée, ancre par type de transition, frontières après cartons exclues du comptage transitions */
   if(typeof SEGS==="undefined"||!SEGS||SEGS.length<3) return null;
@@ -1498,7 +1511,7 @@ function _syncObtenue(){ try{ /* v1105 : SYNCHRONISATION À L'EXPORT — vérit�
     sum+=bd; if(bd>mx&&bd<1.5) mx=bd;
     if(aligned && bj>=0 && (GS[bj]||0)>=0.6) forts++;   /* fort SEULEMENT si aligné */
     var trn=g.trans, prevSign=!!(SEGS[i-1]&&SEGS[i-1].sign);
-    if(trn&&trn!=="none"&&trn!=="cut"&&!prevSign){ trN++; if(aligned) trOK++; }   /* l'ancre (fin classique / noir max v2v) EST cet instant */
+    if(trn&&trn!=="none"&&trn!=="cut"&&!prevSign){ trN++; if(aligned) trOK++; }   /* v1140 : l'ancre EST l'instant d'impact perceptuel de la transition (fondus : milieu sur le temps ; coupes franches/flash/whip/slide : fin sur le temps) — cf. TR_IMPACT */
   }
   if(!n) return null;
   return { p60:Math.round(ok60/n*100), pfAligned:(GS.length&&ok60?Math.round(forts/ok60*100):null), n:n,
@@ -1530,7 +1543,7 @@ function _paintModeMatch(){ try{
   var _det=so?('<div style="font:400 12px system-ui;color:#b8c0d0;line-height:1.6;margin-top:6px">'
       +so.p60+' % des coupes \u00e0 \u226460 ms d\u2019un temps'
       +(so.pfAligned!=null?('<br>'+so.pfAligned+' % des coupes align\u00e9es sur un temps FORT'):'')
-      +(so.trN?('<br>ancre des transitions : '+so.trOK+'/'+so.trN+' sur un temps (fin \u00b7 noir max pour vid\u00e9o\u2192vid\u00e9o)'):'')
+      +(so.trN?('<br>ancre des transitions : '+so.trOK+'/'+so.trN+' sur un temps (impact perceptuel de la transition sur un temps)'):'')
       +'<br>\u00e9cart moyen '+so.mean+' ms \u00b7 max '+so.max+' ms \u00b7 '+so.n+' coupes'
       +'<br><span style="color:#7f8aa0">L\u2019aper\u00e7u applique une compensation propre \u00e0 la lecture en direct ; le fichier export\u00e9 est la r\u00e9f\u00e9rence mesur\u00e9e.</span></div>'):'';
   line.innerHTML=_sum+(_det?('<details style="margin-top:6px"><summary style="cursor:pointer;color:#c9a44a;font:600 12px system-ui">Voir l\u2019analyse</summary>'+_det+'</details>'):'');
@@ -2144,6 +2157,8 @@ function buildPartition(){
     if(_ms.slideDir==null)_ms.slideDir=(_mi%2===0)?1:-1;   /* v1125 : direction figee sur l'index MEDIA (avant signature) -> stable (corrige photoTail sans slideDir dont la direction s'inversait avec l'intro) */
     if(_mi===0){ _ms.trans="none"; _ms._prev=null; continue; }
     var _mp=SEGS[_mi-1]; _ms._prev=_mp;
+    if(_mp && _mp.video && _ms.video && _mp.vclip!=null && _mp.vclip===_ms.vclip){   /* v1139 : MEME vclip des deux cotes -> un seul decodeur, aucun melange possible : la decision est inscrite DANS LA PARTITION (cut, trDur 0) et non seulement au rendu, pour que le diagnostic ne compte pas une transition invisible. _trWindow garde sa garde de securite. */
+      _ms.trans="cut"; _ms.trDur=0; _ms._sameClipCut=true; continue; }
     if(_ms.trans!=null){ continue; }   /* transition forcee (fade/cut) -> preservee */
     var _mv="crossfade"; try{ _mv=gtChoose(_mi,_ms,_mp,PHOTOS,_eAt(_ms.start),MOOD)||"crossfade"; }catch(_ge){ _mv="crossfade"; }
     _ms.trans=_mv;
@@ -2980,6 +2995,53 @@ function drawDayMarker(ctx,Wd,Hd,day,into){
   ctx.fillStyle="#f4bd4a"; ctx.fillText(txt, boxX+padX, cyc);
   ctx.restore();
 }
+/* v1135 — ANCRAGE UNIFIE (etape 1 de l'ordre GPT) : une SEULE fenetre musicale + un point d'impact perceptuel par
+   type de transition, partages par TOUTES les voies de rendu (apercu, Turbo, Compatible, repli Canvas).
+   IMPACT = ou tombe l'instant percu de la transition par rapport a la coupe next.start :
+     1.0 = fin sur le beat (coupes franches, flash, whip, slide installe)
+     0.5 = milieu sur le beat (fondu enchaine, fondu au noir : melange/noir max sur le temps) */
+var TR_IMPACT={ crossfade:0.5, dissolve:0.5, fade:0.5, StaticFade:0.5, luma:0.5, morph:0.5,
+                flash:1.0, whip:1.0, slide:1.0, zoomblur:1.0, zoomthrough:1.0, cube:1.0, doorway:1.0, FilmBurn:1.0 };
+function _trImpact(name){ var v=TR_IMPACT[name]; return (v!=null)?v:1.0; }
+function _trWindow(sg,next,t){   /* fenetre unique : [start,end] autour de la coupe selon l'impact, + progression 0->1 */
+  var out={inTrans:false, prog:0, name:"none", dur:0};
+  try{
+    if(!sg||!next) return out;
+    var nm=next.trans||"none"; if(nm==="cut"||nm==="none") return out;
+    /* v1138 — VERROU meme clip : un seul decodeur video ne peut pas fournir 2 positions, donc un "fondu" entre
+       deux segments du MEME vclip afficherait 2x la meme image puis SAUTERAIT a l'autre position a prog=0.5
+       (saut visible, et AVANT le beat pour les impacts 1.0). On force donc une COUPE SECHE sur l'ancre musicale.
+       Pas de second decodeur : cela rouvrirait la pression memoire / les crashs iOS. */
+    if(sg.video && next.video && sg.vclip!=null && sg.vclip===next.vclip) return out;
+    var d=Math.min((next.trDur!=null?next.trDur:0.5), (sg.end-sg.start)*0.5, (next.end-next.start)*0.5);
+    if(!(d>0)) return out;
+    var imp=_trImpact(nm);
+    var st=next.start-d*imp, en=st+d;
+    out.name=nm; out.dur=d;
+    if(t>=st && t<en){ out.inTrans=true; out.prog=(t-st)/d; }
+  }catch(e){}
+  return out;
+}
+function _transitionAt(t){   /* v1136 — RESOLVEUR GLOBAL de transition. Teste LES DEUX frontieres :
+     (a) plan courant -> suivant  (1re moitie d'un fondu centre, ou toute transition d'impact 1.0)
+     (b) plan precedent -> courant (2e moitie d'un fondu centre : apres le beat, l'index actif a deja
+         basculé sur le nouveau plan, donc sans ce test la 2e moitie etait PERDUE -> saut d'image).
+     Retourne {from,to,name,prog,dur,inTrans}. Consomme par l'apercu, le Canvas, Turbo, Compatible et _exportVideoNeedsAt. */
+  var out={inTrans:false, from:null, to:null, name:"none", prog:0, dur:0};
+  try{
+    if(typeof SEGS==="undefined"||!SEGS.length) return out;
+    var idx=-1; for(var i=0;i<SEGS.length;i++){ if(t>=SEGS[i].start && t<SEGS[i].end){ idx=i; break; } }
+    if(idx<0) return out;
+    var cur=SEGS[idx], nx=SEGS[idx+1]||null, pv=SEGS[idx-1]||null;
+    /* (a) frontiere courant -> suivant */
+    var wa=_trWindow(cur,nx,t);
+    if(wa.inTrans){ out.inTrans=true; out.from=cur; out.to=nx; out.name=wa.name; out.prog=wa.prog; out.dur=wa.dur; return out; }
+    /* (b) frontiere precedent -> courant (fondus centres, apres le beat) */
+    if(pv){ var wb=_trWindow(pv,cur,t);
+      if(wb.inTrans){ out.inTrans=true; out.from=pv; out.to=cur; out.name=wb.name; out.prog=wb.prog; out.dur=wb.dur; return out; } }
+  }catch(e){}
+  return out;
+}
 function renderBaseFrame(t){
   var Wd=base.width,Hd=base.height;
   var idx=-1; for(var i=0;i<SEGS.length;i++){ if(t>=SEGS[i].start && t<SEGS[i].end){ idx=i; break; } }
@@ -2987,17 +3049,19 @@ function renderBaseFrame(t){
   bctx.fillStyle="#000"; bctx.fillRect(0,0,Wd,Hd);
   if(idx<0) return {strongPulse:0};
   var sg=SEGS[idx], prev=SEGS[idx-1], into=t-sg.start;
-  var TRmap={crossfade:0.16, flash:0.14, slide:0.18, zoomblur:0.14, whip:0.12, zoomthrough:0.16};   /* transitions RACCOURCIES : le mélange flou d'entrée devient quasi imperceptible (chaque plan est net presque tout de suite) */
-  var TR=Math.min(TRmap[sg.trans]||0, (sg.end-sg.start)*0.30);
-  if(prev && TR>0 && into<TR){
-    var a=into/TR;
-    if(sg.trans==="crossfade"){ var _ac=Math.min(1, a*1.8); drawSegAt(prev,prev.end-0.001,0,1); bctx.save(); bctx.globalAlpha=_ac; drawSegAt(sg,t,0,1); bctx.restore(); }   /* opacité montée 1.8× plus vite : le nouveau plan est net presque immédiatement, plus de fondu flou prolongé */
-    else if(sg.trans==="flash"){ drawSegAt(sg,t,0,1); bctx.save(); bctx.globalAlpha=Math.max(0,1-a); bctx.fillStyle="#fff"; bctx.fillRect(0,0,Wd,Hd); bctx.restore(); }
-    else if(sg.trans==="slide"){ var dir=sg.slideDir||1; drawSegAt(prev,prev.end-0.001,-a*Wd*dir,1); drawSegAt(sg,t,(1-a)*Wd*dir,1); }
-    else if(sg.trans==="zoomblur"){ bctx.save(); bctx.globalAlpha=1-a; drawSegAt(prev,prev.end-0.001,0,1); bctx.restore(); bctx.save(); bctx.globalAlpha=a; drawSegAt(sg,t,0,1.06-0.06*a); bctx.restore(); }   /* zoom de départ réduit 1.20->1.06 : plus de flou d'entrée (mesuré dans l'export) */
-    else if(sg.trans==="whip"){ var dr=sg.slideDir||1, ez=a*a*(3-2*a); drawSegAt(prev,prev.end-0.001,-ez*Wd*1.1*dr,1); bctx.save(); bctx.globalAlpha=0.35; drawSegAt(sg,t,(1-ez)*Wd*0.5*dr,1); bctx.restore(); drawSegAt(sg,t,(1-ez)*Wd*1.1*dr,1); }
-    else if(sg.trans==="zoomthrough"){ bctx.save(); bctx.globalAlpha=1-a; drawSegAt(prev,prev.end-0.001,0,1.0+0.5*a); bctx.restore(); bctx.save(); bctx.globalAlpha=a; drawSegAt(sg,t,0,1.12-0.12*a); bctx.restore(); }   /* zoom de départ réduit 1.6->1.12 : plus de flou d'entrée */
-    else drawSegAt(sg,t,0,1);
+  /* v1135 : repli Canvas ALIGNE sur le GL — MEME fenetre (_trWindow : transition du plan SUIVANT, positionnee par son
+     point d'impact) au lieu de l'ancienne fenetre post-coupe a durees fixes. Apercu / Turbo / Compatible identiques. */
+  var _w=(typeof _transitionAt==="function")?_transitionAt(t):{inTrans:false};
+  var _cF=_w.from, _nx=_w.to;   /* v1136 : from/to du resolveur global (2 frontieres) */
+  if(_w.inTrans && _cF && _nx){
+    var a=Math.max(0,Math.min(1,_w.prog)), nmw=_w.name;
+    var _tf=Math.min(t,_nx.start-0.001), _tt=Math.max(t,_nx.start);
+    if(nmw==="flash"){ drawSegAt((a<0.5?_cF:_nx),(a<0.5?_tf:_tt),0,1); bctx.save(); bctx.globalAlpha=(a<0.5?a*2:(1-a)*2); bctx.fillStyle="#fff"; bctx.fillRect(0,0,Wd,Hd); bctx.restore(); }
+    else if(nmw==="slide"){ var dir=_nx.slideDir||1; drawSegAt(_cF,_tf,-a*Wd*dir,1); drawSegAt(_nx,_tt,(1-a)*Wd*dir,1); }
+    else if(nmw==="whip"){ var dr=_nx.slideDir||1, ez=a*a*(3-2*a); drawSegAt(_cF,_tf,-ez*Wd*1.1*dr,1); bctx.save(); bctx.globalAlpha=0.35; drawSegAt(_nx,_tt,(1-ez)*Wd*0.5*dr,1); bctx.restore(); drawSegAt(_nx,_tt,(1-ez)*Wd*1.1*dr,1); }
+    else if(nmw==="zoomblur"){ bctx.save(); bctx.globalAlpha=1-a; drawSegAt(_cF,_tf,0,1); bctx.restore(); bctx.save(); bctx.globalAlpha=a; drawSegAt(_nx,_tt,0,1.06-0.06*a); bctx.restore(); }
+    else if(nmw==="zoomthrough"){ bctx.save(); bctx.globalAlpha=1-a; drawSegAt(_cF,_tf,0,1.0+0.5*a); bctx.restore(); bctx.save(); bctx.globalAlpha=a; drawSegAt(_nx,_tt,0,1.12-0.12*a); bctx.restore(); }
+    else { drawSegAt(_cF,_tf,0,1); bctx.save(); bctx.globalAlpha=a; drawSegAt(_nx,_tt,0,1); bctx.restore(); }   /* fondus (crossfade/dissolve/fade/luma/morph) : melange, impact 0.5 -> mi-fondu sur le beat */
   } else {
     drawSegAt(sg,t,0,1);
   }
@@ -9617,24 +9681,11 @@ function _loopBody(){ try{ window.__MMT_BOTTOM_CAP_TOP=null; }catch(e){}
   } }catch(e){}
   var trName=next?next.trans:"none";
   var TRd=(next&&trName!=="cut"&&trName!=="none")?Math.min((next.trDur!=null?next.trDur:0.5),(sg?(sg.end-sg.start)*0.5:0)):0;
-  /* v1120 — MIXAGE : une coupe sèche PHOTO->PHOTO reçoit un micro fondu enchaîné CENTRÉ sur le beat
-     (le milieu du fondu tombe pile sur next.start) — durée = punch du mode. Zéro désynchronisation : le
-     point de bascule reste sur le temps. Les clips vidéo et les vraies transitions ne sont pas touchés. */
-  var _pp2=(next&&(trName==="cut"||trName==="none")&&sg&&!sg.video&&!next.video&&!sg.sign&&!next.sign);
-  var _mixHalf=0; var _mixCentered=false;
-  if(_pp2){ try{ var _pu=(typeof MOODS!=="undefined"&&MOODS[MOOD]&&MOODS[MOOD].punch!=null)?MOODS[MOOD].punch:0.05;
-    _mixHalf=Math.max(0.02,Math.min(_pu, (sg.end-sg.start)*0.45, (next.end-next.start)*0.45)); _mixCentered=true; }catch(e){ _mixHalf=0; } }
-  var preStart, inTrans, trProg;
-  if(_mixCentered && _mixHalf>0){
-    preStart=next.start-_mixHalf; var _mixEnd=next.start+_mixHalf;
-    inTrans=(t>=preStart && t<_mixEnd);
-    trProg=inTrans?((t-preStart)/(2*_mixHalf)):0;   /* 0->1 : 0.5 exactement sur le beat */
-    if(inTrans) trName="crossfade";
-  } else {
-    preStart=next?(next.start-TRd):Infinity;
-    inTrans=(sg&&next&&TRd>0&&t>=preStart&&t<next.start);
-    trProg=inTrans?((t-preStart)/TRd):0;
-  }
+  /* v1133 (Lot 3) — rendu C267 : la transition CHOISIE joue UNIQUEMENT avant next.start (0->1 finie pile sur la coupe).
+     cut/none -> TRd=0 -> inTrans faux -> coupe seche, AUCUN fondu ajoute. Micro-fondu centre v1120 SUPPRIME (sa 2e moitie ne se rendait pas -> accroc sur la coupe). */
+  var _wu=(typeof _transitionAt==="function")?_transitionAt(t):{inTrans:false,prog:0};
+  var inTrans=_wu.inTrans, trProg=_wu.prog, _trFrom=_wu.from, _trTo=_wu.to;   /* v1136 : resolveur GLOBAL (2 frontieres) -> la 2e moitie d'un fondu centre n'est plus perdue */
+  if(inTrans && _wu.name) trName=_wu.name;
   if(sg && sg.video && sg.vclip!=null && CLIPS[sg.vclip] && CLIPS[sg.vclip].ready){ var _clA=CLIPS[sg.vclip];
     if(VIDACT!==idx){ VIDACT=idx; for(var _c=0;_c<CLIPS.length;_c++){ if(_c!==sg.vclip){ try{ CLIPS[_c].el.pause(); }catch(e){} } }
       /* LECTURE SIMPLE : rattacher la source si besoin (non bloquant) et jouer directement.
@@ -9679,28 +9730,13 @@ function _loopBody(){ try{ window.__MMT_BOTTOM_CAP_TOP=null; }catch(e){}
   if(_vidNow){ _showClipOverlay(CLIPS[sg.vclip].el); }
   else {
     _hideClipOverlay();
-    /* FONDU AU NOIR vidéo->vidéo, CENTRÉ sur la coupe next.start.
-       - avant la coupe (inTrans) : sortante affichée, noir croît 0->1
-       - après la coupe (prev.video, into<halfPrev) : entrante déjà à son vrai temps, noir décroît 1->0
-       Aucune lecture anticipée de l'entrante -> pas de saut arrière. */
-    var _vid2vid=(inTrans && sg && next && sg.video && next.video);
-    var _halfPrev=(prev && prev.video && sg && sg.video && sg.trans!=="cut" && sg.trans!=="none")?Math.min((sg.trDur!=null?sg.trDur:0.5),(sg.end-sg.start)*0.5):0;   /* v1072 — GPT n°1 : le noir APRÈS la coupe appartient à la transition qui a AMENÉ le plan courant (sg.trans/sg.trDur), pas à celle du plan suivant (trName/prev.trDur) */
-    var _postBlack=(_halfPrev>0 && prev && prev.video && sg.video && into<_halfPrev)?(1-(into/_halfPrev)):0;
-    if(glReady && TR.ready && inTrans && !_vid2vid){
-      drawSegAt(sg,t,0,1); trUpload(TR.texFrom);
-      drawSegAt(next,next.start,0,1); trUpload(TR.texTo);
-      trMix(trName,trProg,next);
+    /* v1133 (Lot 3) — video->video : l'effet GL SELECTIONNE joue (comme C267), plus de noir impose divergent apercu/export.
+       AVERTISSEMENT iOS : lit la video entrante en avance (drawSegAt next) -> si saut arriere sur iPhone, fix cible (pre-seek), PAS le noir. */
+    if(glReady && TR.ready && inTrans && _trFrom && _trTo){
+      drawSegAt(_trFrom,Math.min(t,_trTo.start-0.001),0,1); trUpload(TR.texFrom);
+      drawSegAt(_trTo,Math.max(t,_trTo.start),0,1); trUpload(TR.texTo);
+      trMix(trName,trProg,_trTo);
       drawGL(t,strongPulse,TR.fbo.tex);
-    } else if(_vid2vid){
-      /* AVANT la coupe : sortante -> noir croissant */
-      drawSegAt(sg, t, 0, 1);
-      try{ if(bctx){ bctx.save(); bctx.globalAlpha=Math.max(0,Math.min(1,trProg)); bctx.fillStyle="#000"; bctx.fillRect(0,0,base.width,base.height); bctx.restore(); } }catch(e){}
-      if(glReady) drawGL(t,strongPulse);
-    } else if(_postBlack>0){
-      /* APRÈS la coupe : entrante (rendu normal) -> noir décroissant */
-      drawSegAt(sg, t, 0, 1);
-      try{ if(bctx){ bctx.save(); bctx.globalAlpha=Math.max(0,Math.min(1,_postBlack)); bctx.fillStyle="#000"; bctx.fillRect(0,0,base.width,base.height); bctx.restore(); } }catch(e){}
-      if(glReady) drawGL(t,strongPulse);
     } else {
       var r=renderBaseFrame(t);
       if(glReady) drawGL(t,r.strongPulse);
@@ -10042,6 +10078,7 @@ function studioApplyProject(proj){ if(!proj) return; try{
     if(_ps!=null){ window.PERSO_SYNC=_ps; window.PERSO_BASE=proj.persoBase||proj.mood||MOOD; SYNC_M[window.PERSO_BASE]=_ps; MOOD=window.PERSO_BASE;
       setTimeout(function(){ try{ if(window._persoUI)window._persoUI(); setState("Ambiance : <b>Personnalis\u00e9</b>"); }catch(e){} },900);
     } else { window.PERSO_SYNC=null; window.PERSO_BASE=null; } }catch(e){}
+  try{ if(typeof _applyMoodUI==="function") _applyMoodUI(MOOD); if(window._reflectMood) window._reflectMood(MOOD); }catch(e){}   /* v1132 : resync AFFICHAGE du mode (badge compact + ambiance + boutons + sync) au MOOD reellement restaure — avant, le film gardait l'ancien mode a l'ecran alors qu'il tournait dans un autre */
   if(typeof SIGN!=="undefined"){ SIGN.on=(proj.sign && proj.sign.on===false)?false:true; window.SIGN_TEXT=(proj.sign&&proj.sign.text)||null; window.SIGN_CTX=proj.signCtx||null; window.__signSource=(proj.sign&&proj.sign.meta&&proj.sign.meta.source)||null; SIGN.data=null; SIGN._bgPrep=null; SIGN._steps=null; try{ if(window._syncSignTog)window._syncSignTog(); }catch(e){} }   /* v1086a/v1089/v1090/v1091 */
   if(proj.sign && proj.sign.text) window.SIGN_TEXT=proj.sign.text;
   var byId={}; for(var i=0;i<PHOTOS.length;i++){ if(PHOTOS[i]&&PHOTOS[i]._id) byId[PHOTOS[i]._id]=PHOTOS[i]; }
@@ -10142,6 +10179,7 @@ function _afterOpenFilm(proj){ try{ _linkSources(); }catch(e){} try{
     if(_ps!=null){ window.PERSO_SYNC=_ps; window.PERSO_BASE=proj.persoBase||proj.mood||MOOD; SYNC_M[window.PERSO_BASE]=_ps; MOOD=window.PERSO_BASE;
       setTimeout(function(){ try{ if(window._persoUI)window._persoUI(); setState("Ambiance : <b>Personnalis\u00e9</b>"); }catch(e){} },900);
     } else { window.PERSO_SYNC=null; window.PERSO_BASE=null; } }catch(e){}
+  try{ if(typeof _applyMoodUI==="function") _applyMoodUI(MOOD); if(window._reflectMood) window._reflectMood(MOOD); }catch(e){}   /* v1132 : resync AFFICHAGE du mode (badge compact + ambiance + boutons + sync) au MOOD reellement restaure — avant, le film gardait l'ancien mode a l'ecran alors qu'il tournait dans un autre */
   if(typeof SIGN!=="undefined"){ SIGN.on=(proj.sign && proj.sign.on===false)?false:true; window.SIGN_TEXT=(proj.sign&&proj.sign.text)||null; window.SIGN_CTX=proj.signCtx||null; window.__signSource=(proj.sign&&proj.sign.meta&&proj.sign.meta.source)||null; SIGN.data=null; SIGN._bgPrep=null; SIGN._steps=null; try{ if(window._syncSignTog)window._syncSignTog(); }catch(e){} }   /* v1086a/v1089/v1090/v1091 */
   if(proj.sign && proj.sign.text) window.SIGN_TEXT=proj.sign.text;
   try{ updateBadge(); paintStrip(0); }catch(e){}
@@ -10679,7 +10717,11 @@ function _studioCutDiag(){
     var av=(typeof TR!=="undefined"&&TR.okNames&&TR.okNames.length)?TR.okNames:(typeof GT_NAMES!=="undefined"?GT_NAMES:[]);
     var seen={}, transCount=0; pool.forEach(function(x){ if(!seen[x]&&av.indexOf(x)>=0){ seen[x]=1; transCount++; } });
     var md=window._MUSICDIAG||{};
-    return { n:n, total:total, mood:MOOD, bpm:Math.round(bpm), period:Math.round(period*1000), sync:Math.round(sync*1000),
+    var sameCut=0, realTr=0;
+    try{ for(var q=1;q<SEGS.length;q++){ var sq=SEGS[q]; if(!sq||sq.sign) continue;
+      if(sq._sameClipCut) sameCut++;
+      else if(sq.trans && sq.trans!=="cut" && sq.trans!=="none") realTr++; } }catch(e){}
+    return { sameCut:sameCut, realTr:realTr, n:n, total:total, mood:MOOD, bpm:Math.round(bpm), period:Math.round(period*1000), sync:Math.round(sync*1000),
       bias:Math.round(bias*1000), med:Math.round(absArr[n>>1]*1000), max:Math.round(absArr[n-1]*1000),
       off:off, transCount:transCount, gridCovers:(md.gridCoversCuts!==false), gridEnd:md.gridEnd, mediaEnd:md.mediaEnd };
   }catch(e){ return {err:String(e)}; }
@@ -10701,7 +10743,8 @@ function _studioCutDiagText(d){
   L.push("  hors grille (>60ms) : "+d.off.length+"/"+d.total);
   if(d.off.length){ d.off.slice(0,8).forEach(function(o){ L.push("   • plan "+o.plan+" : "+(o.ms>0?"+":"")+o.ms+" ms — "+o.reason+(o.accepted?" [clip court, voulu]":"")); }); }
   L.push("");
-  L.push("TRANSITIONS : "+d.transCount+" du mode "+d.mood+" (aucune etrangere)");
+  L.push("TRANSITIONS : "+d.realTr+" transitions jouees \u00b7 "+d.transCount+" effets compatibles disponibles ("+d.mood+", aucun etranger au mode)");
+  L.push("Coupes seches meme clip : "+d.sameCut+"  (exclues des transitions \u2014 un seul decodeur video, melange impossible)");
   L.push("GRILLE : "+(d.gridCovers?"couvre les coupes ✓":("trop courte — s'arrete a "+d.gridEnd+"s, medias jusqu'a "+d.mediaEnd+"s")));
   L.push("");
   var sol=[];
@@ -11197,18 +11240,20 @@ function _exportVideoNeedsAt(t){
     var clip=CLIPS[seg.vclip]; var st=(seg.vstart||0)+Math.max(0,time-seg.start)*(seg.vspeed||clip.speed||1);
     result.push({clipIndex:seg.vclip, sourceTime:st});
   }
-  var trName=next?(next.trans||"none"):"none";
-  var trDur=(next&&trName!=="cut"&&trName!=="none")?Math.min(next.trDur!=null?next.trDur:0.5,(sg.end-sg.start)*0.5):0;
-  var trStart=next?(next.start-trDur):Infinity;
-  var _inTr=(trDur>0 && t>=trStart && t<next.start);
-  var _v2v=(_inTr && sg.video && next.video);
-  if(_v2v){
-    /* FONDU AU NOIR (avant la coupe) : préparer SEULEMENT la sortante. L'entrante sera préparée
-       normalement une fois qu'on aura atteint son segment (après next.start) -> aucune lecture anticipée. */
-    add(sg,t);
+  var _wn=(typeof _transitionAt==="function")?_transitionAt(t):{inTrans:false};   /* v1136 : meme resolveur que le rendu -> la 2e moitie des fondus centres est PREPAREE aussi */
+  var trName=_wn.inTrans?_wn.name:(next?(next.trans||"none"):"none");
+  var _inTr=_wn.inTrans;
+  if(_inTr && _wn.from && _wn.to){ next=_wn.to; sg=_wn.from; }
+  /* v1137 : pendant TOUTE transition, on prepare les DEUX sources AUX TEMPS REELLEMENT DESSINES par le rendu
+     (cf. _loopBody / renderMontageAt : from a min(t,to.start-0.001), to a max(t,to.start)).
+     L'ancien cas "fondu au noir video->video" (une seule source) est supprime : v1136 dessine bien les deux.
+     CAS MEME CLIP des deux cotes : un seul element video ne peut pas fournir 2 positions -> on ne demande
+     QU'UNE position, celle du cote visuellement dominant (prog<0.5 -> sortante, sinon entrante). */
+  if(_inTr && sg && next){
+    var _tf=Math.min(t, next.start-0.001), _tt=Math.max(t, next.start);
+    add(sg,_tf); add(next,_tt);   /* v1138 : plus de cas sameClip ici — _trWindow force une coupe seche dans ce cas, donc jamais de transition a preparer entre deux segments du meme clip */
   } else {
     add(sg,t);
-    if(_inTr) add(next,next.start);   /* transitions non-vidéo (mix) : les deux, comme avant */
   }
   return result;
 }
@@ -11250,43 +11295,19 @@ function renderMontageAt(t){ try{ window.__MMT_BOTTOM_CAP_TOP=null; }catch(e){}
   var next=(idx>=0 && idx+1<SEGS.length)?SEGS[idx+1]:null;
   var trName=next?next.trans:"none";
   var TRd=(next&&trName!=="cut"&&trName!=="none")?Math.min((next.trDur!=null?next.trDur:0.5),(sg?(sg.end-sg.start)*0.5:0)):0;
-  /* v1120 — MIXAGE : une coupe sèche PHOTO->PHOTO reçoit un micro fondu enchaîné CENTRÉ sur le beat
-     (le milieu du fondu tombe pile sur next.start) — durée = punch du mode. Zéro désynchronisation : le
-     point de bascule reste sur le temps. Les clips vidéo et les vraies transitions ne sont pas touchés. */
-  var _pp2=(next&&(trName==="cut"||trName==="none")&&sg&&!sg.video&&!next.video&&!sg.sign&&!next.sign);
-  var _mixHalf=0; var _mixCentered=false;
-  if(_pp2){ try{ var _pu=(typeof MOODS!=="undefined"&&MOODS[MOOD]&&MOODS[MOOD].punch!=null)?MOODS[MOOD].punch:0.05;
-    _mixHalf=Math.max(0.02,Math.min(_pu, (sg.end-sg.start)*0.45, (next.end-next.start)*0.45)); _mixCentered=true; }catch(e){ _mixHalf=0; } }
-  var preStart, inTrans, trProg;
-  if(_mixCentered && _mixHalf>0){
-    preStart=next.start-_mixHalf; var _mixEnd=next.start+_mixHalf;
-    inTrans=(t>=preStart && t<_mixEnd);
-    trProg=inTrans?((t-preStart)/(2*_mixHalf)):0;   /* 0->1 : 0.5 exactement sur le beat */
-    if(inTrans) trName="crossfade";
-  } else {
-    preStart=next?(next.start-TRd):Infinity;
-    inTrans=(sg&&next&&TRd>0&&t>=preStart&&t<next.start);
-    trProg=inTrans?((t-preStart)/TRd):0;
-  }
+  /* v1133 (Lot 3) — rendu C267 : la transition CHOISIE joue UNIQUEMENT avant next.start (0->1 finie pile sur la coupe).
+     cut/none -> TRd=0 -> inTrans faux -> coupe seche, AUCUN fondu ajoute. Micro-fondu centre v1120 SUPPRIME (sa 2e moitie ne se rendait pas -> accroc sur la coupe). */
+  var _wu=(typeof _transitionAt==="function")?_transitionAt(t):{inTrans:false,prog:0};
+  var inTrans=_wu.inTrans, trProg=_wu.prog, _trFrom=_wu.from, _trTo=_wu.to;   /* v1136 : resolveur GLOBAL (2 frontieres) -> la 2e moitie d'un fondu centre n'est plus perdue */
+  if(inTrans && _wu.name) trName=_wu.name;
   var strongPulse=(sg&&sg.strong&&into<0.10)?(1-into/0.10):0;
   _atmo=sg?(sg.atmo||null):null; _atmoAmt=(ATMO_AMT[MOOD]!=null?ATMO_AMT[MOOD]:0.6);
-  /* FONDU AU NOIR vidéo->vidéo CENTRÉ sur la coupe (identique lecture) : avant = sortante->noir, après = noir->entrante réelle. Pas de saut arrière. */
-  var _vid2vidX=(inTrans && sg && next && sg.video && next.video);
-  var _halfPrevX=(prev && prev.video && sg && sg.video && sg.trans!=="cut" && sg.trans!=="none")?Math.min((sg.trDur!=null?sg.trDur:0.5),(sg.end-sg.start)*0.5):0;   /* v1072 — GPT n°1 (côté rendu/export) */
-  var _postBlackX=(_halfPrevX>0 && prev && prev.video && sg.video && into<_halfPrevX)?(1-(into/_halfPrevX)):0;
-  if(glReady && TR.ready && inTrans && !_vid2vidX){
-    drawSegAt(sg,t,0,1); trUpload(TR.texFrom);
-    drawSegAt(next,next.start,0,1); trUpload(TR.texTo);
-    trMix(trName,trProg,next);
+  /* v1133 (Lot 3) — video->video : effet GL SELECTIONNE (comme C267), plus de noir impose (identique apercu/export). Avert. iOS : lecture anticipee de l'entrante -> pre-seek cible si saut arriere. */
+  if(glReady && TR.ready && inTrans && _trFrom && _trTo){
+    drawSegAt(_trFrom,Math.min(t,_trTo.start-0.001),0,1); trUpload(TR.texFrom);
+    drawSegAt(_trTo,Math.max(t,_trTo.start),0,1); trUpload(TR.texTo);
+    trMix(trName,trProg,_trTo);
     drawGL(t,strongPulse,TR.fbo.tex);
-  } else if(_vid2vidX){
-    drawSegAt(sg, t, 0, 1);
-    try{ if(bctx){ bctx.save(); bctx.globalAlpha=Math.max(0,Math.min(1,trProg)); bctx.fillStyle="#000"; bctx.fillRect(0,0,base.width,base.height); bctx.restore(); } }catch(e){}
-    if(glReady) drawGL(t,strongPulse);
-  } else if(_postBlackX>0){
-    drawSegAt(sg, t, 0, 1);
-    try{ if(bctx){ bctx.save(); bctx.globalAlpha=Math.max(0,Math.min(1,_postBlackX)); bctx.fillStyle="#000"; bctx.fillRect(0,0,base.width,base.height); bctx.restore(); } }catch(e){}
-    if(glReady) drawGL(t,strongPulse);
   } else { var r=renderBaseFrame(t); if(glReady) drawGL(t,r.strongPulse); }
   if(window.SIGN_PE && t>window.SIGN_PE-1.5 && t<window.SIGN_PE){ try{ _fadeBlackOverlay((t-(window.SIGN_PE-1.5))/1.5); }catch(e){} }
 }
