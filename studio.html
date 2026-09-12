@@ -99,7 +99,7 @@ body{display:flex;justify-content:center}
 }
 .header{flex:0 0 44px}
 .hero{flex:1 1 0;min-height:200px}
-.info{flex:0 0 62px}
+.info{flex:0 0 auto;min-height:66px}   /* v1148 : hauteur pilotee par le contenu (min 66) au lieu de 62px fixe -> plus de rognage du texte, quelle que soit la taille de police iOS */
 .section{flex:0 0 auto}
 .s-seq{flex:0 0 92px}
 .s-src{flex:0 0 58px}
@@ -139,8 +139,8 @@ body{display:flex;justify-content:center}
 .info>div:last-child{border-right:0}
 .info .ico{color:var(--gold);display:grid;place-items:center}
 .info .ico svg{width:16px;height:16px}
-.info b{font-size:11.5px;white-space:nowrap;line-height:1.1}
-.info small{font-size:9.5px;color:var(--muted);line-height:1.1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;display:block;max-width:100%}
+.info b{font-size:12px;white-space:nowrap;line-height:1.3}   /* v1148 : 11.5->12px (lisibilite) + line-height 1.1->1.3 (le haut des glyphes gras n'est plus coupe par overflow:hidden) */
+.info small{font-size:9.5px;color:var(--muted);line-height:1.25;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;display:block;max-width:100%}
 .info>div{min-width:0;overflow:hidden}
 .info b{overflow:hidden;text-overflow:ellipsis;max-width:100%}
 
@@ -334,7 +334,7 @@ input[type=range]::-moz-range-thumb{width:16px;height:16px;border-radius:50%;bac
 @media (max-height:760px){
   .app{gap:6px}
   .s-seq{flex-basis:98px}.s-src{flex-basis:60px}.s-amb{flex-basis:50px}
-  .info{flex-basis:62px}.actions-wrap{flex-basis:46px}.hero{min-height:100px}
+  .info{flex-basis:auto;min-height:62px}.actions-wrap{flex-basis:46px}.hero{min-height:100px}
   .hero-copy h2{font-size:17px}.brand h1{font-size:20px}
   .watch{height:44px;font-size:14px}
   .films-btn{width:44px;height:44px;padding:0}
@@ -1282,7 +1282,7 @@ function renderPlanToBuffer(dur, sr){
 function analyzeBufferInto(buf, cb){ try{ essentiaReady.then(function(ok){ if(ok){ setTimeout(function(){ try{ toMono44(buf,function(sig,sr){ var An; try{ An=analyzeEssentia(sig,sr,buf.duration); if(!_analysisOK(An)) An=analyzeCustom(buf); }catch(e){ An=analyzeCustom(buf); } cb(An); }); }catch(e){ cb(analyzeCustom(buf)); } }, 20); } else { setTimeout(function(){ cb(analyzeCustom(buf)); }, 20); } }); }catch(e){ try{ cb(analyzeCustom(buf)); }catch(e2){ cb(null); } } }
 
 var CLIPS=[], clipVidReady=false, VIDACT=-1;
-window.STUDIO_VERSION="v1147";
+window.STUDIO_VERSION="v1149";
 window.MAGOT_EXPORT_ENGINE="auto"; try{ window.MAGOT_EXPORT_ENGINE=localStorage.getItem("magot_export_engine")||"auto"; }catch(e){}
 function setMagotExportEngine(mode){ if(mode!=="auto"&&mode!=="turbo"&&mode!=="mediarecorder") mode="auto"; window.MAGOT_EXPORT_ENGINE=mode; try{ localStorage.setItem("magot_export_engine",mode); }catch(e){} }
 function _exportEngineLabel(){ var m=window.MAGOT_EXPORT_ENGINE; return m==="turbo"?"Export : Turbo test":m==="mediarecorder"?"Export : Compatible":"Export : Automatique"; }
@@ -1703,7 +1703,7 @@ function snapKick(t){   /* v1146 — RETOUR MOTEUR C267 + conscience de piste : 
     if(window.MULTI && window.MPLAN && window.MPLAN.length && typeof TRACKS!=="undefined" && TRACKS.length){
       var P=window.MPLAN, _si=0; for(var _i=P.length-1;_i>=0;_i--){ if(t>=P[_i].mStart-0.001){ _si=_i; break; } }
       var _seg=P[_si]; if(_seg && TRACKS[_seg.ti] && TRACKS[_seg.ti].A && TRACKS[_seg.ti].A.kEnv && TRACKS[_seg.ti].A.efps){ An=TRACKS[_seg.ti].A; lt=_seg.entry+(t-_seg.mStart); }
-    }
+    } else if(window.LOOP_ON && typeof audioAt==="function"){ lt=audioAt(t); }   /* v1149 : MODE BOUCLE — ramener au temps PISTE reellement joue (audioAt gere la region rejouee, ce que l'utilisateur entend comme "le remix"/la repetition). Avant, snapKick lisait A.kEnv au temps MONTAGE brut -> apres la boucle, position fausse ou hors limites -> plus de calage -> derive. En 1re passe (t<=LOOP_END) audioAt(t)=t -> comportement inchange. */
   }catch(e){}
   if(!An||!An.kEnv||!An.efps) return t;
   var f=An.efps, i=Math.round(lt*f), w=Math.round(0.06*f), bk=i, bv=-1;
