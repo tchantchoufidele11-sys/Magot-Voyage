@@ -1282,7 +1282,7 @@ function renderPlanToBuffer(dur, sr){
 function analyzeBufferInto(buf, cb){ try{ essentiaReady.then(function(ok){ if(ok){ setTimeout(function(){ try{ toMono44(buf,function(sig,sr){ var An; try{ An=analyzeEssentia(sig,sr,buf.duration); if(!_analysisOK(An)) An=analyzeCustom(buf); }catch(e){ An=analyzeCustom(buf); } cb(An); }); }catch(e){ cb(analyzeCustom(buf)); } }, 20); } else { setTimeout(function(){ cb(analyzeCustom(buf)); }, 20); } }); }catch(e){ try{ cb(analyzeCustom(buf)); }catch(e2){ cb(null); } } }
 
 var CLIPS=[], clipVidReady=false, VIDACT=-1;
-window.STUDIO_VERSION="v1126";
+window.STUDIO_VERSION="v1127";
 window.MAGOT_EXPORT_ENGINE="auto"; try{ window.MAGOT_EXPORT_ENGINE=localStorage.getItem("magot_export_engine")||"auto"; }catch(e){}
 function setMagotExportEngine(mode){ if(mode!=="auto"&&mode!=="turbo"&&mode!=="mediarecorder") mode="auto"; window.MAGOT_EXPORT_ENGINE=mode; try{ localStorage.setItem("magot_export_engine",mode); }catch(e){} }
 function _exportEngineLabel(){ var m=window.MAGOT_EXPORT_ENGINE; return m==="turbo"?"Export : Turbo test":m==="mediarecorder"?"Export : Compatible":"Export : Automatique"; }
@@ -12682,7 +12682,7 @@ function _studioPickMode(current, cb){
       try{ AUDIOBUF=t._buf; A=t._A; setMusicEl(t._file); }catch(e){}
       try{ window.__activeMusicFile=t._file||null; window.__activeMusicMeta={ id:t.id, catId:(t.catId!=null?t.catId:null), title:t.title, url:t.url||null, type:t.type||null, cover:t.cover||null }; }catch(e){}
       var _wasAuto=!!window._musicAuto; window._musicAuto=false;
-      try{ var _cat=String(t.type||"").toLowerCase(); if(!_wasAuto && ["cinema","doux","voyage","dynamique"].indexOf(_cat)>=0 && typeof MOOD!=="undefined" && _cat!==MOOD){ MOOD=_cat; try{ _applyMoodUI(_cat); }catch(e){} } }catch(e){}   /* choix utilisateur : le mode suit la piste */
+      /* v1127 : le choix MANUEL d'une musique ne change PLUS le mode — l'utilisateur choisit mode ET musique independamment. Le mode ne suit la piste QU'EN montage AUTO (studioAutoMontage via input.mood). Corrige l'incoherence mode haut/bas et le "ca ne claque plus" (coupes/transitions/sync tournaient sous le mode de la piste, pas celui choisi par l'utilisateur). */
       try{ if(typeof finishAnalyze==="function") finishAnalyze(); }catch(e){}
       if(!_wasAuto || window._musicRebuildAfter){ window._musicRebuildAfter=false; try{ if(A && (typeof PHOTOS!=="undefined") && (PHOTOS.length||clipVidReady) && typeof buildPartition==="function"){ buildPartition(); paintStrip(0); try{ renderMontageAt(0); }catch(e){} } }catch(e){} }   /* applique tout de suite la nouvelle musique/mode si un montage existe */
       renderLib();
