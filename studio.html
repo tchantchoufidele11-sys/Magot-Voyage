@@ -1282,7 +1282,7 @@ function renderPlanToBuffer(dur, sr){
 function analyzeBufferInto(buf, cb){ try{ essentiaReady.then(function(ok){ if(ok){ setTimeout(function(){ try{ toMono44(buf,function(sig,sr){ var An; try{ An=analyzeEssentia(sig,sr,buf.duration); if(!_analysisOK(An)) An=analyzeCustom(buf); }catch(e){ An=analyzeCustom(buf); } cb(An); }); }catch(e){ cb(analyzeCustom(buf)); } }, 20); } else { setTimeout(function(){ cb(analyzeCustom(buf)); }, 20); } }); }catch(e){ try{ cb(analyzeCustom(buf)); }catch(e2){ cb(null); } } }
 
 var CLIPS=[], clipVidReady=false, VIDACT=-1;
-window.STUDIO_VERSION="v1129";
+window.STUDIO_VERSION="v1130";
 window.MAGOT_EXPORT_ENGINE="auto"; try{ window.MAGOT_EXPORT_ENGINE=localStorage.getItem("magot_export_engine")||"auto"; }catch(e){}
 function setMagotExportEngine(mode){ if(mode!=="auto"&&mode!=="turbo"&&mode!=="mediarecorder") mode="auto"; window.MAGOT_EXPORT_ENGINE=mode; try{ localStorage.setItem("magot_export_engine",mode); }catch(e){} }
 function _exportEngineLabel(){ var m=window.MAGOT_EXPORT_ENGINE; return m==="turbo"?"Export : Turbo test":m==="mediarecorder"?"Export : Compatible":"Export : Automatique"; }
@@ -2135,6 +2135,7 @@ function buildPartition(){
   (function(){ var _ld=null; for(var _dm=0; _dm<SEGS.length; _dm++){ var _sgd=SEGS[_dm]; if(_sgd.sign||_sgd.video||_sgd.img==null||_sgd.img<0){ continue; } var _dv=(PHOTOS[_sgd.img]&&PHOTOS[_sgd.img]._day!=null)?PHOTOS[_sgd.img]._day:null; if(_dv==null){ continue; } _sgd._dayStart=(_dv!==_ld)?_dv:null; _ld=_dv; } })();
   /* SIGNATURE : intro au tout début, outro à la toute fin -> plans à part entière de la timeline.
      La musique joue par-dessus (elle démarre sur l'intro, se termine sur l'outro). */
+  try{ _snapClipCuts(SEGS, beats, CLIPS); }catch(e){}   /* v1130 : cale les coupes clips source-limites sur le beat, avant l'attribution des transitions */
   /* v1124 — ATTRIBUTION UNIQUE des transitions, sur la partition MEDIA finale (AVANT la signature) :
      sac neuf ; index MEDIA (independant de intro/outro) ; 1er media = "none" ; transitions forcees par une
      mutation (fade/cut) PRESERVEES ; gtChoose seulement sur les frontieres media qui n'ont pas de transition. */
@@ -2266,6 +2267,26 @@ function buildPartition(){
 
 /* ================= Rendu 2D ================= */
 var base=document.getElementById("base"), bctx=base.getContext("2d");
+function _snapClipCuts(segs, beats, clips){   /* v1130 : calage premium des coupes clips source-limites (>= 1 temps) sur le beat le plus proche. Suivante = photo (absorbe le delta, 2 bords sur la grille, pas de cascade). Extension bornee par la matiere source (vstart) -> pas de gel. Clip < 1 temps : joue entier (v1080 preserve). */
+  try{ if(!beats||!beats.length) return;
+    var bStep=(typeof _mediaBeatP==="function")?_mediaBeatP(beats):0.5;
+    for(var i=0;i<segs.length-1;i++){ var cg=segs[i], ng=segs[i+1];
+      if(!cg||!cg.video||cg.vclip==null||cg.sign) continue;
+      if(!ng||ng.sign||ng.video||ng.img==null||ng.img<0) continue;
+      var cl=clips[cg.vclip]; if(!cl) continue;
+      if((cg.end-cg.start) < bStep-1e-3) continue;
+      var spd=Math.max(0.5, cg.vspeed||cl.speed||1);
+      var te=(cl.trimEnd!=null?cl.trimEnd:cl.dur)||0;
+      var vs=(cg.vstart!=null)?cg.vstart:(cl.trimStart||0);
+      var srcMaxEnd=cg.start + Math.max(0.3, (te - vs - 0.1)/spd);
+      var lo=cg.start+bStep, hi=Math.min(srcMaxEnd, ng.end-0.30);
+      if(hi < lo) continue;
+      var bBeat=-1, bD=1e9;
+      for(var j=0;j<beats.length;j++){ var bt=beats[j]; if(bt<lo-1e-6) continue; if(bt>hi+1e-6) break; var d=Math.abs(bt-cg.end); if(d<bD){ bD=d; bBeat=bt; } }
+      if(bBeat>0 && Math.abs(bBeat-cg.end)>0.02){ cg.end=bBeat; ng.start=bBeat; cg._durOnBeat=true; cg._durSrcLim=false; cg._snapped130=true; }
+    }
+  }catch(e){}
+}
 function _viaImgBlob(blob,done,fail){ try{ var u=URL.createObjectURL(blob); var im=new Image(); im.onload=function(){ done(im); try{URL.revokeObjectURL(u);}catch(e){} }; im.onerror=function(){ try{URL.revokeObjectURL(u);}catch(e){} fail(); }; im.src=u; }catch(e){ fail(); } }
 function _canvasOf(src){ try{ var w=src.width||0,h=src.height||0; if(!w||!h) return null; var c=document.createElement("canvas"); c.width=w; c.height=h; var cx=c.getContext("2d"); if(!cx) return null; cx.drawImage(src,0,0,w,h); return c; }catch(e){ return null; } }
 /* DÉCODAGE À LA TAILLE CIBLE : createImageBitmap({resizeWidth}) fait décoder Safari en réduit
