@@ -1279,10 +1279,10 @@ function renderPlanToBuffer(dur, sr){
   return out;
 }
 
-function analyzeBufferInto(buf, cb){ try{ essentiaReady.then(function(ok){ if(ok){ setTimeout(function(){ try{ toMono44(buf,function(sig,sr){ var An; try{ An=analyzeEssentia(sig,sr,buf.duration); }catch(e){ An=analyzeCustom(buf); } cb(An); }); }catch(e){ cb(analyzeCustom(buf)); } }, 20); } else { setTimeout(function(){ cb(analyzeCustom(buf)); }, 20); } }); }catch(e){ try{ cb(analyzeCustom(buf)); }catch(e2){ cb(null); } } }
+function analyzeBufferInto(buf, cb){ try{ essentiaReady.then(function(ok){ if(ok){ setTimeout(function(){ try{ toMono44(buf,function(sig,sr){ var An; try{ An=analyzeEssentia(sig,sr,buf.duration); if(!_analysisOK(An)) An=analyzeCustom(buf); }catch(e){ An=analyzeCustom(buf); } cb(An); }); }catch(e){ cb(analyzeCustom(buf)); } }, 20); } else { setTimeout(function(){ cb(analyzeCustom(buf)); }, 20); } }); }catch(e){ try{ cb(analyzeCustom(buf)); }catch(e2){ cb(null); } } }
 
 var CLIPS=[], clipVidReady=false, VIDACT=-1;
-window.STUDIO_VERSION="v1120";
+window.STUDIO_VERSION="v1121";
 window.MAGOT_EXPORT_ENGINE="auto"; try{ window.MAGOT_EXPORT_ENGINE=localStorage.getItem("magot_export_engine")||"auto"; }catch(e){}
 function setMagotExportEngine(mode){ if(mode!=="auto"&&mode!=="turbo"&&mode!=="mediarecorder") mode="auto"; window.MAGOT_EXPORT_ENGINE=mode; try{ localStorage.setItem("magot_export_engine",mode); }catch(e){} }
 function _exportEngineLabel(){ var m=window.MAGOT_EXPORT_ENGINE; return m==="turbo"?"Export : Turbo test":m==="mediarecorder"?"Export : Compatible":"Export : Automatique"; }
@@ -1392,15 +1392,18 @@ function setMusicEl(file){ try{ if(audioURL) URL.revokeObjectURL(audioURL); }cat
 
 /* ================= Essentia (chargement asynchrone + repli) ================= */
 var essentia=null, ESSENTIA_STATE="loading";
-var essentiaReady=new Promise(function(resolve){
-  setTimeout(function(){
-    if(typeof EssentiaWASM==="undefined"||typeof Essentia==="undefined"){ ESSENTIA_STATE="fail"; resolve(false); return; }
-    try{
-      EssentiaWASM().then(function(wasm){ try{ essentia=new Essentia(wasm); ESSENTIA_STATE="ok"; resolve(true); }catch(e){ ESSENTIA_STATE="fail"; resolve(false); } })
-      .catch(function(){ ESSENTIA_STATE="fail"; resolve(false); });
-    }catch(e){ ESSENTIA_STATE="fail"; resolve(false); }
-  },0);
-});
+function _essentiaLoad(){   /* v1121 : (re)chargement Essentia — la Promise resout true SEULEMENT apres creation EFFECTIVE de l'objet ; recreee a chaque appel (repli apres liberation d'export). __essentiaFreed remis a false UNIQUEMENT en cas de succes. */
+  return new Promise(function(resolve){
+    setTimeout(function(){
+      if(typeof EssentiaWASM==="undefined"||typeof Essentia==="undefined"){ essentia=null; ESSENTIA_STATE="fail"; resolve(false); return; }
+      try{
+        EssentiaWASM().then(function(wasm){ try{ essentia=new Essentia(wasm); ESSENTIA_STATE="ok"; try{ window.__essentiaFreed=false; }catch(e){} resolve(true); }catch(e){ essentia=null; ESSENTIA_STATE="fail"; resolve(false); } })
+        .catch(function(){ essentia=null; ESSENTIA_STATE="fail"; resolve(false); });
+      }catch(e){ essentia=null; ESSENTIA_STATE="fail"; resolve(false); }
+    },0);
+  });
+}
+var essentiaReady=_essentiaLoad();
 
 /* ================= Ambiances (hold = nombre entier de temps) ================= */
 var MOODS={
@@ -1527,8 +1530,9 @@ function inferMetric(beats,strength){
   for(var i=0;i<n;i++){ var pos=((i-best)%4+4)%4; m[i]= pos===0?1.0 : (pos===2?0.6:0.3); }   /* "1" fort, "3" moyen, contretemps faible */
   return m;
 }
+function _analysisOK(An){ return !!(An && An.engine && An.engine!=="none" && An.beats && An.beats.length>=2 && Object.prototype.toString.call(An.metric)==="[object Array]"); }   /* v1121 : garde-fou repli — resultat sans moteur, <2 beats, ou metrique non-tableau => analyzeCustom */
 function analyzeEssentia(sig,sr,dur){
-  if(!essentia){ try{ var env=computeEnv(sig,sr), se=strengthEnergy(env,[]); return {beats:[],dur:dur,bpm:0,conf:0,period:0.5,fps:se.fps,energy:se.energy,strength:se.strength,metric:4,kEnv:env.kEnv,efps:env.fps,engine:"none"}; }catch(e){ return {beats:[],dur:dur,bpm:0,conf:0,period:0.5,engine:"none"}; } }   /* essentia libéré (après un export) -> pas de crash, résultat neutre */
+  if(!essentia){ try{ var env=computeEnv(sig,sr), se=strengthEnergy(env,[]); return {beats:[],dur:dur,bpm:0,conf:0,period:0.5,fps:se.fps,energy:se.energy,strength:se.strength,metric:[],kEnv:env.kEnv,efps:env.fps,engine:"none"}; }catch(e){ return {beats:[],dur:dur,bpm:0,conf:0,period:0.5,engine:"none"}; } }   /* essentia libéré (après un export) -> pas de crash, résultat neutre */
   var beats=[], bpm=0, conf=0;
   var vec=essentia.arrayToVector(sig), r=null;
   try{
@@ -10498,7 +10502,7 @@ function _toggleFilmsMenu(anchor){
         var libN=0, libLyr=0, libTitles=[];
         try{ if(typeof LIB!=="undefined"){ for(var _i=0;_i<LIB.length;_i++){ var _t=LIB[_i]; if(_t&&_t.remote){ libN++; if(_t.lyrics||_t.lrc) libLyr++; if(libTitles.length<6) libTitles.push(_t.title+(( _t.lyrics||_t.lrc)?"[LRC]":"")); } } } }catch(e){}
         var _sn=0; try{ _sn=(window._SUBS?window._SUBS().length:0); }catch(e){}
-        var msg="VERSION "+(window.STUDIO_VERSION||"?")+"\n SUBS chargés: "+_sn+"\n\nMUSIQUE ACTIVE\n titre: "+(am.title||"(vide)")+"\n catId: "+(am.catId!=null?am.catId:"(vide)")
+        var msg="VERSION "+(window.STUDIO_VERSION||"?")+"\n SUBS chargés: "+_sn+"\n\nMUSIQUE ACTIVE\n titre: "+(am.title||"(vide)")+"\n catId: "+(am.catId!=null?am.catId:"(vide)")+"\n\nMOTEUR ANALYSE\n moteur: "+((typeof A!=="undefined"&&A&&A.engine)?A.engine:"(aucun)")+"\n beats: "+((typeof A!=="undefined"&&A&&A.beats)?A.beats.length:0)+"\n essentia: "+(essentia?"vivant":"libere")+" \u00b7 etat: "+ESSENTIA_STATE
           +"\n\nÉTAT PAROLES\n hasLyrics: "+window.__hasLyrics+"\n origLRC: "+((window.__origLRC||"").slice(0,30)||"(vide)")
           +"\n\nCATALOGUE\n pistes: "+libN+" | avec paroles: "+libLyr
           +"\n titres: "+(libTitles.join(", ")||"(catalogue vide)")
@@ -10623,7 +10627,7 @@ document.getElementById("fMusic").onchange=function(e){
       essentiaReady.then(function(ok){
         if(ok){ setState("Analyse Essentia… (quelques secondes)");
           setTimeout(function(){ try{ toMono44(buf,function(sig,sr){
-              try{ A=analyzeEssentia(sig,sr,buf.duration); }
+              try{ A=analyzeEssentia(sig,sr,buf.duration); if(!_analysisOK(A)){ A=analyzeCustom(buf); setState("Analyse Essentia faible \u2014 repli moteur maison."); } }
               catch(err){ A=analyzeCustom(buf); setState("Essentia a échoué — repli moteur maison."); }
               finishAnalyze(); }); }
             catch(err){ A=analyzeCustom(buf); finishAnalyze(); } }, 30);
@@ -11223,7 +11227,7 @@ function _expRestoreLight(){
   setTimeout(function(){ try{ if(window.__expRestorePending && !window.__resultOpen){ window.__expRestorePending=false; _expRestoreMem(); } }catch(e){} },4000);
 }
 function _expRestoreMem(){ try{ if(!playing) _memGuardStop(); }catch(e){} try{ window.__pinned=null; window.__expTgt=null; }catch(e){}
-  try{ if(window.__essentiaFreed){ window.__essentiaFreed=false; if(typeof EssentiaWASM!=="undefined" && typeof Essentia!=="undefined"){ EssentiaWASM().then(function(w){ try{ essentia=new Essentia(w); ESSENTIA_STATE="ok"; }catch(e){} }).catch(function(){}); } } }catch(e){}   /* recharge essentia après l'export pour les analyses futures */
+  try{ if(window.__essentiaFreed){ essentiaReady=_essentiaLoad(); } }catch(e){}   /* v1121 : recharge essentia apres export — Promise recreee, __essentiaFreed remis a false UNIQUEMENT apres creation reussie (sinon reessai au prochain _expRestoreMem ; repli maison entre-temps) */   /* recharge essentia après l'export pour les analyses futures */
   /* fin d'export : NE PAS recharger tous les clips. Détruire les lecteurs export dédiés. Garder max 3 sources. */
   try{ _destroyAllExportReaders(); }catch(e){}
   try{ window.__expClipHold=false; window.__expPrevClip=null; window.__mrExportSeg=-1; window.__mrWantedWindow=null; window.__clipWindowSeg=-1;
