@@ -9877,7 +9877,7 @@ async function studioCatalog(){ try{
   return (rows||[]).map(x=>({
     id:x.id, title:x.title||"Musique", artist:x.artist||"",
     mood:x.mood||"", type:x.type||x.genre||x.mood||"", genre:x.genre||x.mood||"",
-    cover:(x.cover&&/^https?:/.test(x.cover))?x.cover:(x.cover_url||""),
+    cover:(x.cover&&/^(https?:|data:image\/)/.test(x.cover))?x.cover:(x.cover_url||""),   /* v1111 : accepte data:image (pochettes enregistrées en base) */
     url:(x.path?magotUrl(x.path):(x.url||"")),
     duration:+x.duration||0, bpm:+x.bpm||0,
     lyrics:x.lyrics||x.lrc||""
@@ -9908,6 +9908,7 @@ function _studioBridge(w){ try{
   w.STUDIO_DELETE=magotDelete;
   w.STUDIO_SET_ARTIST=magotSetArtist;
   w.STUDIO_SET_COVER=magotSetCover;
+  w.STUDIO_ANALYZE_MUSIC=function(file){ return (typeof mvBeats==="function")?mvBeats(file):Promise.resolve(null); };   /* v1111 : l'analyse rythmique (mvBeats) traverse le pont */
 }catch(e){} }
 function _studioSync(){ const fr=document.getElementById("studioFrame"); if(!fr) return; let w=null; try{ w=fr.contentWindow; }catch(e){} if(!w) return;
   try{ w.STUDIO_LANG=_studioLang(); }catch(e){}

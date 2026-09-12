@@ -1272,7 +1272,7 @@ function renderPlanToBuffer(dur, sr){
 function analyzeBufferInto(buf, cb){ try{ essentiaReady.then(function(ok){ if(ok){ setTimeout(function(){ try{ toMono44(buf,function(sig,sr){ var An; try{ An=analyzeEssentia(sig,sr,buf.duration); }catch(e){ An=analyzeCustom(buf); } cb(An); }); }catch(e){ cb(analyzeCustom(buf)); } }, 20); } else { setTimeout(function(){ cb(analyzeCustom(buf)); }, 20); } }); }catch(e){ try{ cb(analyzeCustom(buf)); }catch(e2){ cb(null); } } }
 
 var CLIPS=[], clipVidReady=false, VIDACT=-1;
-window.STUDIO_VERSION="v1109";
+window.STUDIO_VERSION="v1111";
 window.MAGOT_EXPORT_ENGINE="auto"; try{ window.MAGOT_EXPORT_ENGINE=localStorage.getItem("magot_export_engine")||"auto"; }catch(e){}
 function setMagotExportEngine(mode){ if(mode!=="auto"&&mode!=="turbo"&&mode!=="mediarecorder") mode="auto"; window.MAGOT_EXPORT_ENGINE=mode; try{ localStorage.setItem("magot_export_engine",mode); }catch(e){} }
 function _exportEngineLabel(){ var m=window.MAGOT_EXPORT_ENGINE; return m==="turbo"?"Export : Turbo test":m==="mediarecorder"?"Export : Compatible":"Export : Automatique"; }
@@ -1331,7 +1331,7 @@ function _expForceReset(msg){
   try{ if(msg && typeof _expMsg==="function") _expMsg(msg); }catch(e){}
 }
 var EXPFMT={w:1080,h:1920,name:"9:16"};
-var SYNC_BASE={cinema:0, doux:0.08, dynamique:-0.06, voyage:0.02};   /* phase de base par mode (à 120 BPM) */
+var SYNC_BASE={cinema:0, doux:0, dynamique:0, voyage:0};   /* v1110 (LOT B) : offsets de mode À ZÉRO — le mode choisit les DURÉES et le style, plus jamais la PHASE. Le curseur Sync (manuel, parti de 0) est le seul décalage. */
 function autoSync(mode,bpm){ var bi=(bpm&&bpm>0)?60/bpm:0.5; var fct=Math.max(0.6,Math.min(1.8, bi/0.5)); return Math.max(-0.35,Math.min(0.35,(SYNC_BASE[mode]||0)*fct)); }
 var SYNC_M={cinema:autoSync("cinema",120),doux:autoSync("doux",120),dynamique:autoSync("dynamique",120),voyage:autoSync("voyage",120)};
 function recomputeSync(){ var bpm=(A&&A.bpmFelt)?A.bpmFelt:((A&&A.bpm)?A.bpm:120); SYNC_M={cinema:autoSync("cinema",bpm),doux:autoSync("doux",bpm),dynamique:autoSync("dynamique",bpm),voyage:autoSync("voyage",bpm)};
@@ -9257,7 +9257,7 @@ function _openLangPicker(){
   bg.style.cssText="position:fixed;inset:0;z-index:100050;background:rgba(0,0,0,.62);backdrop-filter:blur(4px);display:flex;align-items:flex-end;justify-content:center;font-family:system-ui,-apple-system,sans-serif";
   var card=document.createElement("div");
   card.style.cssText="width:100%;max-width:520px;background:#0f0e0d;border:1px solid #282622;border-radius:22px 22px 0 0;padding:8px 10px 22px;max-height:78vh;overflow:auto;box-shadow:0 -10px 50px rgba(0,0,0,.7)";
-  var head="<div style=\"text-align:center;padding:12px 0 6px\"><div style=\"width:40px;height:4px;background:#3a3733;border-radius:3px;margin:0 auto 12px\"></div><div style=\"color:#f4f7fc;font:700 17px system-ui\">\uD83C\uDF10 "+_st("Langue des paroles")+"</div><div style=\"color:#8a93a6;font:500 12.5px system-ui;margin-top:3px\">"+_st("Traduction synchronisée au rythme")+" \u00b7 v1109</div></div>";
+  var head="<div style=\"text-align:center;padding:12px 0 6px\"><div style=\"width:40px;height:4px;background:#3a3733;border-radius:3px;margin:0 auto 12px\"></div><div style=\"color:#f4f7fc;font:700 17px system-ui\">\uD83C\uDF10 "+_st("Langue des paroles")+"</div><div style=\"color:#8a93a6;font:500 12.5px system-ui;margin-top:3px\">"+_st("Traduction synchronisée au rythme")+" \u00b7 v1111</div></div>";
   var rows="";
   for(var i=0;i<window._LYRICS_LANGS.length;i++){ var code=window._LYRICS_LANGS[i][0], name=window._LYRICS_LANGS[i][1], fl=_LANG_FLAGS[code]||"\uD83C\uDF10", on=(window._LYRICS_LANG===code);
     rows+="<button class=\"lang-opt\" data-l=\""+code+"\" style=\"display:flex;align-items:center;gap:13px;width:100%;text-align:left;background:"+(on?"rgba(122,208,160,.14)":"none")+";border:1px solid "+(on?"rgba(122,208,160,.5)":"transparent")+";color:#f4f7fc;font:600 15.5px system-ui;padding:14px 15px;border-radius:13px;cursor:pointer;margin:3px 0\"><span style=\"font-size:22px\">"+fl+"</span><span style=\"flex:1\">"+name+"</span>"+(on?"<span style=\"color:#7ad0a0;font-size:18px\">\u2713</span>":"")+"</button>";
@@ -12445,12 +12445,13 @@ function _studioPickMode(current, cb){
     Array.prototype.forEach.call(lib.querySelectorAll("[data-pub]"),function(b){   /* v1108 : publier une musique LOCALE déjà importée */
       b.onclick=function(e){ if(e&&e.stopPropagation)e.stopPropagation(); var t=byId(b.getAttribute("data-pub")); if(!t) return; var _f=t._file||t.file; if(!_f){ try{ setState("Fichier introuvable pour la publication."); }catch(_){} return; }
         _studioPickMode(t.type||null, function(mode){ if(!mode) return; b.disabled=true; b.textContent="Publication\u2026";
-          Promise.resolve(window.STUDIO_UPLOAD(_f, t.title||"Musique", mode, t.artist||"", t.cover||"")).then(function(r){
+          function _pub(coverData){ Promise.resolve(window.STUDIO_UPLOAD(_f, t.title||"Musique", mode, t.artist||"", coverData||"")).then(function(r){
             if(r===true){ try{ setState("\u2713 Publi\u00e9 au catalogue ("+(_modeLabel(mode)||mode)+")."); }catch(_){} 
               try{ var _il=LIB.indexOf(t); if(_il>=0) LIB.splice(_il,1); }catch(_e){}   /* v1109 : retire la ligne LOCALE après succès (plus de doublon avec la version distante) */
               try{ if(typeof window.__reloadCatalog==="function") window.__reloadCatalog(); else renderLib(); }catch(_e){ try{ renderLib(); }catch(__e){} } }
             else { b.disabled=false; b.textContent="\u2b06 Publier au catalogue"; try{ setState(typeof r==="string"?r:"\u00c9chec de publication."); }catch(_){} }
-          }).catch(function(){ b.disabled=false; b.textContent="\u2b06 Publier au catalogue"; try{ setState("\u00c9chec r\u00e9seau."); }catch(_){} });
+          }).catch(function(){ b.disabled=false; b.textContent="\u2b06 Publier au catalogue"; try{ setState("\u00c9chec r\u00e9seau."); }catch(_){} }); }
+          try{ var _cov=t.cover||""; if(_cov && typeof _coverToDataURL==="function" && !/^data:/.test(_cov)){ _coverToDataURL(_cov, function(dataUrl){ _pub(dataUrl||""); }); } else { _pub(/^data:/.test(_cov)?_cov:""); } }catch(e){ _pub(""); }
         }); };
     });
     Array.prototype.forEach.call(lib.querySelectorAll(".mt-main"),function(b){
@@ -12643,8 +12644,10 @@ function _studioPickMode(current, cb){
       }catch(e){ cb(""); }
     }
     function _showImportDiag(d){ try{ var el=document.getElementById("impDiag"); if(!el){ el=document.createElement("div"); el.id="impDiag"; el.style.cssText="position:fixed;left:6px;top:150px;z-index:2147483647;max-width:94vw;background:rgba(20,60,140,.96);color:#fff;font:600 11px/1.45 system-ui;padding:9px 11px;border-radius:9px;white-space:pre-wrap;box-shadow:0 2px 14px rgba(0,0,0,.6);pointer-events:none"; document.body.appendChild(el); } el.textContent="IMPORT DIAG\nID3 pochette: "+d.id3+"\ndataURL Studio: "+d.durl+" Ko (reçu MV: "+(d.durlMV!=null?d.durlMV:"?")+" Ko)\nupload: "+d.r+" · body="+d.body+" · http="+d.http+(d.err?("\nerr: "+d.err):"")+"\nrelecture pochette: "+d.back; }catch(e){} }
-    function _suggestModeFromFile(f, cb){ try{ if(typeof mvBeats!=="function"){ cb(null); return; }
-        Promise.resolve(mvBeats(f)).then(function(an){ try{ cb(_studioModeFromAnalysis(an&&an.bpm, an&&an.beats, an&&an.strength)); }catch(e){ cb(null); } }).catch(function(){ cb(null); });
+    function _suggestModeFromFile(f, cb){ try{
+        var fn=(typeof window.STUDIO_ANALYZE_MUSIC==="function")?window.STUDIO_ANALYZE_MUSIC:null;   /* v1111 : l'analyse vit dans le parent — passée par le pont */
+        if(!fn){ cb(null); return; }
+        Promise.resolve(fn(f)).then(function(an){ try{ cb(_studioModeFromAnalysis(an&&an.bpm, an&&an.beats, an&&an.strength)); }catch(e){ cb(null); } }).catch(function(){ cb(null); });
       }catch(e){ cb(null); } }
     myMusicIn.onchange=function(){ var f=this.files&&this.files[0]; if(!f) return; this.value="";
       if(window.STUDIO_ADMIN && typeof window.STUDIO_UPLOAD==="function"){
