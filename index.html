@@ -13856,12 +13856,30 @@ window.magotCaptionSuggest=async function(photoId, current){ try{
   let t=(d&&d.text)||""; t=String(t).trim().replace(/^["\u00ab\u00bb\u2019\s]+|["\u00ab\u00bb\u2019\s]+$/g,"").slice(0,120);
   return t;
 }catch(e){ return ""; } };
+function magotModeFromAnalysis(bpm, beats, strength){
+  try{ bpm=Math.round(bpm||0); if(!bpm) return null;
+    var fortsMin=18, reg=true, calm=(bpm<=84);
+    if(beats&&beats.length>8){ var dur=beats[beats.length-1]-beats[0];
+      if(strength&&strength.length){ var f=0; for(var i=0;i<strength.length;i++){ if((strength[i]||0)>=0.6) f++; } fortsMin=f/(dur/60); }
+      var iv=[],mean=0; for(var j=1;j<beats.length;j++){ iv.push(beats[j]-beats[j-1]); } iv.forEach(function(x){mean+=x;}); mean/=iv.length;
+      var va=0; iv.forEach(function(x){va+=(x-mean)*(x-mean);}); reg=(Math.sqrt(va/iv.length)/(mean||1))<0.08; }
+    function c3(x){ return Math.max(0,Math.min(3,Math.round(x))); }
+    var sc={ dynamique:c3((bpm>=112?3:bpm>=100?2:bpm>=90?1:0)+(fortsMin>=26?0.6:0)+(reg?0.4:0)-(calm?1.5:0)),
+      cinema:c3((bpm>=78&&bpm<=118?2.4:1)+(reg?0.6:0)+(calm?0.4:0)),
+      doux:c3((bpm<=88?2.4:bpm<=100?1.4:0.6)+(calm?1:0)+(fortsMin<18?0.4:0)),
+      voyage:c3((bpm>=82&&bpm<=124?2.2:1.2)+(fortsMin>=16?0.5:0)+(reg?0.3:0)) };
+    var best="cinema",bs=-1; ["cinema","voyage","doux","dynamique"].forEach(function(k){ if(sc[k]>bs){bs=sc[k];best=k;} });
+    return { best:best, bpm:bpm }; }catch(e){ return null; } }
+function _moodFr(k){ return ({cinema:"Cin\u00e9ma",doux:"Doux",voyage:"Voyage",dynamique:"Dynamique"})[k]||k; }
 window.magotUploadFromStudio=async function(file){ try{
   if(typeof isAdmin!=="function" || !isAdmin() || !file) return;
-  toast("Publication au catalogue\u2026");
   const title=String(file.name||"Musique").replace(/\.[^.]+$/,"");
-  const r=await magotUpload(file, title, "");
-  if(r===true) toast("\u00ab "+title+" \u00bb publi\u00e9e au catalogue partag\u00e9 \u2713");
+  var sug=null; try{ toast("Analyse de la musique\u2026"); var an=await mvBeats(file); sug=magotModeFromAnalysis(an&&an.bpm, an&&an.beats, an&&an.strength); }catch(e){}
+  var chosen=await magotAskMode(title, sug);
+  if(chosen===null){ toast("Publication annul\u00e9e."); return; }
+  toast("Publication au catalogue\u2026");
+  const r=await magotUpload(file, title, chosen);
+  if(r===true) toast("\u00ab "+title+" \u00bb publi\u00e9e au catalogue partag\u00e9 ("+_moodFr(chosen)+") \u2713");
   else toast(typeof r==="string"?r:"Publication au catalogue \u00e9chou\u00e9e.");
 }catch(e){ toast("Publication impossible (r\u00e9seau ?)."); } };
 async function magotDelete(id, path){
@@ -13886,6 +13904,28 @@ async function magotDownload(tr2){
     return true;
   }catch(e){ toast("T\u00e9l\u00e9chargement impossible (r\u00e9seau ?)."); return false; }
 }
+function magotAskMode(title, sug){ return new Promise(function(resolve){ try{
+  var ov=document.createElement("div"); ov.style.cssText="position:fixed;inset:0;z-index:9600;background:rgba(6,6,10,.72);display:flex;align-items:center;justify-content:center;padding:18px";
+  var best=sug&&sug.best; var MO=[["cinema","Cin\u00e9ma"],["voyage","Voyage"],["doux","Doux"],["dynamique","Dynamique"]];
+  var box=document.createElement("div"); box.style.cssText="background:#0f0e0d;border:1px solid #2a2824;border-radius:16px;padding:18px;max-width:420px;width:100%;color:#f4f2ea;font-family:system-ui";
+  box.innerHTML='<div style="font:700 17px Georgia,serif;margin-bottom:3px">Classer la musique</div>'
+    +'<div style="color:#9a948c;font-size:13px;margin-bottom:12px">\u00ab '+String(title).replace(/</g,"&lt;")+' \u00bb'+(sug?(' \u00b7 '+sug.bpm+' BPM'):'')+'</div>'
+    +(best?('<div style="background:#171410;border:1px solid #c9a44a;border-radius:11px;padding:11px;margin-bottom:12px">\u2728 Mode conseill\u00e9 : <b>'+_moodFr(best)+'</b><div style="color:#9a948c;font-size:12px;margin-top:2px">D\u2019apr\u00e8s l\u2019analyse du tempo et du rythme.</div></div>'):'')
+    +'<div style="font:700 11px system-ui;letter-spacing:.06em;color:#c9a44a;margin:4px 2px 6px">CHOISIR AUTREMENT</div>'
+    +'<div id="amMo" style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:14px">'+MO.map(function(o){ var on=(o[0]===best); return '<button data-m="'+o[0]+'" style="padding:9px 14px;border-radius:999px;border:1px solid '+(on?"#c9a44a":"#3a3630")+';background:'+(on?"#c9a44a":"#1a1815")+';color:'+(on?"#181510":"#dcd6cc")+';font:600 13px system-ui">'+o[1]+'</button>'; }).join("")+'</div>'
+    +'<div style="display:flex;gap:9px">'
+    +'<button id="amCancel" style="padding:11px 14px;border-radius:11px;border:1px solid #3a3630;background:none;color:#9a948c;font:700 13px system-ui">Annuler</button>'
+    +(best?'<button id="amKeep" style="flex:1;padding:11px;border-radius:11px;border:0;background:#c9a44a;color:#181510;font:700 14px system-ui">Classer en '+_moodFr(best)+'</button>':'<button id="amKeep" style="flex:1;padding:11px;border-radius:11px;border:0;background:#c9a44a;color:#181510;font:700 14px system-ui" disabled>Choisis un mode</button>')
+    +'</div>';
+  ov.appendChild(box); document.body.appendChild(ov);
+  var pick=best||null;
+  box.querySelectorAll("#amMo button").forEach(function(b){ b.onclick=function(){ pick=b.getAttribute("data-m");
+    box.querySelectorAll("#amMo button").forEach(function(x){ var on=(x===b); x.style.background=on?"#c9a44a":"#1a1815"; x.style.color=on?"#181510":"#dcd6cc"; x.style.borderColor=on?"#c9a44a":"#3a3630"; });
+    var kp=box.querySelector("#amKeep"); if(kp){ kp.disabled=false; kp.textContent="Classer en "+_moodFr(pick); } }; });
+  box.querySelector("#amKeep").onclick=function(){ if(!pick) return; try{ ov.remove(); }catch(e){} resolve(pick); };
+  box.querySelector("#amCancel").onclick=function(){ try{ ov.remove(); }catch(e){} resolve(null); };
+  ov.onclick=function(e){ if(e.target===ov){ try{ ov.remove(); }catch(_){} resolve(null); } };
+}catch(e){ resolve(null); } }); }
 async function magotUpload(file, title, mood){
   if(!isAdmin()){ return "R\u00e9serv\u00e9 \u00e0 l'administrateur."; }
   if(!currentUser){ return "Tu n'es pas connect\u00e9."; }
