@@ -1282,7 +1282,7 @@ function renderPlanToBuffer(dur, sr){
 function analyzeBufferInto(buf, cb){ try{ essentiaReady.then(function(ok){ if(ok){ setTimeout(function(){ try{ toMono44(buf,function(sig,sr){ var An; try{ An=analyzeEssentia(sig,sr,buf.duration); if(!_analysisOK(An)) An=analyzeCustom(buf); }catch(e){ An=analyzeCustom(buf); } cb(An); }); }catch(e){ cb(analyzeCustom(buf)); } }, 20); } else { setTimeout(function(){ cb(analyzeCustom(buf)); }, 20); } }); }catch(e){ try{ cb(analyzeCustom(buf)); }catch(e2){ cb(null); } } }
 
 var CLIPS=[], clipVidReady=false, VIDACT=-1;
-window.STUDIO_VERSION="v1125";
+window.STUDIO_VERSION="v1126";
 window.MAGOT_EXPORT_ENGINE="auto"; try{ window.MAGOT_EXPORT_ENGINE=localStorage.getItem("magot_export_engine")||"auto"; }catch(e){}
 function setMagotExportEngine(mode){ if(mode!=="auto"&&mode!=="turbo"&&mode!=="mediarecorder") mode="auto"; window.MAGOT_EXPORT_ENGINE=mode; try{ localStorage.setItem("magot_export_engine",mode); }catch(e){} }
 function _exportEngineLabel(){ var m=window.MAGOT_EXPORT_ENGINE; return m==="turbo"?"Export : Turbo test":m==="mediarecorder"?"Export : Compatible":"Export : Automatique"; }
@@ -8904,10 +8904,22 @@ var MOODTRANS={
   voyage:{sub:0.60,ele:0.34,dur:0.50}
 };
 var _bag=[];
-function trReset(){ _bag=(TR.okNames&&TR.okNames.length)?TR.okNames.slice():GT_NAMES.slice(); }
+var _TRANS_GENERAL=null;
+function _transGeneral(){ if(_TRANS_GENERAL) return _TRANS_GENERAL;   /* v1126 : transitions "generales" = dans AUCUN groupe de mode ; + universelles (communes) */
+  var ex={}; ["cinema","doux","dynamique","voyage"].forEach(function(m){ (MODE_TRANS[m]||[]).forEach(function(n){ ex[n]=1; }); });
+  var g=GT_NAMES.filter(function(n){ return !ex[n]; });
+  (MODE_TRANS._universal||[]).forEach(function(n){ if(g.indexOf(n)<0) g.push(n); });
+  _TRANS_GENERAL=g; return g;
+}
+function trReset(){ /* v1126 : sac SCOPE au mode courant = groupe du mode + universelles + general ; JAMAIS les transitions exclusives d'un AUTRE mode (fin des lamelles Dynamique en Cinema). Design conserve : mode -> general -> refill mode, sans repetition. */
+  var avail=(TR.okNames&&TR.okNames.length)?TR.okNames:GT_NAMES;
+  var pool={}; (MODE_TRANS[MOOD]||[]).forEach(function(n){ pool[n]=1; }); (MODE_TRANS._universal||[]).forEach(function(n){ pool[n]=1; }); _transGeneral().forEach(function(n){ pool[n]=1; });
+  _bag=avail.filter(function(n){ return pool[n]; });
+  if(!_bag.length) _bag=avail.slice();   /* garde-fou : jamais de sac vide */
+}
 function bagTake(name){ var i=_bag.indexOf(name); if(i>=0) _bag.splice(i,1); return name; }
 function bagPick(prefLists, idx){
-  if(!_bag.length){ _bag=(TR.okNames&&TR.okNames.length)?TR.okNames.slice():GT_NAMES.slice(); }   /* sac vide -> on recharge (tout est passe) */
+  if(!_bag.length){ trReset(); }   /* v1126 : rechargement SCOPE au mode (via trReset) -> jamais une transition d'un autre mode */
   for(var i=0;i<prefLists.length;i++){
     var cand=prefLists[i].filter(function(n){ return _bag.indexOf(n)>=0; });
     if(cand.length) return bagTake(cand[idx%cand.length]);
