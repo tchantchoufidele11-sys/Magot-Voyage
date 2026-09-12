@@ -1282,7 +1282,7 @@ function renderPlanToBuffer(dur, sr){
 function analyzeBufferInto(buf, cb){ try{ essentiaReady.then(function(ok){ if(ok){ setTimeout(function(){ try{ toMono44(buf,function(sig,sr){ var An; try{ An=analyzeEssentia(sig,sr,buf.duration); if(!_analysisOK(An)) An=analyzeCustom(buf); }catch(e){ An=analyzeCustom(buf); } cb(An); }); }catch(e){ cb(analyzeCustom(buf)); } }, 20); } else { setTimeout(function(){ cb(analyzeCustom(buf)); }, 20); } }); }catch(e){ try{ cb(analyzeCustom(buf)); }catch(e2){ cb(null); } } }
 
 var CLIPS=[], clipVidReady=false, VIDACT=-1;
-window.STUDIO_VERSION="v1140";
+window.STUDIO_VERSION="v1145";
 window.MAGOT_EXPORT_ENGINE="auto"; try{ window.MAGOT_EXPORT_ENGINE=localStorage.getItem("magot_export_engine")||"auto"; }catch(e){}
 function setMagotExportEngine(mode){ if(mode!=="auto"&&mode!=="turbo"&&mode!=="mediarecorder") mode="auto"; window.MAGOT_EXPORT_ENGINE=mode; try{ localStorage.setItem("magot_export_engine",mode); }catch(e){} }
 function _exportEngineLabel(){ var m=window.MAGOT_EXPORT_ENGINE; return m==="turbo"?"Export : Turbo test":m==="mediarecorder"?"Export : Compatible":"Export : Automatique"; }
@@ -1557,6 +1557,78 @@ function inferMetric(beats,strength){
   return m;
 }
 function _analysisOK(An){ return !!(An && An.engine && An.engine!=="none" && An.beats && An.beats.length>=2 && Object.prototype.toString.call(An.metric)==="[object Array]"); }   /* v1121 : garde-fou repli — resultat sans moteur, <2 beats, ou metrique non-tableau => analyzeCustom */
+function _onsetEnv(env){   /* v1141 : enveloppe d'ATTAQUE (montee spectrale grave+aigu, moyenne locale retiree) — pas l'energie brute kEnv */
+  var kE=env.kEnv, hE=env.hEnv, nF=env.nF, fps=env.fps;
+  var raw=new Float32Array(nF);
+  for(var j=1;j<nF;j++){ raw[j]=Math.max(0,kE[j]-kE[j-1]) + 0.5*Math.max(0,hE[j]-hE[j-1]); }
+  var W=Math.round(fps*0.5), on=new Float32Array(nF);
+  for(var a=0;a<nF;a++){ var lo=Math.max(0,a-W), hi=Math.min(nF,a+W), m=0;
+    for(var c=lo;c<hi;c++) m+=raw[c]; m/=((hi-lo)||1); on[a]=Math.max(0,raw[a]-m); }
+  return {on:on, fps:fps, nF:nF};
+}
+function _refineBeats(beats, env, period){   /* v1142 — GRILLE UNIQUE AFFINEE, corrigee apres audit :
+     (1) distance VERIFIEE explicitement (|nt-t| <= win) apres arrondi d'indice — la fenetre est reellement respectee ;
+     (2) candidat choisi par PROXIMITE ET force (score = force normalisee / (1 + distance/win)), pas par force seule :
+         une attaque voisine plus forte ne vole plus le beat a celle qui est proche ;
+     (3) AMBIGU -> on conserve le beat initial (deux candidats de force comparable, ou pic sous le seuil) : la
+         pulsation est preservee, on ne deplace jamais "au hasard" ;
+     (4) conflit de monotonie -> on REJETTE la correction (retour au beat initial), on ne fabrique pas un instant ;
+     (5) statistiques calculees sur les beats REELLEMENT retournes (apres rejets), pas sur les intentions.
+     Limite assumee : recherche LOCALE bornee -> ne corrige pas une derive de grille superieure a la fenetre. */
+  var out={beats:beats, raw:beats, moved:0, med:0, max:0, ok:false, win:0};
+  try{
+    if(!beats||beats.length<2||!env||!env.nF) return out;
+    var oe=_onsetEnv(env), on=oe.on, fps=oe.fps, nF=oe.nF;
+    var mean=0; for(var u=0;u<nF;u++) mean+=on[u]; mean/=Math.max(1,nF);
+    var vr=0; for(var v=0;v<nF;v++){ var d0=on[v]-mean; vr+=d0*d0; } vr/=Math.max(1,nF);
+    var sd=Math.sqrt(vr), thr=mean+sd*0.7;
+    var per=period>0?period:0.5;
+    var win=Math.min(0.06, per*0.25);
+    var wF=Math.max(1,Math.ceil(win*fps));
+    var res=[];
+    for(var bi2=0;bi2<beats.length;bi2++){
+      var t=beats[bi2], i=Math.round(t*fps);
+      var c1=null, c2=null;                                  /* meilleur et 2e meilleur candidat (score proximite+force) */
+      for(var k=Math.max(1,i-wF);k<=Math.min(nF-2,i+wF);k++){
+        if(!(on[k]>thr && on[k]>=on[k-1] && on[k]>=on[k+1])) continue;
+        var nt=k/fps, dist=Math.abs(nt-t);
+        if(dist>win+1e-9) continue;                          /* (1) distance reellement verifiee */
+        var force=(on[k]-thr)/Math.max(1e-9,sd);
+        var sc=force/(1+3*Math.pow(dist/win,2));             /* (2) proximite DOMINANTE (penalite quadratique x3) : un pic lointain doit etre BEAUCOUP plus fort pour battre un pic proche */
+        var cand={t:nt, sc:sc, dist:dist};
+        if(!c1||sc>c1.sc){ c2=c1; c1=cand; } else if(!c2||sc>c2.sc){ c2=cand; }
+      }
+      if(!c1){ res.push(t); continue; }                      /* (3) aucun pic fiable -> beat conserve */
+      if(c2 && c2.sc>c1.sc*0.70 && Math.abs(c2.t-c1.t)>win*0.4){ res.push(t); continue; }   /* (3) ambigu (2 candidats comparables et distincts) -> beat initial conserve : on ne tranche pas au hasard */
+      res.push(+c1.t.toFixed(4));
+    }
+    /* (4) monotonie : en cas de conflit on REJETTE la correction (on revient au beat initial), sans fabriquer d'instant */
+    var gridInvalid=false;
+    for(var gi=1;gi<beats.length;gi++){ if(beats[gi]<=beats[gi-1]){ gridInvalid=true; break; } }   /* v1145 : invalidite detectee sur la grille INITIALE (beats egaux ou qui reculent) — independamment des rejets de correction */
+    for(var m2=1;m2<res.length;m2++){
+      if(res[m2]<=res[m2-1]){
+        /* (4) REJET des corrections en conflit — on ne fabrique JAMAIS d'instant */
+        if(beats[m2]>res[m2-1]){ res[m2]=beats[m2]; }                     /* rejet de la correction du beat courant */
+        else { res[m2-1]=beats[m2-1];                                     /* + rejet de celle du precedent */
+               if(res[m2]<=res[m2-1]) res[m2]=beats[m2]; }
+        if(res[m2]<=res[m2-1]){
+          /* meme les deux beats d'ORIGINE ne sont pas croissants -> la grille initiale est invalide a cet endroit :
+             on la conserve telle quelle (aucun instant invente) et on le signale. */
+          res[m2-1]=beats[m2-1]; res[m2]=beats[m2]; gridInvalid=true;
+        }
+      }
+    }
+    out.gridInvalid=gridInvalid;
+    /* (5) stats depuis les beats FINAUX */
+    var dl=[], moved=0;
+    for(var q=0;q<res.length;q++){ var dd=Math.abs(res[q]-beats[q]); if(dd>0.002){ moved++; dl.push(dd); } }
+    dl.sort(function(x,y){ return x-y; });
+    out.beats=res; out.raw=beats.slice(); out.moved=moved; out.ok=true; out.win=win;
+    out.med=dl.length?dl[dl.length>>1]:0;
+    out.max=dl.length?dl[dl.length-1]:0;
+  }catch(e){}
+  return out;
+}
 function analyzeEssentia(sig,sr,dur){
   if(!essentia){ try{ var env=computeEnv(sig,sr), se=strengthEnergy(env,[]); return {beats:[],dur:dur,bpm:0,conf:0,period:0.5,fps:se.fps,energy:se.energy,strength:se.strength,metric:[],kEnv:env.kEnv,efps:env.fps,engine:"none"}; }catch(e){ return {beats:[],dur:dur,bpm:0,conf:0,period:0.5,engine:"none"}; } }   /* essentia libéré (après un export) -> pas de crash, résultat neutre */
   var beats=[], bpm=0, conf=0;
@@ -1573,7 +1645,9 @@ function analyzeEssentia(sig,sr,dur){
   var env=computeEnv(sig,sr), se=strengthEnergy(env,beats);
   var iv=[]; for(var k=1;k<beats.length;k++) iv.push(beats[k]-beats[k-1]); iv.sort(function(a,b){ return a-b; });
   var period=iv.length?iv[Math.floor(iv.length/2)]:(bpm?60/bpm:0.5);
-  return {beats:beats,dur:dur,bpm:bpm,conf:conf,period:period,fps:se.fps,energy:se.energy,strength:se.strength,metric:inferMetric(beats,se.strength),kEnv:env.kEnv,efps:env.fps,engine:"essentia"};
+  var _rf=_refineBeats(beats,env,period);   /* v1141 : grille affinee (Essentia rendait des beats BRUTS, sans recherche d'attaque) */
+  if(_rf.ok){ beats=_rf.beats; se=strengthEnergy(env,beats); }
+  return {beats:beats,beatsRaw:_rf.raw,refine:{moved:_rf.moved,med:_rf.med,max:_rf.max,win:_rf.win,total:beats.length},dur:dur,bpm:bpm,conf:conf,period:period,fps:se.fps,energy:se.energy,strength:se.strength,metric:inferMetric(beats,se.strength),kEnv:env.kEnv,efps:env.fps,engine:"essentia"};
 }
 
 /* ================= Analyse maison (repli) ================= */
@@ -1603,17 +1677,20 @@ function analyzeCustom(audio){
   var thr=mean+Math.sqrt(vr)*0.7, guard=Math.max(1,Math.round(fps*0.09)), onsets=[];
   for(var g=2;g<nF-2;g++){ if(on[g]>thr&&on[g]>=on[g-1]&&on[g]>on[g+1]&&on[g]>=on[g-2]&&on[g]>on[g+2]){ onsets.push(g/fps); g+=guard; } }
   var grid=[]; for(var t=bestPh/fps;t<audio.duration;t+=period) grid.push(t);
-  var winS=period*0.42, oi=0;
-  var snapped=grid.map(function(t){ while(oi>0&&onsets[oi-1]>t-winS)oi--; while(oi<onsets.length&&onsets[oi]<t-winS)oi++;
-    var best=t,bd=winS; for(var k=oi;k<onsets.length;k++){ var o=onsets[k]; if(o>t+winS) break; var dd=Math.abs(o-t); if(dd<bd){bd=dd;best=o;} } return best; });
-  var beats=[]; snapped.forEach(function(b){ b=+b.toFixed(3); if(!beats.length||b-beats[beats.length-1]>Math.min(0.12,period*0.4)) beats.push(b); });
+  /* v1142 : l'ancien snap ±42% de periode est SUPPRIME — il faisait un 1er affinage (et beatsRaw contenait donc des beats
+     deja deplaces). La grille reguliere brute part d'ici ; l'UNIQUE affinage est _refineBeats, comme pour Essentia. */
+  var beats=[]; grid.forEach(function(b){ b=+b.toFixed(3); if(!beats.length||b-beats[beats.length-1]>Math.min(0.12,period*0.4)) beats.push(b); });
+  var _rf2=_refineBeats(beats,env,period);   /* v1141 : meme affinage que Essentia (grille unique) */
+  if(_rf2.ok) beats=_rf2.beats;
   var se=strengthEnergy(env,beats);
-  return {beats:beats,dur:audio.duration,bpm:bpm,conf:0,period:period,fps:se.fps,energy:se.energy,strength:se.strength,metric:inferMetric(beats,se.strength),kEnv:env.kEnv,efps:env.fps,engine:"maison"};
+  return {beats:beats,beatsRaw:_rf2.raw,refine:{moved:_rf2.moved,med:_rf2.med,max:_rf2.max,win:_rf2.win,total:beats.length},dur:audio.duration,bpm:bpm,conf:0,period:period,fps:se.fps,energy:se.energy,strength:se.strength,metric:inferMetric(beats,se.strength),kEnv:env.kEnv,efps:env.fps,engine:"maison"};
 }
 
 /* ================= Partition : coupes sur un nombre entier de temps ================= */
 function energyAt(t){ if(!A||!A.energy||!A.fps) return 0.5; var i=Math.round(t*A.fps); return A.energy[Math.max(0,Math.min(A.energy.length-1,i))]||0; }
-function snapKick(t){ if(!A||!A.kEnv||!A.efps) return t; var f=A.efps, i=Math.round(t*f), w=Math.round(0.06*f), bk=i, bv=-1;
+function snapKick(t){ return t;   /* v1141 : NEUTRALISE — la correction d'attaque est faite UNE SEULE FOIS sur la grille (_refineBeats). Garder ce snap ici (sur kEnv = energie grave, pas une attaque) provoquait une DOUBLE compensation et deplacait les coupes hors de la grille affinee. */
+}
+function _snapKick_legacy(t){ if(!A||!A.kEnv||!A.efps) return t; var f=A.efps, i=Math.round(t*f), w=Math.round(0.06*f), bk=i, bv=-1;
   for(var k=i-w;k<=i+w;k++){ if(k<0||k>=A.kEnv.length) continue; if(A.kEnv[k]>bv){ bv=A.kEnv[k]; bk=k; } } return bk/f; }
 function sigDist(a,b){ if(!a||!b||a.length!==b.length) return 1; var s=0; for(var i=0;i<a.length;i++){ s+=Math.abs(a[i]-b[i]); } return s/a.length; }
 function cosSim(a,b){ if(!a||!b) return 0; var s=0,na=0,nb=0; for(var i=0;i<a.length;i++){ s+=a[i]*b[i]; na+=a[i]*a[i]; nb+=b[i]*b[i]; } return s/(Math.sqrt(na)*Math.sqrt(nb)+1e-9); }
@@ -10745,6 +10822,7 @@ function _studioCutDiagText(d){
   L.push("");
   L.push("TRANSITIONS : "+d.realTr+" transitions jouees \u00b7 "+d.transCount+" effets compatibles disponibles ("+d.mood+", aucun etranger au mode)");
   L.push("Coupes seches meme clip : "+d.sameCut+"  (exclues des transitions \u2014 un seul decodeur video, melange impossible)");
+  if(d.refine) L.push("GRILLE AFFINEE : "+d.refine.moved+"/"+d.refine.total+" beats recales sur l'attaque reelle (fenetre \u00b1"+Math.round((d.refine.win||0)*1000)+" ms) \u00b7 mediane "+Math.round(d.refine.med*1000)+" ms \u00b7 max "+Math.round(d.refine.max*1000)+" ms");
   L.push("GRILLE : "+(d.gridCovers?"couvre les coupes ✓":("trop courte — s'arrete a "+d.gridEnd+"s, medias jusqu'a "+d.mediaEnd+"s")));
   L.push("");
   var sol=[];
