@@ -5,6 +5,8 @@
 <!-- Studio Magot — FIX FLOU A LA REOUVERTURE (C267a) : à l'import, window._PMAX=1440, donc les photos s'affichaient nettes ; mais a froid (app ouverte 3-4 jours apres), window._PMAX etait undefined -> studioOpenFilm / _restorePhotoFromBlob / _decodeFromSrc retombaient sur 1200 et RE-sous-echantillonnaient les blobs 1440 stockes -> flou. Desormais la restauration/re-decodage utilise un PLANCHER Math.max(1440, ...) : les blobs stockes sont decodes a leur taille native (jamais reduits), donc une photo rouverte est aussi nette qu'a sa creation. Qualite JPEG de stockage 0.82 -> 0.86. Memoire inchangee (identique a la session de creation). · BUILD 2026-08-16-C267 -->
 <!-- Studio Magot — NETTETE MAX / NIVEAU CAPCUT (C267b) : les photos etaient plafonnees a 1440 px alors que le montage s'EXPORTE en 1920 px -> agrandissement ~33% = flou meme en session fraiche et dans la video finale. Desormais _PCAP=1920 : source photo = resolution d'export, plus aucun upscale, netteté maximale a l'ecran ET a l'export. Le cache memoire _DEC_MAX n'est plus un nombre fixe mais un BUDGET RAM (190 Mo iOS ; adapte a la RAM sur Android) : a 1920 px on garde automatiquement moins de photos decodees pour tenir le budget -> aucun crash iPhone. Import >600 photos: repli a 1440 (encodage plus rapide). Les films crees avant restent en 1440 (blob deja encode) ; les nouveaux sont en 1920. · BUILD 2026-08-16-C267 -->
 <!-- Studio Magot — D1 / OFFLINE PRO (C268) : essentia.js (wasm+core) et mp4-muxer AUTO-HEBERGES (fini la dependance CDN jsdelivr au runtime). Les 3 scripts pointent en ./ relatif ; le .web.js va chercher essentia-wasm.web.wasm en same-origin. Precache SW etendu aux 4 fichiers -> analyse des temps (Essentia) et export MP4 image-exact (WebCodecs+muxer) fonctionnent HORS-LIGNE, plus de degradation silencieuse. Sentry laisse en CDN (telemetrie non critique, garde if(window.Sentry)). · BUILD 2026-09-13-C268 -->
+<!-- Studio Magot — FIX COSMETIQUE (C269) : ecran "Ta video est prete" — le verdict de duree ("· fichier N s ✓") etait ajoute via _inf.textContent, ce qui APLATISSAIT les deux <div> (ligne technique + "Apercu masque...") en un seul texte -> "148 MoApercu masque..." colle, et perte du retour a la ligne. Desormais le verdict est ajoute a la 1re div (line1) uniquement : separateur correct, line2 reste sur sa propre ligne. · BUILD 2026-09-13-C269 -->
+<!-- Studio Magot — C270 : (1) TRANSITIONS — les effets qui vident l'ecran (vanish/rectangle-vers-noir/doom/tv/datamosh) sont desormais reserves aux FRONTIERES DE JOUR ; entre photos ordinaires, remplaces par un effet du mode qui garde les deux images (garde-fou en fin de gtChoose, cle sur _dayStart). (2) D2 — horloge du mode "ajustement exact" (audioEl) lissee mais BORNEE DUR a [aT, aT+80ms] : plus de jitter iOS, aucune derive possible (auto-correcteur). (3) D3 — pre-calage des clips video EN PAUSE resserre 0,12->0,06 s : point d'entree video <=60 ms (seuil du clip ACTIF laisse a 0,18 pour ne pas reintroduire le stutter iOS). · BUILD 2026-09-13-C270 -->
 <html lang="fr">
 <head>
 <meta charset="utf-8">
@@ -1161,9 +1163,23 @@ body:has(.hero.cinema) #badge{display:none!important}
 /* ================= État ================= */
 var A=null, PHOTOS=[], SEGS=[], MOOD="cinema", raf=0, playing=false, LEAD=0.05, _PSEQ=0;
 var mBase=0, waMt0=0, waCtxT0=0;
+var _mnA=-1, _mnPerf=0;   /* D2 : ancre de lissage horloge audioEl (borné dur, auto-correcteur) */
 function _perfNow(){ return (typeof performance!=="undefined"&&performance.now)?performance.now()/1000:Date.now()/1000; }
 function audioAt(mt){ if(!window.LOOP_ON) return mt; var le=window.LOOP_END||(A?A.dur:mt); if(mt<=le) return mt; var ls=window.LOOP_START||0, ll=window.LOOP_LEN||1; return ls + ((mt - le) % ll); }
-function montageNow(){ if(window.LOOP_ON||window.MULTI){ if(WA.on && ctx){ return waMt0 + (ctx.currentTime - waCtxT0); } return _perfNow()-mBase; } return audioEl?audioEl.currentTime:0; }
+function montageNow(){ if(window.LOOP_ON||window.MULTI){ if(WA.on && ctx){ return waMt0 + (ctx.currentTime - waCtxT0); } return _perfNow()-mBase; }
+  /* D2 — mode ajustement exact (audioEl) : on LISSE le currentTime grossier d'iOS en projetant avec perf.now
+     ENTRE deux mises a jour, mais BORNE DUR a [aT, aT+80ms] : jamais derriere l'audio, jamais >80 ms devant.
+     Le clamp se recale sur le vrai temps audio a CHAQUE frame -> aucune derive possible (auto-correcteur, sans
+     hook de reset : un seek/pause qui fait sauter currentTime est absorbe des la frame suivante). */
+  if(!audioEl) return 0;
+  var aT=audioEl.currentTime||0;
+  if(audioEl.paused){ _mnA=aT; _mnPerf=_perfNow(); return aT; }
+  var now=_perfNow();
+  if(aT!==_mnA){ _mnA=aT; _mnPerf=now; }   /* l'horloge audio a bouge -> re-ancre */
+  var est=aT + (now-_mnPerf);
+  if(est>aT+0.08) est=aT+0.08;   /* plafond : jamais plus de 80 ms devant le vrai temps audio */
+  if(est<aT) est=aT;             /* plancher : jamais derriere l'audio */
+  return est; }
 var WA={srcs:[],gain:null,on:false,_iv:0,_nextCtx:0,_nextFrom:0,_first:true,XF:2.0};
 var _xfIn=null,_xfOut=null;
 function _xfCurves(){ if(_xfIn) return; var N=48; _xfIn=new Float32Array(N); _xfOut=new Float32Array(N); for(var i=0;i<N;i++){ var x=i/(N-1); _xfIn[i]=Math.sin(x*Math.PI/2); _xfOut[i]=Math.cos(x*Math.PI/2); } }
@@ -9202,6 +9218,11 @@ try{ window.studioRunDirector=function(){ try{
 }catch(e){ window.__DIRECTOR_PLAN=null; } };
 window.studioSetDirector=function(on){ window.DIRECTOR_ON=!!on; window.__DIRECTOR_GEN=(window.__DIRECTOR_GEN||0)+1;   /* v1162 (gap 4) : chaque bascule invalide toute reponse Mistral encore en vol */ if(on){ window.studioRunDirector(); } else { window.__DIRECTOR_PLAN=null; try{ _directorReadout(""); }catch(e){} try{ if(A&&(PHOTOS.length||clipVidReady)){ buildPartition(); paintStrip(0); renderMontageAt(0); } }catch(e){} } };
 }catch(e){}
+/* v1170 — effets qui VIDENT le cadre (traversent le noir / le fond) : reserves aux FRONTIERES DE JOUR
+   (rupture de chapitre voulue). Entre deux photos ordinaires ils sont remplaces par un effet qui GARDE
+   les deux images a l'ecran (cf. garde-fou en fin de gtChoose). */
+var _TR_EMPTY={RotateScaleVanish:1,Rectangle:1,RectangleCrop:1,Box:1,DoomScreenTransition:1,old_tv_lost_signal:1,TVStatic:1,StripDatamoshGlitch:1,SimpleZoomOut:1,StarWipe:1};
+var _TR_KEEP=["crosswarp","CrossZoom","dissolve","fade","LinearBlur","directionalwarp","wind","Directional","SimpleZoom","morph","luma","DirectionalScaled"];
 function gtChoose(idx,sg,prev,photos,energy,mood){
   var seed=(A&&A.beats)?(A.beats.length%89):0, k=idx+seed;
   var neutral={lum:0.5,warm:0,sat:0.3,detail:0.2,portrait:false};
@@ -9263,6 +9284,14 @@ function gtChoose(idx,sg,prev,photos,energy,mood){
   var _bpm=(A&&A.bpmFelt)?A.bpmFelt:((A&&A.bpm>0)?A.bpm:100);
   var _bi=60/_bpm;
   var _tf=Math.max(0.7,Math.min(2.0,_bi/0.5));   /* v1119 : RESTAURATION du calcul d'origine (réglé à l'oreille) — lent -> transition plus longue/douce ; rapide -> plus serrée (tempo ressenti). Le Lot D v1115 l'avait remplacé par une quantification qui a cassé les transitions — annulé. */
+  /* v1170 — garde-fou anti "vidage d'ecran" hors chapitre : si l'effet choisi vide le cadre ET que ce
+     n'est PAS une frontiere de jour, on le remplace par un effet du MODE qui garde les deux images. */
+  try{ if(name && !(sg && sg._dayStart!=null) && _TR_EMPTY[name]){
+    var _avE=(typeof TR!=="undefined" && TR.okNames && TR.okNames.length)?TR.okNames:GT_NAMES;
+    var _pool=_TR_KEEP.filter(function(n){ return _avE.indexOf(n)>=0 && modeLot.indexOf(n)>=0; });
+    if(!_pool.length) _pool=_TR_KEEP.filter(function(n){ return _avE.indexOf(n)>=0; });
+    if(_pool.length) name=_pool[(k*7+3)%_pool.length];
+  } }catch(_ge2){}
   sg.trDur=prof.dur*_tf;
   return name;
 }
@@ -9899,7 +9928,7 @@ function _loopBody(){ try{ window.__MMT_BOTTOM_CAP_TOP=null; }catch(e){}
       }catch(e){}
     }
   } else { if(VIDACT>=0){ VIDACT=-1; for(var _c2=0;_c2<CLIPS.length;_c2++){ try{ CLIPS[_c2].el.pause(); }catch(e){} } } }
-  try{ if(typeof SEGS!=="undefined"&&SEGS&&idx>=0){ var _primed=0; for(var _pi2=idx+1; _pi2<SEGS.length && (SEGS[_pi2].start-t)<2.8 && _primed<3; _pi2++){ var _ps=SEGS[_pi2]; if(_ps.video&&_ps.vclip!=null&&_ps.vclip!==sg.vclip&&CLIPS[_ps.vclip]&&CLIPS[_ps.vclip].ready){ var _pe=CLIPS[_ps.vclip].el; if(_pe.paused && Math.abs((_pe.currentTime||0)-(_ps.vstart||0))>0.12){ _pe.muted=true; try{ _pe.currentTime=_ps.vstart||0; }catch(_e){} } _primed++; } } } }catch(e){}
+  try{ if(typeof SEGS!=="undefined"&&SEGS&&idx>=0){ var _primed=0; for(var _pi2=idx+1; _pi2<SEGS.length && (SEGS[_pi2].start-t)<2.8 && _primed<3; _pi2++){ var _ps=SEGS[_pi2]; if(_ps.video&&_ps.vclip!=null&&_ps.vclip!==sg.vclip&&CLIPS[_ps.vclip]&&CLIPS[_ps.vclip].ready){ var _pe=CLIPS[_ps.vclip].el; if(_pe.paused && Math.abs((_pe.currentTime||0)-(_ps.vstart||0))>0.06){   /* D3 : pre-calage plus serre (clips EN PAUSE hors-ecran, aucun risque de stutter) -> point d'entree video a <=60 ms au lieu de <=180 ms */ _pe.muted=true; try{ _pe.currentTime=_ps.vstart||0; }catch(_e){} } _primed++; } } } }catch(e){}
   var strongPulse=(sg&&sg.strong&&into<0.10)?(1-into/0.10):0;
   _atmo=sg?(sg.atmo||null):null; _atmoAmt=(ATMO_AMT[MOOD]!=null?ATMO_AMT[MOOD]:0.6);
   var _hEl=document.querySelector(".hero");
@@ -11618,7 +11647,7 @@ function _showExportResult(blob, outType, ext, DUR, audioAdded, dt){
   var _mo=blob.size/1048576, heavy=(_mo>120);
   var url=URL.createObjectURL(blob);
   try{ (function(){ var _vd=document.createElement("video"); _vd.preload="metadata"; _vd.muted=true;
-    _vd.onloadedmetadata=function(){ try{ var _fd=_vd.duration; var _inf=document.getElementById("expInfo"); if(isFinite(_fd)&&_inf){ var _ok=Math.abs(_fd-DUR)<=3; _inf.textContent=_inf.textContent+" · fichier "+Math.round(_fd)+" s "+(_ok?"\u2713":"\u26a0\ufe0f dur\u00e9e incorrecte"); } }catch(e){} try{ _vd.removeAttribute("src"); _vd.load&&_vd.load(); }catch(e){} };
+    _vd.onloadedmetadata=function(){ try{ var _fd=_vd.duration; var _inf=document.getElementById("expInfo"); if(isFinite(_fd)&&_inf){ var _ok=Math.abs(_fd-DUR)<=3; var _l1=_inf.querySelector("div")||_inf; _l1.textContent=_l1.textContent+" · fichier "+Math.round(_fd)+" s "+(_ok?"\u2713":"\u26a0\ufe0f dur\u00e9e incorrecte"); } }catch(e){} try{ _vd.removeAttribute("src"); _vd.load&&_vd.load(); }catch(e){} };
     _vd.src=url; })(); }catch(e){}   /* mesure de vérité : durée réelle du fichier lue et affichée */
   var vv=document.getElementById("expVideo"), poster=document.getElementById("expPoster");
   if(vv){ try{ vv.pause(); }catch(e){} vv.removeAttribute("autoplay"); vv.preload="none";
