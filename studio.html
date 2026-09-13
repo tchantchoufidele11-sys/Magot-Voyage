@@ -1282,7 +1282,7 @@ function renderPlanToBuffer(dur, sr){
 function analyzeBufferInto(buf, cb){ try{ essentiaReady.then(function(ok){ if(ok){ setTimeout(function(){ try{ toMono44(buf,function(sig,sr){ var An; try{ An=analyzeEssentia(sig,sr,buf.duration); if(!_analysisOK(An)) An=analyzeCustom(buf); }catch(e){ An=analyzeCustom(buf); } cb(An); }); }catch(e){ cb(analyzeCustom(buf)); } }, 20); } else { setTimeout(function(){ cb(analyzeCustom(buf)); }, 20); } }); }catch(e){ try{ cb(analyzeCustom(buf)); }catch(e2){ cb(null); } } }
 
 var CLIPS=[], clipVidReady=false, VIDACT=-1;
-window.STUDIO_VERSION="v1165";
+window.STUDIO_VERSION="v1166";
 window.MAGOT_EXPORT_ENGINE="auto"; try{ window.MAGOT_EXPORT_ENGINE=localStorage.getItem("magot_export_engine")||"auto"; }catch(e){}
 function setMagotExportEngine(mode){ if(mode!=="auto"&&mode!=="turbo"&&mode!=="mediarecorder") mode="auto"; window.MAGOT_EXPORT_ENGINE=mode; try{ localStorage.setItem("magot_export_engine",mode); }catch(e){} }
 function _exportEngineLabel(){ var m=window.MAGOT_EXPORT_ENGINE; return m==="turbo"?"Export : Turbo test":m==="mediarecorder"?"Export : Compatible":"Export : Automatique"; }
@@ -9244,8 +9244,9 @@ function gtChoose(idx,sg,prev,photos,energy,mood){
   /* registre d'abord (garde le beat qui claque : surtout sobre) ; puis le lot du mode ; puis le réservoir général — panier sans répétition */
   var name;
   if(_dirForced && tierNames && tierNames.length){
-    try{ if(typeof glReady!=="undefined" && !glReady) window.__DIR_CANVAS=1;   /* repli Canvas : les effets sont simplifies en fondu ; TR.okNames (WebGL) ne s'applique pas */
-      else if(!(typeof TR!=="undefined" && TR.okNames && TR.okNames.length)) window.__DIR_UNKNOWN=1; }catch(e){}   /* WebGL pas encore compile : disponibilite reelle inconnue */
+    try{ var _glOn=(typeof glReady!=="undefined" && glReady) && (typeof TR!=="undefined" && TR.ready);   /* v1166 : le rendu WebGL des transitions n'a lieu que si glReady ET TR.ready — sinon la lecture passe par Canvas (effets simplifies). Le bandeau colle desormais a CETTE condition, pas au seul glReady. */
+      if(!_glOn) window.__DIR_CANVAS=1;
+      else if(!(TR.okNames && TR.okNames.length)) window.__DIR_UNKNOWN=1; }catch(e){}
     var _avail=(typeof TR!=="undefined" && TR.okNames && TR.okNames.length)?TR.okNames:GT_NAMES;
     var _regAvail=tierNames.filter(function(n){ return _avail.indexOf(n)>=0; });   /* v1164 (gap 1 : affiche = VISIBLE) : registre demande INTERSECTE avec les effets REELLEMENT compiles sur l'appareil (TR.okNames). Sinon un effet non compile retomberait sur "fade" au rendu (WebGL et repli Canvas) et le bandeau mentirait. */
     if(_regAvail.length){ name=_regAvail[(k*5+2)%_regAvail.length]; }
