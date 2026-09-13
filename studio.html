@@ -1282,7 +1282,7 @@ function renderPlanToBuffer(dur, sr){
 function analyzeBufferInto(buf, cb){ try{ essentiaReady.then(function(ok){ if(ok){ setTimeout(function(){ try{ toMono44(buf,function(sig,sr){ var An; try{ An=analyzeEssentia(sig,sr,buf.duration); if(!_analysisOK(An)) An=analyzeCustom(buf); }catch(e){ An=analyzeCustom(buf); } cb(An); }); }catch(e){ cb(analyzeCustom(buf)); } }, 20); } else { setTimeout(function(){ cb(analyzeCustom(buf)); }, 20); } }); }catch(e){ try{ cb(analyzeCustom(buf)); }catch(e2){ cb(null); } } }
 
 var CLIPS=[], clipVidReady=false, VIDACT=-1;
-window.STUDIO_VERSION="v1168";
+window.STUDIO_VERSION="v1169";
 window.MAGOT_EXPORT_ENGINE="auto"; try{ window.MAGOT_EXPORT_ENGINE=localStorage.getItem("magot_export_engine")||"auto"; }catch(e){}
 function setMagotExportEngine(mode){ if(mode!=="auto"&&mode!=="turbo"&&mode!=="mediarecorder") mode="auto"; window.MAGOT_EXPORT_ENGINE=mode; try{ localStorage.setItem("magot_export_engine",mode); }catch(e){} }
 function _exportEngineLabel(){ var m=window.MAGOT_EXPORT_ENGINE; return m==="turbo"?"Export : Turbo test":m==="mediarecorder"?"Export : Compatible":"Export : Automatique"; }
@@ -9165,7 +9165,8 @@ function _directorValidate(raw, sections){ try{
 function _directorTierAt(t){ var P=window.__DIRECTOR_PLAN; if(!P||!P.length) return null;
   for(var i=0;i<P.length;i++){ if(t>=P[i].t0-0.001 && t<P[i].t1+0.001) return P[i].tier; } return null; }
 function _dAbbr(t){ return t==="subtle"?"sobre":(t==="spectacular"?"SPEC":"\u00e9l\u00e9g"); }
-function _directorReadout(txt){ try{ var el=document.getElementById("dirReadout");
+function _directorReadout(txt){ txt=null;   /* v1169 : bandeau realisateur RETIRE — le prototype IA est desactive (toggle enleve, code dormant). Force le masquage. */
+  try{ var el=document.getElementById("dirReadout");
   if(!txt){ if(el) el.style.display="none"; return; }
   if(!el){ el=document.createElement("div"); el.id="dirReadout"; el.style.cssText="position:fixed;left:8px;right:8px;bottom:78px;z-index:99999;background:rgba(20,18,14,.94);border:1px solid #c9a44a;color:#f0e2b8;font:600 12px/1.35 system-ui;padding:8px 12px;border-radius:10px;text-align:center;pointer-events:none;box-shadow:0 4px 14px rgba(0,0,0,.55)"; document.body.appendChild(el); }
   el.textContent="\uD83C\uDFAC R\u00e9alisateur \u2014 "+txt; el.style.display="block";
@@ -10702,10 +10703,6 @@ function _toggleFilmsMenu(anchor){
       +'<button class="fm-i" data-a="new" style="'+_bs+';color:#e6c15a">\u2728 '+_st("Nouveau montage")+'</button>'
       +'<button class="fm-i" data-a="tuto" style="'+_bs+'">\uD83E\uDDED '+_st("Revoir le tutoriel")+'</button>'
       +'<button class="fm-i" data-a="signedit" style="'+_bs+'">\u270D\uFE0F Intro & outro</button>'
-      +'<button class="fm-i" data-a="diag" style="'+_bs+';color:#c9a44a">\uD83D\uDD0D Diagnostic paroles</button>'
-      +'<button class="fm-i" data-a="diagmontage" style="'+_bs+';color:#c9a44a">\uD83C\uDFAC Diagnostic montage</button>'
-      +'<button class="fm-i" data-a="cutdiag" style="'+_bs+';color:#c9a44a">\uD83C\uDFAF Coupes & musique</button>'
-      +'<button class="fm-i" data-a="director" style="width:100%;text-align:left;background:none;border:0;color:#f4f7fc;font:600 15px system-ui;padding:13px 14px;border-radius:11px;cursor:pointer;display:flex;align-items:center;gap:10px"><span style="pointer-events:none">\uD83C\uDFAC</span><span style="flex:1;pointer-events:none">R\u00e9alisateur IA <span style="opacity:.55;font-size:.8em">(proto)</span></span><span id="dirTrack" style="pointer-events:none;display:inline-block;width:46px;height:27px;border-radius:14px;background:'+(window.DIRECTOR_ON===true?"#7ad0a0":"#3a3733")+';position:relative;transition:background .2s;flex:none"><span id="dirKnob" style="position:absolute;top:3px;left:'+(window.DIRECTOR_ON===true?"22px":"3px")+';width:21px;height:21px;border-radius:50%;background:#fff;transition:left .2s;box-shadow:0 1px 3px rgba(0,0,0,.4)"></span></span></button>'
       +'<button class="fm-i" data-a="expengine" style="'+_bs+';color:#c9a44a">\uD83E\uDDEA '+_exportEngineLabel()+'</button>'
       +'<button class="fm-i" data-a="lyrics" style="width:100%;text-align:left;background:none;border:0;color:#f4f7fc;font:600 15px system-ui;padding:13px 14px;border-radius:11px;cursor:pointer;display:flex;align-items:center;gap:10px"><span style="pointer-events:none">\uD83C\uDFA4</span><span style="flex:1;pointer-events:none">'+_st("Lyrique")+'</span><span id="lyrTrack" style="pointer-events:none;display:inline-block;width:46px;height:27px;border-radius:14px;background:'+(window._LYRICS_ON===true?"#7ad0a0":"#3a3733")+';position:relative;transition:background .2s;flex:none"><span id="lyrKnob" style="position:absolute;top:3px;left:'+(window._LYRICS_ON===true?"22px":"3px")+';width:21px;height:21px;border-radius:50%;background:#fff;transition:left .2s;box-shadow:0 1px 3px rgba(0,0,0,.4)"></span></span></button>'
       +((window.__hasLyrics || (window._SUBS && window._SUBS().length>0))?('<button class="fm-i" data-a="lyrlang" style="'+_bs+'">\uD83C\uDF10 '+_st("Langue des paroles")+'  <span style="float:right;font-size:.82em;opacity:.7">'+((function(){ for(var _l=0;_l<window._LYRICS_LANGS.length;_l++){ if(window._LYRICS_LANGS[_l][0]===window._LYRICS_LANG) return window._LYRICS_LANGS[_l][1]; } return "Original"; })())+' \u203A</span></button>'):"")
