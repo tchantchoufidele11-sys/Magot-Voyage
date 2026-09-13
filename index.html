@@ -3274,7 +3274,7 @@ const DEFAULT_S={ version:"0.2.0", settings:{ lang:"fr", theme:"system", units:"
 /* Clé Maps JS partagée (restreinte au domaine GitHub Pages). Repli : clé perso de l'utilisateur si fournie. */
 const SHARED_MAP_KEY="AIzaSyCt5iVx8nPr1V067A3daE0X1YA568XJNbU";
 function mapKey(){ return (S.settings.mapKey||"").trim() || SHARED_MAP_KEY; }
-const BUILD="0.4.19 · v754 studio-integration";
+const BUILD="0.4.20 · v755 create-p0-reliability";
 let S=loadState();
 function normalizeTrip(tr){ if(!tr||typeof tr!=="object") return tr;
   tr.id=tr.id||("t"+Date.now()+Math.random().toString(36).slice(2,7));
@@ -4131,7 +4131,7 @@ function applyLang(code){ S.settings.lang=code; saveState(); applyI18n(); render
   if(sh("detailSheet")&&detailId) renderDetail(detailId);
   /* la fenêtre de création n'est pas re-rendue pour ne pas effacer la saisie en cours */
 }
-function newDraft(){ return { legs:[], dest:null, lodging:null, depart:null, veh:{fuel:"essence",conso:"",price:""}, transport:"car", styles:[], style:"mixed", travelers:2, currency:"EUR" }; }
+function newDraft(){ return { legs:[], dest:null, lodging:null, depart:null, veh:{fuel:"essence",conso:"",price:""}, transport:"car", styles:[], style:"mixed", travelers:2, currency:"EUR", countryExplicit:false }; }
 function openCreate(id){ editId=(typeof id==="string"&&id)?id:null; const tr=editId?S.trips.find(x=>x.id===editId):null;
   draft= tr ? { dest:(tr.dest&&tr.dest.name)?{name:tr.dest.name,country:tr.dest.country||"",cc:tr.dest.cc||"",lat:tr.dest.lat,lng:tr.dest.lng,bbox:tr.dest.bbox||null,label:tr.dest.name+(tr.dest.country?", "+tr.dest.country:"")}:null, lodging:tr.lodging||null, dateStart:tr.dateStart||"", dateEnd:tr.dateEnd||"", depart:tr.depart||null, depHub:tr.depHub||null, arrHub:tr.arrHub||null, veh:tr.veh||{fuel:"essence",conso:"",price:""}, transport:tr.transport||"car", localTransport:tr.localTransport||null, styles:(tr.styles&&tr.styles.length)?tr.styles.slice():(tr.style&&tr.style!=="mixed"?[tr.style]:[]), style:tr.style||"mixed", travelers:tr.travelers||2, currency:tr.currency||"EUR" } : newDraft();
   /* Modification d'un voyage déjà découpé : on ramène ses étapes dans le brouillon,
@@ -4266,8 +4266,9 @@ function recapHtml(){
 }
 function updateRecap(){ const el=document.getElementById("cRecap"); if(!el) return;
   el.style.display=draft&&draft.dest?"":"none"; if(!draft||!draft.dest){ el.innerHTML=""; return; }
-  el.innerHTML=recapHtml(); const eb=el.querySelector("#cRecapEdit"); if(eb) eb.onclick=()=>openAcc("dest"); }
+  el.innerHTML=recapHtml(); const eb=el.querySelector("#cRecapEdit"); if(eb) eb.onclick=focusDest; }   /* #2 : cible le vrai champ Destination (#cDest, toujours visible) au lieu d'une carte inexistante */
 function acSub(name,label){ if(!label) return ""; const p=String(label).split(", "); if(p[0]===name) p.shift(); return p.join(", "); }
+function focusDest(){ const b=document.getElementById("createBody"); if(!b) return; const di=b.querySelector("#cDest"); if(!di) return; try{ di.scrollIntoView({behavior:"smooth",block:"center"}); }catch(e){} setTimeout(()=>{ try{ di.focus({preventScroll:true}); }catch(e){} },320); }
 function openAcc(name){ const c=document.querySelector('.acard[data-card="'+name+'"]'); if(!c) return; c.classList.add("open"); c.scrollIntoView({behavior:"smooth",block:"start"}); const di=c.querySelector("#cDest"), cc=c.querySelector("#cCountry"); setTimeout(()=>{ try{ if(di&&!di.disabled) di.focus({preventScroll:true}); else if(cc) cc.focus({preventScroll:true}); }catch(e){} },320); }
 async function fetchDraftCover(){ try{ if(!googleReady()||draft.coverPhoto||!draft.dest||draft.dest.lat==null) return; const dn=draft.dest.name; const res=await gText(dn,{lat:draft.dest.lat,lng:draft.dest.lng}); if(res&&res.places){ const p=res.places.find(x=>x.photos&&x.photos[0]); if(p&&draft.dest&&draft.dest.name===dn){ draft.coverPhoto=p.photos[0].name; updateRecap(); } } }catch(e){} }
 function renderCreate(tr){
@@ -4324,7 +4325,7 @@ function renderCreate(tr){
   const cCountry=b.querySelector("#cCountry"), cCountryAc=b.querySelector("#cCountryAc");
   if(cCountry){ const _cl=COUNTRY_CODES.map(cc=>({cc,name:countryName(cc)})).sort((x,y)=>x.name.localeCompare(y.name,lang()));
     const _nrm=s=>String(s||"").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g,"");
-    const pickCountry=c=>{ const _mism=!!(draft.dest&&draft.dest.cc&&draft.dest.cc!==c.cc); draft.country={cc:c.cc,name:c.name};
+    const pickCountry=c=>{ const _mism=!!(draft.dest&&draft.dest.cc&&draft.dest.cc!==c.cc); draft.country={cc:c.cc,name:c.name}; draft.countryExplicit=true;   /* #3 : pays choisi VOLONTAIREMENT -> on peut filtrer */
       if(_mism){ draft.dest=null; draft.coverPhoto=""; const di=b.querySelector("#cDest"); if(di) di.value=""; }
       cCountry.value=c.name; cCountryAc.classList.remove("show"); cCountryAc.innerHTML="";
       const acx=b.querySelector("#cAc"); if(acx){ acx.classList.remove("show"); acx.innerHTML=""; }
@@ -4339,7 +4340,7 @@ function renderCreate(tr){
     cCountry.addEventListener("blur",()=>{ setTimeout(()=>{ if(cCountryAc) cCountryAc.classList.remove("show"); },200); }); }
   const dest=b.querySelector("#cDest"),ac=b.querySelector("#cAc");
   dest.addEventListener("input",()=>{ draft.dest=null; const q=dest.value.trim(); clearTimeout(_acT); if(q.length<3){ ac.classList.remove("show"); ac.innerHTML=""; return; }
-    _acT=setTimeout(async()=>{ const _cc=draft.country&&draft.country.cc;
+    _acT=setTimeout(async()=>{ const _cc=(draft.countryExplicit&&draft.country)?draft.country.cc:null;   /* #3 : filtre pays seulement si l'utilisateur a choisi le pays lui-meme ; sinon recherche mondiale (Paris -> Rome possible) */
       /* Même moteur que la barre d'accueil et le champ « Où dormir ? » :
          Google complète les débuts de mots, Nominatim reste le secours. */
       let res=await zoneSuggest(q,null,_cc||null);
@@ -4363,7 +4364,7 @@ function renderCreate(tr){
       ac.classList.add("show");
       ac.querySelectorAll("div[data-i]").forEach(el=>el.onclick=async()=>{ let r=res[+el.dataset.i]; ac.classList.remove("show"); r=await resolveSuggestion(r)||r;
         draft.dest=r; draft.coverPhoto=""; dest.value=r.name+(r.country?", "+r.country:""); revealCRest();
-        if(r.cc){ draft.country={cc:r.cc,name:countryName(r.cc)}; const _cf=b.querySelector("#cCountry"); if(_cf) _cf.value=countryName(r.cc); }
+        if(r.cc){ draft.country={cc:r.cc,name:countryName(r.cc)}; draft.countryExplicit=false;   /* #3 : pays DEDUIT de la destination -> ne verrouille pas la recherche suivante */ const _cf=b.querySelector("#cCountry"); if(_cf) _cf.value=countryName(r.cc); }
         if(r.cc&&CC_CUR[r.cc]){ draft.currency=CC_CUR[r.cc]; const sel=b.querySelector("#cCur"); if(sel) sel.value=draft.currency; } applyCountryFuel(r.cc); renderVehPanel(); updateRecap(); updateDestSub(); fetchDraftCover(); const _dc=b.querySelector('.acard[data-card="dest"]'); if(_dc)_dc.classList.remove("open"); const _sc=b.querySelector('.acard[data-card="stay"]'); if(_sc)_sc.classList.add("open"); }); },600); });
   const lodge=b.querySelector("#cLodge"),lac=b.querySelector("#cLodgeAc"); let _lacT=null;
   lodge.addEventListener("input",()=>{ draft.lodging=null; const q=lodge.value.trim(); clearTimeout(_lacT); if(q.length<3){ lac.classList.remove("show"); lac.innerHTML=""; return; }
@@ -4714,10 +4715,14 @@ async function aiFillCreate(){
   if(r.debut){ draft.dateStart=r.debut; draft.dateEnd=r.fin||""; }
   if(r.voyageurs) draft.travelers=r.voyageurs;
   if(r.styles&&r.styles.length){ draft.styles=r.styles.slice(); draft.style=r.styles[0]; }
+  const _keepName=(b.querySelector("#cName")||{}).value||"";   /* #6 : preserver les saisies manuelles a travers le re-rendu de l'IA */
+  const _keepLodge=(b.querySelector("#cLodge")||{}).value||"";
   renderCreate(null);
   const nb=document.getElementById("createBody");
   const di=nb.querySelector("#cDest"); if(di) di.value=draft.dest.name;
   const ai=nb.querySelector("#cAI"); if(ai) ai.value=phrase;
+  if(_keepName){ const _nn=nb.querySelector("#cName"); if(_nn) _nn.value=_keepName; }
+  if(_keepLodge){ const _nl=nb.querySelector("#cLodge"); if(_nl) _nl.value=_keepLodge; }
   revealCRest(false); updateTripDatesField(); updateRecap(); updateDestSub(); fetchDraftCover(); saveDraft();
   /* Fidèle n'invente pas de dates : si la phrase n'en donnait pas, on le montre. */
   if(!(draft.dateStart&&draft.dateEnd)){ _createTried=true; checkCreate(true); toast(t("create.reqDates")); }
@@ -4821,7 +4826,7 @@ function bindLegs(host){
   let tmr=null;
   inp.addEventListener("input",()=>{ const q=inp.value.trim(); clearTimeout(tmr);
     if(q.length<3){ ac.classList.remove("show"); ac.innerHTML=""; return; }
-    tmr=setTimeout(async()=>{ const cc=(draft.country&&draft.country.cc)||null;
+    tmr=setTimeout(async()=>{ const cc=null;   /* #4 : recherche mondiale pour les etapes -> Paris -> Bruxelles -> Amsterdam autorise */
       let res=await zoneSuggest(q,null,cc);
       if(cc) res=res.filter(r=>!r.cc||r.cc===cc);
       if(!res.length){ ac.classList.remove("show"); ac.innerHTML=""; return; }
@@ -4911,13 +4916,14 @@ async function submitCreate(){
     const _lbl=sub.querySelector("span"), _was=_lbl?_lbl.textContent:"";
     sub.disabled=true; if(_lbl) _lbl.textContent="…";
     let res=await zoneSuggest(destText,null,_cc||null);
-    if(res[0]) res=[await resolveSuggestion(res[0])||res[0]];
     sub.disabled=false; if(_lbl) _lbl.textContent=_was;
-    /* Hors-ligne ou lieu introuvable : on crée quand même, les coordonnées seront résolues plus tard. */
-    dest=res[0]||{name:destText,country:(draft.country&&draft.country.name)||"",cc:_cc||"",lat:null,lng:null};
-    /* Ni résultat ni réseau coupé : le nom saisi ne correspond à aucun lieu.
-       On le dit plutôt que d'enregistrer une coquille en silence. */
+    /* Ni résultat ni réseau coupé : le nom saisi ne correspond à aucun lieu. On le dit plutôt que d'enregistrer une coquille. */
     if(!res.length&&navigator.onLine){ toast(t("create.noPlace",{q:destText})); b.querySelector("#cDest").focus(); return; }
+    /* #5 : plusieurs lieux correspondent -> on ouvre la liste et on laisse choisir, au lieu de prendre le 1er en silence. */
+    if(res.length>1 && navigator.onLine){ const _di=b.querySelector("#cDest"); if(_di){ _di.focus(); try{ _di.dispatchEvent(new Event("input",{bubbles:true})); }catch(e){} } toast(t("create.needDest")); return; }
+    /* 1 seul résultat (ou hors-ligne) : on résout et on crée. Hors-ligne, coordonnées résolues plus tard. */
+    if(res[0]) res=[await resolveSuggestion(res[0])||res[0]];
+    dest=res[0]||{name:destText,country:(draft.country&&draft.country.name)||"",cc:_cc||"",lat:null,lng:null};
     if(dest.cc&&CC_CUR[dest.cc]) draft.currency=CC_CUR[dest.cc]; }
   if(!name) name=(dest&&dest.name)||destText;
   const ds=draft.dateStart||"", de=draft.dateEnd||"";
