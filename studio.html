@@ -1282,7 +1282,7 @@ function renderPlanToBuffer(dur, sr){
 function analyzeBufferInto(buf, cb){ try{ essentiaReady.then(function(ok){ if(ok){ setTimeout(function(){ try{ toMono44(buf,function(sig,sr){ var An; try{ An=analyzeEssentia(sig,sr,buf.duration); if(!_analysisOK(An)) An=analyzeCustom(buf); }catch(e){ An=analyzeCustom(buf); } cb(An); }); }catch(e){ cb(analyzeCustom(buf)); } }, 20); } else { setTimeout(function(){ cb(analyzeCustom(buf)); }, 20); } }); }catch(e){ try{ cb(analyzeCustom(buf)); }catch(e2){ cb(null); } } }
 
 var CLIPS=[], clipVidReady=false, VIDACT=-1;
-window.STUDIO_VERSION="v1151";
+window.STUDIO_VERSION="v1153";
 window.MAGOT_EXPORT_ENGINE="auto"; try{ window.MAGOT_EXPORT_ENGINE=localStorage.getItem("magot_export_engine")||"auto"; }catch(e){}
 function setMagotExportEngine(mode){ if(mode!=="auto"&&mode!=="turbo"&&mode!=="mediarecorder") mode="auto"; window.MAGOT_EXPORT_ENGINE=mode; try{ localStorage.setItem("magot_export_engine",mode); }catch(e){} }
 function _exportEngineLabel(){ var m=window.MAGOT_EXPORT_ENGINE; return m==="turbo"?"Export : Turbo test":m==="mediarecorder"?"Export : Compatible":"Export : Automatique"; }
@@ -1487,6 +1487,7 @@ function _moodName(k){ return ({cinema:"Cin\u00e9ma",voyage:"Voyage",doux:"Doux"
 try{ window._reflectMood=function(md){ try{
   var nm=_moodName(md);
   var ch=document.querySelector('.choice[data-name="'+nm+'"]'); if(!ch) return;
+  try{ document.querySelectorAll(".choice").forEach(function(x){ x.classList.remove("active"); }); ch.classList.add("active"); }catch(e){}   /* v1152 : resync du SELECTEUR riche (liseré doré .choice.active) au mode REEL. Avant, la restauration d'un film ne le remettait pas a jour -> il restait sur le mode du film precedent, alors que l'en-tete/l'ambiance affichaient (correctement) le mode restaure. Le montage n'etait PAS affecte (MOOD correct) : c'etait un mensonge d'affichage. */
   var icoSpan=ch.querySelector(".cem");
   var shortD=ch.getAttribute("data-short")||"", fullD=ch.getAttribute("data-desc")||shortD;
   var lab=document.getElementById("infoLabel"), desc=document.getElementById("infoDesc"), ico=document.getElementById("infoIco");
@@ -1657,7 +1658,7 @@ function analyzeCustom(audio){
   var env=computeEnv(ch,sr); var kEnv=env.kEnv,hEnv=env.hEnv,bEnv=env.bEnv,fps=env.fps,nF=env.nF;
   if(nF<8) return {beats:[],dur:audio.duration,bpm:0,fps:fps,energy:[],strength:[],period:0,engine:"maison"};
   var onRaw=new Float32Array(nF);
-  for(var j=1;j<nF;j++){ onRaw[j]=Math.max(0,kEnv[j]-kEnv[j-1])*1.0 + Math.max(0,hEnv[j]-hEnv[j-1])*0.5; }
+  for(var j=1;j<nF;j++){ onRaw[j]=Math.max(0,kEnv[j]-kEnv[j-1])*1.0 + Math.max(0,hEnv[j]-hEnv[j-1])*0.7; }   /* v1153 : poids de l'AIGU 0.5 -> 0.7 (le realisateur maison attrape un peu plus de points de coupe sur les attaques aigues : charleys, cymbales, caisse claire). Le grave reste prioritaire (x1.0). N'affecte QUE le moteur maison ; Essentia a sa propre detection interne. */
   var W=Math.round(fps*0.5), on=new Float32Array(nF);
   for(var a=0;a<nF;a++){ var lo=Math.max(0,a-W),hh=Math.min(nF,a+W),m=0; for(var c=lo;c<hh;c++) m+=onRaw[c]; m/=(hh-lo)||1; on[a]=Math.max(0,onRaw[a]-m); }
   var minL=Math.round(fps*60/180), maxL=Math.round(fps*60/70);
@@ -2245,7 +2246,7 @@ function buildPartition(){
   (function(){ var _ld=null; for(var _dm=0; _dm<SEGS.length; _dm++){ var _sgd=SEGS[_dm]; if(_sgd.sign||_sgd.video||_sgd.img==null||_sgd.img<0){ continue; } var _dv=(PHOTOS[_sgd.img]&&PHOTOS[_sgd.img]._day!=null)?PHOTOS[_sgd.img]._day:null; if(_dv==null){ continue; } _sgd._dayStart=(_dv!==_ld)?_dv:null; _ld=_dv; } })();
   /* SIGNATURE : intro au tout début, outro à la toute fin -> plans à part entière de la timeline.
      La musique joue par-dessus (elle démarre sur l'intro, se termine sur l'outro). */
-  /* v1146 — RETOUR MOTEUR C267 : _snapClipCuts DESACTIVE (calage supplementaire clip->photo ajoute en v1130, absent du studio d'origine). Les clips courts jouent tels quels ; leurs coupes hors grille restent nommees au diagnostic, comme avant. */
+  try{ _snapClipCuts(SEGS, beats, CLIPS); }catch(e){}   /* v1153 — REACTIVE a la demande de Loic : cale la FIN des clips >= 1 temps sur le beat le plus proche (la photo suivante absorbe l'ecart, extension bornee par la matiere source). Les clips < 1 temps jouent TOUJOURS entiers (garde-fou "(cg.end-cg.start) < bStep -> continue" dans _snapClipCuts -> v1080 preserve). Depart delibere de C267 pur, demande explicitement. */
   /* v1124 — ATTRIBUTION UNIQUE des transitions, sur la partition MEDIA finale (AVANT la signature) :
      sac neuf ; index MEDIA (independant de intro/outro) ; 1er media = "none" ; transitions forcees par une
      mutation (fade/cut) PRESERVEES ; gtChoose seulement sur les frontieres media qui n'ont pas de transition. */
@@ -10870,7 +10871,7 @@ function _applyMoodUI(md){ try{ document.querySelectorAll(".mood").forEach(funct
 if(syncEl) syncEl.oninput=function(){ SYNC_M[MOOD]=(+syncEl.value)/1000; window.PERSO_SYNC=SYNC_M[MOOD]; window.PERSO_BASE=MOOD; try{ window.__syncOverrides=null; }catch(e){} _persoUI();   /* v1079 : bouger le curseur = MODE PERSONNALISÉ (les 4 presets restent purs) */ syncLabel(); if(A){ paintStrip(playing?visualTime():0); try{ if(SEGS&&SEGS.length) renderMontageAt(playing?visualTime():0); }catch(e){} } };
 var srst=document.getElementById("syncReset"); if(srst) srst.onclick=function(){ window.PERSO_SYNC=null; window.PERSO_BASE=null; try{ window.__syncOverrides=null; }catch(e){} SYNC_M[MOOD]=autoSync(MOOD,(A&&A.bpmFelt)?A.bpmFelt:((A&&A.bpm)?A.bpm:120)); _persoUI(); syncApply(); };
 syncApply();
-document.querySelectorAll(".mood").forEach(function(btn){ btn.onclick=function(){ document.querySelectorAll(".mood").forEach(function(x){ x.classList.remove("on"); }); btn.classList.add("on"); MOOD=btn.dataset.mood; window.PERSO_SYNC=null; window.PERSO_BASE=null; SYNC_M[MOOD]=autoSync(MOOD,(A&&(A.bpmFelt||A.bpm))||120); _persoUI();   /* v1079 : taper un preset = preset PUR, sync auto */ try{ window.__studioDirty=true; }catch(e){} syncApply(); try{ if(_ovEl) _ovEl._flt=null; }catch(e){} /* v1128 : changer de mode ne change JAMAIS la musique — l'utilisateur choisit mode ET musique separement (auto-swap _autoMusicForMood + pop-up "musique du style" RETIRES). On reconstruit juste le montage avec le nouveau mode, musique conservee. */
+document.querySelectorAll(".mood").forEach(function(btn){ btn.onclick=function(){ document.querySelectorAll(".mood").forEach(function(x){ x.classList.remove("on"); }); btn.classList.add("on"); MOOD=btn.dataset.mood; window.PERSO_SYNC=null; window.PERSO_BASE=null; SYNC_M[MOOD]=autoSync(MOOD,(A&&(A.bpmFelt||A.bpm))||120); _persoUI(); try{ if(window._reflectMood) window._reflectMood(MOOD); }catch(e){}   /* v1152 : les petits boutons de mode resynchronisent AUSSI l'en-tete + le selecteur riche (avant, seul le clic sur la carte riche le faisait) */   /* v1079 : taper un preset = preset PUR, sync auto */ try{ window.__studioDirty=true; }catch(e){} syncApply(); try{ if(_ovEl) _ovEl._flt=null; }catch(e){} /* v1128 : changer de mode ne change JAMAIS la musique — l'utilisateur choisit mode ET musique separement (auto-swap _autoMusicForMood + pop-up "musique du style" RETIRES). On reconstruit juste le montage avec le nouveau mode, musique conservee. */
     if(A&&(PHOTOS.length||clipVidReady)){ var _wasP=playing, _pos=(playing?montageNow():pausedOffset)||0; buildPartition(); updateBadge(); if(_wasP){ try{ var _mx=(window.MONTAGE_DUR||_pos)-0.05; seekMontageTo(Math.max(0,Math.min(_pos,_mx))); }catch(e){} paintStrip(visualTime()); } else { paintStrip(0); try{ renderMontageAt(0); }catch(e){} } } setState("Ambiance : <b>"+btn.textContent+"</b> · "+(A?( (SEGS.length)+" plans"):"")); }; });
 
 document.getElementById("fMusic").onchange=function(e){
