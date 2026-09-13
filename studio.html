@@ -4,6 +4,7 @@
 
 <!-- Studio Magot — FIX FLOU A LA REOUVERTURE (C267a) : à l'import, window._PMAX=1440, donc les photos s'affichaient nettes ; mais a froid (app ouverte 3-4 jours apres), window._PMAX etait undefined -> studioOpenFilm / _restorePhotoFromBlob / _decodeFromSrc retombaient sur 1200 et RE-sous-echantillonnaient les blobs 1440 stockes -> flou. Desormais la restauration/re-decodage utilise un PLANCHER Math.max(1440, ...) : les blobs stockes sont decodes a leur taille native (jamais reduits), donc une photo rouverte est aussi nette qu'a sa creation. Qualite JPEG de stockage 0.82 -> 0.86. Memoire inchangee (identique a la session de creation). · BUILD 2026-08-16-C267 -->
 <!-- Studio Magot — NETTETE MAX / NIVEAU CAPCUT (C267b) : les photos etaient plafonnees a 1440 px alors que le montage s'EXPORTE en 1920 px -> agrandissement ~33% = flou meme en session fraiche et dans la video finale. Desormais _PCAP=1920 : source photo = resolution d'export, plus aucun upscale, netteté maximale a l'ecran ET a l'export. Le cache memoire _DEC_MAX n'est plus un nombre fixe mais un BUDGET RAM (190 Mo iOS ; adapte a la RAM sur Android) : a 1920 px on garde automatiquement moins de photos decodees pour tenir le budget -> aucun crash iPhone. Import >600 photos: repli a 1440 (encodage plus rapide). Les films crees avant restent en 1440 (blob deja encode) ; les nouveaux sont en 1920. · BUILD 2026-08-16-C267 -->
+<!-- Studio Magot — D1 / OFFLINE PRO (C268) : essentia.js (wasm+core) et mp4-muxer AUTO-HEBERGES (fini la dependance CDN jsdelivr au runtime). Les 3 scripts pointent en ./ relatif ; le .web.js va chercher essentia-wasm.web.wasm en same-origin. Precache SW etendu aux 4 fichiers -> analyse des temps (Essentia) et export MP4 image-exact (WebCodecs+muxer) fonctionnent HORS-LIGNE, plus de degradation silencieuse. Sentry laisse en CDN (telemetrie non critique, garde if(window.Sentry)). · BUILD 2026-09-13-C268 -->
 <html lang="fr">
 <head>
 <meta charset="utf-8">
@@ -48,8 +49,8 @@
     }catch(e){}
   })();
 </script>
-<script src="https://cdn.jsdelivr.net/npm/essentia.js@0.1.3/dist/essentia-wasm.web.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/essentia.js@0.1.3/dist/essentia.js-core.js"></script>
+<script src="./essentia-wasm.web.js"></script>
+<script src="./essentia.js-core.js"></script>
 <style>
   :root{--gold:#D4AF37;}
   *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
@@ -80,7 +81,7 @@
   .fmt{padding:10px 4px;font-size:13px}
   .fmt.on{background:#E0A33E;color:#241603;border-color:#E0A33E}
 </style>
-<script src="https://cdn.jsdelivr.net/npm/mp4-muxer@5.2.1/build/mp4-muxer.js"></script>
+<script src="./mp4-muxer.js"></script>
 <style id="kimiCSS">
 
 :root{

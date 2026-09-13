@@ -1,12 +1,24 @@
 /* Magot Voyage — Service Worker */
-const VERSION = "v1169";
+const VERSION = "v1170";
 const CACHE = "magot-voyage-" + VERSION;
 const SHELL = [
   "./","./index.html","./studio.html","./manifest.json","./icon-192.png","./icon-512.png","./icon-maskable-512.png","./apple-touch-icon.png"
 ];
+/* D1 — libs runtime du Studio, auto-hébergées same-origin : analyse des temps (Essentia) et
+   export MP4 image-exact (mp4-muxer) doivent fonctionner HORS-LIGNE. Le .web.js va chercher
+   essentia-wasm.web.wasm en same-origin -> le .wasm DOIT être précaché lui aussi. */
+const LIBS = [
+  "./essentia-wasm.web.js","./essentia-wasm.web.wasm","./essentia.js-core.js","./mp4-muxer.js"
+];
 self.addEventListener("install", (e) => {
   self.skipWaiting();
-  e.waitUntil(caches.open(CACHE).then((c) => c.addAll(SHELL).catch(() => {})));
+  /* deux lots séparés : un échec sur une lib ne doit pas empêcher la mise en cache de la coquille HTML */
+  e.waitUntil(caches.open(CACHE).then((c) =>
+    Promise.all([
+      c.addAll(SHELL).catch(() => {}),
+      Promise.all(LIBS.map((u) => c.add(u).catch(() => {})))
+    ])
+  ));
 });
 self.addEventListener("activate", (e) => {
   e.waitUntil(
