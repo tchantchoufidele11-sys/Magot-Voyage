@@ -1282,7 +1282,7 @@ function renderPlanToBuffer(dur, sr){
 function analyzeBufferInto(buf, cb){ try{ essentiaReady.then(function(ok){ if(ok){ setTimeout(function(){ try{ toMono44(buf,function(sig,sr){ var An; try{ An=analyzeEssentia(sig,sr,buf.duration); if(!_analysisOK(An)) An=analyzeCustom(buf); }catch(e){ An=analyzeCustom(buf); } cb(An); }); }catch(e){ cb(analyzeCustom(buf)); } }, 20); } else { setTimeout(function(){ cb(analyzeCustom(buf)); }, 20); } }); }catch(e){ try{ cb(analyzeCustom(buf)); }catch(e2){ cb(null); } } }
 
 var CLIPS=[], clipVidReady=false, VIDACT=-1;
-window.STUDIO_VERSION="v1155";
+window.STUDIO_VERSION="v1159";
 window.MAGOT_EXPORT_ENGINE="auto"; try{ window.MAGOT_EXPORT_ENGINE=localStorage.getItem("magot_export_engine")||"auto"; }catch(e){}
 function setMagotExportEngine(mode){ if(mode!=="auto"&&mode!=="turbo"&&mode!=="mediarecorder") mode="auto"; window.MAGOT_EXPORT_ENGINE=mode; try{ localStorage.setItem("magot_export_engine",mode); }catch(e){} }
 function _exportEngineLabel(){ var m=window.MAGOT_EXPORT_ENGINE; return m==="turbo"?"Export : Turbo test":m==="mediarecorder"?"Export : Compatible":"Export : Automatique"; }
@@ -1658,7 +1658,7 @@ function analyzeCustom(audio){
   var env=computeEnv(ch,sr); var kEnv=env.kEnv,hEnv=env.hEnv,bEnv=env.bEnv,fps=env.fps,nF=env.nF;
   if(nF<8) return {beats:[],dur:audio.duration,bpm:0,fps:fps,energy:[],strength:[],period:0,engine:"maison"};
   var onRaw=new Float32Array(nF);
-  for(var j=1;j<nF;j++){ onRaw[j]=Math.max(0,kEnv[j]-kEnv[j-1])*1.3 + Math.max(0,hEnv[j]-hEnv[j-1])*0.7; }   /* v1155 : GRAVE compense (1.0 -> 1.3) apres la hausse de l'aigu (0.5 -> 0.7). Ce qui decide de la detection d'attaques = le RATIO grave:aigu (le seuil est RELATIF a la distribution) : original 2.0 ; aigu seul 1.43 (trop tourne vers l'aigu -> sur les remix bass-heavy la grille derivait vers les charleys/cymbales au lieu des kicks -> coupes desync) ; ici 1.86, proche de l'original -> grille re-ancree sur les kicks + leger surcroit d'aigu. N'affecte QUE la detection d'attaques du moteur maison (snapKick et strengthEnergy lisent kEnv BRUT, non touche). */
+  for(var j=1;j<nF;j++){ onRaw[j]=Math.max(0,kEnv[j]-kEnv[j-1])*1.4 + Math.max(0,hEnv[j]-hEnv[j-1])*0.7; }   /* v1156 : GRAVE a 1.4 (demande de Loic). Ratio grave:aigu = 1.4/0.7 = 2.0 = EXACTEMENT l'equilibre d'origine (1.0/0.5). Le seuil de detection etant relatif, la detection d'attaques est donc identique a l'origine -> sync remix garantie comme avant. N'affecte QUE la detection du moteur maison (snapKick/strengthEnergy lisent kEnv brut). */
   var W=Math.round(fps*0.5), on=new Float32Array(nF);
   for(var a=0;a<nF;a++){ var lo=Math.max(0,a-W),hh=Math.min(nF,a+W),m=0; for(var c=lo;c<hh;c++) m+=onRaw[c]; m/=(hh-lo)||1; on[a]=Math.max(0,onRaw[a]-m); }
   var minL=Math.round(fps*60/180), maxL=Math.round(fps*60/70);
@@ -9123,6 +9123,63 @@ function audioFingerprint(A){
   A._fp={drive:drive, dyn:dyn, energy:em, percuss:sm, bpm:bpm};
   return A._fp;
 }
+/* ===== v1158 — REALISATEUR IA (PROTOTYPE, desactive par defaut) =====
+   Mistral choisit UNIQUEMENT le "tier" de transition par SECTION (sobre/elegant/spectaculaire),
+   parmi des reperes EXISTANTS. Il ne touche JAMAIS au calage (beats/coupes/durees/horloge) :
+   le tier ne change que le CHOIX d'effet dans gtChoose, pas le timing. Securites :
+   - window.DIRECTOR_ON=false par defaut -> aucun effet ; gtChoose se comporte comme aujourd'hui.
+   - validation STRICTE : un seul indice hors bornes ou tier inconnu -> proposition ENTIEREMENT rejetee -> moteur normal.
+   - repli garanti : pas de pont Mistral / echec / rejet -> __DIRECTOR_PLAN=null -> comportement actuel.
+   - le vrai appel Mistral est fourni par la greffe Magot (window.__magotDirect) ; sinon, demo locale. */
+window.DIRECTOR_ON=(window.DIRECTOR_ON===true);
+function _directorSections(){
+  var bts=(window.__GRIDBEATS&&window.__GRIDBEATS.length)?window.__GRIDBEATS:((A&&A.beats)?A.beats:[]);
+  if(!bts.length) return [];
+  var t0=bts[0], t1=bts[bts.length-1], span=Math.max(0.001,t1-t0);
+  var N=Math.max(3,Math.min(10,Math.round(span/20)));
+  var secs=[];
+  for(var i=0;i<N;i++){ var a=t0+span*i/N, b=t0+span*(i+1)/N;
+    var e=(typeof energyAt==="function")?energyAt((a+b)/2):0.5;
+    secs.push({i:i, t0:+a.toFixed(3), t1:+b.toFixed(3), energy:+Math.max(0,Math.min(1,e)).toFixed(2)}); }
+  window.__DIRECTOR_SECTIONS=secs; return secs;
+}
+function _directorValidate(raw, sections){ try{
+  if(!raw || !sections || !sections.length) return null;
+  var list=raw.sections||raw; if(!Array.isArray(list)||!list.length) return null;
+  var TIERS={sobre:"subtle","\u00e9l\u00e9gant":"elegant",elegant:"elegant",spectaculaire:"spectacular",spectacular:"spectacular"};
+  var plan=[], seen={};
+  for(var k=0;k<list.length;k++){ var it=list[k]; if(!it) return null;
+    var i=it.i, tr=String(it.tier||"").toLowerCase();
+    if(typeof i!=="number" || i!==Math.floor(i) || i<0 || i>=sections.length) return null;
+    if(!TIERS[tr]) return null;
+    if(seen[i]) return null; seen[i]=1;
+    var s=sections[i]; plan.push({t0:s.t0, t1:s.t1, tier:TIERS[tr]}); }
+  return {plan:plan};
+}catch(e){ return null; } }
+function _directorTierAt(t){ var P=window.__DIRECTOR_PLAN; if(!P||!P.length) return null;
+  for(var i=0;i<P.length;i++){ if(t>=P[i].t0-0.001 && t<P[i].t1+0.001) return P[i].tier; } return null; }
+function _directorLocalDemo(payload){ var secs=(payload&&payload.sections)||[];
+  return {sections: secs.map(function(s){ return {i:s.i, tier:(s.energy>0.7?"spectaculaire":(s.energy<0.35?"sobre":"elegant"))}; })}; }
+try{ window.studioRunDirector=function(){ try{
+  if(!window.DIRECTOR_ON){ window.__DIRECTOR_PLAN=null; return; }
+  var secs=_directorSections(); if(!secs.length){ window.__DIRECTOR_PLAN=null; try{ setState("\uD83C\uDFAC R\u00e9alisateur : construis d'abord un montage (musique + photos)."); }catch(e){} return; }
+  var payload={mode:MOOD, bpm:Math.round((A&&(A.bpmFelt||A.bpm))||0), nSections:secs.length, sections:secs};
+  var apply=function(raw, src){ var v=_directorValidate(raw, secs); window.__DIRECTOR_PLAN=v?v.plan:null;
+    try{ if(A&&(PHOTOS.length||clipVidReady)) buildPartition(); if(typeof paintStrip==="function")paintStrip(0); if(typeof renderMontageAt==="function")renderMontageAt(0); }catch(e){}
+    try{ setState(v?("\uD83C\uDFAC R\u00e9alisateur "+(src||"")+" : "+v.plan.length+" sections appliqu\u00e9es."):"\uD83C\uDFAC R\u00e9alisateur : proposition rejet\u00e9e (invalide) \u2014 moteur normal."); }catch(e){} };
+  var _done=false; try{ setState("\uD83C\uDFAC R\u00e9alisateur : consultation\u2026"); }catch(e){}
+  try{
+    if(typeof window.__magotDirect==="function"){ var _r=window.__magotDirect(payload); if(_r&&_r.then){ _r.then(function(raw){ _done=true; apply(raw,"IA"); }).catch(function(){ if(!_done) apply(_directorLocalDemo(payload),"(d\u00e9mo hors-ligne)"); }); } else apply(_r,"IA"); }
+    else { var _url=(typeof _workerBase==="function"?_workerBase():"")+"/agent/transitions";
+      fetch(_url,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(payload)})
+        .then(function(r){ return r.ok?r.json():Promise.reject(0); })
+        .then(function(d){ var raw=null; try{ raw=(d&&d.sections)?d:((d&&d.text)?JSON.parse(d.text):null); }catch(e){} _done=true; if(raw) apply(raw,"IA"); else apply(_directorLocalDemo(payload),"(d\u00e9mo hors-ligne)"); })
+        .catch(function(){ if(!_done) apply(_directorLocalDemo(payload),"(d\u00e9mo hors-ligne)"); });
+    }
+  }catch(e){ apply(_directorLocalDemo(payload),"(d\u00e9mo hors-ligne)"); }
+}catch(e){ window.__DIRECTOR_PLAN=null; } };
+window.studioSetDirector=function(on){ window.DIRECTOR_ON=!!on; if(on){ window.studioRunDirector(); } else { window.__DIRECTOR_PLAN=null; try{ if(A&&(PHOTOS.length||clipVidReady)){ buildPartition(); paintStrip(0); renderMontageAt(0); } }catch(e){} } };
+}catch(e){}
 function gtChoose(idx,sg,prev,photos,energy,mood){
   var seed=(A&&A.beats)?(A.beats.length%89):0, k=idx+seed;
   var neutral={lum:0.5,warm:0,sat:0.3,detail:0.2,portrait:false};
@@ -9144,6 +9201,7 @@ function gtChoose(idx,sg,prev,photos,energy,mood){
   else { var r=(k*0.618)%1; tier=(r < subRatio)?"subtle":"elegant"; }
   var _sgPk=(window.LOOP_ON&&typeof audioAt==="function")?audioAt(sg.start):sg.start;   /* v1150 : BOUCLE — A.peaks sont en temps PISTE ; on compare au temps montage REMAPPE (sinon les pics ne retombent plus sur les coupes apres la repetition -> tier spectaculaire mal choisi). */
   if(A&&A.peaks&&A.peaks.length){ for(var _pi=0;_pi<A.peaks.length;_pi++){ if(Math.abs(A.peaks[_pi]-_sgPk)<0.5){ if(specAllowed>0.02) tier="spectacular"; break; } } }
+  try{ if(window.DIRECTOR_ON && typeof _directorTierAt==="function"){ var _dt=_directorTierAt(sg.start); if(_dt){ tier=(_dt==="spectacular" && specAllowed<=0)?"elegant":_dt; } } }catch(e){}   /* v1158 : REALISATEUR IA (proto) — s'il est ACTIF et que sa proposition est VALIDE, il impose le tier de la section courante ; sinon aucun effet. Respecte specAllowed (pas de spectaculaire force dans un mode qui l'interdit). Ne touche PAS le timing. */
   var prefs=[];
   if(tier==="subtle"){
     if(dW>0.20) prefs=["colorphase","fadecolor","ColourDistance"];
@@ -9411,7 +9469,13 @@ function _subAt(t){ if(!SUBS.length) return ""; var cur=""; for(var i=0;i<SUBS.l
 function _musicTimeNow(){ /* temps DANS la musique (pour caler les paroles) — calage simple, sans compensation ajoutée */
   try{
     if(window.LOOP_ON){ return audioAt(montageNow()); }   /* boucle : vraie position audio (audioAt gère la région rejouée) */
-    if(window.MULTI){ var md=(window.MUSIC_DUR||(A?A.dur:0))||0; var mt2=montageNow(); return md>0?(mt2%md):mt2; }
+    if(window.MULTI){ /* v1157 (P8) : temps DANS la musique pour le karaoke, en multi. Avant : montageNow()%duree_TOTALE -> temps ne correspondant a aucune piste -> paroles desync. Maintenant : temps LOCAL de la piste PORTEUSE des paroles ; -1e9 (=> _subAt renvoie "") sur les autres pistes ou si aucune porteuse. */
+      var _lti=(window.__lyricsTi!=null)?window.__lyricsTi:-1; if(_lti<0) return -1e9;
+      var _mt=montageNow(), _P=window.MPLAN||[], _si=-1;
+      for(var _i=_P.length-1;_i>=0;_i--){ if(_mt>=_P[_i].mStart-0.001){ _si=_i; break; } }
+      var _sg=_P[_si]; if(!_sg || _sg.ti!==_lti) return -1e9;
+      return _sg.entry + (_mt - _sg.mStart);
+    }
     return (audioEl?audioEl.currentTime:montageNow());
   }catch(e){ return montageNow(); } }
 var _subDimKey="";
@@ -10313,7 +10377,7 @@ function _afterOpenFilm(proj){ try{ _linkSources(); }catch(e){} try{
   }
   _clipsP.then(function(){
     /* v1154 : NOUVEAU FILM -> repartir de paroles VIDES. __origLRC est GLOBAL ; sans ce reset il gardait les paroles du film PRECEDENT, que useTrack reutilise pour un blob "Ce montage" -> affichage des mauvaises paroles jusqu'a un rafraichissement (au reload, __origLRC repart vide). Les paroles PROPRES du film (proj.music.lyrics ci-dessous) ou celles retrouvees au catalogue sont chargees juste apres. */
-    try{ window.__origLRC=""; window._LYRICS_LANG="orig"; if(typeof _parseLRC==="function") _parseLRC(""); window.__hasLyrics=false; }catch(e){}
+    try{ window.__origLRC=""; window._LYRICS_LANG="orig"; if(typeof _parseLRC==="function") _parseLRC(""); window.__hasLyrics=false; window.__lyricsTi=-1; }catch(e){}
     /* poser l'identité de la musique du film pour que la récupération auto des paroles fonctionne */
     try{ if(proj.music){ window.__activeMusicMeta={ id:(proj.music.id!=null?proj.music.id:null), catId:(proj.music.catId!=null?proj.music.catId:null), title:proj.music.title||null, url:proj.music.url||null, type:proj.music.type||null, cover:proj.music.cover||null }; } }catch(e){}
     try{ if(proj.music && proj.music.lyrics && typeof window.studioSetLyrics==="function"){ window.studioSetLyrics(proj.music.lyrics); window.__hasLyrics=(SUBS&&SUBS.length>0); } }catch(e){}   /* recharge les paroles du film enregistré */
@@ -10609,12 +10673,14 @@ function _toggleFilmsMenu(anchor){
       +'<button class="fm-i" data-a="diag" style="'+_bs+';color:#c9a44a">\uD83D\uDD0D Diagnostic paroles</button>'
       +'<button class="fm-i" data-a="diagmontage" style="'+_bs+';color:#c9a44a">\uD83C\uDFAC Diagnostic montage</button>'
       +'<button class="fm-i" data-a="cutdiag" style="'+_bs+';color:#c9a44a">\uD83C\uDFAF Coupes & musique</button>'
+      +'<button class="fm-i" data-a="director" style="width:100%;text-align:left;background:none;border:0;color:#f4f7fc;font:600 15px system-ui;padding:13px 14px;border-radius:11px;cursor:pointer;display:flex;align-items:center;gap:10px"><span style="pointer-events:none">\uD83C\uDFAC</span><span style="flex:1;pointer-events:none">R\u00e9alisateur IA <span style="opacity:.55;font-size:.8em">(proto)</span></span><span id="dirTrack" style="pointer-events:none;display:inline-block;width:46px;height:27px;border-radius:14px;background:'+(window.DIRECTOR_ON===true?"#7ad0a0":"#3a3733")+';position:relative;transition:background .2s;flex:none"><span id="dirKnob" style="position:absolute;top:3px;left:'+(window.DIRECTOR_ON===true?"22px":"3px")+';width:21px;height:21px;border-radius:50%;background:#fff;transition:left .2s;box-shadow:0 1px 3px rgba(0,0,0,.4)"></span></span></button>'
       +'<button class="fm-i" data-a="expengine" style="'+_bs+';color:#c9a44a">\uD83E\uDDEA '+_exportEngineLabel()+'</button>'
       +'<button class="fm-i" data-a="lyrics" style="width:100%;text-align:left;background:none;border:0;color:#f4f7fc;font:600 15px system-ui;padding:13px 14px;border-radius:11px;cursor:pointer;display:flex;align-items:center;gap:10px"><span style="pointer-events:none">\uD83C\uDFA4</span><span style="flex:1;pointer-events:none">'+_st("Lyrique")+'</span><span id="lyrTrack" style="pointer-events:none;display:inline-block;width:46px;height:27px;border-radius:14px;background:'+(window._LYRICS_ON===true?"#7ad0a0":"#3a3733")+';position:relative;transition:background .2s;flex:none"><span id="lyrKnob" style="position:absolute;top:3px;left:'+(window._LYRICS_ON===true?"22px":"3px")+';width:21px;height:21px;border-radius:50%;background:#fff;transition:left .2s;box-shadow:0 1px 3px rgba(0,0,0,.4)"></span></span></button>'
       +((window.__hasLyrics || (window._SUBS && window._SUBS().length>0))?('<button class="fm-i" data-a="lyrlang" style="'+_bs+'">\uD83C\uDF10 '+_st("Langue des paroles")+'  <span style="float:right;font-size:.82em;opacity:.7">'+((function(){ for(var _l=0;_l<window._LYRICS_LANGS.length;_l++){ if(window._LYRICS_LANGS[_l][0]===window._LYRICS_LANG) return window._LYRICS_LANGS[_l][1]; } return "Original"; })())+' \u203A</span></button>'):"")
 ;
     document.body.appendChild(m);
-    Array.prototype.forEach.call(m.querySelectorAll(".fm-i"), function(it){ it.onclick=function(ev){ ev.stopPropagation(); var a=it.getAttribute("data-a"); if(a!=="lyrics"){ m.style.display="none"; }   /* le toggle Lyrique garde le menu ouvert pour montrer la bascule */
+    Array.prototype.forEach.call(m.querySelectorAll(".fm-i"), function(it){ it.onclick=function(ev){ ev.stopPropagation(); var a=it.getAttribute("data-a"); if(a!=="lyrics" && a!=="director"){ m.style.display="none"; }   /* les toggles Lyrique/R\u00e9alisateur gardent le menu ouvert pour montrer la bascule */
+      if(a==="director"){ try{ var _on=!(window.DIRECTOR_ON===true); if(typeof window.studioSetDirector==="function") window.studioSetDirector(_on); var _dtr=document.getElementById("dirTrack"), _dkn=document.getElementById("dirKnob"); if(_dtr) _dtr.style.background=_on?"#7ad0a0":"#3a3733"; if(_dkn) _dkn.style.left=_on?"22px":"3px"; }catch(e){} return; }
       if(a==="expengine"){ try{ var _cur=window.MAGOT_EXPORT_ENGINE||"auto"; var _next=(_cur==="auto")?"turbo":(_cur==="turbo")?"mediarecorder":"auto"; setMagotExportEngine(_next); if(typeof setState==="function") setState(_exportEngineLabel()); }catch(e){} return; }
       if(a==="signedit"){ try{ _openSignEditor(); }catch(e){} return; }
       if(a==="cutdiag"){ try{ alert(_studioCutDiagText(_studioCutDiag())); }catch(e){ try{ alert("diag coupes err: "+e); }catch(_e){} } return; }
@@ -12497,9 +12563,14 @@ essentiaReady.then(function(ok){ if(!ok && !A){ /* silencieux : le repli se fait
   }
   function assembleMix(){
     var ready=[], firstFile=null;
-    for(var i=0;i<MIX.length;i++){ var t=byId(MIX[i]); if(t&&t._A&&t._buf){ ready.push({buf:t._buf,A:t._A,name:t.title}); if(!firstFile) firstFile=t._file||t.file; } }
+    for(var i=0;i<MIX.length;i++){ var t=byId(MIX[i]); if(t&&t._A&&t._buf){ ready.push({buf:t._buf,A:t._A,name:t.title,id:t.id,lyrics:(t.lyrics||t.lrc||"")}); if(!firstFile) firstFile=t._file||t.file; } }
     if(ready.length<2){ return; }
     TRACKS=ready; AUDIOBUF=TRACKS[0].buf; A=TRACKS[0].A;
+    /* v1157 (P8) : KARAOKE en MULTI — reperer LA piste porteuse des paroles. Ses paroles seront affichees UNIQUEMENT sur ses segments (rien sur les autres pistes). Si aucune piste n'a de paroles -> on vide (pas de paroles heritees d'une selection mono precedente). */
+    try{ window.__lyricsTi=-1; for(var _li=0;_li<TRACKS.length;_li++){ if(TRACKS[_li].lyrics && String(TRACKS[_li].lyrics).trim()){ window.__lyricsTi=_li; break; } }
+      if(window.__lyricsTi>=0 && typeof window.studioSetLyrics==="function"){ window.studioSetLyrics(TRACKS[window.__lyricsTi].lyrics); }
+      else { window.__lyricsTi=-1; try{ window.__origLRC=""; if(typeof _parseLRC==="function") _parseLRC(""); window.__hasLyrics=false; }catch(e){} }
+    }catch(e){ window.__lyricsTi=-1; }
     if(firstFile){ try{ setMusicEl(firstFile); }catch(e){} }
     try{ if(typeof recomputeSync==="function") recomputeSync(); }catch(e){}
     var sm=$("srcMus"); if(sm) sm.textContent=ready.length+" musiques \u00b7 mix DJ";
