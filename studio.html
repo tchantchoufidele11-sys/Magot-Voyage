@@ -1282,7 +1282,7 @@ function renderPlanToBuffer(dur, sr){
 function analyzeBufferInto(buf, cb){ try{ essentiaReady.then(function(ok){ if(ok){ setTimeout(function(){ try{ toMono44(buf,function(sig,sr){ var An; try{ An=analyzeEssentia(sig,sr,buf.duration); if(!_analysisOK(An)) An=analyzeCustom(buf); }catch(e){ An=analyzeCustom(buf); } cb(An); }); }catch(e){ cb(analyzeCustom(buf)); } }, 20); } else { setTimeout(function(){ cb(analyzeCustom(buf)); }, 20); } }); }catch(e){ try{ cb(analyzeCustom(buf)); }catch(e2){ cb(null); } } }
 
 var CLIPS=[], clipVidReady=false, VIDACT=-1;
-window.STUDIO_VERSION="v1159";
+window.STUDIO_VERSION="v1160";
 window.MAGOT_EXPORT_ENGINE="auto"; try{ window.MAGOT_EXPORT_ENGINE=localStorage.getItem("magot_export_engine")||"auto"; }catch(e){}
 function setMagotExportEngine(mode){ if(mode!=="auto"&&mode!=="turbo"&&mode!=="mediarecorder") mode="auto"; window.MAGOT_EXPORT_ENGINE=mode; try{ localStorage.setItem("magot_export_engine",mode); }catch(e){} }
 function _exportEngineLabel(){ var m=window.MAGOT_EXPORT_ENGINE; return m==="turbo"?"Export : Turbo test":m==="mediarecorder"?"Export : Compatible":"Export : Automatique"; }
@@ -9158,6 +9158,12 @@ function _directorValidate(raw, sections){ try{
 }catch(e){ return null; } }
 function _directorTierAt(t){ var P=window.__DIRECTOR_PLAN; if(!P||!P.length) return null;
   for(var i=0;i<P.length;i++){ if(t>=P[i].t0-0.001 && t<P[i].t1+0.001) return P[i].tier; } return null; }
+function _dAbbr(t){ return t==="subtle"?"sobre":(t==="spectacular"?"SPEC":"\u00e9l\u00e9g"); }
+function _directorReadout(txt){ try{ var el=document.getElementById("dirReadout");
+  if(!txt){ if(el) el.style.display="none"; return; }
+  if(!el){ el=document.createElement("div"); el.id="dirReadout"; el.style.cssText="position:fixed;left:8px;right:8px;bottom:78px;z-index:99999;background:rgba(20,18,14,.94);border:1px solid #c9a44a;color:#f0e2b8;font:600 12px/1.35 system-ui;padding:8px 12px;border-radius:10px;text-align:center;pointer-events:none;box-shadow:0 4px 14px rgba(0,0,0,.55)"; document.body.appendChild(el); }
+  el.textContent="\uD83C\uDFAC R\u00e9alisateur \u2014 "+txt; el.style.display="block";
+}catch(e){} }
 function _directorLocalDemo(payload){ var secs=(payload&&payload.sections)||[];
   return {sections: secs.map(function(s){ return {i:s.i, tier:(s.energy>0.7?"spectaculaire":(s.energy<0.35?"sobre":"elegant"))}; })}; }
 try{ window.studioRunDirector=function(){ try{
@@ -9166,7 +9172,7 @@ try{ window.studioRunDirector=function(){ try{
   var payload={mode:MOOD, bpm:Math.round((A&&(A.bpmFelt||A.bpm))||0), nSections:secs.length, sections:secs};
   var apply=function(raw, src){ var v=_directorValidate(raw, secs); window.__DIRECTOR_PLAN=v?v.plan:null;
     try{ if(A&&(PHOTOS.length||clipVidReady)) buildPartition(); if(typeof paintStrip==="function")paintStrip(0); if(typeof renderMontageAt==="function")renderMontageAt(0); }catch(e){}
-    try{ setState(v?("\uD83C\uDFAC R\u00e9alisateur "+(src||"")+" : "+v.plan.length+" sections appliqu\u00e9es."):"\uD83C\uDFAC R\u00e9alisateur : proposition rejet\u00e9e (invalide) \u2014 moteur normal."); }catch(e){} };
+    try{ if(v){ var _ab=v.plan.map(function(p){return _dAbbr(p.tier);}).join(" \u00b7 "); _directorReadout((src||"")+"  ["+_ab+"]"); setState("\uD83C\uDFAC R\u00e9alisateur "+(src||"")+" : "+v.plan.length+" sections."); } else { _directorReadout("proposition rejet\u00e9e \u2014 moteur normal"); setState("\uD83C\uDFAC R\u00e9alisateur : proposition rejet\u00e9e \u2014 moteur normal."); } }catch(e){} };
   var _done=false; try{ setState("\uD83C\uDFAC R\u00e9alisateur : consultation\u2026"); }catch(e){}
   try{
     if(typeof window.__magotDirect==="function"){ var _r=window.__magotDirect(payload); if(_r&&_r.then){ _r.then(function(raw){ _done=true; apply(raw,"IA"); }).catch(function(){ if(!_done) apply(_directorLocalDemo(payload),"(d\u00e9mo hors-ligne)"); }); } else apply(_r,"IA"); }
@@ -9178,7 +9184,7 @@ try{ window.studioRunDirector=function(){ try{
     }
   }catch(e){ apply(_directorLocalDemo(payload),"(d\u00e9mo hors-ligne)"); }
 }catch(e){ window.__DIRECTOR_PLAN=null; } };
-window.studioSetDirector=function(on){ window.DIRECTOR_ON=!!on; if(on){ window.studioRunDirector(); } else { window.__DIRECTOR_PLAN=null; try{ if(A&&(PHOTOS.length||clipVidReady)){ buildPartition(); paintStrip(0); renderMontageAt(0); } }catch(e){} } };
+window.studioSetDirector=function(on){ window.DIRECTOR_ON=!!on; if(on){ window.studioRunDirector(); } else { window.__DIRECTOR_PLAN=null; try{ _directorReadout(""); }catch(e){} try{ if(A&&(PHOTOS.length||clipVidReady)){ buildPartition(); paintStrip(0); renderMontageAt(0); } }catch(e){} } };
 }catch(e){}
 function gtChoose(idx,sg,prev,photos,energy,mood){
   var seed=(A&&A.beats)?(A.beats.length%89):0, k=idx+seed;
