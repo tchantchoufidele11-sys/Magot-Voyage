@@ -1282,7 +1282,7 @@ function renderPlanToBuffer(dur, sr){
 function analyzeBufferInto(buf, cb){ try{ essentiaReady.then(function(ok){ if(ok){ setTimeout(function(){ try{ toMono44(buf,function(sig,sr){ var An; try{ An=analyzeEssentia(sig,sr,buf.duration); if(!_analysisOK(An)) An=analyzeCustom(buf); }catch(e){ An=analyzeCustom(buf); } cb(An); }); }catch(e){ cb(analyzeCustom(buf)); } }, 20); } else { setTimeout(function(){ cb(analyzeCustom(buf)); }, 20); } }); }catch(e){ try{ cb(analyzeCustom(buf)); }catch(e2){ cb(null); } } }
 
 var CLIPS=[], clipVidReady=false, VIDACT=-1;
-window.STUDIO_VERSION="v1160";
+window.STUDIO_VERSION="v1165";
 window.MAGOT_EXPORT_ENGINE="auto"; try{ window.MAGOT_EXPORT_ENGINE=localStorage.getItem("magot_export_engine")||"auto"; }catch(e){}
 function setMagotExportEngine(mode){ if(mode!=="auto"&&mode!=="turbo"&&mode!=="mediarecorder") mode="auto"; window.MAGOT_EXPORT_ENGINE=mode; try{ localStorage.setItem("magot_export_engine",mode); }catch(e){} }
 function _exportEngineLabel(){ var m=window.MAGOT_EXPORT_ENGINE; return m==="turbo"?"Export : Turbo test":m==="mediarecorder"?"Export : Compatible":"Export : Automatique"; }
@@ -9031,7 +9031,7 @@ function trTex(){ var t=gl.createTexture(); gl.bindTexture(gl.TEXTURE_2D,t); gl.
 function trProgGT(fsrc){ var vs=compile(gl,gl.VERTEX_SHADER,GTVS), fs=compile(gl,gl.FRAGMENT_SHADER,fsrc); if(!vs||!fs) return null; var p=gl.createProgram(); gl.attachShader(p,vs); gl.attachShader(p,fs); gl.linkProgram(p); if(!gl.getProgramParameter(p,gl.LINK_STATUS)){ return null; } return p; }
 function trCompileAll(){ if(TR.okNames||!gl||!TR.ready) return; TR.okNames=[]; for(var i=0;i<GT_NAMES.length;i++){ var n=GT_NAMES[i]; if(trGet(n)) TR.okNames.push(n); } if(!TR.okNames.length) TR.okNames=null; TR.okCount=TR.okNames?TR.okNames.length:0; }
 function trGet(name){ if(!name) return null; if(Object.prototype.hasOwnProperty.call(TR.progs,name)) return TR.progs[name]; var src=GT_SHADERS[name]; if(!src){ TR.progs[name]=null; return null; } var pr=trProgGT(src); TR.progs[name]=pr||null; return TR.progs[name]; }
-function initTransitions(){ TR.ready=false; if(!gl) return;
+function initTransitions(){ TR.ready=false; TR.okNames=null;   /* v1165 : au reset WebGL, invalider la liste compilee — sinon trCompileAll (qui s'arrete si okNames existe) ne la reconstruit pas et elle decrit l'ANCIEN contexte. */ if(!gl) return;
   try{
     TR.progs={};
     TR.quad=gl.createBuffer(); gl.bindBuffer(gl.ARRAY_BUFFER,TR.quad); gl.bufferData(gl.ARRAY_BUFFER,new Float32Array([-1,-1,1,-1,-1,1,-1,1,1,-1,1,1]),gl.STATIC_DRAW);
@@ -9138,22 +9138,25 @@ function _directorSections(){
   var t0=bts[0], t1=bts[bts.length-1], span=Math.max(0.001,t1-t0);
   var N=Math.max(3,Math.min(10,Math.round(span/20)));
   var secs=[];
+  var _efn=(typeof _eAt==="function")?_eAt:((typeof energyAt==="function")?energyAt:function(){return 0.5;});
   for(var i=0;i<N;i++){ var a=t0+span*i/N, b=t0+span*(i+1)/N;
-    var e=(typeof energyAt==="function")?energyAt((a+b)/2):0.5;
-    secs.push({i:i, t0:+a.toFixed(3), t1:+b.toFixed(3), energy:+Math.max(0,Math.min(1,e)).toFixed(2)}); }
+    var e=0; for(var _s=0;_s<5;_s++){ var _tt=a+(b-a)*(_s+0.5)/5; var _ev=_efn(_tt); if(_ev>e) e=_ev; }   /* v1162 (gap 2) : PIC d'energie de la section (5 points) via _eAt -> suit la partie REELLEMENT jouee en boucle (energyAt au seul milieu se figeait apres LOOP_END). */
+    secs.push({i:i, t0:+a.toFixed(3), t1:+b.toFixed(3), pos:+(i/Math.max(1,N-1)).toFixed(2), energy:+Math.max(0,Math.min(1,e)).toFixed(2)}); }
   window.__DIRECTOR_SECTIONS=secs; return secs;
 }
 function _directorValidate(raw, sections){ try{
   if(!raw || !sections || !sections.length) return null;
   var list=raw.sections||raw; if(!Array.isArray(list)||!list.length) return null;
   var TIERS={sobre:"subtle","\u00e9l\u00e9gant":"elegant",elegant:"elegant",spectaculaire:"spectacular",spectacular:"spectacular"};
-  var plan=[], seen={};
+  var byIdx={}, seen={};
   for(var k=0;k<list.length;k++){ var it=list[k]; if(!it) return null;
     var i=it.i, tr=String(it.tier||"").toLowerCase();
     if(typeof i!=="number" || i!==Math.floor(i) || i<0 || i>=sections.length) return null;
     if(!TIERS[tr]) return null;
-    if(seen[i]) return null; seen[i]=1;
-    var s=sections[i]; plan.push({t0:s.t0, t1:s.t1, tier:TIERS[tr]}); }
+    if(seen[i]) return null; seen[i]=1; byIdx[i]=TIERS[tr]; }
+  for(var c=0;c<sections.length;c++){ if(byIdx[c]==null) return null; }   /* gap 3 : COMPLETUDE — toutes les sections doivent etre couvertes, sinon rejet (arc partiel = pas fiable). */
+  var _spec=0; for(var c2=0;c2<sections.length;c2++){ if(byIdx[c2]==="spectacular"){ _spec++; if(_spec>2) byIdx[c2]="elegant"; } }   /* gap 3 : PLAFOND spectaculaire <= 2 CONTROLE (les suivants deviennent elegant) — la regle "1-2 sommets" n'est plus une simple consigne au modele. */
+  var plan=[]; for(var c3=0;c3<sections.length;c3++){ var s=sections[c3]; plan.push({t0:s.t0, t1:s.t1, tier:byIdx[c3]}); }
   return {plan:plan};
 }catch(e){ return null; } }
 function _directorTierAt(t){ var P=window.__DIRECTOR_PLAN; if(!P||!P.length) return null;
@@ -9168,11 +9171,19 @@ function _directorLocalDemo(payload){ var secs=(payload&&payload.sections)||[];
   return {sections: secs.map(function(s){ return {i:s.i, tier:(s.energy>0.7?"spectaculaire":(s.energy<0.35?"sobre":"elegant"))}; })}; }
 try{ window.studioRunDirector=function(){ try{
   if(!window.DIRECTOR_ON){ window.__DIRECTOR_PLAN=null; return; }
+  var _gen=(window.__DIRECTOR_GEN=(window.__DIRECTOR_GEN||0)+1);   /* v1162 (gap 4) : jeton de generation — toute reponse perimee (arrivee apres un nouveau run ou apres OFF) est ignoree. */
   var secs=_directorSections(); if(!secs.length){ window.__DIRECTOR_PLAN=null; try{ setState("\uD83C\uDFAC R\u00e9alisateur : construis d'abord un montage (musique + photos)."); }catch(e){} return; }
   var payload={mode:MOOD, bpm:Math.round((A&&(A.bpmFelt||A.bpm))||0), nSections:secs.length, sections:secs};
-  var apply=function(raw, src){ var v=_directorValidate(raw, secs); window.__DIRECTOR_PLAN=v?v.plan:null;
+  var apply=function(raw, src){ if(!window.DIRECTOR_ON || _gen!==window.__DIRECTOR_GEN) return;   /* reponse perimee ou realisateur coupe -> on ignore (pas de reconstruction fantome). */
+    var v=_directorValidate(raw, secs); window.__DIRECTOR_PLAN=v?v.plan:null;
+    try{ window.__DIR_NOAVAIL={}; window.__DIR_CANVAS=0; window.__DIR_UNKNOWN=0; }catch(e){}   /* v1165 : remis a zero avant reconstruction ; gtChoose remplit selon le moteur reel. */
     try{ if(A&&(PHOTOS.length||clipVidReady)) buildPartition(); if(typeof paintStrip==="function")paintStrip(0); if(typeof renderMontageAt==="function")renderMontageAt(0); }catch(e){}
-    try{ if(v){ var _ab=v.plan.map(function(p){return _dAbbr(p.tier);}).join(" \u00b7 "); _directorReadout((src||"")+"  ["+_ab+"]"); setState("\uD83C\uDFAC R\u00e9alisateur "+(src||"")+" : "+v.plan.length+" sections."); } else { _directorReadout("proposition rejet\u00e9e \u2014 moteur normal"); setState("\uD83C\uDFAC R\u00e9alisateur : proposition rejet\u00e9e \u2014 moteur normal."); } }catch(e){} };
+    try{ if(v){ var _ab=v.plan.map(function(p){return _dAbbr(p.tier);}).join(" \u00b7 ");
+      var _warn="";
+      try{ if(window.__DIR_CANVAS){ _warn=" \u26a0 moteur Canvas : effets simplifi\u00e9s (fondu)"; }
+        else { var _na=Object.keys(window.__DIR_NOAVAIL||{}); if(_na.length){ _warn=" \u26a0 "+_na.map(function(r){return r==="spectacular"?"SPEC":(r==="subtle"?"sobre":"\u00e9l\u00e9g");}).join("/")+" indispo -> fondu"; } else if(window.__DIR_UNKNOWN){ _warn=" \u00b7 dispo. en cours de v\u00e9rification"; } }
+      }catch(e){}
+      _directorReadout((src||"")+"  ["+_ab+"]"+_warn); setState("\uD83C\uDFAC R\u00e9alisateur "+(src||"")+" : "+v.plan.length+" sections."+_warn); } else { _directorReadout("proposition rejet\u00e9e \u2014 moteur normal"); setState("\uD83C\uDFAC R\u00e9alisateur : proposition rejet\u00e9e \u2014 moteur normal."); } }catch(e){} };
   var _done=false; try{ setState("\uD83C\uDFAC R\u00e9alisateur : consultation\u2026"); }catch(e){}
   try{
     if(typeof window.__magotDirect==="function"){ var _r=window.__magotDirect(payload); if(_r&&_r.then){ _r.then(function(raw){ _done=true; apply(raw,"IA"); }).catch(function(){ if(!_done) apply(_directorLocalDemo(payload),"(d\u00e9mo hors-ligne)"); }); } else apply(_r,"IA"); }
@@ -9184,7 +9195,7 @@ try{ window.studioRunDirector=function(){ try{
     }
   }catch(e){ apply(_directorLocalDemo(payload),"(d\u00e9mo hors-ligne)"); }
 }catch(e){ window.__DIRECTOR_PLAN=null; } };
-window.studioSetDirector=function(on){ window.DIRECTOR_ON=!!on; if(on){ window.studioRunDirector(); } else { window.__DIRECTOR_PLAN=null; try{ _directorReadout(""); }catch(e){} try{ if(A&&(PHOTOS.length||clipVidReady)){ buildPartition(); paintStrip(0); renderMontageAt(0); } }catch(e){} } };
+window.studioSetDirector=function(on){ window.DIRECTOR_ON=!!on; window.__DIRECTOR_GEN=(window.__DIRECTOR_GEN||0)+1;   /* v1162 (gap 4) : chaque bascule invalide toute reponse Mistral encore en vol */ if(on){ window.studioRunDirector(); } else { window.__DIRECTOR_PLAN=null; try{ _directorReadout(""); }catch(e){} try{ if(A&&(PHOTOS.length||clipVidReady)){ buildPartition(); paintStrip(0); renderMontageAt(0); } }catch(e){} } };
 }catch(e){}
 function gtChoose(idx,sg,prev,photos,energy,mood){
   var seed=(A&&A.beats)?(A.beats.length%89):0, k=idx+seed;
@@ -9207,7 +9218,8 @@ function gtChoose(idx,sg,prev,photos,energy,mood){
   else { var r=(k*0.618)%1; tier=(r < subRatio)?"subtle":"elegant"; }
   var _sgPk=(window.LOOP_ON&&typeof audioAt==="function")?audioAt(sg.start):sg.start;   /* v1150 : BOUCLE — A.peaks sont en temps PISTE ; on compare au temps montage REMAPPE (sinon les pics ne retombent plus sur les coupes apres la repetition -> tier spectaculaire mal choisi). */
   if(A&&A.peaks&&A.peaks.length){ for(var _pi=0;_pi<A.peaks.length;_pi++){ if(Math.abs(A.peaks[_pi]-_sgPk)<0.5){ if(specAllowed>0.02) tier="spectacular"; break; } } }
-  try{ if(window.DIRECTOR_ON && typeof _directorTierAt==="function"){ var _dt=_directorTierAt(sg.start); if(_dt){ tier=(_dt==="spectacular" && specAllowed<=0)?"elegant":_dt; } } }catch(e){}   /* v1158 : REALISATEUR IA (proto) — s'il est ACTIF et que sa proposition est VALIDE, il impose le tier de la section courante ; sinon aucun effet. Respecte specAllowed (pas de spectaculaire force dans un mode qui l'interdit). Ne touche PAS le timing. */
+  var _dirForced=false;
+  try{ if(window.DIRECTOR_ON && typeof _directorTierAt==="function"){ var _dt=_directorTierAt(sg.start); if(_dt){ tier=_dt; _dirForced=true; if(_dt==="spectacular" && specAllowed<=0.02) specAllowed=0.35; } } }catch(e){}   /* v1161/v1162 : REALISATEUR PLEIN POTENTIEL — le tier de Mistral s'applique en entier (debride du mode) ; _dirForced fait passer ses effets EN PREMIER a la selection (gap 1 : l'affiche = le joue). Ne touche PAS le timing. */
   var prefs=[];
   if(tier==="subtle"){
     if(dW>0.20) prefs=["colorphase","fadecolor","ColourDistance"];
@@ -9230,8 +9242,18 @@ function gtChoose(idx,sg,prev,photos,energy,mood){
   var modeTier=modeLot.filter(function(n){ return tierNames.indexOf(n)>=0; });   /* transitions du mode DU BON REGISTRE (sobre/élégant/spectaculaire) */
   var prefsInLot=prefs.filter(function(n){ return modeLot.indexOf(n)>=0; });
   /* registre d'abord (garde le beat qui claque : surtout sobre) ; puis le lot du mode ; puis le réservoir général — panier sans répétition */
-  var order=(k%3===0)?[modeTier, modeLot, GT_NAMES]:[prefsInLot, modeTier, modeLot, GT_NAMES];
-  var name=bagPick(order, k);
+  var name;
+  if(_dirForced && tierNames && tierNames.length){
+    try{ if(typeof glReady!=="undefined" && !glReady) window.__DIR_CANVAS=1;   /* repli Canvas : les effets sont simplifies en fondu ; TR.okNames (WebGL) ne s'applique pas */
+      else if(!(typeof TR!=="undefined" && TR.okNames && TR.okNames.length)) window.__DIR_UNKNOWN=1; }catch(e){}   /* WebGL pas encore compile : disponibilite reelle inconnue */
+    var _avail=(typeof TR!=="undefined" && TR.okNames && TR.okNames.length)?TR.okNames:GT_NAMES;
+    var _regAvail=tierNames.filter(function(n){ return _avail.indexOf(n)>=0; });   /* v1164 (gap 1 : affiche = VISIBLE) : registre demande INTERSECTE avec les effets REELLEMENT compiles sur l'appareil (TR.okNames). Sinon un effet non compile retomberait sur "fade" au rendu (WebGL et repli Canvas) et le bandeau mentirait. */
+    if(_regAvail.length){ name=_regAvail[(k*5+2)%_regAvail.length]; }
+    else { name="fade"; try{ window.__DIR_NOAVAIL=window.__DIR_NOAVAIL||{}; window.__DIR_NOAVAIL[tier]=(window.__DIR_NOAVAIL[tier]||0)+1; }catch(e){} }   /* aucun effet du registre disponible sur cet appareil -> fondu EXPLICITE + signale au bandeau (pas de mensonge). */
+  } else {
+    var order=(k%3===0)?[modeTier, modeLot, GT_NAMES]:[prefsInLot, modeTier, modeLot, GT_NAMES];
+    name=bagPick(order, k);
+  }
   var _bpm=(A&&A.bpmFelt)?A.bpmFelt:((A&&A.bpm>0)?A.bpm:100);
   var _bi=60/_bpm;
   var _tf=Math.max(0.7,Math.min(2.0,_bi/0.5));   /* v1119 : RESTAURATION du calcul d'origine (réglé à l'oreille) — lent -> transition plus longue/douce ; rapide -> plus serrée (tempo ressenti). Le Lot D v1115 l'avait remplacé par une quantification qui a cassé les transitions — annulé. */
