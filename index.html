@@ -3274,7 +3274,7 @@ const DEFAULT_S={ version:"0.2.0", settings:{ lang:"fr", theme:"system", units:"
 /* Clé Maps JS partagée (restreinte au domaine GitHub Pages). Repli : clé perso de l'utilisateur si fournie. */
 const SHARED_MAP_KEY="AIzaSyCt5iVx8nPr1V067A3daE0X1YA568XJNbU";
 function mapKey(){ return (S.settings.mapKey||"").trim() || SHARED_MAP_KEY; }
-const BUILD="0.4.24 · v759 a11y-modals";
+const BUILD="0.4.25 · v760 nodates-link";
 let S=loadState();
 function normalizeTrip(tr){ if(!tr||typeof tr!=="object") return tr;
   tr.id=tr.id||("t"+Date.now()+Math.random().toString(36).slice(2,7));
@@ -4373,7 +4373,7 @@ function renderCreate(tr){
       <div class="fld"><label>${calT("title")}</label><div class="datefld" id="cDatesField" role="button" tabindex="0" style="cursor:pointer">${ICO_CAL18}<span class="date-txt" id="cDatesTxt">${t("create.pickDate")}</span></div></div>
       <div class="fld cexp-trav"><label>${t("create.travelers")}</label><div class="stepper"><button id="cTravM" type="button">&#8722;</button><span class="n" id="cTravN">${draft.travelers}</span><button id="cTravP" type="button">+</button></div></div>
     </div>
-    <button type="button" class="linkbtn" id="cNoDates" style="display:none;margin:2px 0 0">${t("create.saveNoDates")}</button>
+    <button type="button" id="cNoDates" style="display:none;margin:6px 2px 2px;padding:0;background:none;border:none;color:#8a93a6;font:600 12.5px 'Inter',system-ui;text-decoration:underline;text-underline-offset:2px;cursor:pointer;width:auto;text-align:left">${t("create.saveNoDates")}</button>
     <div id="cDestHint" class="cdest-hint">${t("create.pickDestFirst")}</div>
   </div>
   <div id="cRest" class="creveal hidden">
