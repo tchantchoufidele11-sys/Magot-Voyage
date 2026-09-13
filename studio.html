@@ -1223,7 +1223,7 @@ function _bestBeatA(An,a,b,score){ var bt=null,sc=-1e9; for(var k=0;k<An.beats.l
 function _xfOfA(An){ var d=[]; for(var i=1;i<An.beats.length;i++){ var x=An.beats[i]-An.beats[i-1]; if(x>0.15&&x<2) d.push(x); } d.sort(function(a,b){return a-b;}); var P=d.length?d[d.length>>1]:0.5; var xf=4*P; if(!(xf>0)) xf=2; return Math.max(1.5,Math.min(3.0,xf)); }
 function _eWinAtA(An,a,b){ var s=0,n=0; for(var t=a;t<=b;t+=0.15){ s+=_eOfA(An,t); n++; } return n?s/n:_eOfA(An,a); }
 /* énergie à un instant du MONTAGE, en suivant la piste en cours (multi) */
-function _eAt(mt){ if(window.MULTI && window.MPLAN && window.MPLAN.length && typeof TRACKS!=="undefined" && TRACKS.length){ var plan=window.MPLAN; for(var i=plan.length-1;i>=0;i--){ if(mt>=plan[i].mStart-0.001){ var seg=plan[i], An=TRACKS[seg.ti]&&TRACKS[seg.ti].A; if(An) return _eOfA(An, seg.entry+(mt-seg.mStart)); break; } } } return (typeof energyAt==="function")?energyAt(mt):0.5; }
+function _eAt(mt){ if(window.LOOP_ON && !window.MULTI && typeof audioAt==="function") mt=audioAt(mt);   /* v1150 : BOUCLE — l'energie doit suivre la partie REJOUEE (comme snapKick v1149). Sans ca, energyAt lit le temps montage BRUT -> l'index se fige a la derniere valeur du tableau apres LOOP_END -> cadence courte/longue et tier de transition (sobre/elegant/spectaculaire) PLATS apres la repetition. */ if(window.MULTI && window.MPLAN && window.MPLAN.length && typeof TRACKS!=="undefined" && TRACKS.length){ var plan=window.MPLAN; for(var i=plan.length-1;i>=0;i--){ if(mt>=plan[i].mStart-0.001){ var seg=plan[i], An=TRACKS[seg.ti]&&TRACKS[seg.ti].A; if(An) return _eOfA(An, seg.entry+(mt-seg.mStart)); break; } } } return (typeof energyAt==="function")?energyAt(mt):0.5; }
 function _firstDownbeat(An){ var e=_bestBeatA(An,0,An.dur*0.12,function(t,m){return m*1.0 - t*0.002;}); return (e==null)?((An.beats&&An.beats[0])||0):e; }
 function _lastDownbeat(An){ var e=_bestBeatA(An,An.dur*0.86,Math.min(An.dur-0.1,An.dur*0.98),function(t,m,en){return m*0.6+en*0.4;}); if(e==null){ for(var g=(An.beats?An.beats.length-1:0);g>=0;g--){ if(An.beats[g]<=An.dur-0.1){ e=An.beats[g]; break; } } } return (e==null)?(An.dur*0.95):e; }
 /* Système GÉNÉRAL (aucune valeur collée à une musique) : chaque piste joue EN ENTIER
@@ -1282,7 +1282,7 @@ function renderPlanToBuffer(dur, sr){
 function analyzeBufferInto(buf, cb){ try{ essentiaReady.then(function(ok){ if(ok){ setTimeout(function(){ try{ toMono44(buf,function(sig,sr){ var An; try{ An=analyzeEssentia(sig,sr,buf.duration); if(!_analysisOK(An)) An=analyzeCustom(buf); }catch(e){ An=analyzeCustom(buf); } cb(An); }); }catch(e){ cb(analyzeCustom(buf)); } }, 20); } else { setTimeout(function(){ cb(analyzeCustom(buf)); }, 20); } }); }catch(e){ try{ cb(analyzeCustom(buf)); }catch(e2){ cb(null); } } }
 
 var CLIPS=[], clipVidReady=false, VIDACT=-1;
-window.STUDIO_VERSION="v1149";
+window.STUDIO_VERSION="v1150";
 window.MAGOT_EXPORT_ENGINE="auto"; try{ window.MAGOT_EXPORT_ENGINE=localStorage.getItem("magot_export_engine")||"auto"; }catch(e){}
 function setMagotExportEngine(mode){ if(mode!=="auto"&&mode!=="turbo"&&mode!=="mediarecorder") mode="auto"; window.MAGOT_EXPORT_ENGINE=mode; try{ localStorage.setItem("magot_export_engine",mode); }catch(e){} }
 function _exportEngineLabel(){ var m=window.MAGOT_EXPORT_ENGINE; return m==="turbo"?"Export : Turbo test":m==="mediarecorder"?"Export : Compatible":"Export : Automatique"; }
@@ -9141,7 +9141,8 @@ function gtChoose(idx,sg,prev,photos,energy,mood){
   if(e<0.25) tier="subtle";
   else if(strong && e>0.72 && specAllowed>0 && ((k*0.618)%1)<specAllowed*3) tier="spectacular";
   else { var r=(k*0.618)%1; tier=(r < subRatio)?"subtle":"elegant"; }
-  if(A&&A.peaks&&A.peaks.length){ for(var _pi=0;_pi<A.peaks.length;_pi++){ if(Math.abs(A.peaks[_pi]-sg.start)<0.5){ if(specAllowed>0.02) tier="spectacular"; break; } } }
+  var _sgPk=(window.LOOP_ON&&typeof audioAt==="function")?audioAt(sg.start):sg.start;   /* v1150 : BOUCLE — A.peaks sont en temps PISTE ; on compare au temps montage REMAPPE (sinon les pics ne retombent plus sur les coupes apres la repetition -> tier spectaculaire mal choisi). */
+  if(A&&A.peaks&&A.peaks.length){ for(var _pi=0;_pi<A.peaks.length;_pi++){ if(Math.abs(A.peaks[_pi]-_sgPk)<0.5){ if(specAllowed>0.02) tier="spectacular"; break; } } }
   var prefs=[];
   if(tier==="subtle"){
     if(dW>0.20) prefs=["colorphase","fadecolor","ColourDistance"];
@@ -11851,7 +11852,7 @@ async function _buildExportAudio(dur, sr){
       if(fout){ g.gain.setValueAtTime(1, Math.max(at, at+len-XF)); g.gain.linearRampToValueAtTime(0.0001, at+len); }
       try{ s.start(Math.max(0,at), from, len+0.06); }catch(e){} }
     var at=0; seg(0, le, at, false, true); at += le - XF;                 /* 1er passage : intro -> fin de boucle */
-    var guard=0; while(at < dur && guard++<5000){ seg(ls, loopLen, at, true, true); at += loopLen - XF; }   /* boucles enchaînées */
+    var guard=0; while(at < dur && guard++<5000){ seg(Math.max(0, ls-XF), loopLen+XF, at, true, true); at += loopLen; }   /* v1150 : boucles enchainees IDENTIQUES a l'apercu (_waSchedule) : lecture depuis ls-XF, longueur loopLen+XF, avance de loopLen (l'XF est le RECOUVREMENT du crossfade, pas un raccourcissement du cycle). Avant : lecture depuis ls, avance loopLen-XF -> l'audio exporte prenait XF de retard PAR cycle sur la grille video. */
     var out=await oc.startRendering(); return out||AUDIOBUF;
   }catch(e){ return AUDIOBUF; }
 }
