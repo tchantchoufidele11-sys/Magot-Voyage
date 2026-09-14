@@ -3274,7 +3274,7 @@ const DEFAULT_S={ version:"0.2.0", settings:{ lang:"fr", theme:"system", units:"
 /* Clé Maps JS partagée (restreinte au domaine GitHub Pages). Repli : clé perso de l'utilisateur si fournie. */
 const SHARED_MAP_KEY="AIzaSyCt5iVx8nPr1V067A3daE0X1YA568XJNbU";
 function mapKey(){ return (S.settings.mapKey||"").trim() || SHARED_MAP_KEY; }
-const BUILD="0.4.37 · v772 stale-guard-date-safety";
+const BUILD="0.4.38 · v773 datesafety-plan-fix";
 let S=loadState();
 function normalizeTrip(tr){ if(!tr||typeof tr!=="object") return tr;
   tr.id=tr.id||("t"+Date.now()+Math.random().toString(36).slice(2,7));
@@ -4973,9 +4973,9 @@ function bindLegs(host){
   const inp=host.querySelector("#cLegAdd"), ac=host.querySelector("#cLegAc");
   if(!inp||!ac) return;
   let tmr=null;
-  inp.addEventListener("input",()=>{ _legSeq++; const q=inp.value.trim(); clearTimeout(tmr); if(!q&&_legAddCC){ _legAddCC=null; inp.placeholder=t("legs.addPh"); const _lcw0=host.querySelector("#cLegCityWrap"); if(_lcw0)_lcw0.style.display="none"; }
+  inp.addEventListener("input",()=>{ const _sq=++_legSeq; const q=inp.value.trim(); clearTimeout(tmr); if(!q&&_legAddCC){ _legAddCC=null; inp.placeholder=t("legs.addPh"); const _lcw0=host.querySelector("#cLegCityWrap"); if(_lcw0)_lcw0.style.display="none"; }
     if(q.length<3){ ac.classList.remove("show"); ac.innerHTML=""; return; }
-    tmr=setTimeout(async()=>{ const cc=null; const _sq=_legSeq;   /* champ primaire : recherche MONDIALE (pays ou ville) ; le filtre pays vit dans le champ Ville */
+    tmr=setTimeout(async()=>{ const cc=null;   /* champ primaire : recherche MONDIALE (pays ou ville) ; le filtre pays vit dans le champ Ville */
       let res=await zoneSuggest(q,null,cc);
       if(_sq!==_legSeq) return;   /* réponse périmée ignorée */
       res=res.filter(r=>r.lvl!=="region");
@@ -4992,9 +4992,9 @@ function bindLegs(host){
         addDraftLeg({name:r.name,country:r.country||"",cc:r.cc||"",lat:r.lat,lng:r.lng,bbox:r.bbox||null}); });
     },600); });
   (function(){ const lci=host.querySelector("#cLegCity"), lca=host.querySelector("#cLegCityAc"); if(!lci) return; let _lct=null;
-    lci.addEventListener("input",()=>{ _legSeq++; const q=lci.value.trim(); clearTimeout(_lct);
+    lci.addEventListener("input",()=>{ const _sq2=++_legSeq; const q=lci.value.trim(); clearTimeout(_lct);
       if(q.length<2){ lca.classList.remove("show"); lca.innerHTML=""; return; }
-      _lct=setTimeout(async()=>{ const cc=_legAddCC||null; const _sq2=_legSeq;
+      _lct=setTimeout(async()=>{ const cc=_legAddCC||null;
         let res=await zoneSuggest(q,null,cc); if(_sq2!==_legSeq) return; if(cc) res=res.filter(r=>!r.cc||r.cc===cc); res=res.filter(r=>r.lvl==="city");
         if(!res.length){ lca.classList.remove("show"); lca.innerHTML=""; return; }
         lca.innerHTML=res.slice(0,6).map((r,i)=>`<div data-i="${i}"><svg viewBox="0 0 24 24"><path d="M12 21s-7-6.2-7-11a7 7 0 0 1 14 0c0 4.8-7 11-7 11z"/><circle cx="12" cy="10" r="2.4"/></svg><div class="ac-txt"><div class="ac-n">${escapeHtml(r.name||"")}</div>${r.label?`<div class="ac-l">${escapeHtml(r.label)}</div>`:""}</div></div>`).join("");
@@ -5064,11 +5064,13 @@ function checkCreate(focus){
 /* Écran de diagnostic : les chiffres réels, en face des plafonds de Google.
    Accessible par l'adresse #usage — c'est un outil de développement, pas une
    fonction de l'application. */
-function _legChangeAffected(tr, newLegs){
-  if(!tr || !Array.isArray(tr.places) || !Array.isArray(newLegs) || newLegs.length<2) return [];
-  const newName=(day)=>{ for(let k=0;k<newLegs.length;k++){ const lg=newLegs[k]; if(lg&&day>=lg.dayFrom&&day<=lg.dayTo) return (lg.dest&&lg.dest.name)||""; } return (tr.dest&&tr.dest.name)||""; };
+function _legChangeAffected(tr, newLegs, newDestName){
+  if(!tr || !Array.isArray(tr.plan)) return [];   /* on parcourt le PLANNING (visites programmées avec un jour), pas la réserve tr.places */
+  const nd = newDestName || (tr.dest&&tr.dest.name) || "";
+  const multi = Array.isArray(newLegs) && newLegs.length>1;
+  const newName=(day)=>{ if(multi){ for(let k=0;k<newLegs.length;k++){ const lg=newLegs[k]; if(lg&&day>=lg.dayFrom&&day<=lg.dayTo) return (lg.dest&&lg.dest.name)||nd; } } return nd; };   /* suppression d'étape (moins de 2) : tout le monde revient a la destination */
   const out=[];
-  tr.places.forEach(pl=>{ if(pl.day==null) return; let o=""; try{ const d=destOfDay(tr,pl.day); o=(d&&d.name)||""; }catch(e){} const n=newName(pl.day); if(o&&n&&o!==n) out.push({title:(pl.title||pl.name||"?"),day:pl.day,from:o,to:n}); });
+  tr.plan.forEach(it=>{ if(!it || it.day==null || it._trans) return; let o=""; try{ const d=destOfDay(tr,it.day); o=(d&&d.name)||""; }catch(e){} const n=newName(it.day); if(o&&n&&o!==n) out.push({title:(it.title||it.name||"?"),day:it.day,from:o,to:n}); });
   return out;
 }
 async function submitCreate(){
@@ -5110,7 +5112,7 @@ async function submitCreate(){
     if(tr){
       const _newLegs=draftLegsForTrip();
       const _apply=()=>{ const moved=!tr.dest||tr.dest.name!==base.dest.name||tr.dest.lat!==base.dest.lat; Object.assign(tr,base); if(moved){ tr.coverPhoto=""; } tr._tx={}; if(_newLegs) tr.legs=_newLegs; else if(Array.isArray(tr.legs)&&tr.legs.length>1) tr.legs=[]; normalizeLegs(tr); saveState(); closeCreate(); renderHome(); toast(t("create.updated")); };
-      const _aff=_legChangeAffected(tr,_newLegs);   /* #4c : jours qui changent d'étape ET portant des visites */
+      const _aff=_legChangeAffected(tr,_newLegs,base.dest&&base.dest.name);   /* #4c : jours du PLANNING (tr.plan) qui changent d'étape */
       if(_aff.length){ askConfirm(t("legs.datesWarn",{n:_aff.length})+"\n\n"+_aff.slice(0,6).map(a=>"\u2022 "+a.title+" : "+a.from+" \u2192 "+a.to).join("\n"), t("legs.datesOk"), _apply); }
       else _apply();
     } else { closeCreate(); }
