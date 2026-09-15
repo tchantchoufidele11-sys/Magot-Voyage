@@ -3279,7 +3279,7 @@ function buildTripContext(){
     const days=tripDays(tr); const idx=ongoingDayIndex(tr); const d=days[idx];
     const items=(tr.plan||[]).filter(s=>s.day===idx);
     ctx.jourActuel = { numero:idx+1, total:days.length, etapesTitres: items.map(it=>it.title).filter(Boolean).slice(0,10) };
-    const iso=d&&d.date?d.date.toISOString().slice(0,10):null;
+    const iso=d&&d.date?localYMD(d.date):null;
     if(iso && tr._wx && tr._wx[iso]) ctx.meteoDuJour = { temp:tr._wx[iso].temp+"°C" };
   }
   const prefTxt=prefsForAgent(); if(prefTxt) ctx.preferencesVoyageur=prefTxt;
@@ -3289,7 +3289,7 @@ const DEFAULT_S={ version:"0.2.0", settings:{ lang:"fr", theme:"system", units:"
 /* Clé Maps JS partagée (restreinte au domaine GitHub Pages). Repli : clé perso de l'utilisateur si fournie. */
 const SHARED_MAP_KEY="AIzaSyCt5iVx8nPr1V067A3daE0X1YA568XJNbU";
 function mapKey(){ return (S.settings.mapKey||"").trim() || SHARED_MAP_KEY; }
-const BUILD="0.4.77 · v812 a11y-dateval";
+const BUILD="0.4.83 · v818 calendar-final";
 let S=loadState();
 function normalizeTrip(tr){ if(!tr||typeof tr!=="object") return tr;
   tr.id=tr.id||("t"+Date.now()+Math.random().toString(36).slice(2,7));
@@ -3615,19 +3615,10 @@ function agentWelcomeSubtitle(nm){
 function agentGroundedLine(){
   try{
     const tr=currentTrip(); if(!tr) return "";
-    const now=new Date(), iso=now.toISOString().slice(0,10);
-    const d1=tr.dateStart?new Date(tr.dateStart):null, d2=tr.dateEnd?new Date(tr.dateEnd):null;
-    const enCours = d1 && d2 && now>=new Date(d1.toDateString()) && now<=new Date(new Date(d2).setHours(23,59,59));
-    if(!enCours) return "";
-    /* 1. La meteo du jour, si elle a ete recuperee. */
-    const w=(tr._wx&&tr._wx[iso])?tr._wx[iso]:null;
-    if(w && typeof w.temp==="number"){
-      const jour=Math.floor((now-new Date(d1.toDateString()))/86400000)+1;
-      return `${wxEmoji(w.code)} ${Math.round(w.temp)}\u00b0 aujourd'hui \u00b7 jour ${jour} de ton voyage.`;
-    }
-    /* 2. Sinon, l'avancement reel du sejour. */
-    const tot=Math.round((new Date(d2.toDateString())-new Date(d1.toDateString()))/86400000)+1;
-    const jour=Math.floor((now-new Date(d1.toDateString()))/86400000)+1;
+    if(tripStatus(tr)!=="ongoing") return "";   /* source unique : même statut que l'accueil/planning (plus de recalcul parallèle interprété en UTC) */
+    /* La météo est désormais affichée sur la carte du voyage (plus dans le message de Fidèle). */
+    /* Avancement réel du séjour. */
+    const tot=tripDays(tr).length; const jour=ongoingDayIndex(tr)+1;   /* même source que l'accueil/planning : robuste au changement d'heure */
     if(tot>0 && jour>0 && jour<=tot) return `Jour ${jour} sur ${tot}. Je t'aide \u00e0 organiser la suite ?`;
   }catch(e){}
   return "";
@@ -4031,7 +4022,8 @@ const STYLE_WHO=["solo","romantic","family","friends"];        /* un seul choix 
 const STYLE_PREFS=["backpacking","premium","eco","business"];   /* plusieurs choix */
 const STYLE_ACTS=STYLES.filter(x=>!STYLE_WHO.includes(x)&&!STYLE_PREFS.includes(x));
 
-function todayISO(){ return new Date().toISOString().slice(0,10); }
+function localYMD(d){ return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0"); }   /* date CALENDRIER locale (jamais UTC) */
+function todayISO(){ return localYMD(new Date()); }   /* P0 bis : jour local -> tripStatus correct autour de minuit */
 function tripStatus(tr){ if(!tr.dateStart||!tr.dateEnd) return "draft"; const td=todayISO(); if(td<tr.dateStart) return "upcoming"; if(td>tr.dateEnd) return "done"; return "ongoing"; }
 const ARCHIVE_GRACE_DAYS=2;
 function tripFinished(tr){ return !!tr && tripStatus(tr)==="done"; }
@@ -6319,7 +6311,7 @@ function _pcDay(d){ try{ return new Date(d).toLocaleDateString(LOCALE[lang()]||"
 function catGuessForPlace(p){ if(!p) return "autre"; if(isEatery(p)) return "repas"; if(isLodging(p)) return "nuit"; const ty=(p.types||[]); if(ty.includes("parking")) return "parking"; if(isShop&&isShop(p)) return "achat"; if(isAttraction(p)) return "entrée"; return "autre"; }
 async function fetchPriceReports(placeId){ try{ if(!(sb&&placeId)) return []; const { data,error }=await sb.from("price_reports").select("id,user_id,place_id,category,label,price,currency,date_observed").eq("place_id",String(placeId)).order("date_observed",{ascending:false}).limit(60); if(error){ console.warn("priceReports",error); return []; } return data||[]; }catch(e){ console.warn("priceReports",e); return []; } }
 function aggPrices(rows){ if(!rows||!rows.length) return null; const byCur={}; rows.forEach(r=>{ byCur[r.currency]=(byCur[r.currency]||0)+1; }); const cur=Object.keys(byCur).sort((a,b)=>byCur[b]-byCur[a])[0]; const cutoff=Date.now()-1000*60*60*24*550; let use=rows.filter(r=>r.currency===cur && +new Date(r.date_observed)>=cutoff && (+r.price>0)); if(!use.length) use=rows.filter(r=>r.currency===cur && +r.price>0); if(!use.length) return null; const vals=use.map(r=>+r.price).sort((a,b)=>a-b); const med=vals.length%2?vals[(vals.length-1)/2]:(vals[vals.length/2-1]+vals[vals.length/2])/2; const last=use.map(r=>r.date_observed).sort().slice(-1)[0]; return { median:med,n:use.length,last,currency:cur }; }
-async function submitPriceReport(obj){ try{ if(!(sb&&currentUser&&currentUser.id)) return {error:"auth"}; const row=Object.assign({ user_id:currentUser.id, date_observed:new Date().toISOString().slice(0,10) },obj); const { error }=await sb.from("price_reports").insert(row); if(error){ console.warn("submitPrice",error); return {error}; } return {ok:true}; }catch(e){ console.warn("submitPrice",e); return {error:e}; } }
+async function submitPriceReport(obj){ try{ if(!(sb&&currentUser&&currentUser.id)) return {error:"auth"}; const row=Object.assign({ user_id:currentUser.id, date_observed:todayISO() },obj); const { error }=await sb.from("price_reports").insert(row); if(error){ console.warn("submitPrice",error); return {error}; } return {ok:true}; }catch(e){ console.warn("submitPrice",e); return {error:e}; } }
 async function loadPriceCommunity(placeId,currency,placeName){ const box=document.getElementById("priceCommunity"); if(!box||box.dataset.pid!==String(placeId)) return; const rows=await fetchPriceReports(placeId); const box2=document.getElementById("priceCommunity"); if(!box2||box2.dataset.pid!==String(placeId)) return; const ag=aggPrices(rows); const head=`<div class="rowhead" style="margin-top:6px"><h2>${pcT("title")}</h2></div>`; let agg; if(ag){ agg=`<div style="font-size:15px;margin:2px 0 8px"><b>≈ ${money(ag.median,ag.currency)}</b> <span style="color:var(--muted)">· ${ag.n} ${pcT("reports")} · ${pcT("last")} ${_pcDay(ag.last)}</span></div>`; } else { agg=`<div style="color:var(--muted);margin:2px 0 8px">${pcT("none")}</div>`; } const list=rows.slice(0,4).map(r=>`<div class="pcr" style="display:flex;justify-content:space-between;gap:8px;padding:6px 0;border-top:1px solid var(--line);font-size:13.5px"><span>${escapeHtml(r.label||r.category||pcT("price"))}</span><span><b>${money(+r.price,r.currency)}</b> <span style="color:var(--muted)">· ${_pcDay(r.date_observed)}</span></span></div>`).join(""); const btn=`<button class="btn ghostline2 block" id="pcReport" style="margin-top:8px">➕ ${pcT("report")}</button>`; box2.innerHTML=head+agg+list+btn; const rb=document.getElementById("pcReport"); if(rb) rb.onclick=()=>openPriceForm(placeId,placeName,ag?ag.currency:currency); }
 function openPriceForm(placeId,placeName,currency){ const box=document.getElementById("priceCommunity"); if(!box) return; if(!(currentUser&&currentUser.id)){ toast(pcT("loginNeeded")); return; } const cur=currency||(currentTrip()&&currentTrip().currency)||"EUR"; const curs=(CURRENCIES.includes(cur)?CURRENCIES:[cur].concat(CURRENCIES)); box.innerHTML=`<div class="rowhead" style="margin-top:6px"><h2>${pcT("report")}</h2></div>
     <div class="fld"><label>${pcT("label")}</label><input id="pcLabel" type="text" maxlength="80" placeholder="${pcT("labelPh")}"></div>
@@ -6840,7 +6832,7 @@ function planTodayIndex(days){ if(!days.length||!days[0].date) return 0; const n
 function planGotoToday(){ const tr=currentTrip(); if(!tr) return; planState.dayIndex=planTodayIndex(tripDays(tr)); }
 const PLANKINDS=["place","meal","cafe","culture","nature","hike","beach","sport","shopping","nightlife","relax","lodging","transport","custom"];
 function cap(s){ return s?s.charAt(0).toUpperCase()+s.slice(1):s; }
-function tripDays(tr){ if(tr.dateStart&&tr.dateEnd){ const a=new Date(tr.dateStart+"T00:00:00"),b=new Date(tr.dateEnd+"T00:00:00"); const n=Math.max(1,Math.round((b-a)/86400000)+1); return Array.from({length:n},(_,i)=>({i,date:new Date(a.getTime()+i*86400000)})); } return [{i:0,date:null}]; }
+function tripDays(tr){ if(tr.dateStart&&tr.dateEnd){ const a=new Date(tr.dateStart+"T00:00:00"),b=new Date(tr.dateEnd+"T00:00:00"); const n=Math.max(1,Math.round((b-a)/86400000)+1); return Array.from({length:n},(_,i)=>{ const dd=new Date(a); dd.setDate(a.getDate()+i); dd.setHours(0,0,0,0); return {i,date:dd}; }); } return [{i:0,date:null}]; }   /* journées civiles locales : robuste au passage heure d'été/hiver (plus de blocs fixes de 24h) */
 function dayWk(dd){ if(!dd.date) return t("plan.day"); return cap(new Intl.DateTimeFormat(LOCALE[lang()]||'fr-FR',{weekday:'short'}).format(dd.date)); }
 function dayNum(dd){ if(!dd.date) return String(dd.i+1); return new Intl.DateTimeFormat(LOCALE[lang()]||'fr-FR',{day:'numeric'}).format(dd.date); }
 function planIcon(k){ return ({
@@ -7147,7 +7139,7 @@ function renderPlan(){ try{ if(_ensureLegIds(currentTrip())>0) saveState(); }cat
   const _veh=tr.veh||{}; const _fd=fuelDefault(_veh.fuel);
   const _conso=parseFloat(String(_veh.conso||"").replace(",","."))||_fd.conso; const _price=parseFloat(String(_veh.price||"").replace(",","."))||fuelPrice((destForDay(tr,d.i)||tr.dest||{}).cc,_veh.fuel);
   const _dayKm=_dayKmC;
-  _dayCtx={tr,iso:(d.date?d.date.toISOString().slice(0,10):""),dayKm:_dayKm,mode:travelMode(tr),stops:stops.length};
+  _dayCtx={tr,iso:(d.date?localYMD(d.date):""),dayKm:_dayKm,mode:travelMode(tr),stops:stops.length};
   const fuelHtml=(usesCar(tr)&&travelMode(tr)==="DRIVE"&&_dayKm>0&&_price>0)?`<div class="ds-fuel">⛽ ${t("plan.fuelDay")} · <b>${money(_dayKm*_conso/100*_price,tr.currency)}</b></div>`:"";
   const _fuelC=(usesCar(tr)&&travelMode(tr)==="DRIVE"&&_dayKm>0&&_price>0)?_dayKm*_conso/100*_price:0;
   const _mealC=items.reduce((a,it)=>a+(it.kind==="meal"?(_mealCost(it,tr)||0):0),0);
@@ -7635,14 +7627,14 @@ function addMealPlace(type,pp){ const tr=currentTrip(); if(!tr) return; tr.plan=
 
 /* ----- Météo (Open-Meteo, gratuit) ----- */
 let _dayCtx=null;
-function wxNudgeText(w){ if(!w) return ""; const c=w.code, tp=w.temp;
+function wxNudgeText(w){ if(!w) return ""; const c=(w.codeDay!=null?w.codeDay:w.code), tp=(w.tempMax!=null?w.tempMax:w.temp);   /* code + MAX de la JOURNÉE pour les conseils (pas le temps actuel) */
   if(c>=95) return "⛈️ "+t("nudge.storm");
   if((c>=51&&c<=67)||(c>=80&&c<=82)) return "🌧️ "+t("nudge.rain");
   if((c>=71&&c<=77)||(c>=85&&c<=86)) return "🌨️ "+t("nudge.snow");
   if(tp>=32) return "🥵 "+t("nudge.heat");
   if(tp<=2) return "🥶 "+t("nudge.cold");
   return ""; }
-function wxTimingAdvice(tr,iso){ try{ const w=(tr._wx&&iso)?tr._wx[iso]:null; if(!w) return ""; const tp=w.temp; if(tp<28&&tp>6) return "";
+function wxTimingAdvice(tr,iso){ try{ const w=(tr._wx&&iso)?tr._wx[iso]:null; if(!w) return ""; const tp=(w.tempMax!=null?w.tempMax:w.temp);   /* conseils basés sur le MAX du jour */ if(tp<28&&tp>6) return "";
   const items=(tr.plan||[]).filter(x=>x.day===planState.dayIndex&&x.kind!=="meal");
   const OUT=new Set(["nature","hike","beach","sport"]); const OUTP=/park|beach|hiking|natural|mountain|garden|viewpoint|scenic|zoo|forest|lake|trail/i;
   const isOut=x=>OUT.has(x.kind)||OUTP.test(((x.ptype||"")+" "+(x.sub||"")).toLowerCase());
@@ -7861,12 +7853,27 @@ function showFideleAlert(tr,day,route){ const el=document.getElementById("fidele
   el.innerHTML=`<div class="fidele-alert"><span class="fa-av">${FA_AV_SVG}</span><div class="fa-body"><span class="fa-name">${escapeHtml(agentDisplayName())}</span><span class="fa-txt">${msg}</span></div><button class="fa-close" aria-label="Fermer">✕</button></div>`;
   const btn=el.querySelector(".fa-close"); if(btn) btn.onclick=()=>{ _fideleDismissed[key]=true; el.innerHTML=""; }; }
 function wxEmoji(c){ if(c===0)return"☀️"; if(c<=3)return"⛅"; if(c<=48)return"🌫️"; if(c<=67)return"🌧️"; if(c<=77)return"🌨️"; if(c<=82)return"🌦️"; if(c<=86)return"🌨️"; return"⛈️"; }
-async function loadWeather(tr,date,day){ const dst=(day!=null?destForDay(tr,day):null)||tr.dest; if(!(dst&&dst.lat!=null)) return; const iso=date.toISOString().slice(0,10); const cc=(dst.cc||"");
-  tr._wx=tr._wx||{}; const set=w=>{ const el=document.getElementById("dcWeather"); if(el) el.innerHTML=`${wxEmoji(w.code)} ${w.temp}°C`; paintDayNudges(); };
-  const _c=tr._wx[iso]; if(_c&&(_c.cc||"")===cc){ set(_c); return; }   /* garde d'obsolescence : météo refaite si la destination du jour change */
-  try{ const u=`https://api.open-meteo.com/v1/forecast?latitude=${dst.lat}&longitude=${dst.lng}&daily=temperature_2m_max,weather_code&timezone=auto&start_date=${iso}&end_date=${iso}`;
+let _wxReqSeq=0;   /* P2: jeton anti-race pour les réponses météo */
+function _refreshHomeWx(){ try{ if(document.hidden) return; if(currentTab!=="home") return; const tr=(typeof focusTrip==="function")?focusTrip():null; if(tr&&tripStatus(tr)==="ongoing") loadWeather(tr,new Date(),ongoingDayIndex(tr)); }catch(e){} }
+try{ setInterval(_refreshHomeWx,300000); document.addEventListener("visibilitychange",()=>{ if(!document.hidden) _refreshHomeWx(); }); }catch(e){}   /* refresh météo toutes les 30 min si l'accueil est actif + au retour de l'app */
+async function loadWeather(tr,date,day){ const dst=(day!=null?destForDay(tr,day):null)||tr.dest; if(!(dst&&dst.lat!=null)) return; const iso=localYMD(date); const cc=(dst.cc||""); const sig=(+dst.lat).toFixed(2)+","+(+dst.lng).toFixed(2);   /* P0 date locale + P1 signature coords (Paris≠Lyon≠Annecy) */
+  const _isToday=(iso===localYMD(new Date())); const _mySeq=++_wxReqSeq;
+  tr._wx=tr._wx||{}; const _pick=w=>(w.tempCur!=null?w.tempCur:(w.tempMax!=null?w.tempMax:w.temp));
+  const set=w=>{ if(_mySeq!==_wxReqSeq) return;   /* P2: une requête plus récente a pris la main */
+    const el=document.getElementById("dcWeather"); if(el) el.innerHTML=`${wxEmoji(w.code)} ${Math.round(_pick(w))}°C`;
+    const _hw=document.getElementById("hfCdWx"); if(_hw){ if(w.tempCur!=null) _hw.textContent=" \u00b7 "+wxEmoji(w.code)+" "+Math.round(w.tempCur)+"\u00b0"; else _hw.textContent=""; }   /* P1: jamais un max présenté comme température actuelle */
+    paintDayNudges(); };
+  const _c=tr._wx[iso]; if(_c&&(_c.sig||"")===sig&&!(_isToday&&(_c.tempCur==null||Date.now()-(_c.t||0)>1800000))){ set(_c); return; }   /* cache validé par coordonnées ; aujourd'hui rafraîchi si >30 min ou pas encore de temp actuelle */
+  try{ const base=`https://api.open-meteo.com/v1/forecast?latitude=${dst.lat}&longitude=${dst.lng}&timezone=auto&start_date=${iso}&end_date=${iso}&daily=temperature_2m_max,weather_code`;
+    const u=_isToday ? base+"&current=temperature_2m,weather_code" : base;   /* aujourd'hui : temp ACTUELLE (affichage) + MAX du jour (conseils) */
     const r=await fetch(u); if(!r.ok) return; const j=await r.json();
-    if(j&&j.daily&&j.daily.temperature_2m_max&&j.daily.temperature_2m_max.length&&j.daily.temperature_2m_max[0]!=null){ const w={temp:Math.round(j.daily.temperature_2m_max[0]),code:j.daily.weather_code[0],cc:cc}; tr._wx[iso]=w; saveState(); set(w); } }catch(e){} }
+    let tempMax=null,tempCur=null,codeDay=null,codeCur=null;
+    if(j&&j.daily&&j.daily.temperature_2m_max&&j.daily.temperature_2m_max.length&&j.daily.temperature_2m_max[0]!=null){ tempMax=Math.round(j.daily.temperature_2m_max[0]); if(j.daily.weather_code&&j.daily.weather_code[0]!=null) codeDay=j.daily.weather_code[0]; }
+    if(_isToday&&j&&j.current&&j.current.temperature_2m!=null){ tempCur=Math.round(j.current.temperature_2m); if(j.current.weather_code!=null) codeCur=j.current.weather_code; }
+    if(tempMax==null&&tempCur==null) return;
+    if(_mySeq!==_wxReqSeq) return;   /* P1: garde AVANT d'écrire le cache (une réponse plus récente prime) */
+    const _code=(codeCur!=null?codeCur:codeDay);
+    const w={tempCur:tempCur,tempMax:tempMax,temp:(tempCur!=null?tempCur:tempMax),code:_code,codeCur:codeCur,codeDay:codeDay,cc:cc,sig:sig,lat:+dst.lat,lng:+dst.lng,t:Date.now(),cur:(tempCur!=null)}; tr._wx[iso]=w; saveState(); set(w); }catch(e){} }
 
 /* ----- Carte Google ----- */
 let _mapsP=null;
@@ -8171,7 +8178,7 @@ function souvPoints(tr){ const out=[]; tripDays(tr).forEach(dd=>{ (tr.plan||[]).
 function _whenShort(ts){
   try{ const d=new Date(ts); if(isNaN(d)) return "";
     const n=new Date(), sameDay=d.toDateString()===n.toDateString();
-    const y=new Date(n.getTime()-86400000);
+    const y=new Date(n); y.setDate(y.getDate()-1);   /* hier = jour civil (pas 24h fixes) */
     const hh=String(d.getHours()).padStart(2,"0")+":"+String(d.getMinutes()).padStart(2,"0");
     if(sameDay) return "aujourd'hui \u00e0 "+hh;
     if(d.toDateString()===y.toDateString()) return "hier \u00e0 "+hh;
@@ -8767,7 +8774,7 @@ async function exportCarnetComplet(){
     }catch(e){ return null; } }
     for(const dd of days){
       const st=pts.filter(p=>p.day===dd.i);
-      const _iso=(dd.date?dd.date.toISOString().slice(0,10):"");
+      const _iso=(dd.date?localYMD(dd.date):"");
       const _lodgPt=(tr.lodging&&tr.lodging.lat!=null)?{ id:"__lodging_"+dd.i, title:(tr.lodging.name||L({fr:"Hébergement",en:"Accommodation",es:"Alojamiento",it:"Alloggio",de:"Unterkunft"})), lat:tr.lodging.lat, lng:tr.lodging.lng, kind:"lodging", time:"", photo:(tr.lodging.photo||(tr.lodging.suggest&&tr.lodging.suggest.photo)||(tr.lodging.suggest&&tr.lodging.suggest.photos&&tr.lodging.suggest.photos[0]&&tr.lodging.suggest.photos[0].name)||null), _lodging:true }:null;
       const stAll=_lodgPt?[_lodgPt].concat(st):st;
       const dayExps=exps.filter(e=>e.date===_iso);
@@ -9802,18 +9809,20 @@ const _HFSVG={
   expense:'<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.5"/><path d="M12 8v8M8 12h8"/></svg>',
   photo:'<svg viewBox="0 0 24 24"><rect x="3" y="7" width="18" height="13" rx="2.5"/><circle cx="12" cy="13.4" r="3.3"/><path d="M8 7l1.4-2.4h5.2L16 7"/></svg>'
 };
+function _hfWx(tr){ try{ const w=tr&&tr._wx&&tr._wx[localYMD(new Date())]; if(w&&w.tempCur!=null) return " \u00b7 "+wxEmoji(w.code)+" "+Math.round(w.tempCur)+"\u00b0"; }catch(e){} return ""; }   /* P1: uniquement la temp ACTUELLE (jamais un max prévisionnel) */
 function _hfKick(tr){ var st=tripStatus(tr); return (st==="ongoing")?t("home.kickOngoing"):(st==="done")?t("home.kickDone"):t("home.kicker"); }   /* accueil : libellé du bloc mis en avant, honnête selon le statut (fini n'est pas « prochain voyage ») */
 function renderHomeFocus(){ const el=document.getElementById("homeFocus"); if(!el) return;
   if(!S.trips.length){ el.innerHTML=`<div class="hfocus"><button class="hf-empty" id="hfCreate"><span class="hf-e-ic">+</span><div><div class="hf-e-t">${t("home.noTripsH")}</div><div class="hf-e-p">${t("home.noTripsP")}</div></div></button></div>`;
     const c=el.querySelector("#hfCreate"); if(c) c.onclick=()=>openCreate(); return; }
   const tr=focusTrip()||S.trips[0]; if(!tr){ el.innerHTML=""; return; }
-  const _st=tripStatus(tr); let _pAct,_pLbl,_pIco;   /* ACCUEIL ADAPTATIF : action + icône selon le statut */
+  const _st=tripStatus(tr); try{ if(_st==="ongoing") loadWeather(tr,new Date(),ongoingDayIndex(tr)); }catch(e){}   /* météo du jour affichée sur la carte du voyage */
+  let _pAct,_pLbl,_pIco;   /* ACCUEIL ADAPTATIF : action + icône selon le statut */
   const _ICO={compass:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="m15.6 8.4-2.1 5.1-5.1 2.1 2.1-5.1z"/></svg>',cal:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="5" width="16" height="15" rx="2.2"/><path d="M8 3v4M16 3v4M4 10h16"/></svg>',cam:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M4 8h3l1.5-2.5h7L17 8h3a1 1 0 0 1 1 1v9a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V9a1 1 0 0 1 1-1z"/><circle cx="12" cy="13" r="3.2"/></svg>',edit:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20h16"/><path d="M6.5 15.5 15 7l2 2-8.5 8.5H6.5z"/></svg>'};
   if(_st==="done"){ _pAct="memories"; _pLbl=t("nav.memories"); _pIco=_ICO.cam; }
   else if(_st==="ongoing"){ _pAct="today"; _pLbl=t("home.aToday"); _pIco=_ICO.cal; }
   else if(_st==="draft"){ _pAct="complete"; _pLbl=t("home.complete"); _pIco=_ICO.edit; }
   else { const _hasPl=!!(tr.places&&tr.places.length); _pAct=_hasPl?"organize":"activities"; _pLbl=t(_hasPl?"create.nextOrganize":"create.nextActivities"); _pIco=_hasPl?_ICO.cal:_ICO.compass; }
-  el.innerHTML=`<div class="hfocus"><div class="hf-top" id="hfTop"><div class="hf-cover" style="${coverStyle(tr)}"></div><div class="hf-info"><div class="hf-kick">${_hfKick(tr)}</div><div class="hf-name">${escapeHtml(tripTitle(tr))}</div><div class="hf-cd">${countdownText(tr)}</div></div>${tripStatus(tr)==="done"?"":('<div class="hf-ring">'+ringSvg(tripCompletion(tr))+'</div>')}</div>
+  el.innerHTML=`<div class="hfocus"><div class="hf-top" id="hfTop"><div class="hf-cover" style="${coverStyle(tr)}"></div><div class="hf-info"><div class="hf-kick">${_hfKick(tr)}</div><div class="hf-name">${escapeHtml(tripTitle(tr))}</div><div class="hf-cd">${countdownText(tr)}<span id="hfCdWx">${_hfWx(tr)}</span></div></div>${tripStatus(tr)==="done"?"":('<div class="hf-ring">'+ringSvg(tripCompletion(tr))+'</div>')}</div>
     <div class="hf-acts"><button data-act="${_pAct}" class="hf-prim">${_pIco}<span>${_pLbl}</span></button><button data-act="expense">${_HFSVG.expense}<span>${t("home.aExpense")}</span></button><button data-act="photo">${_HFSVG.photo}<span>${t("home.aPhoto")}</span></button></div></div>`;
   const top=el.querySelector("#hfTop"); if(top) top.onclick=()=>openDetail(tr.id);
   el.querySelectorAll("[data-act]").forEach(b=>b.onclick=()=>homeAction(b.dataset.act,tr.id));
@@ -15062,7 +15071,7 @@ async function renderDayProposal(p){
   const tr=currentTrip(); if(!tr) return;
   const days=tripDays(tr), total=days.length;
   const jour=(p.jour&&p.jour>=1)?Math.min(p.jour,total):(ongoingDayIndex(tr)+1);
-  const d=days[jour-1]; const iso=d&&d.date?d.date.toISOString().slice(0,10):null;
+  const d=days[jour-1]; const iso=d&&d.date?localYMD(d.date):null;
   const L=lang();
   const card=document.createElement("div"); card.className="dayp";
   const lbl={ save:{fr:"Enregistrer la journ\u00e9e",en:"Save this day",es:"Guardar el d\u00eda",it:"Salva la giornata",de:"Tag speichern"},
