@@ -3289,7 +3289,7 @@ const DEFAULT_S={ version:"0.2.0", settings:{ lang:"fr", theme:"system", units:"
 /* Clé Maps JS partagée (restreinte au domaine GitHub Pages). Repli : clé perso de l'utilisateur si fournie. */
 const SHARED_MAP_KEY="AIzaSyCt5iVx8nPr1V067A3daE0X1YA568XJNbU";
 function mapKey(){ return (S.settings.mapKey||"").trim() || SHARED_MAP_KEY; }
-const BUILD="0.4.72 · v807 create-separator";
+const BUILD="0.4.77 · v812 a11y-dateval";
 let S=loadState();
 function normalizeTrip(tr){ if(!tr||typeof tr!=="object") return tr;
   tr.id=tr.id||("t"+Date.now()+Math.random().toString(36).slice(2,7));
@@ -4467,8 +4467,8 @@ function renderCreate(tr){
     <div class="fld"><label for="cDest">${t("create.dest")}</label><input id="cDest" placeholder="${escapeHtml(t("create.destPh"))}" autocomplete="off"><div class="ac" id="cAc"></div></div>
     <div class="fld" id="cCityWrap" style="display:none"><label>${t("create.cityLabel")}</label><input id="cCity" placeholder="${escapeHtml(t("create.cityPh"))}" autocomplete="off"><div class="ac" id="cCityAc"></div><div class="cdest-hint" style="margin-top:4px">${t("create.needCity")}</div></div>
     <div class="cexp-row">
-      <div class="fld"><label>${calT("title")}</label><div class="datefld" id="cDatesField" role="button" tabindex="0" style="cursor:pointer">${ICO_CAL18}<span class="date-txt" id="cDatesTxt">${t("create.pickDate")}</span></div></div>
-      <div class="fld cexp-trav"><label>${t("create.travelers")}</label><div class="stepper"><button id="cTravM" type="button">&#8722;</button><span class="n" id="cTravN">${draft.travelers}</span><button id="cTravP" type="button">+</button></div></div>
+      <div class="fld"><label id="cDatesLbl">${calT("title")}</label><div class="datefld" id="cDatesField" role="button" tabindex="0" aria-labelledby="cDatesLbl cDatesTxt" style="cursor:pointer">${ICO_CAL18}<span class="date-txt" id="cDatesTxt">${t("create.pickDate")}</span></div></div>
+      <div class="fld cexp-trav"><label id="cTravLbl">${t("create.travelers")}</label><div class="stepper" role="group" aria-labelledby="cTravLbl"><button id="cTravM" type="button">&#8722;</button><span class="n" id="cTravN">${draft.travelers}</span><button id="cTravP" type="button">+</button></div></div>
     </div>
     <button type="button" id="cNoDates" style="display:none;margin:6px 2px 2px;padding:0;background:none;border:none;color:#8a93a6;font:600 12.5px 'Inter',system-ui;text-decoration:underline;text-underline-offset:2px;cursor:pointer;width:auto;text-align:left">${t("create.saveNoDates")}</button>
     <div id="cDestHint" class="cdest-hint">${t("create.pickDestFirst")}</div>
@@ -4480,14 +4480,14 @@ function renderCreate(tr){
   <div class="acard" data-card="stay">
     <div class="acard-h"><img class="acard-ic" src="${MED.bag}" width="42" height="42" alt=""><span class="acard-tt"><span class="acard-t">${t("create.secDetails")}</span><span class="acard-s">${t("common.optional")}</span></span>${ICO_CHEV}</div>
     <div class="acard-b">
-    <div class="fld"><label>${t("plan.stepName")}</label><div class="ifld">${ICO_TAG}<input id="cName" placeholder="${escapeHtml(t("create.namePh"))}" autocomplete="off"></div></div>
-    <div class="fld"><label>${t("create.country")}</label><input id="cCountry" placeholder="${escapeHtml(t("create.countryPh"))}" autocomplete="off" value="${(draft.country&&draft.country.cc)?escapeHtml(countryName(draft.country.cc)):''}"><div class="ac" id="cCountryAc"></div></div>
+    <div class="fld"><label for="cName">${t("create.name")}</label><div class="ifld">${ICO_TAG}<input id="cName" placeholder="${escapeHtml(t("create.namePh"))}" autocomplete="off"></div></div>
+    <div class="fld"><label for="cCountry">${t("create.country")}</label><input id="cCountry" placeholder="${escapeHtml(t("create.countryPh"))}" autocomplete="off" value="${(draft.country&&draft.country.cc)?escapeHtml(countryName(draft.country.cc)):''}"><div class="ac" id="cCountryAc"></div></div>
     </div>
   </div>
   <div class="acard" data-card="lodge">
     <div class="acard-h"><img class="acard-ic" src="${MED.bell}" width="42" height="42" alt=""><span class="acard-tt"><span class="acard-t">${t("bcat.lodging")}</span><span class="acard-s">${t("create.subLodge")}</span></span>${ICO_CHEV}</div>
     <div class="acard-b">
-    <div class="fld"><label>${t("create.lodging")} \u00b7 ${t("common.optional")}</label><input id="cLodge" placeholder="${escapeHtml(t("create.lodgingPh"))}" autocomplete="off"><div class="ac" id="cLodgeAc"></div></div>
+    <div class="fld"><label for="cLodge">${t("create.lodging")} \u00b7 ${t("common.optional")}</label><input id="cLodge" placeholder="${escapeHtml(t("create.lodgingPh"))}" autocomplete="off"><div class="ac" id="cLodgeAc"></div></div>
     <button type="button" class="linkbtn" id="cLodgeSuggest" style="margin:-2px 0 2px"><svg viewBox="0 0 24 24"><path d="M4 20v-9l8-5 8 5v9"/><path d="M9 20v-5h6v5"/></svg>${t("lodging.suggest")}</button>
     </div>
   </div>
@@ -4496,7 +4496,7 @@ function renderCreate(tr){
     <div class="acard-b">
     <div class="fld"><div class="chips" id="cTr">${TRANSPORTS.map(x=>`<button type="button" class="chip ${draft.transport===x?'on':''}" data-tr="${x}">${t("tr."+x)}</button>`).join("")}</div></div>
     <div id="cVehPanel"></div>
-    <div class="fld"><label>${t("create.currency")}</label><select id="cCur">${(CURRENCIES.includes(draft.currency)?CURRENCIES:[draft.currency].concat(CURRENCIES)).map(c=>`<option value="${c}" ${draft.currency===c?'selected':''}>${c}${curSym(c)!==c?" "+curSym(c):''}</option>`).join("")}</select></div>
+    <div class="fld"><label for="cCur">${t("create.currency")}</label><select id="cCur">${(CURRENCIES.includes(draft.currency)?CURRENCIES:[draft.currency].concat(CURRENCIES)).map(c=>`<option value="${c}" ${draft.currency===c?'selected':''}>${c}${curSym(c)!==c?" "+curSym(c):''}</option>`).join("")}</select></div>
     </div>
   </div>
   <div class="acard" data-card="style">
@@ -15465,18 +15465,18 @@ async function authForgot(){
   if(error){ authMsg(at("errReset"),"err"); } else { authMsg(at("okReset"),"ok"); }
 }
 function authToggleMode(){ authMode=authMode==="login"?"signup":"login"; authClearMsg(); paintAuthTexts(); }
-function authSkip(){ try{ localStorage.setItem("mv_auth_skipped","1"); }catch(e){} hideAuthScreen(); }
-function onAuthSuccess(user){ currentUser=user; try{ localStorage.removeItem("mv_auth_skipped"); }catch(e){} hideAuthScreen(); pullAndMergeTrips(); pullPrefs(); pullConvs();
-  // Après récupération des prefs, propose l'écran prénom si pas encore défini
-  setTimeout(()=>maybeAskName(user), 900);
+function authSkip(){ try{ localStorage.setItem("mv_auth_skipped","1"); }catch(e){} hideAuthScreen(); setTimeout(()=>maybeAskName(null), 250); }   /* prénom demandé APRÈS le choix « sans compte », sans dépendre d'un minuteur */
+function onAuthSuccess(user){ currentUser=user; try{ localStorage.removeItem("mv_auth_skipped"); }catch(e){} hideAuthScreen(); pullAndMergeTrips(); pullConvs();
+  // On attend RÉELLEMENT le chargement des prefs (userName) avant de décider si le prénom manque
+  Promise.resolve(pullPrefs()).then(()=>maybeAskName(user)).catch(()=>maybeAskName(user));
 }
 /* ===== Prénom de l'utilisateur (Fidèle demande comment t'appeler) ===== */
 const NAME_I18N={
-  fr:{ title:"Enchanté !", intro:"Je suis Fidèle, ton compagnon de voyage. Comment veux-tu que je t'appelle ?", lbl:"Ton prénom", submit:"Continuer", skip:"Plus tard" },
-  en:{ title:"Nice to meet you!", intro:"I'm Fidèle, your travel companion. What should I call you?", lbl:"Your first name", submit:"Continue", skip:"Later" },
-  es:{ title:"¡Encantado!", intro:"Soy Fidèle, tu compañero de viaje. ¿Cómo quieres que te llame?", lbl:"Tu nombre", submit:"Continuar", skip:"Más tarde" },
-  it:{ title:"Piacere!", intro:"Sono Fidèle, il tuo compagno di viaggio. Come vuoi che ti chiami?", lbl:"Il tuo nome", submit:"Continua", skip:"Più tardi" },
-  de:{ title:"Freut mich!", intro:"Ich bin Fidèle, dein Reisebegleiter. Wie soll ich dich nennen?", lbl:"Dein Vorname", submit:"Weiter", skip:"Später" }
+  fr:{ title:"Enchanté !", intro:"Je suis Fidèle, ton compagnon de voyage. Comment veux-tu que je t'appelle ?", lbl:"Ton prénom", submit:"Continuer", skip:"Plus tard", empty:"Indique ton prénom ou choisis Plus tard" },
+  en:{ title:"Nice to meet you!", intro:"I'm Fidèle, your travel companion. What should I call you?", lbl:"Your first name", submit:"Continue", skip:"Later", empty:"Enter your name or choose Later" },
+  es:{ title:"¡Encantado!", intro:"Soy Fidèle, tu compañero de viaje. ¿Cómo quieres que te llame?", lbl:"Tu nombre", submit:"Continuar", skip:"Más tarde", empty:"Escribe tu nombre o elige Más tarde" },
+  it:{ title:"Piacere!", intro:"Sono Fidèle, il tuo compagno di viaggio. Come vuoi che ti chiami?", lbl:"Il tuo nome", submit:"Continua", skip:"Più tardi", empty:"Scrivi il tuo nome o scegli Più tardi" },
+  de:{ title:"Freut mich!", intro:"Ich bin Fidèle, dein Reisebegleiter. Wie soll ich dich nennen?", lbl:"Dein Vorname", submit:"Weiter", skip:"Später", empty:"Gib deinen Namen ein oder wähle Später" }
 };
 function nt_(k){ const l=NAME_I18N[lang()]||NAME_I18N.fr; return l[k]||NAME_I18N.fr[k]||k; }
 function userName(){ return ((S.prefs&&S.prefs.userName)||"").trim(); }
@@ -15486,13 +15486,15 @@ function showNameScreen(prefill){
   document.getElementById("nameLbl").textContent=nt_("lbl");
   document.getElementById("nameSubmit").textContent=nt_("submit");
   document.getElementById("nameSkip").textContent=nt_("skip");
-  const inp=document.getElementById("nameInput"); if(inp) inp.value=prefill||"";
+  const inp=document.getElementById("nameInput"); if(inp){ inp.value=prefill||""; inp.removeAttribute("aria-invalid"); } { const _er=document.getElementById("nameErr"); if(_er){ _er.textContent=""; _er.style.display="none"; } }
   document.getElementById("nameScreen").classList.add("show");
   setTimeout(()=>{ if(inp) inp.focus(); },200);
 }
 function hideNameScreen(){ document.getElementById("nameScreen").classList.remove("show"); }
 function saveUserName(){
   const inp=document.getElementById("nameInput"); const v=(inp&&inp.value||"").trim();
+  if(!v){ if(inp){ inp.focus(); inp.setAttribute("aria-invalid","true"); } const _er=document.getElementById("nameErr"); if(_er){ _er.textContent=nt_("empty"); _er.style.display="block"; } return; }   /* prénom vide -> on n'enregistre pas, « Plus tard » existe pour ça */
+  if(inp) inp.removeAttribute("aria-invalid"); { const _er=document.getElementById("nameErr"); if(_er) _er.style.display="none"; }
   S.prefs=S.prefs||{}; S.prefs.userName=v; try{ localStorage.setItem("mv_name_asked","1"); }catch(e){}
   saveState(); if(typeof schedulePrefsPush==="function") schedulePrefsPush();
   hideNameScreen(); if(typeof paintAgentWelcome==="function") paintAgentWelcome();
@@ -15501,6 +15503,7 @@ function skipName(){ try{ localStorage.setItem("mv_name_asked","1"); }catch(e){}
 // Décide si on demande le prénom (aux premiers moments, si pas encore défini)
 function maybeAskName(user){
   if(userName()) return; // déjà connu
+  const _ns=document.getElementById("nameScreen"); if(_ns && _ns.classList.contains("show")) return;   /* déjà ouvert -> ne pas réafficher ni effacer la saisie (coexistence des minuteurs) */
   let asked=false; try{ asked=localStorage.getItem("mv_name_asked")==="1"; }catch(e){}
   if(asked) return;
   // Pré-remplissage via Google si dispo
@@ -15525,6 +15528,7 @@ async function authLogout(){
 }
 
 async function initAuth(){
+  try{ const _sk=document.getElementById("authSkip"); if(_sk) _sk.onclick=authSkip; }catch(e){}   /* « sans compte » toujours actif, même si Supabase absent */
   // Librairie Supabase chargée ?
   if(!(window.supabase && window.supabase.createClient)){ console.warn("Supabase indisponible"); return; }
   sb=window.supabase.createClient(SB_URL,SB_ANON);
@@ -15537,7 +15541,7 @@ async function initAuth(){
   document.getElementById("authPw").onkeydown=e=>{ if(e.key==="Enter") authSubmit(); };
   // Session existante ? (retour OAuth Google ou connexion déjà active)
   try{ const { data }=await sb.auth.getSession();
-    if(data && data.session && data.session.user){ currentUser=data.session.user; try{ currentUser._token=data.session.access_token; }catch(e){} hideAuthScreen(); pullAndMergeTrips(); pullPrefs(); pullConvs(); return; }
+    if(data && data.session && data.session.user){ currentUser=data.session.user; try{ currentUser._token=data.session.access_token; }catch(e){} hideAuthScreen(); pullAndMergeTrips(); pullConvs(); Promise.resolve(pullPrefs()).then(()=>maybeAskName(currentUser)).catch(()=>maybeAskName(currentUser)); return; }   /* session restaurée : attend les prefs puis propose le prénom s'il manque */
   }catch(e){}
   // Écoute les changements (retour de Google)
   sb.auth.onAuthStateChange((ev,session)=>{ if(ev==="SIGNED_IN" && session&&session.user){ try{ session.user._token=session.access_token; }catch(e){} onAuthSuccess(session.user); } });
@@ -15655,7 +15659,7 @@ async function boot(){
   applyTheme(); init(); initNameScreen(); initAuth();
   try{ applyI18n(); renderHome(); switchTab("home"); initAgentChat(); }catch(e){ console.warn("home init",e); }
   // Premier lancement (même sans compte) : proposer le prénom après un court délai
-  setTimeout(()=>{ let skipped=false; try{ skipped=localStorage.getItem("mv_auth_skipped")==="1"; }catch(e){} if(skipped||!sb) maybeAskName(null); }, 1400);
+  setTimeout(()=>{ let skipped=false,asked=false; try{ skipped=localStorage.getItem("mv_auth_skipped")==="1"; asked=localStorage.getItem("mv_name_asked")==="1"; }catch(e){} if(skipped && !asked) maybeAskName(null); }, 1400);   /* rattrapage : uniquement anciens « sans compte » pas encore sollicités ; plus jamais avant le choix de l'utilisateur */
 }
 document.addEventListener("DOMContentLoaded",boot);
 </script>
@@ -15673,7 +15677,7 @@ document.addEventListener("DOMContentLoaded",boot);
 <div class="auth-screen" id="nameScreen">
   <div class="auth-box">
     <div class="auth-logo"><div class="al-mark">🧭</div><h1 id="nameTitle">Enchanté !</h1><p id="nameIntro"></p></div>
-    <div class="auth-field"><label id="nameLbl">Ton prénom</label><input type="text" id="nameInput" autocomplete="given-name" autocapitalize="words" placeholder="Loïc"></div>
+    <div class="auth-field"><label id="nameLbl" for="nameInput">Ton prénom</label><input type="text" id="nameInput" autocomplete="given-name" autocapitalize="words" placeholder="Loïc" aria-describedby="nameErr"><div id="nameErr" role="alert" style="color:#c0392b;font:600 12px system-ui;margin:6px 2px 0;display:none"></div></div>
     <button class="auth-btn primary" id="nameSubmit">Continuer</button>
     <div class="auth-skip"><a id="nameSkip"></a></div>
   </div>
