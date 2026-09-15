@@ -3308,7 +3308,7 @@ const DEFAULT_S={ version:"0.2.0", settings:{ lang:"fr", theme:"system", units:"
 /* Clé Maps JS partagée (restreinte au domaine GitHub Pages). Repli : clé perso de l'utilisateur si fournie. */
 const SHARED_MAP_KEY="AIzaSyCt5iVx8nPr1V067A3daE0X1YA568XJNbU";
 function mapKey(){ return (S.settings.mapKey||"").trim() || SHARED_MAP_KEY; }
-const BUILD="0.4.88 · v823 trip-card-weather-isolated";
+const BUILD="0.4.90 · v825 weather-day-night-cache-migration";
 let S=loadState();
 function normalizeTrip(tr){ if(!tr||typeof tr!=="object") return tr;
   tr.id=tr.id||("t"+Date.now()+Math.random().toString(36).slice(2,7));
@@ -7873,9 +7873,10 @@ function showFideleAlert(tr,day,route){ const el=document.getElementById("fidele
   el.innerHTML=`<div class="fidele-alert"><span class="fa-av">${FA_AV_SVG}</span><div class="fa-body"><span class="fa-name">${escapeHtml(agentDisplayName())}</span><span class="fa-txt">${msg}</span></div><button class="fa-close" aria-label="Fermer">✕</button></div>`;
   const btn=el.querySelector(".fa-close"); if(btn) btn.onclick=()=>{ _fideleDismissed[key]=true; el.innerHTML=""; }; }
 function wxEmoji(c){ if(c===0)return"☀️"; if(c<=3)return"⛅"; if(c<=48)return"🌫️"; if(c<=67)return"🌧️"; if(c<=77)return"🌨️"; if(c<=82)return"🌦️"; if(c<=86)return"🌨️"; return"⛈️"; }
-function wxIconSVG(c){ const cl='<path class="wx-drift" d="M7 16.2h8.6a3 3 0 0 0 .3-6A4.4 4.4 0 0 0 7.5 10 2.9 2.9 0 0 0 7 16.2z" fill="#9aa7bd"/>';
-  if(c===0) return '<svg class="wxi" viewBox="0 0 24 24" fill="none" stroke="#f4b73e" stroke-width="1.7"><g class="wx-spin"><line x1="12" y1="2.5" x2="12" y2="5"/><line x1="12" y1="19" x2="12" y2="21.5"/><line x1="2.5" y1="12" x2="5" y2="12"/><line x1="19" y1="12" x2="21.5" y2="12"/><line x1="5.2" y1="5.2" x2="7" y2="7"/><line x1="17" y1="17" x2="18.8" y2="18.8"/><line x1="18.8" y1="5.2" x2="17" y2="7"/><line x1="7" y1="17" x2="5.2" y2="18.8"/></g><circle cx="12" cy="12" r="4" fill="#f4b73e" stroke="none"/></svg>';
-  if(c<=3) return '<svg class="wxi" viewBox="0 0 24 24" fill="none"><g class="wx-spin2"><circle cx="8.5" cy="8" r="2.7" fill="#f4b73e"/></g>'+cl+'</svg>';
+function wxIconSVG(c,day){ const night=(day===0); const cl='<path class="wx-drift" d="M7 16.2h8.6a3 3 0 0 0 .3-6A4.4 4.4 0 0 0 7.5 10 2.9 2.9 0 0 0 7 16.2z" fill="#9aa7bd"/>';
+  const moon='<path class="wx-moon" d="M18.6 13.4A6.4 6.4 0 0 1 10.6 5.4 6.4 6.4 0 1 0 18.6 13.4z" fill="#e8edfb"/>'; const moonS='<path d="M11 8.6A3.4 3.4 0 0 1 6.8 5 3.4 3.4 0 1 0 11 8.6z" fill="#e8edfb"/>';
+  if(c===0) return night ? '<svg class="wxi" viewBox="0 0 24 24">'+moon+'</svg>' : '<svg class="wxi" viewBox="0 0 24 24" fill="none" stroke="#f4b73e" stroke-width="1.7"><g class="wx-spin"><line x1="12" y1="2.5" x2="12" y2="5"/><line x1="12" y1="19" x2="12" y2="21.5"/><line x1="2.5" y1="12" x2="5" y2="12"/><line x1="19" y1="12" x2="21.5" y2="12"/><line x1="5.2" y1="5.2" x2="7" y2="7"/><line x1="17" y1="17" x2="18.8" y2="18.8"/><line x1="18.8" y1="5.2" x2="17" y2="7"/><line x1="7" y1="17" x2="5.2" y2="18.8"/></g><circle cx="12" cy="12" r="4" fill="#f4b73e" stroke="none"/></svg>';
+  if(c<=3) return night ? '<svg class="wxi" viewBox="0 0 24 24" fill="none">'+moonS+cl+'</svg>' : '<svg class="wxi" viewBox="0 0 24 24" fill="none"><g class="wx-spin2"><circle cx="8.5" cy="8" r="2.7" fill="#f4b73e"/></g>'+cl+'</svg>';
   if(c<=48) return '<svg class="wxi" viewBox="0 0 24 24">'+cl+'</svg>';
   if((c>=51&&c<=67)||(c>=80&&c<=82)) return '<svg class="wxi" viewBox="0 0 24 24" stroke="#5b8def" stroke-width="1.7" fill="none">'+cl+'<line class="wx-drop d1" x1="9" y1="17.6" x2="8" y2="20"/><line class="wx-drop d2" x1="12.5" y1="17.6" x2="11.5" y2="20"/><line class="wx-drop d3" x1="16" y1="17.6" x2="15" y2="20"/></svg>';
   if((c>=71&&c<=77)||(c>=85&&c<=86)) return '<svg class="wxi" viewBox="0 0 24 24" fill="#cfe3ff">'+cl+'<circle class="wx-flake f1" cx="9" cy="18.6" r="1.05"/><circle class="wx-flake f2" cx="12.5" cy="18.6" r="1.05"/><circle class="wx-flake f3" cx="16" cy="18.6" r="1.05"/></svg>';
@@ -7887,20 +7888,20 @@ async function loadWeather(tr,date,day){ const dst=(day!=null?destForDay(tr,day)
   const _isToday=(iso===localYMD(new Date())); const _mySeq=++_wxReqSeq;
   tr._wx=tr._wx||{}; const _pick=w=>(w.tempCur!=null?w.tempCur:(w.tempMax!=null?w.tempMax:w.temp));
   const set=w=>{ if(_mySeq!==_wxReqSeq) return;   /* P2: une requête plus récente a pris la main */
-    const el=document.getElementById("dcWeather"); if(el) el.innerHTML=`${wxIconSVG(w.code)} ${Math.round(_pick(w))}°C`;
-    const _hw=document.getElementById("hfCdWx"); if(_hw){ if(w.tempCur!=null) _hw.innerHTML=" \u00b7 "+wxIconSVG(w.code)+" "+Math.round(w.tempCur)+"\u00b0"; else _hw.innerHTML=""; }   /* P1: jamais un max présenté comme température actuelle */
+    const el=document.getElementById("dcWeather"); if(el) el.innerHTML=`${wxIconSVG(w.code,w.isDay)} ${Math.round(_pick(w))}°C`;
+    const _hw=document.getElementById("hfCdWx"); if(_hw){ if(w.tempCur!=null) _hw.innerHTML=" \u00b7 "+wxIconSVG(w.code,w.isDay)+" "+Math.round(w.tempCur)+"\u00b0"; else _hw.innerHTML=""; }   /* P1: jamais un max présenté comme température actuelle */
     paintDayNudges(); };
-  const _c=tr._wx[iso]; if(_c&&(_c.sig||"")===sig&&!(_isToday&&(_c.tempCur==null||Date.now()-(_c.t||0)>1800000))){ set(_c); return; }   /* cache validé par coordonnées ; aujourd'hui rafraîchi si >30 min ou pas encore de temp actuelle */
+  const _c=tr._wx[iso]; if(_c&&(_c.sig||"")===sig&&!(_isToday&&(_c.tempCur==null||_c.isDay==null||Date.now()-(_c.t||0)>1800000))){ set(_c); return; }   /* isDay==null -> ancien cache sans jour/nuit : on rafraîchit */   /* cache validé par coordonnées ; aujourd'hui rafraîchi si >30 min ou pas encore de temp actuelle */
   try{ const base=`https://api.open-meteo.com/v1/forecast?latitude=${dst.lat}&longitude=${dst.lng}&timezone=auto&start_date=${iso}&end_date=${iso}&daily=temperature_2m_max,weather_code`;
-    const u=_isToday ? base+"&current=temperature_2m,weather_code" : base;   /* aujourd'hui : temp ACTUELLE (affichage) + MAX du jour (conseils) */
+    const u=_isToday ? base+"&current=temperature_2m,weather_code,is_day" : base;   /* aujourd'hui : temp ACTUELLE (affichage) + MAX du jour (conseils) */
     const r=await fetch(u); if(!r.ok) return; const j=await r.json();
-    let tempMax=null,tempCur=null,codeDay=null,codeCur=null;
+    let tempMax=null,tempCur=null,codeDay=null,codeCur=null,_isDay=1;
     if(j&&j.daily&&j.daily.temperature_2m_max&&j.daily.temperature_2m_max.length&&j.daily.temperature_2m_max[0]!=null){ tempMax=Math.round(j.daily.temperature_2m_max[0]); if(j.daily.weather_code&&j.daily.weather_code[0]!=null) codeDay=j.daily.weather_code[0]; }
-    if(_isToday&&j&&j.current&&j.current.temperature_2m!=null){ tempCur=Math.round(j.current.temperature_2m); if(j.current.weather_code!=null) codeCur=j.current.weather_code; }
+    if(_isToday&&j&&j.current&&j.current.temperature_2m!=null){ tempCur=Math.round(j.current.temperature_2m); if(j.current.weather_code!=null) codeCur=j.current.weather_code; if(j.current.is_day!=null) _isDay=j.current.is_day; }
     if(tempMax==null&&tempCur==null) return;
     if(_mySeq!==_wxReqSeq) return;   /* P1: garde AVANT d'écrire le cache (une réponse plus récente prime) */
     const _code=(codeCur!=null?codeCur:codeDay);
-    const w={tempCur:tempCur,tempMax:tempMax,temp:(tempCur!=null?tempCur:tempMax),code:_code,codeCur:codeCur,codeDay:codeDay,cc:cc,sig:sig,lat:+dst.lat,lng:+dst.lng,t:Date.now(),cur:(tempCur!=null)}; tr._wx[iso]=w; saveState(); set(w); }catch(e){} }
+    const w={tempCur:tempCur,tempMax:tempMax,temp:(tempCur!=null?tempCur:tempMax),code:_code,codeCur:codeCur,codeDay:codeDay,cc:cc,sig:sig,lat:+dst.lat,lng:+dst.lng,t:Date.now(),cur:(tempCur!=null),isDay:_isDay}; tr._wx[iso]=w; saveState(); set(w); }catch(e){} }
 
 /* ----- Carte Google ----- */
 let _mapsP=null;
@@ -9836,24 +9837,24 @@ const _HFSVG={
   expense:'<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.5"/><path d="M12 8v8M8 12h8"/></svg>',
   photo:'<svg viewBox="0 0 24 24"><rect x="3" y="7" width="18" height="13" rx="2.5"/><circle cx="12" cy="13.4" r="3.3"/><path d="M8 7l1.4-2.4h5.2L16 7"/></svg>'
 };
-function _hfWx(tr){ try{ const w=tr&&tr._wx&&tr._wx[localYMD(new Date())]; if(w&&w.tempCur!=null) return " \u00b7 "+wxIconSVG(w.code)+" "+Math.round(w.tempCur)+"\u00b0"; }catch(e){} return ""; }   /* P1: uniquement la temp ACTUELLE (jamais un max prévisionnel) */
-function _tcWx(tr){ try{ const w=tr&&tr._wx&&tr._wx[localYMD(new Date())]; if(w&&w.tempCur!=null) return wxIconSVG(w.code)+" "+Math.round(w.tempCur)+"\u00b0"; }catch(e){} return ""; }
+function _hfWx(tr){ try{ const w=tr&&tr._wx&&tr._wx[localYMD(new Date())]; if(w&&w.tempCur!=null) return " \u00b7 "+wxIconSVG(w.code,w.isDay)+" "+Math.round(w.tempCur)+"\u00b0"; }catch(e){} return ""; }   /* P1: uniquement la temp ACTUELLE (jamais un max prévisionnel) */
+function _tcWx(tr){ try{ const w=tr&&tr._wx&&tr._wx[localYMD(new Date())]; if(w&&w.tempCur!=null) return wxIconSVG(w.code,w.isDay)+" "+Math.round(w.tempCur)+"\u00b0"; }catch(e){} return ""; }
 async function loadTripCardWeather(tr){ try{
   const dst=tr&&tr.dest; if(!(dst&&dst.lat!=null)) return;
   const iso=localYMD(new Date()); const cc=(dst.cc||""); const sig=(+dst.lat).toFixed(2)+","+(+dst.lng).toFixed(2);
   tr._wx=tr._wx||{};
-  const paint=w=>{ const html=(w&&w.tempCur!=null)?wxIconSVG(w.code)+" "+Math.round(w.tempCur)+"\u00b0":""; document.querySelectorAll('[data-tcwx="'+tr.id+'"]').forEach(e=>{ e.innerHTML=html; }); };
-  const _c=tr._wx[iso]; if(_c&&(_c.sig||"")===sig&&!(_c.tempCur==null||Date.now()-(_c.t||0)>1800000)){ paint(_c); return; }
-  const u=`https://api.open-meteo.com/v1/forecast?latitude=${dst.lat}&longitude=${dst.lng}&timezone=auto&start_date=${iso}&end_date=${iso}&daily=temperature_2m_max,weather_code&current=temperature_2m,weather_code`;
+  const paint=w=>{ const html=(w&&w.tempCur!=null)?wxIconSVG(w.code,w.isDay)+" "+Math.round(w.tempCur)+"\u00b0":""; document.querySelectorAll('[data-tcwx="'+tr.id+'"]').forEach(e=>{ e.innerHTML=html; }); };
+  const _c=tr._wx[iso]; if(_c&&(_c.sig||"")===sig&&!(_c.tempCur==null||_c.isDay==null||Date.now()-(_c.t||0)>1800000)){ paint(_c); return; }   /* isDay==null -> ancien cache sans jour/nuit : on rafraîchit */
+  const u=`https://api.open-meteo.com/v1/forecast?latitude=${dst.lat}&longitude=${dst.lng}&timezone=auto&start_date=${iso}&end_date=${iso}&daily=temperature_2m_max,weather_code&current=temperature_2m,weather_code,is_day`;
   const r=await fetch(u); if(!r.ok) return; const j=await r.json();
-  let tempMax=null,tempCur=null,codeDay=null,codeCur=null;
+  let tempMax=null,tempCur=null,codeDay=null,codeCur=null,_isDay=1;
   if(j&&j.daily&&j.daily.temperature_2m_max&&j.daily.temperature_2m_max.length&&j.daily.temperature_2m_max[0]!=null){ tempMax=Math.round(j.daily.temperature_2m_max[0]); if(j.daily.weather_code&&j.daily.weather_code[0]!=null) codeDay=j.daily.weather_code[0]; }
-  if(j&&j.current&&j.current.temperature_2m!=null){ tempCur=Math.round(j.current.temperature_2m); if(j.current.weather_code!=null) codeCur=j.current.weather_code; }
+  if(j&&j.current&&j.current.temperature_2m!=null){ tempCur=Math.round(j.current.temperature_2m); if(j.current.weather_code!=null) codeCur=j.current.weather_code; if(j.current.is_day!=null) _isDay=j.current.is_day; }
   if(tempMax==null&&tempCur==null) return;
   const dstNow=tr.dest; const sigNow=(dstNow&&dstNow.lat!=null)?(+dstNow.lat).toFixed(2)+","+(+dstNow.lng).toFixed(2):"";
   if(sigNow!==sig) return;   /* validation PAR VOYAGE : la destination n'a pas changé (pas de jeton global) */
   const _code=(codeCur!=null?codeCur:codeDay);
-  const w={tempCur:tempCur,tempMax:tempMax,temp:(tempCur!=null?tempCur:tempMax),code:_code,codeCur:codeCur,codeDay:codeDay,cc:cc,sig:sig,lat:+dst.lat,lng:+dst.lng,t:Date.now(),cur:(tempCur!=null)};
+  const w={tempCur:tempCur,tempMax:tempMax,temp:(tempCur!=null?tempCur:tempMax),code:_code,codeCur:codeCur,codeDay:codeDay,cc:cc,sig:sig,lat:+dst.lat,lng:+dst.lng,t:Date.now(),cur:(tempCur!=null),isDay:_isDay};
   tr._wx[iso]=w; saveState(); paint(w);
 }catch(e){} }   /* ISOLÉE : ne touche jamais #hfCdWx ni #dcWeather ; met à jour TOUTES les occurrences de la carte via data-tcwx */
 function _hfKick(tr){ var st=tripStatus(tr); return (st==="ongoing")?t("home.kickOngoing"):(st==="done")?t("home.kickDone"):t("home.kicker"); }   /* accueil : libellé du bloc mis en avant, honnête selon le statut (fini n'est pas « prochain voyage ») */
@@ -15171,7 +15172,7 @@ async function renderDayProposal(p){
 
   card.className="dayp";
   card.innerHTML=`<div class="dayp-head">`
-    +(w?`<span class="dayp-w">${wxIconSVG(w.code)} ${Math.round(w.temp)}\u00b0</span>`:``)
+    +(w?`<span class="dayp-w">${wxIconSVG(w.code,w.isDay)} ${Math.round(w.temp)}\u00b0</span>`:``)
     +`<span class="dayp-d"><b>${escapeHtml(dateLbl)}</b><i>${escapeHtml(h1)} \u2013 ${escapeHtml(h2)}</i></span></div>`
     +`<div class="dayp-rows">${rows}</div>`
     +`<div class="dayp-foot"><span>${steps.length} ${escapeHtml(lbl.steps[L]||lbl.steps.fr)}</span>`
