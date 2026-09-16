@@ -496,11 +496,15 @@ html.studio-open{overflow:hidden}
 .exp-sec{margin-bottom:22px}
 .exp-sec .rowhead{margin-bottom:12px}
 .pcards-scroll{display:flex;gap:14px;overflow-x:auto;padding-bottom:6px;margin:0 -2px;-webkit-overflow-scrolling:touch}
-.exp-controls{display:flex;flex-wrap:nowrap;gap:5px;align-items:center;padding:2px 2px 6px;margin:0 -2px;overflow:visible}
+.exp-controls{display:flex;flex-wrap:wrap;gap:8px;align-items:center;padding:2px 2px 6px;margin:0 -2px;overflow:visible}
+.exp-grp{display:flex;gap:6px;align-items:center;flex:1 1 auto;min-width:0}
+@media (max-width:599px){.exp-controls{flex-wrap:wrap}.exp-grp{flex:1 1 100%;width:100%;min-width:0}}
+@media (min-width:600px){.exp-controls{flex-wrap:nowrap}.exp-grp{flex:1 1 auto;width:auto;min-width:0}}
 .exp-controls::-webkit-scrollbar{display:none}
-.exp-controls>#expZone{flex:0 0 auto;margin:0}
+.exp-controls #expZone{flex:0 0 auto;margin:0}
+.exp-controls .exp-zone{margin:0}
 .exp-controls .chip,.exp-controls .exz-pill{flex:0 0 auto;display:inline-flex;align-items:center;justify-content:center;gap:5px;min-height:44px;padding:8px 9px;white-space:nowrap}
-.exp-controls #exzOpen{max-width:100px;overflow:hidden}
+.exp-controls #exzOpen{max-width:150px;overflow:hidden}
 .exp-controls .exz-name{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .exp-controls .exp-catchip{max-width:100%;width:100%;overflow:hidden}
 .exp-controls .exp-catchip>#expCatChipLbl{flex:1 1 auto;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
@@ -508,7 +512,10 @@ html.studio-open{overflow:hidden}
 .exp-controls .exp-chev{width:12px;height:12px;flex:0 0 12px;opacity:.55;stroke-width:2.4}
 .exp-rad-wrap{position:relative;flex:0 0 auto;display:inline-flex}
 .exp-cat-wrap{position:relative;flex:1 1 auto;min-width:0;display:inline-flex;overflow:hidden}
-.exp-menu{position:fixed;min-width:150px;max-width:240px;max-height:min(340px,58vh);overflow-y:auto;background:var(--surface);border:1px solid var(--line);border-radius:13px;box-shadow:0 16px 38px rgba(11,30,69,.24);padding:6px;z-index:100000;display:none}
+.exp-menu{position:fixed;min-width:150px;max-width:260px;background:var(--surface);border:1px solid var(--line);border-radius:14px;box-shadow:0 18px 44px rgba(11,30,69,.26);padding:6px;z-index:100000;display:none}
+.exm-list{max-height:min(320px,54vh);overflow-y:auto}
+.exm-arrow{position:absolute;top:-6px;left:16px;width:13px;height:13px;background:var(--surface);border-left:1px solid var(--line);border-top:1px solid var(--line);transform:rotate(45deg);border-radius:3px 0 0 0}
+.exm-hd{font:800 11px "Inter",sans-serif;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;padding:5px 12px 6px}
 .exp-menu.show{display:block}
 .exp-menu button{display:flex;align-items:center;justify-content:space-between;gap:12px;width:100%;text-align:left;background:none;border:0;padding:11px 12px;border-radius:9px;font:600 14px "Inter",sans-serif;color:var(--ink);cursor:pointer;white-space:nowrap;min-height:44px}
 .exp-menu button:hover,.exp-menu button.on{background:var(--line-soft,#EEF1F7)}
@@ -3060,13 +3067,17 @@ body.dragging-on{-webkit-user-select:none;user-select:none}
       </div>
       <div class="exp-search"><button type="button" id="expSearchBtn" data-i18n-aria="home.searchAria" aria-label="Rechercher"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m21 21-4-4"/></svg></button><input id="expSearch" data-i18n-ph="exp.searchPh" placeholder="Rechercher un lieu, une activité…" autocomplete="off"></div>
       <div class="exp-controls">
-        <div id="expZone" class="exp-zone"></div>
-        <div class="exp-cat-wrap">
-          <button type="button" class="chip exp-catchip" id="expCatChip" aria-haspopup="listbox" aria-controls="expCatMenu" aria-expanded="false"><span id="expCatChipLbl">Tout</span><svg class="exp-chev" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg></button>
+        <div class="exp-grp">
+          <div id="expZone" class="exp-zone"></div>
+          <div class="exp-cat-wrap">
+            <button type="button" class="chip exp-catchip" id="expCatChip" aria-haspopup="listbox" aria-controls="expCatMenu" aria-expanded="false"><span id="expCatChipLbl">Tout</span><svg class="exp-chev" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg></button>
+          </div>
         </div>
-        <button type="button" class="chip" id="expFilterChip" aria-haspopup="dialog" aria-controls="expFilterSheet" aria-expanded="false"><span data-i18n="exp.filters">Filtres</span><svg class="exp-chev" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg></button>
-        <div class="exp-rad-wrap">
-          <button type="button" class="chip exp-radchip" id="expRadiusChip" aria-label="Rayon 50 km" aria-haspopup="listbox" aria-controls="expRadMenu" aria-expanded="false"><span id="expRadiusChipVal">50 km</span><svg class="exp-chev" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg></button>
+        <div class="exp-grp">
+          <button type="button" class="chip" id="expFilterChip" aria-haspopup="dialog" aria-controls="expFilterSheet" aria-expanded="false"><span data-i18n="exp.filters">Filtres</span><svg class="exp-chev" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg></button>
+          <div class="exp-rad-wrap">
+            <button type="button" class="chip exp-radchip" id="expRadiusChip" aria-label="Rayon 50 km" aria-haspopup="listbox" aria-controls="expRadMenu" aria-expanded="false"><span id="expRadiusChipVal">50 km</span><svg class="exp-chev" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg></button>
+          </div>
         </div>
       </div>
       <div id="expCatMenu" class="exp-menu" role="listbox" data-i18n-aria="exp.categories" aria-label="Catégories"></div>
@@ -3331,7 +3342,7 @@ const DEFAULT_S={ version:"0.2.0", settings:{ lang:"fr", theme:"system", units:"
 /* Clé Maps JS partagée (restreinte au domaine GitHub Pages). Repli : clé perso de l'utilisateur si fournie. */
 const SHARED_MAP_KEY="AIzaSyCt5iVx8nPr1V067A3daE0X1YA568XJNbU";
 function mapKey(){ return (S.settings.mapKey||"").trim() || SHARED_MAP_KEY; }
-const BUILD="0.5.28 · v863 explore-bar-flex";
+const BUILD="0.5.32 · v867 explore-popover-cleanup";
 let S=loadState();
 function normalizeTrip(tr){ if(!tr||typeof tr!=="object") return tr;
   tr.id=tr.id||("t"+Date.now()+Math.random().toString(36).slice(2,7));
@@ -6323,13 +6334,14 @@ function renderExpFilter(){ const b=document.getElementById("expFilterBody"); if
   b.querySelector("#expFApply").onclick=applySubFilter;
 }
 function _syncExpChips(){ try{ const cl=document.getElementById("expCatChipLbl"); if(cl) cl.textContent=t("cat."+exploreState.cat); const rv=document.getElementById("expRadiusChipVal"); if(rv) rv.textContent=t("exp.radius")+" "+_exploreRadiusKm+" km"; const rc=document.getElementById("expRadiusChip"); if(rc) rc.setAttribute("aria-label",t("exp.radius")+" "+_exploreRadiusKm+" km"); }catch(e){} }
-function _posExpMenu(menu,chip,alignRight){ const r=chip.getBoundingClientRect(); const vw=window.innerWidth; menu.style.top=(r.bottom+6)+"px"; menu.style.maxWidth=Math.min(240,vw-16)+"px"; const mw=menu.offsetWidth||180; let left=alignRight?(r.right-mw):r.left; if(left+mw>vw-8) left=vw-8-mw; if(left<8) left=8; menu.style.left=left+"px"; }
+function _posExpMenu(menu,chip,alignRight){ const r=chip.getBoundingClientRect(); const vw=window.innerWidth; menu.style.top=(r.bottom+6)+"px"; menu.style.maxWidth=Math.min(260,vw-16)+"px"; if(!alignRight) menu.style.minWidth=Math.max(170,Math.round(r.width))+"px"; const mw=menu.offsetWidth||180; let left=alignRight?(r.right-mw):r.left; if(left+mw>vw-8) left=vw-8-mw; if(left<8) left=8; menu.style.left=left+"px"; const _ar=menu.querySelector(".exm-arrow"); if(_ar){ let ax=r.left+r.width/2-left-6; ax=Math.max(12,Math.min(mw-24,ax)); _ar.style.left=ax+"px"; } }
 function closeExpMenus(){ ["expCatMenu","expRadMenu"].forEach(id=>{const m=document.getElementById(id);if(m)m.classList.remove("show");}); ["expCatChip","expRadiusChip"].forEach(id=>{const c=document.getElementById(id);if(c)c.setAttribute("aria-expanded","false");}); }
-function buildCatMenu(){ const m=document.getElementById("expCatMenu"); if(!m) return; m.innerHTML=CATS.map(c=>`<button type="button" role="option" class="${exploreState.cat===c.k?'on':''}" aria-selected="${exploreState.cat===c.k?'true':'false'}" data-catpick="${c.k}"><span>${escapeHtml(t("cat."+c.k))}</span><span class="exm-chk">\u2713</span></button>`).join(""); m.querySelectorAll("[data-catpick]").forEach(b=>b.onclick=()=>{ const k=b.dataset.catpick; closeExpMenus(); if(k===exploreState.cat) return; exploreState.cat=k; exploreState.query=""; exFilter.subcat.clear(); _subFetchKey=""; _subFetchSecs=null; const s=document.getElementById("expSearch"); if(s) s.value=""; _syncExpChips(); renderExplore(); }); }
-function buildRadMenu(){ const m=document.getElementById("expRadMenu"); if(!m) return; let h=""; for(let km=10;km<=150;km+=10){ h+=`<button type="button" role="option" class="${_exploreRadiusKm===km?'on':''}" aria-selected="${_exploreRadiusKm===km?'true':'false'}" data-radpick="${km}"><span>${km} km</span><span class="exm-chk">\u2713</span></button>`; } m.innerHTML=h; m.querySelectorAll("[data-radpick]").forEach(b=>b.onclick=()=>{ const km=+b.dataset.radpick; closeExpMenus(); if(km===_exploreRadiusKm){ return; } _exploreRadiusKm=km; _exRadiusUserSet=true; _syncExpChips(); renderExplore(); }); }
+function buildCatMenu(){ const m=document.getElementById("expCatMenu"); if(!m) return; m.innerHTML=`<span class="exm-arrow"></span><div class="exm-hd">${t("exp.category")}</div><div class="exm-list">`+CATS.map(c=>`<button type="button" role="option" class="${exploreState.cat===c.k?'on':''}" aria-selected="${exploreState.cat===c.k?'true':'false'}" data-catpick="${c.k}"><span>${escapeHtml(t("cat."+c.k))}</span><span class="exm-chk">\u2713</span></button>`).join("")+`</div>`; m.querySelectorAll("[data-catpick]").forEach(b=>b.onclick=()=>{ const k=b.dataset.catpick; closeExpMenus(); if(k===exploreState.cat) return; exploreState.cat=k; exploreState.query=""; exFilter.subcat.clear(); _subFetchKey=""; _subFetchSecs=null; const s=document.getElementById("expSearch"); if(s) s.value=""; _syncExpChips(); renderExplore(); }); }
+function buildRadMenu(){ const m=document.getElementById("expRadMenu"); if(!m) return; let h=""; for(let km=10;km<=150;km+=10){ h+=`<button type="button" role="option" class="${_exploreRadiusKm===km?'on':''}" aria-selected="${_exploreRadiusKm===km?'true':'false'}" data-radpick="${km}"><span>${km} km</span><span class="exm-chk">\u2713</span></button>`; } m.innerHTML=`<span class="exm-arrow"></span><div class="exm-hd">${t("exp.radius")}</div><div class="exm-list">`+h+`</div>`; m.querySelectorAll("[data-radpick]").forEach(b=>b.onclick=()=>{ const km=+b.dataset.radpick; closeExpMenus(); if(km===_exploreRadiusKm){ return; } _exploreRadiusKm=km; _exRadiusUserSet=true; _syncExpChips(); renderExplore(); }); }
 function toggleExpMenu(which){ const isCat=(which==="cat"); const m=document.getElementById(isCat?"expCatMenu":"expRadMenu"); const chip=document.getElementById(isCat?"expCatChip":"expRadiusChip"); if(!m||!chip) return; const wasOpen=m.classList.contains("show"); closeExpMenus(); try{ closeExpFilter(); }catch(e){} if(wasOpen) return; if(isCat) buildCatMenu(); else buildRadMenu(); m.classList.add("show"); chip.setAttribute("aria-expanded","true"); _posExpMenu(m,chip,!isCat); }
 document.addEventListener("click",e=>{ const inMenu=e.target.closest(".exp-menu,#expCatChip,#expRadiusChip"); if(!inMenu) closeExpMenus(); }, true);
 document.addEventListener("keydown",e=>{ if(e.key==="Escape") closeExpMenus(); });
+(function(){ const _ms=document.querySelector("main"); if(_ms) _ms.addEventListener("scroll",closeExpMenus,{passive:true}); window.addEventListener("resize",closeExpMenus,{passive:true}); window.addEventListener("orientationchange",closeExpMenus,{passive:true}); if(window.visualViewport){ window.visualViewport.addEventListener("resize",closeExpMenus,{passive:true}); window.visualViewport.addEventListener("scroll",closeExpMenus,{passive:true}); } })();
 function openExpFilter(mode){ renderExpFilter(); { const e=document.getElementById("expFilterChip"); if(e) e.setAttribute("aria-expanded","true"); } const bd=document.getElementById("expFilterBackdrop"); if(bd) bd.classList.add("show"); const s=document.getElementById("expFilterSheet"); if(s){ s.style.transform=""; s.classList.add("show"); } }
 function closeExpFilter(){ { const e=document.getElementById("expFilterChip"); if(e) e.setAttribute("aria-expanded","false"); } const s=document.getElementById("expFilterSheet"); if(s){ s.classList.remove("show"); s.style.transform=""; } const bd=document.getElementById("expFilterBackdrop"); if(bd) bd.classList.remove("show"); }
 /* Bottom-sheet : fermeture par le fond assombri, la croix et le glissement vers le bas. */
