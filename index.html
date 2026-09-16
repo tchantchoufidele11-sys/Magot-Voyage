@@ -503,7 +503,7 @@ html.studio-open{overflow:hidden}
 .pcard{background:var(--surface);border:1px solid var(--line);border-radius:18px;overflow:hidden;box-shadow:var(--shadow);cursor:pointer;transition:transform .12s}
 .pcard:active{transform:translateY(1px)}
 .pcard.sc{flex:0 0 64%;max-width:262px}
-.pcard .ph{height:clamp(106px,33.85vw,132px);background-size:cover;background-position:center;position:relative}
+.pcard .ph{height:clamp(150px,42.5vw,178px);background-size:cover;background-position:center;position:relative}
 .pcard .ph::after{content:"";position:absolute;inset:0;background:linear-gradient(180deg,rgba(8,16,38,.05),rgba(8,16,38,.18))}
 .pbadge{position:absolute;z-index:2;top:10px;left:10px;font:700 10px/1 "Inter",sans-serif;font-size:clamp(10px,2.564vw,10px);text-transform:uppercase;letter-spacing:.05em;padding:6px 9px;border-radius:999px;color:#fff}
 .pbadge.top{background:var(--gold);color:#3A2407}.pbadge.pop{background:#16A34A}
@@ -3309,7 +3309,7 @@ const DEFAULT_S={ version:"0.2.0", settings:{ lang:"fr", theme:"system", units:"
 /* Clé Maps JS partagée (restreinte au domaine GitHub Pages). Repli : clé perso de l'utilisateur si fournie. */
 const SHARED_MAP_KEY="AIzaSyCt5iVx8nPr1V067A3daE0X1YA568XJNbU";
 function mapKey(){ return (S.settings.mapKey||"").trim() || SHARED_MAP_KEY; }
-const BUILD="0.5.12 · v847 explore-attrib-final";
+const BUILD="0.5.13 · v848 card-image-ratio";
 let S=loadState();
 function normalizeTrip(tr){ if(!tr||typeof tr!=="object") return tr;
   tr.id=tr.id||("t"+Date.now()+Math.random().toString(36).slice(2,7));
