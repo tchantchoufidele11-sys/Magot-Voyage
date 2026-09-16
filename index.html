@@ -511,12 +511,12 @@ html.studio-open{overflow:hidden}
 .pbadge.charme{background:rgba(255,250,238,.95);color:#7A5C16;border:1px solid #C9A227;text-transform:none;letter-spacing:.01em;font-weight:700}
 .pbadge.styleb{background:linear-gradient(135deg,#13213E,#2C4A7C);color:#fff;text-transform:none;letter-spacing:.01em}
 .pbadge.fast{background:#C2410C;color:#fff;text-transform:none;letter-spacing:.01em}
-.pc-body{padding:11px 13px}
+.pc-body{padding:8px 13px 9px}
 .prating{font:700 12.5px "Inter",sans-serif;font-size:clamp(11.8px,3.205vw,12.5px);color:var(--gold-d)}.prating span{color:var(--muted);font-weight:600}
 .prating.muted{color:var(--muted);font-weight:600}
-.pc-name{font-family:var(--font-serif);font-weight:700;font-size:clamp(14.8px,4.231vw,16.5px);color:var(--ink);margin:3px 0 8px;line-height:1.15}
+.pc-name{font-family:var(--font-serif);font-weight:700;font-size:clamp(14.8px,4.231vw,16.5px);color:var(--ink);margin:1px 0 6px;line-height:1.12}
 .pc-meta{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
-.pc-dist{font-size:clamp(10.8px,2.949vw,11.5px);color:var(--muted);margin-top:6px}
+.pc-dist{font-size:clamp(10.8px,2.949vw,11.5px);color:var(--muted);margin-top:4px}
 .rad-lab{align-self:center;font-size:clamp(11.3px,3.077vw,12px);color:var(--muted);margin-right:4px;white-space:nowrap}
 .hotel-rad{margin-top:12px}
 .hrad-top{display:flex;justify-content:space-between;align-items:center;margin-bottom:6px}
@@ -3309,7 +3309,7 @@ const DEFAULT_S={ version:"0.2.0", settings:{ lang:"fr", theme:"system", units:"
 /* Clé Maps JS partagée (restreinte au domaine GitHub Pages). Repli : clé perso de l'utilisateur si fournie. */
 const SHARED_MAP_KEY="AIzaSyCt5iVx8nPr1V067A3daE0X1YA568XJNbU";
 function mapKey(){ return (S.settings.mapKey||"").trim() || SHARED_MAP_KEY; }
-const BUILD="0.5.13 · v848 card-image-ratio";
+const BUILD="0.5.14 · v849 card-info-compact";
 let S=loadState();
 function normalizeTrip(tr){ if(!tr||typeof tr!=="object") return tr;
   tr.id=tr.id||("t"+Date.now()+Math.random().toString(36).slice(2,7));
@@ -5587,7 +5587,7 @@ function fmtCount(n){ n=+n||0; const L=(typeof LOCALE!=='undefined'&&LOCALE[lang
   if(n<1000000){ const k=n/1000; return (k>=100?Math.round(k):Math.round(k*10)/10).toLocaleString(L)+'\u00a0k'; }
   return (Math.round(n/100000)/10).toLocaleString(L)+'\u00a0M'; }
 function _pcardAttrib(p){
-  const st="font-size:9px;line-height:1.2;color:var(--muted);opacity:.7;margin-top:5px";
+  const st="font-size:9px;line-height:1.2;color:var(--muted);opacity:.7;margin-top:3px";
   /* Carte allegee : source photo + avis seulement. "Lieu : Foursquare" est deja couvert par le
      footer d'ecran ("Powered by Foursquare", exige par l'EULA 2.2) et le credit complet de la
      fiche -> inutile de l'empiler sur chaque carte. */
