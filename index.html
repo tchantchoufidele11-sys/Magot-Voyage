@@ -3420,7 +3420,18 @@ body.dragging-on{-webkit-user-select:none;user-select:none}
 
 <script>
 /* ===================== ÉTAT + STOCKAGE DURABLE ===================== */
-const STORAGE_KEY="magotvoyage_S";
+const STORAGE_BASE="magotvoyage_S";
+let _storeId="guest"; let _storeEpoch=0;                                        /* identité de l'espace local courant : "guest" ou userId */
+function activeStoreKey(){ return STORAGE_BASE+":"+(_storeId||"guest"); }
+function switchStore(newId){ newId=newId||"guest"; if(newId===_storeId) return;
+  _storeEpoch++; const epoch=_storeEpoch;
+  try{ if(typeof closeMagotSheet==="function") closeMagotSheet(); }catch(e){}   /* P1 : invalide/ferme B3 en cours au changement de compte */
+  try{ const cur=activeStoreKey(); localStorage.setItem(cur,JSON.stringify(S)); idbSet(cur,S); }catch(e){}   /* flush l'identité courante */
+  _storeId=newId; S=loadState(); _lastPushHash="";                                                          /* charge l'espace de la nouvelle identité (vide si nouveau) */
+  const targetId=newId, targetKey=activeStoreKey();
+  try{ idbGet(targetKey).then(idb=>{ if(epoch!==_storeEpoch || _storeId!==targetId) return;                 /* résolution tardive -> ne jamais injecter l'ancien espace */
+    if(idb && (idb._ts||0)>(S._ts||0)){ S=mergeState(idb); try{ localStorage.setItem(targetKey,JSON.stringify(S)); }catch(e){} try{ renderHome(); }catch(e){} } }); }catch(e){}
+  try{ renderHome(); }catch(e){} }
 /* ---- Backend Magot Voyage (Phase A) : proxy Google + agent IA ---- */
 const WORKER_URL="https://magot-voyage-api.fidelevictoire01.workers.dev";
 function deviceId(){ try{ let d=localStorage.getItem("mv_device_id"); if(!d){ d=(crypto.randomUUID?crypto.randomUUID():("dev-"+Date.now()+"-"+Math.random().toString(36).slice(2))); localStorage.setItem("mv_device_id",d); } return d; }catch(e){ return "anon"; } }
@@ -3506,8 +3517,8 @@ const DEFAULT_S={ version:"0.2.0", settings:{ lang:"fr", theme:"system", units:"
 /* Clé Maps JS partagée (restreinte au domaine GitHub Pages). Repli : clé perso de l'utilisateur si fournie. */
 const SHARED_MAP_KEY="AIzaSyCt5iVx8nPr1V067A3daE0X1YA568XJNbU";
 function mapKey(){ return (S.settings.mapKey||"").trim() || SHARED_MAP_KEY; }
-const BUILD="0.5.48 · v883 lotB3.1a-eligibility";
-let S=loadState();
+const BUILD="0.5.57 · v883 lotB3.1a-store-tx3";
+let _idb=null; const _migrationReady=migrateLegacy(); let S=loadState();
 function normalizeTrip(tr){ if(!tr||typeof tr!=="object") return tr;
   tr.id=tr.id||("t"+Date.now()+Math.random().toString(36).slice(2,7));
   if(!Array.isArray(tr.places)) tr.places=[];
@@ -3687,9 +3698,62 @@ setTimeout(()=>{ try{ resolvePendingDests(); }catch(e){} },4000);
 
 function mergeState(p){ p=p||{}; p.settings=Object.assign({},DEFAULT_S.settings,p.settings||{}); p.prefs=Object.assign({},DEFAULT_S.prefs,p.prefs||{});
   const s=Object.assign({},DEFAULT_S,p); if(Array.isArray(s.trips)) s.trips=s.trips.map(normalizeTrip); return s; }
-function loadState(){ try{ const r=localStorage.getItem(STORAGE_KEY); if(r) return mergeState(JSON.parse(r)); }catch(e){ console.warn(e); } return JSON.parse(JSON.stringify(DEFAULT_S)); }
-function saveState(){ try{ S._ts=Date.now(); localStorage.setItem(STORAGE_KEY,JSON.stringify(S)); }catch(e){ console.warn(e); } idbSet(STORAGE_KEY,S); schedulePush(); }
-let _idb=null;
+function idbDel(k){ return idbOpen().then(db=>new Promise((res,rej)=>{ const tx=db.transaction("kv","readwrite"); tx.objectStore("kv").delete(k); tx.oncomplete=()=>res(); tx.onerror=()=>rej(tx.error); })).catch(()=>{}); }
+/* helpers stricts (REJETTENT réellement) pour une migration transactionnelle */
+function idbSetStrict(k,v){ return idbOpen().then(db=>new Promise((res,rej)=>{ const tx=db.transaction("kv","readwrite"); tx.objectStore("kv").put(v,k); tx.oncomplete=()=>res(true); tx.onerror=()=>rej(tx.error); })); }
+function idbGetStrict(k){ return idbOpen().then(db=>new Promise((res,rej)=>{ const tx=db.transaction("kv","readonly"); const rq=tx.objectStore("kv").get(k); rq.onsuccess=()=>res(rq.result||null); rq.onerror=()=>rej(rq.error); })); }
+function idbDelStrict(k){ return idbOpen().then(db=>new Promise((res,rej)=>{ const tx=db.transaction("kv","readwrite"); tx.objectStore("kv").delete(k); tx.oncomplete=()=>res(true); tx.onerror=()=>rej(tx.error); })); }
+async function migrateLegacy(){ try{
+    if(localStorage.getItem("mv_migrated")==="1") return;
+    const guestKey=STORAGE_BASE+":guest";
+    /* --- LS (synchrone, avant tout await : loadState() lira le guest migré) --- */
+    const legLS=localStorage.getItem(STORAGE_BASE);
+    if(legLS){ if(!localStorage.getItem(guestKey)){ try{ localStorage.setItem(guestKey,legLS); }catch(e){} }
+      if(localStorage.getItem(guestKey)){ try{ localStorage.removeItem(STORAGE_BASE); }catch(e){} } else { return; } }   /* écriture guest LS échouée -> conserver legacy, pas de marqueur */
+    /* --- IDB (async, strict : copie -> relecture -> suppression -> marqueur) --- */
+    let legIdb=null; try{ legIdb=await idbGetStrict(STORAGE_BASE); }catch(e){ return; }   /* lecture legacy IDB impossible -> retry au prochain boot */
+    if(legIdb){
+      let gI=null; try{ gI=await idbGetStrict(guestKey); }catch(e){ return; }
+      if(!gI || (legIdb._ts||0)>(gI._ts||0)){
+        try{ await idbSetStrict(guestKey,legIdb); }catch(e){ return; }                 /* écriture guest IDB échouée -> conserver legacy */
+        let check=null; try{ check=await idbGetStrict(guestKey); }catch(e){ return; }
+        if(!check){ return; }                                                          /* relecture échouée -> conserver legacy */
+      }
+      try{ await idbDelStrict(STORAGE_BASE); }catch(e){ return; }                       /* suppression échouée -> pas de marqueur, retry */
+    }
+    try{ localStorage.setItem("mv_migrated","1"); }catch(e){}                           /* marqueur UNIQUEMENT après migration complète vérifiée */
+  }catch(e){} }
+/* import EXPLICITE des voyages guest dans le compte (jamais automatique) */
+async function magotImportGuestTrips(expectedUid){ try{ if(!currentUser) return; if(expectedUid && currentUser.id!==expectedUid) return;   /* P2 : jamais importer dans un autre compte que celui de la proposition */
+    const gk=STORAGE_BASE+":guest"; const raw=localStorage.getItem(gk); if(!raw) return;
+    let g=null; try{ g=JSON.parse(raw); }catch(e){} const gtrips=(g&&g.trips)||[]; if(!gtrips.length) return; const uid=currentUser.id;
+    const importStoreId=_storeId, importEpoch=_storeEpoch;   /* P1 : identité/store/epoch capturés avant l'await */
+    /* P2 : DESTINATION d'abord (écriture stricte vérifiée), guest ensuite -> zéro perte de voyages */
+    const nextTrips=(S.trips||[]).slice();
+    gtrips.forEach(tr=>{ const t=Object.assign({}, tr, {_owner:uid, _ts:Date.now()}); if(!nextTrips.some(x=>x.id===t.id)) nextTrips.push(t); });
+    const nextS=Object.assign({}, S, {trips:nextTrips, _ts:Date.now()});
+    const destKey=activeStoreKey(); const prevDest=localStorage.getItem(destKey);
+    try{ localStorage.setItem(destKey, JSON.stringify(nextS)); await idbSetStrict(destKey, nextS); }
+    catch(e){ try{ if(prevDest!=null) localStorage.setItem(destKey, prevDest); else localStorage.removeItem(destKey); }catch(_e){}   /* rollback destination ; guest intact */
+      toast(lang()==="fr"?"Import impossible — réessaie":"Import failed — try again"); return; }   /* destination non persistée -> aucun import, aucune perte */
+    const stillSame=(currentUser && currentUser.id===uid && _storeId===importStoreId && _storeEpoch===importEpoch);   /* P1 : compte inchangé pendant l'await ? */
+    if(stillSame){ S.trips=nextTrips; S._ts=nextS._ts; }   /* commit mémoire UNIQUEMENT si toujours le même compte */
+    else {
+      /* P1 : un switchStore pendant l'await a pu re-flusher l'ancien S dans destKey (A) -> RÉAFFIRMER nextS dans le store capturé, sinon le flush périmé peut gagner selon l'ordre des commits IDB */
+      try{ localStorage.setItem(destKey, JSON.stringify(nextS)); await idbSetStrict(destKey, nextS); }
+      catch(e){ return; }   /* destination A non garantie -> NE PAS vider guest (aucune perte) */
+    }
+    try{ const emptied=Object.assign({}, g, {trips:[], _ts:Date.now()}); localStorage.setItem(gk, JSON.stringify(emptied)); idbSet(gk, emptied); }catch(e){}   /* guest vidé SEULEMENT après réaffirmation (ou si stillSame) */
+    if(stillSame){ try{ renderHome(); }catch(e){} _lastPushHash=""; try{ pushTrips(); }catch(e){} }   /* jamais render/push sous un autre compte */
+  }catch(e){} }
+function magotOfferGuestImport(){ try{ if(!currentUser) return; const mk="mv_import_offered:"+currentUser.id; if(localStorage.getItem(mk)==="1") return;
+    const raw=localStorage.getItem(STORAGE_BASE+":guest"); if(!raw) return; let g=null; try{ g=JSON.parse(raw); }catch(e){} const n=((g&&g.trips)||[]).length; if(!n) return;
+    try{ localStorage.setItem(mk,"1"); }catch(e){}   /* proposé une seule fois par compte */
+    const uid=currentUser.id, ep=_storeEpoch, sid=_storeId;   /* capture le compte AU MOMENT de la proposition */
+    if(typeof askConfirm==="function" && typeof mgt==="function"){ askConfirm(mgt("importGuest",{n:n}), mgt("importGuestOk"), ()=>{ if(!currentUser||currentUser.id!==uid||_storeEpoch!==ep||_storeId!==sid) return; magotImportGuestTrips(uid); }); }
+  }catch(e){} }
+function loadState(){ try{ const r=localStorage.getItem(activeStoreKey()); if(r) return mergeState(JSON.parse(r)); }catch(e){ console.warn(e); } return JSON.parse(JSON.stringify(DEFAULT_S)); }
+function saveState(){ try{ S._ts=Date.now(); localStorage.setItem(activeStoreKey(),JSON.stringify(S)); }catch(e){ console.warn(e); } idbSet(activeStoreKey(),S); schedulePush(); }
 function idbOpen(){ return new Promise((res,rej)=>{ if(_idb) return res(_idb);
   try{ const r=indexedDB.open("magotvoyage_db",2);
     r.onupgradeneeded=()=>{ const db=r.result; try{ if(!db.objectStoreNames.contains("kv")) db.createObjectStore("kv"); }catch(e){} try{ if(!db.objectStoreNames.contains("media")) db.createObjectStore("media"); }catch(e){} };
@@ -4058,7 +4122,9 @@ async function exportMyData(){ const pkg={ app:"Magot Voyage", exportedAt:new Da
 async function deleteMyData(){ if(sb&&currentUser&&currentUser.id){ const uid=currentUser.id;
     for(const tbl of ["trips","conversations","preferences","price_reports"]){ try{ await sb.from(tbl).delete().eq("user_id",uid); }catch(e){ console.warn("del "+tbl,e); } } }
   try{ S.trips=[]; S.prefs={}; S.conversations=[]; S.activeConvId=null; saveState(); }catch(e){}
-  try{ localStorage.removeItem(STORAGE_KEY); }catch(e){}
+  try{ localStorage.removeItem(activeStoreKey()); localStorage.removeItem(STORAGE_BASE); }catch(e){}
+  let _idbOk=true; try{ await Promise.all([idbDelStrict(activeStoreKey()), idbDelStrict(STORAGE_BASE)]); }catch(e){ _idbOk=false; }
+  if(!_idbOk){ toast(lang()==="fr"?"Suppression incomplète — réessaie":"Deletion incomplete — try again"); return; }   /* P2 : ne confirmer/déconnecter qu'après suppression IDB réussie */
   toast(gdT("done"));
   try{ await authLogout(); }catch(e){}
   setTimeout(()=>{ try{ location.reload(); }catch(e){} },500); }
@@ -5380,7 +5446,7 @@ async function submitCreate(){
       else _apply();
     } else { closeCreate(); }
   }
-  else { const tr=Object.assign({id:uid(),createdAt:Date.now(),places:[],days:[],expenses:[],budget:0,catBudgets:{},_tx:{}},base); { const _dl=draftLegsForTrip(); if(_dl) tr.legs=_dl; } normalizeLegs(tr); S.trips.unshift(tr); S.currentTripId=tr.id; saveState(); clearDraft(); closeCreate(); switchTab("home"); renderHome(); try{ openDetail(tr.id); }catch(e){}   /* 4a (retour GPT) : on ouvre le voyage avec une action évidente au lieu de revenir à l'accueil */
+  else { const tr=Object.assign({id:uid(),createdAt:Date.now(),_owner:((typeof currentUser!=="undefined"&&currentUser)?currentUser.id:null),places:[],days:[],expenses:[],budget:0,catBudgets:{},_tx:{}},base); { const _dl=draftLegsForTrip(); if(_dl) tr.legs=_dl; } normalizeLegs(tr); S.trips.unshift(tr); S.currentTripId=tr.id; saveState(); clearDraft(); closeCreate(); switchTab("home"); renderHome(); try{ openDetail(tr.id); }catch(e){}   /* 4a (retour GPT) : on ouvre le voyage avec une action évidente au lieu de revenir à l'accueil */
   toast(t((tr.dateStart&&tr.dateEnd)?"create.created":"create.savedDraft")); }
 }
 
@@ -6577,7 +6643,7 @@ function openPriceForm(placeId,placeName,currency){ const box=document.getElemen
     <div class="fld2"><div class="fld" style="flex:1"><label>${pcT("amount")}</label><input id="pcPrice" type="number" inputmode="decimal" placeholder="0"></div><div class="fld" style="width:112px"><label>${pcT("cur")}</label><select id="pcCur">${curs.map(c=>`<option value="${c}" ${c===cur?'selected':''}>${c}</option>`).join("")}</select></div></div>
     <div class="fld2" style="margin-top:6px"><button class="btn ghostline2" id="pcCancel" style="flex:1">${pcT("cancel")}</button><button class="btn navy" id="pcSend" style="flex:1">${pcT("send")}</button></div>`; document.getElementById("pcCancel").onclick=()=>loadPriceCommunity(placeId,cur,placeName); document.getElementById("pcSend").onclick=async()=>{ const price=parseFloat(String(document.getElementById("pcPrice").value).replace(",","."))||0; if(price<=0){ toast(pcT("badAmount")); return; } const obj={ place_id:String(placeId), place_name:placeName||"", category:(openPlaceObj?catGuessForPlace(openPlaceObj):""), label:(document.getElementById("pcLabel").value||"").trim().slice(0,80), price, currency:document.getElementById("pcCur").value||cur }; const btn=document.getElementById("pcSend"); if(btn){ btn.disabled=true; btn.textContent="…"; } const r=await submitPriceReport(obj); if(r&&r.ok){ toast(pcT("thanks")); loadPriceCommunity(placeId,obj.currency,placeName); } else { if(r&&r.error==="auth"){ toast(pcT("loginNeeded")); } else { const e=(r&&r.error)||{}; const msg=(e.message||e.details||e.hint||e.code||String(e)||"?"); toast(pcT("err")); try{ alert("Prix — erreur Supabase :\n"+msg+(e.code?("\n(code "+e.code+")"):"")+"\n\nConnecté : "+(currentUser&&currentUser.id?"oui":"non")); }catch(_){} } if(btn){ btn.disabled=false; btn.textContent=pcT("send"); } } }; }
 let _placeCtaIO=null;
-function openPlace(p,mode){ if(!p) return; mode=mode||"explore"; openPlaceObj=p; openPlaceMode=mode; try{ const _st=currentTrip(); if(_st&&typeof magotScanInvites==="function") magotScanInvites(_st); }catch(e){}   /* B3.1 : rafraîchit les invitations d’avis */ const trip=currentTrip(), inTrip=!!(trip&&trip.places&&trip.places.some(x=>x.id===p.id));
+function openPlace(p,mode,opts){ if(!p) return; mode=mode||"explore"; const _samePlace=!!(openPlaceObj && (openPlaceObj===p || openPlaceObj.id===p.id)); if(opts && ("reviewTripId" in opts)){ _magReviewCtxTrip=opts.reviewTripId||null; } else if(!_samePlace){ _magReviewCtxTrip=null; }   /* point 5+P1 : deep-link pose le contexte ; re-render du même lieu (galerie/détails async) le CONSERVE ; nouveau lieu le réinitialise */ openPlaceObj=p; openPlaceMode=mode; try{ const _st=_magReviewCtxTrip?_mgTripById(_magReviewCtxTrip):currentTrip(); if(_st&&typeof magotScanInvites==="function") magotScanInvites(_st); }catch(e){}   /* B3.1 : rafraîchit les invitations d’avis */ const trip=currentTrip(), inTrip=!!(trip&&trip.places&&trip.places.some(x=>x.id===p.id));
   try{ if(_placeCtaIO){ _placeCtaIO.disconnect(); _placeCtaIO=null; } }catch(e){}
   document.getElementById("placeHd").textContent=p.name;
   const _free=p._freePhoto;
@@ -6756,10 +6822,12 @@ function renderCommunaute(box,sum){ if(!box) return;
   box.innerHTML=html;
   if(parent) parent.style.display = html ? "" : "none";   /* pas d'agrégat -> bloc masqué (réapparaît si éligible) */
   const p=openPlaceObj; if(!p) return;
-  const _tid=(typeof currentTrip==="function"&&currentTrip())?currentTrip().id:null;
+  const _tid=_magReviewCtxTrip || ((typeof currentTrip==="function"&&currentTrip())?currentTrip().id:null);   /* point 5 : contexte deep-link -> sinon voyage courant */
+  const _ruid=(typeof currentUser!=="undefined"&&currentUser)?currentUser.id:null, _rsid=_storeId, _rep=_storeEpoch;
   (async()=>{
     let st="none"; try{ st=await magotReviewCTAState(p.id,_tid); }catch(e){ st="none"; }
     if(openPlaceObj!==p) return;                 /* fiche changée */
+    if(_storeEpoch!==_rep || _storeId!==_rsid || ((typeof currentUser!=="undefined"&&currentUser)?currentUser.id:null)!==_ruid) return;   /* P1 : compte changé pendant le calcul du CTA */
     if(st==="none") return;                      /* B3.1 : aucun bouton tant que non visité/invité */
     if(parent) parent.style.display="";
     if(!html) box.innerHTML=`<div class="comm-empty">${t("magot.empty")}</div>`;   /* éligible mais aucune donnée -> invitation */
@@ -6847,7 +6915,9 @@ const MG_T={
   stepMinus:{fr:"Diminuer le nombre de personnes",en:"Decrease number of people",es:"Reducir el número de personas",it:"Diminuisci il numero di persone",de:"Personenzahl verringern"},
   stepPlus:{fr:"Augmenter le nombre de personnes",en:"Increase number of people",es:"Aumentar el número de personas",it:"Aumenta il numero di persone",de:"Personenzahl erhöhen"},
   retryPrice:{fr:"Réessayer le prix",en:"Retry the price",es:"Reintentar el precio",it:"Riprova il prezzo",de:"Preis erneut senden"},
-  ctaInvite:{fr:"Donner mon avis",en:"Give my review",es:"Dar mi opinión",it:"Lascia la mia recensione",de:"Meine Bewertung abgeben"}
+  ctaInvite:{fr:"Donner mon avis",en:"Give my review",es:"Dar mi opinión",it:"Lascia la mia recensione",de:"Meine Bewertung abgeben"},
+  importGuest:{fr:"{n} voyage(s) sont enregistrés sur cet appareil. Les importer dans votre compte ?",en:"{n} trip(s) are saved on this device. Import them into your account?",es:"{n} viaje(s) guardados en este dispositivo. ¿Importarlos a tu cuenta?",it:"{n} viaggio/i salvati su questo dispositivo. Importarli nel tuo account?",de:"{n} Reise(n) sind auf diesem Gerät gespeichert. In dein Konto importieren?"},
+  importGuestOk:{fr:"Importer",en:"Import",es:"Importar",it:"Importa",de:"Importieren"}
 };
 function mgt(k,rep){ const o=MG_T[k]; let s=o?(o[lang()]||o.fr):k; if(rep) for(const kk in rep) s=s.replace("{"+kk+"}",rep[kk]); return s; }
 /* Libellés QUESTION neutres des critères (contrat B3, 5 langues) + variantes _produits / _general */
@@ -6899,32 +6969,45 @@ function _mgTripById(id){ try{ return (S.trips||[]).find(x=>x.id===id)||null; }c
 function _mgInviteObj(tripId,placeId){ const tr=_mgTripById(tripId); return (tr&&tr.reviewInvites)?tr.reviewInvites[placeId]:null; }
 function _magEvaluableStep(s){ return !!(s && s.placeId) && s.kind!=="transport" && s.kind!=="custom" && s.kind!=="lodging"; }   /* jamais trajet / perso / hébergement / pause sans placeId */
 function _magStepEnded(tr,s){ try{
-  if(!tr||!tr.dateStart) return false;                                             /* P2 fail-closed : pas de date -> pas d'invitation */
-  if(!s||typeof s.time!=="string"||!/^\d{1,2}:\d{2}$/.test(s.time)) return false;   /* heure absente/invalide -> false */
+  if(!tr||!tr.dateStart) return false;                                             /* fail-closed : pas de date */
+  if(!s||typeof s.time!=="string") return false;
+  const m=/^(\d{1,2}):(\d{2})$/.exec(s.time); if(!m) return false;
+  const hh=+m[1], mm=+m[2]; if(hh<0||hh>23||mm<0||mm>59) return false;              /* plages horaires valides (rejette 99:99) */
+  if(s.day==null) return false; const day=+s.day; if(!Number.isFinite(day)||day<0||Math.floor(day)!==day) return false;   /* day absent -> false (jamais Jour 1 par défaut) */
+  const dur=+s.dur; if(!Number.isFinite(dur)||dur<=0) return false;                /* durée requise > 0 : fin de créneau réelle */
   const d=new Date(tr.dateStart+"T00:00:00"); if(isNaN(d.getTime())) return false;
-  d.setDate(d.getDate()+(s.day||0)); const tt=s.time.split(":"); d.setHours((+tt[0]||0),(+tt[1]||0)+(+s.dur||0),0,0);
-  if(isNaN(d.getTime())) return false; return Date.now()>=d.getTime();
+  d.setDate(d.getDate()+day); d.setHours(hh,mm+dur,0,0); if(isNaN(d.getTime())) return false;
+  return Date.now()>=d.getTime();
 }catch(e){ return false; } }
 function magotEnsureInvite(tr,placeId,source,visitedAt){ if(!(tr&&placeId)) return false;
   tr.reviewInvites=tr.reviewInvites||{};
   if(tr.reviewInvites[placeId]) return false;   /* idempotent : 1 invitation par lieu dans ce voyage */
   tr.reviewInvites[placeId]={ placeId:placeId, tripId:tr.id, visitedAt:visitedAt||Date.now(), source:source||"gps_arrival", createdAt:Date.now(), status:"pending" };
-  saveState(); try{ if(typeof magotNotifyInvite==="function") magotNotifyInvite(tr,placeId); }catch(e){}   /* notif atomique en B3.1-b */
+  tr._ts=Date.now(); saveState(); try{ if(typeof magotNotifyInvite==="function") magotNotifyInvite(tr,placeId); }catch(e){}   /* _ts bump -> déclenche le push (point 2) ; notif atomique en B3.1-b */
   return true; }
-function magotMarkReviewed(tripId,placeId){ try{ const tr=_mgTripById(tripId); if(tr&&tr.reviewInvites&&tr.reviewInvites[placeId]){ tr.reviewInvites[placeId].status="reviewed"; saveState(); } if(typeof magotConsumeInviteNotif==="function") magotConsumeInviteNotif(tripId,placeId); }catch(e){} }
+function magotMarkReviewed(tripId,placeId){ try{ const tr=_mgTripById(tripId); if(tr&&tr.reviewInvites&&tr.reviewInvites[placeId]){ tr.reviewInvites[placeId].status="reviewed"; tr._ts=Date.now(); saveState(); } if(typeof magotConsumeInviteNotif==="function") magotConsumeInviteNotif(tripId,placeId); }catch(e){} }
+function magotMarkReviewedInStore(storeId,tripId,placeId){ try{
+  if(!storeId || storeId===_storeId){ magotMarkReviewed(tripId,placeId); return; }   /* store courant */
+  const key=STORAGE_BASE+":"+storeId; let stObj=null; try{ stObj=JSON.parse(localStorage.getItem(key)||"null"); }catch(e){}
+  if(!stObj) return; const tr=(stObj.trips||[]).find(x=>x.id===tripId);
+  if(tr && tr.reviewInvites && tr.reviewInvites[placeId]){ tr.reviewInvites[placeId].status="reviewed"; tr._ts=Date.now(); stObj._ts=Date.now();
+    try{ localStorage.setItem(key, JSON.stringify(stObj)); }catch(e){} try{ idbSet(key, stObj); }catch(e){} }   /* marque reviewed dans le store capturé (A), sans toucher le S courant */
+}catch(e){} }
 function magotScanInvites(tr){ try{ if(!(tr&&tr.plan)) return; tr.plan.forEach(s=>{ if(_magEvaluableStep(s) && s.arrived===true && _magStepEnded(tr,s)) magotEnsureInvite(tr,s.placeId,(s.source||"gps_arrival"),s.arrivedAt); }); }catch(e){} }
 /* état du CTA d'avis : none | invite | edit — tripId EXPLICITE (fonctionne pour un voyage passé/archivé, hors currentTrip) */
 async function magotReviewCTAState(placeId, tripId){
   try{ if(tripId==null){ const _c=(typeof currentTrip==="function")?currentTrip():null; tripId=_c?_c.id:null; }
     const tr=_mgTripById(tripId); if(tr) magotScanInvites(tr);
     const inv=_mgInviteObj(tripId,placeId);
+    const _uid=(typeof currentUser!=="undefined"&&currentUser)?currentUser.id:null, _sid=_storeId, _ep=_storeEpoch;
     let mine=null; try{ mine=await myCommunityReview(placeId); }catch(e){ mine=null; }
+    if(_storeEpoch!==_ep || _storeId!==_sid || ((typeof currentUser!=="undefined"&&currentUser)?currentUser.id:null)!==_uid) return "none";   /* P1 : compte/espace changé pendant la lecture */
     if(mine && mine.current && mine.canEdit) return "edit";              /* avis courant <365 j (autorité serveur) */
     if(inv && inv.status!=="reviewed") return "invite";                  /* invitation en attente issue d'une visite */
     return "none";                                                       /* rien, ou déjà évalué >365 j -> nouvelle visite requise */
   }catch(e){ return "none"; } }
 
-let _mgState=null, _mgOpenId=0;
+let _mgState=null, _mgOpenId=0, _magReviewCtxTrip=null;
 function _mgShowSheet(on){ const s=document.getElementById("magotSheet"), bd=document.getElementById("magotBackdrop");
   if(s) s.classList.toggle("show",!!on); if(bd) bd.classList.toggle("show",!!on); }
 function closeMagotSheet(){ _mgShowSheet(false); _mgState=null; }
@@ -6940,11 +7023,12 @@ async function openMagotSheet(p, opts){
     try{ if(typeof showAuthScreen==="function"){ authMode="login"; showAuthScreen(); return; } }catch(e){}
     toast(mgt("loginNeed")); return;
   }
+  const _ouid=currentUser.id, _osid=_storeId, _oep=_storeEpoch;   /* P1 : capture du compte avant tout await */
   const _ct=(typeof currentTrip==="function")?currentTrip():null;
   const inviteTripId = opts.tripId || (_ct?_ct.id:null);   /* P1 : voyage de l'invitation, capturé (deep-link possible d'un voyage passé) */
-  let cta = opts.cta;
-  if(cta!=="invite" && cta!=="edit"){ try{ cta=await magotReviewCTAState(p.id, inviteTripId); }catch(e){ cta="none"; } }
-  if(cta!=="invite" && cta!=="edit") return;   /* B3.1 : éligibilité STRICTE — none (dont reviewed >365 j) -> refus */
+  let cta="none"; try{ cta=await magotReviewCTAState(p.id, inviteTripId); }catch(e){ cta="none"; }   /* P1 : TOUJOURS recalculer — opts.cta n'est qu'un indice visuel, jamais une autorisation */
+  if(_storeEpoch!==_oep || _storeId!==_osid || !currentUser || currentUser.id!==_ouid) return;   /* compte changé pendant le calcul du CTA -> ne pas ouvrir */
+  if(cta!=="invite" && cta!=="edit") return;   /* éligibilité STRICTE recalculée (refuse un ancien bouton cliqué sous un autre compte / un appel direct forgé) */
   const myId=++_mgOpenId;
   const crit=magotFormCriteria(p);
   const tr=inviteTripId?_mgTripById(inviteTripId):_ct;
@@ -6962,9 +7046,11 @@ async function openMagotSheet(p, opts){
 }
 function _mgLoadReview(p, myId){
   if(_mgState && _mgState.openId===myId){ _mgState.loading=true; _mgState.loadError=false; _mgRender(); }
+  const _luid=(typeof currentUser!=="undefined"&&currentUser)?currentUser.id:null, _lsid=_storeId, _lep=_storeEpoch;
   (async()=>{
     let mine=null; try{ mine=await myCommunityReview(p.id); }catch(e){ mine=null; }
     if(!_mgState || _mgState.openId!==myId || !_mgState.place || _mgState.place.id!==p.id) return;   /* la fiche a changé : ignorer */
+    if(_storeEpoch!==_lep || _storeId!==_lsid || ((typeof currentUser!=="undefined"&&currentUser)?currentUser.id:null)!==_luid) return;   /* P1 : compte/espace changé pendant la lecture -> ne rien écrire */
     if(mine==null){ _mgState.loadError=true; _mgState.loading=false; _mgRender(); return; }           /* P1-A : erreur distincte -> bloquer + Réessayer */
     if(mine.current && mine.canEdit){ const c=mine.current;
       _mgState.mode="edit"; _mgState.rating=c.rating||0; _mgState.criteria=Object.assign({},c.criteria||{}); _mgState.comment=c.comment||"";
@@ -7075,6 +7161,7 @@ async function _mgPublish(){
   const st=_mgState; if(!st || st.publishing || !_mgValid()) return;
   const myId=st.openId, p=st.place;
   const stillMine=()=>_mgState && _mgState.openId===myId;
+  const publishUid=currentUser.id, publishStoreId=_storeId, publishEpoch=_storeEpoch;   /* P1 : compte capturé avant le RPC */
   const nm = st.needName ? (st.name||"").trim().slice(0,40) : publicName();
   if(st.needName && nm.length<1){ toast(mgt("nameNeed")); return; }
   const criteria={}; st.crit.forEach(c=>{ if(st.criteria[c.key]!=null) criteria[c.key]=st.criteria[c.key]; });
@@ -7083,11 +7170,15 @@ async function _mgPublish(){
   const wasEdit=(st.mode==="edit");
   st.publishing=true; _mgRender();                                   /* verrou UI : tout est disabled */
   const res=await saveCommunityReview(review);
-  if(res && !res.error){ _mgReloadFiche(p); }                        /* P2 : refresh du lieu dès le succès de l'avis, indépendamment du sheet */
+  const idOk=(_storeEpoch===publishEpoch && _storeId===publishStoreId && currentUser && currentUser.id===publishUid);
+  if(!idOk){   /* P1 : compte changé pendant le RPC -> ne jamais toucher le S courant (B) */
+    if(res && !res.error){ try{ if(st.inviteTripId) magotMarkReviewedInStore(publishStoreId, st.inviteTripId, p.id); }catch(e){} }   /* si le serveur a réussi : marque reviewed dans le store d'origine (A) -> pas de faux rappel au retour */
+    return;
+  }
+  if(res && !res.error){ try{ if(st.inviteTripId) magotMarkReviewed(st.inviteTripId,p.id); }catch(e){} _mgReloadFiche(p); }   /* point 3 : invitation consommée + fiche rafraîchie dès le succès */
   if(!stillMine()) return;                                            /* P2 : le sheet a changé -> pas de mutation/toast (reload déjà fait) */
   if(!res || res.error){ toast(mgt("saveErr")); _mgState.publishing=false; _mgRender(); return; }
   if(st.needName){ S.prefs=S.prefs||{}; S.prefs.publicName=nm; saveState(); if(typeof schedulePrefsPush==="function") schedulePrefsPush(); }
-  try{ if(st.inviteTripId) magotMarkReviewed(st.inviteTripId,p.id); }catch(e){}   /* B3.1 : marque invitation capturee a ouverture (jamais currentTrip recalcule) */
   _mgState.reviewSaved=true;                                          /* avis en base -> note/critères/commentaire figés (prix reste éditable) */
   const priceFailed=await _mgSubmitPrice(p, ps);
   if(!stillMine()) return;
@@ -16242,7 +16333,7 @@ async function authForgot(){
 }
 function authToggleMode(){ authMode=authMode==="login"?"signup":"login"; authClearMsg(); paintAuthTexts(); }
 function authSkip(){ try{ localStorage.setItem("mv_auth_skipped","1"); }catch(e){} hideAuthScreen(); setTimeout(()=>maybeAskName(null), 250); }   /* prénom demandé APRÈS le choix « sans compte », sans dépendre d'un minuteur */
-function onAuthSuccess(user){ currentUser=user; try{ localStorage.removeItem("mv_auth_skipped"); }catch(e){} hideAuthScreen(); pullAndMergeTrips(); pullConvs();
+function onAuthSuccess(user){ currentUser=user; try{ switchStore(user&&user.id); }catch(e){} try{ localStorage.removeItem("mv_auth_skipped"); }catch(e){} hideAuthScreen(); pullAndMergeTrips(); pullConvs(); try{ setTimeout(magotOfferGuestImport,1200); }catch(e){}
   // On attend RÉELLEMENT le chargement des prefs (userName) avant de décider si le prénom manque
   Promise.resolve(pullPrefs()).then(()=>maybeAskName(user)).catch(()=>maybeAskName(user));
 }
@@ -16294,7 +16385,8 @@ function initNameScreen(){
 }
 
 async function authLogout(){
-  currentUser=null; _lastPushHash=""; clearTimeout(_pushTimer);
+  currentUser=null; try{ switchStore("guest"); }catch(e){}   /* retour espace guest : les voyages du compte ne restent pas visibles */
+  _lastPushHash=""; clearTimeout(_pushTimer);
   if(sb){ try{ await sb.auth.signOut(); }catch(e){} }
   // On repart proprement en mode "non connecté" : on ferme les Paramètres et on montre l'écran de connexion
   try{ localStorage.removeItem("mv_auth_skipped"); }catch(e){}
@@ -16317,7 +16409,7 @@ async function initAuth(){
   document.getElementById("authPw").onkeydown=e=>{ if(e.key==="Enter") authSubmit(); };
   // Session existante ? (retour OAuth Google ou connexion déjà active)
   try{ const { data }=await sb.auth.getSession();
-    if(data && data.session && data.session.user){ currentUser=data.session.user; try{ currentUser._token=data.session.access_token; }catch(e){} hideAuthScreen(); pullAndMergeTrips(); pullConvs(); Promise.resolve(pullPrefs()).then(()=>maybeAskName(currentUser)).catch(()=>maybeAskName(currentUser)); return; }   /* session restaurée : attend les prefs puis propose le prénom s'il manque */
+    if(data && data.session && data.session.user){ currentUser=data.session.user; try{ switchStore(currentUser.id); }catch(e){} try{ currentUser._token=data.session.access_token; }catch(e){} hideAuthScreen(); pullAndMergeTrips(); pullConvs(); try{ setTimeout(magotOfferGuestImport,1200); }catch(e){} Promise.resolve(pullPrefs()).then(()=>maybeAskName(currentUser)).catch(()=>maybeAskName(currentUser)); return; }   /* session restaurée : attend les prefs puis propose le prénom s'il manque */
   }catch(e){}
   // Écoute les changements (retour de Google)
   sb.auth.onAuthStateChange((ev,session)=>{ if(ev==="SIGNED_IN" && session&&session.user){ try{ session.user._token=session.access_token; }catch(e){} onAuthSuccess(session.user); } });
@@ -16343,10 +16435,13 @@ function schedulePush(){
 // Envoi de tous les voyages locaux vers le compte (upsert)
 async function pushTrips(){
   if(!syncEnabled() || _syncing) return;
+  const uid=currentUser&&currentUser.id; if(!uid) return;
+  if(S._acct && S._acct!==uid) return;   /* point 1 : compte changé, pull pas encore réconcilié -> ne pas pousser les voyages du compte précédent */
   const h=tripsHash(); if(h===_lastPushHash) return; // rien de nouveau
   _syncing=true;
   try{
-    const rows=(S.trips||[]).map(tr=>({ id:String(tr.id), user_id:currentUser.id, data:tr, updated_at:new Date().toISOString() }));
+    (S.trips||[]).forEach(tr=>{ if(!tr._owner) tr._owner=uid; });   /* les voyages d'un autre compte ont déjà été écartés au pull */
+    const rows=(S.trips||[]).filter(tr=>tr._owner===uid).map(tr=>({ id:String(tr.id), user_id:uid, data:tr, updated_at:new Date().toISOString() }));
     if(rows.length){
       const { error }=await sb.from("trips").upsert(rows,{ onConflict:"user_id,id" });
       if(!error) _lastPushHash=h; else console.warn("pushTrips",error);
@@ -16359,24 +16454,29 @@ async function pushTrips(){
 async function pullAndMergeTrips(){
   if(!syncEnabled()) return;
   try{
-    const { data, error }=await sb.from("trips").select("id,data,updated_at");
+    const uid=currentUser&&currentUser.id; if(!uid) return; const epoch=_storeEpoch, storeId=_storeId;
+    const { data, error }=await sb.from("trips").select("id,data,updated_at").eq("user_id",uid);   /* point 1 : borne défensive en plus du RLS */
+    if(epoch!==_storeEpoch || _storeId!==storeId || !currentUser || currentUser.id!==uid) return;   /* P1 : identité/espace changé pendant l'await */
     if(error||!data) return;
     const remote=data.map(r=>r.data).filter(Boolean);
     const byId={};
-    // On indexe le local
-    (S.trips||[]).forEach(tr=>{ byId[String(tr.id)]={ tr, ts:(tr._ts||tr.createdAt||0) }; });
-    // On fusionne le distant : si absent en local, on ajoute ; si présent, le plus récent gagne
+    // Isolation compte : on n'hérite jamais des voyages d'un autre compte
+    let local=(S.trips||[]);
+    if(S._acct && S._acct!==uid){ local=[]; }                          /* compte différent -> on repart des voyages distants (inclut legacy) */
+    else { local=local.filter(tr=>!tr._owner || tr._owner===uid); }    /* sécurité : jamais un voyage possédé par un autre compte */
+    local.forEach(tr=>{ byId[String(tr.id)]={ tr, ts:(tr._ts||tr.createdAt||0) }; });
+    // Fusion du distant (appartient au compte courant) : plus récent gagne
     remote.forEach(rt=>{
       const id=String(rt.id); const rts=(rt._ts||rt.createdAt||0);
+      if(!rt._owner) rt._owner=uid;
       if(!byId[id]) byId[id]={ tr:normalizeTrip(rt), ts:rts };
       else if(rts > byId[id].ts) byId[id]={ tr:normalizeTrip(rt), ts:rts };
     });
-    // On reconstruit la liste, en préservant un ordre stable (récents d'abord)
     S.trips=Object.values(byId).map(x=>x.tr).sort((a,b)=>(b._ts||b.createdAt||0)-(a._ts||a.createdAt||0));
-    try{ localStorage.setItem(STORAGE_KEY,JSON.stringify(S)); }catch(e){}
-    idbSet(STORAGE_KEY,S);
+    S._acct=uid;                                                       /* compte réconcilié */
+    try{ localStorage.setItem(activeStoreKey(),JSON.stringify(S)); }catch(e){}
+    idbSet(activeStoreKey(),S);
     renderHome();
-    // Après fusion, on repousse l'ensemble consolidé vers le compte
     _lastPushHash=""; pushTrips();
   }catch(e){ console.warn("pullAndMergeTrips",e); }
 }
@@ -16395,10 +16495,12 @@ async function pushPrefs(){
 async function pullPrefs(){
   if(!syncEnabled()) return;
   try{
-    const { data, error }=await sb.from("preferences").select("data").eq("user_id",currentUser.id).maybeSingle();
+    const uid=currentUser&&currentUser.id; if(!uid) return; const epoch=_storeEpoch, storeId=_storeId;
+    const { data, error }=await sb.from("preferences").select("data").eq("user_id",uid).maybeSingle();
+    if(epoch!==_storeEpoch || _storeId!==storeId || !currentUser || currentUser.id!==uid) return;
     if(error||!data) return;
     if(data.data && typeof data.data==="object"){ S.prefs=Object.assign({},S.prefs,data.data);
-      try{ localStorage.setItem(STORAGE_KEY,JSON.stringify(S)); }catch(e){} idbSet(STORAGE_KEY,S); }
+      try{ localStorage.setItem(activeStoreKey(),JSON.stringify(S)); }catch(e){} idbSet(activeStoreKey(),S); }
   }catch(e){ console.warn("pullPrefs",e); }
 }
 
@@ -16415,22 +16517,25 @@ async function pushConvs(){
 async function pullConvs(){
   if(!syncEnabled()) return;
   try{
-    const { data, error }=await sb.from("conversations").select("id,data").eq("user_id",currentUser.id);
+    const uid=currentUser&&currentUser.id; if(!uid) return; const epoch=_storeEpoch, storeId=_storeId;
+    const { data, error }=await sb.from("conversations").select("id,data").eq("user_id",uid);
+    if(epoch!==_storeEpoch || _storeId!==storeId || !currentUser || currentUser.id!==uid) return;
     if(error||!data) return;
     const remote=data.map(r=>r.data).filter(Boolean);
     const byId={}; (convList()||[]).forEach(c=>{ byId[String(c.id)]={ c, ts:(c._ts||0) }; });
     remote.forEach(rc=>{ const id=String(rc.id); const rts=(rc._ts||0); if(!byId[id]||rts>byId[id].ts) byId[id]={ c:rc, ts:rts }; });
     S.conversations=Object.values(byId).map(x=>x.c).sort((a,b)=>(b._ts||0)-(a._ts||0));
     if(!activeConv() && S.conversations[0]) S.activeConvId=S.conversations[0].id;
-    try{ localStorage.setItem(STORAGE_KEY,JSON.stringify(S)); }catch(e){} idbSet(STORAGE_KEY,S);
+    try{ localStorage.setItem(activeStoreKey(),JSON.stringify(S)); }catch(e){} idbSet(activeStoreKey(),S);
   }catch(e){ console.warn("pullConvs",e); }
 }
 
 async function boot(){
+  try{ await _migrationReady; }catch(e){}   /* P1 : le boot ne dépasse jamais la migration IDB legacy */
   try{ setTimeout(()=>{ try{ updateBellBadge(); }catch(e){} },300); }catch(e){}
-  try{ const hadLS=!!localStorage.getItem(STORAGE_KEY); const idb=await idbGet(STORAGE_KEY);
-    if(idb && (!hadLS || (idb._ts||0) > (S._ts||0))){ S=mergeState(idb); try{ localStorage.setItem(STORAGE_KEY,JSON.stringify(S)); }catch(e){} }
-    else if(hadLS){ idbSet(STORAGE_KEY,S); }
+  try{ const hadLS=!!localStorage.getItem(activeStoreKey()); const idb=await idbGet(activeStoreKey());
+    if(idb && (!hadLS || (idb._ts||0) > (S._ts||0))){ S=mergeState(idb); try{ localStorage.setItem(activeStoreKey(),JSON.stringify(S)); }catch(e){} }
+    else if(hadLS){ idbSet(activeStoreKey(),S); }
   }catch(e){ console.warn("boot",e); }
   try{ newSessionIfNeeded(); }catch(e){}
   applyTheme(); init(); initNameScreen(); initAuth();
