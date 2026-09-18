@@ -776,9 +776,14 @@ a.btn{text-decoration:none}
 .mg-name-row{display:flex;gap:8px}
 .mg-name-row .mg-input{flex:1}
 .section-sub{display:block;font:600 12.5px "Inter",sans-serif;color:var(--muted);margin-bottom:8px}
+.mg-toggle-row{display:flex;align-items:center;justify-content:space-between;gap:14px;margin-top:16px;cursor:pointer}
+.mg-toggle-row>span{min-width:0}
+.mg-toggle-row small{display:block;font-weight:500;line-height:1.4;margin-top:2px}
+.mg-toggle-row input{width:24px;height:24px;flex:0 0 auto;accent-color:var(--navy)}
 .mg-backdrop{position:fixed;inset:0;z-index:3150;background:rgba(0,0,0,.45);opacity:0;pointer-events:none;transition:opacity .25s}
 .mg-backdrop.show{opacity:1;pointer-events:auto}
 #magotSheet{z-index:3200;inset:auto 0 0 0;top:auto;max-height:90vh;max-height:90dvh;border-radius:22px 22px 0 0;box-shadow:0 -12px 44px rgba(0,0,0,.28)}
+#restoSheet{z-index:3200}   /* au-dessus de la fiche lieu (placeSheet z-index:3000, placé après dans le DOM) */
 #magotSheet .sh-head{padding-top:12px}
 #magotSheet .sh-body{padding-bottom:calc(18px + env(safe-area-inset-bottom))}
 .mg-vk-b{min-height:44px}
@@ -3517,7 +3522,7 @@ const DEFAULT_S={ version:"0.2.0", settings:{ lang:"fr", theme:"system", units:"
 /* Clé Maps JS partagée (restreinte au domaine GitHub Pages). Repli : clé perso de l'utilisateur si fournie. */
 const SHARED_MAP_KEY="AIzaSyCt5iVx8nPr1V067A3daE0X1YA568XJNbU";
 function mapKey(){ return (S.settings.mapKey||"").trim() || SHARED_MAP_KEY; }
-const BUILD="0.5.57 · v883 lotB3.1a-store-tx3";
+const BUILD="0.5.59 · v883 test-invite";
 let _idb=null; const _migrationReady=migrateLegacy(); let S=loadState();
 function normalizeTrip(tr){ if(!tr||typeof tr!=="object") return tr;
   tr.id=tr.id||("t"+Date.now()+Math.random().toString(36).slice(2,7));
@@ -4172,7 +4177,7 @@ function renderSettings(){
   const guestLbl={fr:"Mode invité (non connecté)",en:"Guest mode (not signed in)",es:"Modo invitado (sin sesión)",it:"Ospite (non connesso)",de:"Gastmodus (nicht angemeldet)"}[L]||"Mode invité";
   h+=`<div class="section-label">${accTitle}</div>`;
   if(currentUser){
-    h+=`<div class="auth-user" style="margin-bottom:8px">👤 ${escapeHtml(currentUser.email||"")}</div><button class="btn ghostline2 block" id="setLogout">${logoutLbl}</button><div style="height:14px"></div><label class="section-sub" for="setPubName">${mgt("setName")}</label><div class="mg-name-row"><input id="setPubName" class="mg-input" maxlength="40" value="${escapeHtml(publicName())}" placeholder="${escapeHtml(userName()||"")}"><button class="btn navy" id="setPubNameSave">${t("common.save")}</button></div>`;
+    h+=`<div class="auth-user" style="margin-bottom:8px">👤 ${escapeHtml(currentUser.email||"")}</div><button class="btn ghostline2 block" id="setLogout">${logoutLbl}</button><div style="height:14px"></div><label class="section-sub" for="setPubName">${mgt("setName")}</label><div class="mg-name-row"><input id="setPubName" class="mg-input" maxlength="40" value="${escapeHtml(publicName())}" placeholder="${escapeHtml(userName()||"")}"><button class="btn navy" id="setPubNameSave">${t("common.save")}</button></div><label class="mg-toggle-row"><span><span class="section-sub" style="margin-bottom:2px">${mgt("testMode")}</span><small class="mg-hint">${mgt("testHint")}</small></span><input type="checkbox" id="setTestReviews" ${localStorage.getItem("mv_test_reviews")==="1"?"checked":""}></label>`;
   } else {
     h+=`<div class="auth-user" style="margin-bottom:8px">👤 ${guestLbl}</div><button class="btn navy block" id="setLogin">${loginLbl}</button>`;
   }
@@ -4244,6 +4249,7 @@ function renderSettings(){
   });
   body.querySelectorAll("[data-theme]").forEach(b=>b.onclick=()=>setTheme(b.dataset.theme));
   const _lo=document.getElementById("setLogout"); if(_lo) _lo.onclick=authLogout;
+  { const _trv=document.getElementById("setTestReviews"); if(_trv) _trv.onchange=()=>{ try{ localStorage.setItem("mv_test_reviews", _trv.checked?"1":"0"); }catch(e){} toast(_trv.checked?mgt("testOn"):mgt("testOff")); }; }
   { const _pnb=document.getElementById("setPubNameSave"); if(_pnb) _pnb.onclick=async()=>{ const inp=document.getElementById("setPubName"); const v=((inp&&inp.value)||"").trim().slice(0,40); if(v.length<1){ toast(mgt("nameNeed")); return; } let r=null; try{ r=await setPublicNameRemote(v); }catch(e){} if(r&&r.ok){ S.prefs=S.prefs||{}; S.prefs.publicName=v; saveState(); if(typeof schedulePrefsPush==="function") schedulePrefsPush(); toast(mgt("nameSaved")); } else { toast(mgt("saveErr")); if(inp) inp.value=publicName(); } }; }
   const _li=document.getElementById("setLogin"); if(_li) _li.onclick=()=>{ authMode="login"; showAuthScreen(); };
   const _pf=document.getElementById("setPrefs"); if(_pf) _pf.onclick=openPrefs;
@@ -6828,7 +6834,13 @@ function renderCommunaute(box,sum){ if(!box) return;
     let st="none"; try{ st=await magotReviewCTAState(p.id,_tid); }catch(e){ st="none"; }
     if(openPlaceObj!==p) return;                 /* fiche changée */
     if(_storeEpoch!==_rep || _storeId!==_rsid || ((typeof currentUser!=="undefined"&&currentUser)?currentUser.id:null)!==_ruid) return;   /* P1 : compte changé pendant le calcul du CTA */
-    if(st==="none") return;                      /* B3.1 : aucun bouton tant que non visité/invité */
+    if(st==="none"){
+      if(localStorage.getItem("mv_test_reviews")!=="1") return;   /* B3.1 : aucun bouton tant que non visité/invité (sauf mode test) */
+      if(parent) parent.style.display="";
+      const tb=document.createElement("button"); tb.type="button"; tb.className="btn ghostline2 block"; tb.style.marginTop="14px";
+      tb.textContent=mgt("simVisit"); tb.onclick=()=>{ if(openPlaceObj===p) magotSimulateVisit(p); };
+      box.appendChild(tb); return;
+    }
     if(parent) parent.style.display="";
     if(!html) box.innerHTML=`<div class="comm-empty">${t("magot.empty")}</div>`;   /* éligible mais aucune donnée -> invitation */
     const btn=document.createElement("button"); btn.type="button"; btn.className="btn navy block mg-share"; btn.style.marginTop="14px";
@@ -6916,6 +6928,12 @@ const MG_T={
   stepPlus:{fr:"Augmenter le nombre de personnes",en:"Increase number of people",es:"Aumentar el número de personas",it:"Aumenta il numero di persone",de:"Personenzahl erhöhen"},
   retryPrice:{fr:"Réessayer le prix",en:"Retry the price",es:"Reintentar el precio",it:"Riprova il prezzo",de:"Preis erneut senden"},
   ctaInvite:{fr:"Donner mon avis",en:"Give my review",es:"Dar mi opinión",it:"Lascia la mia recensione",de:"Meine Bewertung abgeben"},
+  testMode:{fr:"Mode test avis",en:"Review test mode",es:"Modo prueba reseñas",it:"Modalità test recensioni",de:"Bewertungs-Testmodus"},
+  testHint:{fr:"Affiche un bouton pour simuler une visite et voir le formulaire d'avis, sans attendre une vraie arrivée.",en:"Shows a button to simulate a visit and preview the review form.",es:"Muestra un botón para simular una visita.",it:"Mostra un pulsante per simulare una visita.",de:"Zeigt einen Button, um einen Besuch zu simulieren."},
+  simVisit:{fr:"🧪 Simuler une visite (test)",en:"🧪 Simulate a visit (test)",es:"🧪 Simular una visita (prueba)",it:"🧪 Simula una visita (test)",de:"🧪 Besuch simulieren (Test)"},
+  noTripTest:{fr:"Ouvre un voyage d'abord (les avis sont liés à un voyage).",en:"Open a trip first (reviews are tied to a trip).",es:"Abre un viaje primero.",it:"Apri prima un viaggio.",de:"Öffne zuerst eine Reise."},
+  testOn:{fr:"Mode test activé",en:"Test mode on",es:"Modo prueba activado",it:"Modalità test attiva",de:"Testmodus an"},
+  testOff:{fr:"Mode test désactivé",en:"Test mode off",es:"Modo prueba desactivado",it:"Modalità test disattivata",de:"Testmodus aus"},
   importGuest:{fr:"{n} voyage(s) sont enregistrés sur cet appareil. Les importer dans votre compte ?",en:"{n} trip(s) are saved on this device. Import them into your account?",es:"{n} viaje(s) guardados en este dispositivo. ¿Importarlos a tu cuenta?",it:"{n} viaggio/i salvati su questo dispositivo. Importarli nel tuo account?",de:"{n} Reise(n) sind auf diesem Gerät gespeichert. In dein Konto importieren?"},
   importGuestOk:{fr:"Importer",en:"Import",es:"Importar",it:"Importa",de:"Importieren"}
 };
@@ -6995,6 +7013,7 @@ function magotMarkReviewedInStore(storeId,tripId,placeId){ try{
 }catch(e){} }
 function magotScanInvites(tr){ try{ if(!(tr&&tr.plan)) return; tr.plan.forEach(s=>{ if(_magEvaluableStep(s) && s.arrived===true && _magStepEnded(tr,s)) magotEnsureInvite(tr,s.placeId,(s.source||"gps_arrival"),s.arrivedAt); }); }catch(e){} }
 /* état du CTA d'avis : none | invite | edit — tripId EXPLICITE (fonctionne pour un voyage passé/archivé, hors currentTrip) */
+function magotSimulateVisit(p){ try{ if(!p) return; const tr=(typeof currentTrip==="function")?currentTrip():null; if(!tr){ toast(mgt("noTripTest")); return; } magotEnsureInvite(tr, p.id, "user_confirmed", Date.now()); openPlace(p, openPlaceMode||"explore"); }catch(e){} }
 async function magotReviewCTAState(placeId, tripId){
   try{ if(tripId==null){ const _c=(typeof currentTrip==="function")?currentTrip():null; tripId=_c?_c.id:null; }
     const tr=_mgTripById(tripId); if(tr) magotScanInvites(tr);
@@ -7257,7 +7276,7 @@ async function openNearbyRestaurants(lat,lng,anchorName){ const sheet=document.g
   const ps=((res.places)||[]).map(placeFromG); const _exCity=_exCityEff(); ps.sort((a,c)=>((sameCity(c,_exCity)?1:0)-(sameCity(a,_exCity)?1:0))||(scoreOf(c)-scoreOf(a))); ps.forEach(p=>_placeReg[p.id]=p);
   if(!ps.length){ b.innerHTML=`<div class="empty" style="padding:28px 8px"><p>${t("exp.empty")}</p></div>`; return; }
   b.innerHTML=`<div class="pcards-grid">${ps.map(p=>pcard(p,"grid")).join("")}</div><div style="height:14px"></div>`;
-  b.querySelectorAll(".pcard").forEach(c=>{ c.onclick=()=>openPlace(_placeReg[c.dataset.id],"explore"); c.onkeydown=e=>{ if(e.key==="Enter"||e.key===" "){ e.preventDefault(); c.onclick(); } }; }); try{ b.querySelectorAll("[data-exretry]").forEach(x=>x.onclick=()=>renderExplore()); }catch(e){} }
+  b.querySelectorAll(".pcard").forEach(c=>{ c.onclick=()=>{ closeResto(); openPlace(_placeReg[c.dataset.id],"explore"); }; c.onkeydown=e=>{ if(e.key==="Enter"||e.key===" "){ e.preventDefault(); c.onclick(); } }; }); try{ b.querySelectorAll("[data-exretry]").forEach(x=>x.onclick=()=>renderExplore()); }catch(e){} }
 function closeResto(){ document.getElementById("restoSheet").classList.remove("show"); }
 async function navToNearestParking(lat,lng,name){ if(lat==null){ return; }
   if(!googleReady()){ openExt(gmapsDir(lat,lng,"DRIVE")); return; }
