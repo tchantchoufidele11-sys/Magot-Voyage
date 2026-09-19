@@ -839,7 +839,11 @@ a.btn{text-decoration:none}
 .pg-thumbs{display:flex;gap:8px;margin-top:8px}
 .pg-th{position:relative;width:clamp(72px,21.5vw,84px);height:clamp(56px,16.5vw,64px);flex:0 0 auto;border-radius:14px;background-size:cover;background-position:center;background-color:var(--surface-2);cursor:zoom-in}
 .pg-th .pg-more{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,.5);color:#fff;font:700 15px "Inter",sans-serif;font-size:clamp(13.6px,3.7vw,15px);border-radius:14px}
-.rev-carousel{align-items:flex-start}
+.rev-carousel{align-items:stretch}
+.pg-hero.skel{background:linear-gradient(90deg,var(--surface-2) 25%,var(--surface) 37%,var(--surface-2) 63%);background-size:400% 100%;animation:pgskel 1.4s ease infinite}
+@keyframes pgskel{0%{background-position:100% 0}100%{background-position:0 0}}
+.rev-txt.clamp{min-height:calc(1.5em * 4)}
+.notif-item.confirmed .notif-ic{color:#2ea043}
 .rev-txt.clamp{display:-webkit-box;-webkit-line-clamp:4;line-clamp:4;-webkit-box-orient:vertical;overflow:hidden}
 .rev-more{margin-top:8px;background:none;border:0;padding:0;color:var(--navy);font:600 12px "Inter",sans-serif;font-size:clamp(11.3px,3.08vw,12px);cursor:pointer}
 [data-theme="dark"] .rev-more{color:var(--gold)}
@@ -3562,7 +3566,7 @@ const DEFAULT_S={ version:"0.2.0", settings:{ lang:"fr", theme:"system", units:"
 /* Clé Maps JS partagée (restreinte au domaine GitHub Pages). Repli : clé perso de l'utilisateur si fournie. */
 const SHARED_MAP_KEY="AIzaSyCt5iVx8nPr1V067A3daE0X1YA568XJNbU";
 function mapKey(){ return (S.settings.mapKey||"").trim() || SHARED_MAP_KEY; }
-const BUILD="0.5.73 · v886 finition-ui2";
+const BUILD="0.5.77 · v888 explore-fix2";
 let _idb=null; const _migrationReady=migrateLegacy(); let S=loadState();
 function normalizeTrip(tr){ if(!tr||typeof tr!=="object") return tr;
   tr.id=tr.id||("t"+Date.now()+Math.random().toString(36).slice(2,7));
@@ -6389,7 +6393,7 @@ const CAT_ICON={
   shops:'<path d="M5 8h14l-1 12H6z"/><path d="M9 8V6a3 3 0 0 1 6 0v2"/>',
   divers:'<path d="m12 3.6 2.5 5.4 5.9.7-4.4 4 1.2 5.8L12 16.6 6.8 19.5 8 13.7 3.6 9.7l5.9-.7z"/>'
 };
-let _exZoneT;
+let _exZoneT, _exZoneSeq=0;
 /* Zone Explore : par défaut la destination du voyage ; l'utilisateur peut viser
    une autre ville. Tout Explore (catégories, recherche, rayon) se recentre dessus. */
 function renderExpZone(){ const el=document.getElementById("expZone"); if(!el) return;
@@ -6402,7 +6406,8 @@ function renderExpZone(){ const el=document.getElementById("expZone"); if(!el) r
   const ob=el.querySelector("#exzOpen"); if(ob) ob.onclick=(e)=>{ if(e.target.closest("#exzReset")) return; openExZone(); };
   const rb=el.querySelector("#exzReset"); if(rb) rb.onclick=(e)=>{ e.stopPropagation(); exploreState.zone=null; _exRadiusUserSet=false; renderExplore(); };
 }
-function closeExZone(){ const sh=document.getElementById("exZoneSheet"); const bd=document.getElementById("exZoneBackdrop"); const inp=document.getElementById("exZoneInp"); try{ if(inp) inp.blur(); }catch(e){} if(sh){ sh.classList.remove("show"); sh.setAttribute("aria-hidden","true"); sh.style.transform=""; } if(bd){ bd.classList.remove("show"); bd.setAttribute("aria-hidden","true"); } }
+function closeExZone(){ _exZoneSeq++; try{ clearTimeout(_exZoneT); }catch(e){}   /* fermeture invalide toute requête + annule le délai */
+  const sh=document.getElementById("exZoneSheet"); const bd=document.getElementById("exZoneBackdrop"); const inp=document.getElementById("exZoneInp"); try{ if(inp) inp.blur(); }catch(e){} if(sh){ sh.classList.remove("show"); sh.setAttribute("aria-hidden","true"); sh.style.transform=""; } if(bd){ bd.classList.remove("show"); bd.setAttribute("aria-hidden","true"); } }
 function _fitExZoneSheet(){ const sh=document.getElementById("exZoneSheet"); if(!sh) return; const vv=window.visualViewport; if(!vv){ sh.style.bottom="0px"; sh.style.maxHeight="min(54dvh,560px)"; return; } const keyboard=Math.max(0, window.innerHeight - vv.height - vv.offsetTop); const keyboardOpen=keyboard>80; sh.style.bottom=keyboard+"px"; const maxH=Math.min(vv.height*(keyboardOpen?.90:.54),560); sh.style.maxHeight=Math.round(maxH)+"px"; }
 if(window.visualViewport){ window.visualViewport.addEventListener("resize",()=>{ const sh=document.getElementById("exZoneSheet"); if(sh&&sh.classList.contains("show")) _fitExZoneSheet(); },{passive:true}); window.visualViewport.addEventListener("scroll",()=>{ const sh=document.getElementById("exZoneSheet"); if(sh&&sh.classList.contains("show")) _fitExZoneSheet(); },{passive:true}); }
 window.addEventListener("orientationchange",()=>{ const sh=document.getElementById("exZoneSheet"); if(sh&&sh.classList.contains("show")) setTimeout(_fitExZoneSheet,80); },{passive:true});
@@ -6410,6 +6415,7 @@ window.addEventListener("orientationchange",()=>{ const sh=document.getElementBy
 document.addEventListener("keydown",e=>{ if(e.key!=="Escape") return; const sh=document.getElementById("exZoneSheet"); if(sh&&sh.classList.contains("show")) closeExZone(); });
 function openExZone(){ const tr=currentTrip(); if(!tr) return;
   const sh=document.getElementById("exZoneSheet"); if(!sh) return;
+  _exZoneSeq++; clearTimeout(_exZoneT);   /* ouverture invalide toute requête en cours */
   try{ closeExpMenus(); }catch(e){} try{ closeExpFilter(); }catch(e){}
   const bd=document.getElementById("exZoneBackdrop");
   const inp=sh.querySelector("#exZoneInp"), ac=sh.querySelector("#exZoneAc");
@@ -6418,19 +6424,22 @@ function openExZone(){ const tr=currentTrip(); if(!tr) return;
   if(bd) bd.onclick=closeExZone;
   const rst=sh.querySelector("#exZoneReset");
   if(rst){ const tr0=currentTrip(); const hasCustomZone=!!(exploreState.zone&&exploreState.zone.lat!=null&&tr0&&exploreState.zone.forTrip===tr0.id); rst.hidden=!hasCustomZone; rst.onclick=()=>{ exploreState.zone=null; _exRadiusUserSet=false; closeExZone(); renderExplore(); }; }
-  if(inp){ inp.oninput=()=>{ const q=inp.value.trim(); clearTimeout(_exZoneT);
+  if(inp){ inp.oninput=()=>{ _exZoneSeq++; clearTimeout(_exZoneT); const _mySeq=_exZoneSeq; const q=inp.value.trim();   /* TOUTE saisie (même <3) invalide une requête en cours */
     if(q.length<3){ ac.classList.remove("show"); ac.innerHTML=""; return; }
     _exZoneT=setTimeout(async()=>{
       const tr2=currentTrip(); const cc=(tr2&&tr2.dest&&tr2.dest.cc)||null;
       const list=await zoneSuggest(q,(tr2&&tr2.dest)||null,cc);
+      if(_mySeq!==_exZoneSeq || !sh.classList.contains("show")) return;   /* saisie changée / feuille fermée pendant la recherche */
       if(!list||!list.length){ ac.classList.remove("show"); ac.innerHTML=""; return; }
       ac.innerHTML=list.map((r,i)=>`<div data-i="${i}"><svg viewBox="0 0 24 24"><path d="M12 21s-7-6.2-7-11a7 7 0 0 1 14 0c0 4.8-7 11-7 11z"/><circle cx="12" cy="10" r="2.4"/></svg><div class="ac-txt"><div class="ac-n">${escapeHtml(r.name||"")}</div>${(r.sub||r.label)?`<div class="ac-l">${escapeHtml(r.sub||r.label)}</div>`:""}</div><span class="exzone-go" aria-hidden="true">›</span></div>`).join("");
       ac.classList.add("show");
       ac.querySelectorAll("div[data-i]").forEach(el2=>el2.onclick=async()=>{ let r=list[+el2.dataset.i];
+        const _clickSeq=_exZoneSeq, _tid=(currentTrip()&&currentTrip().id)||null;
         ac.classList.remove("show"); if(inp) inp.value=r.name||"";
         r=await resolveSuggestion(r)||r;
         if(r.lat==null){ toast("Lieu introuvable — précise la ville."); return; }
-        const tr3=currentTrip(); if(!tr3) return;
+        if(_clickSeq!==_exZoneSeq || !sh.classList.contains("show")) return;   /* saisie / fermeture pendant la résolution -> abandon */
+        const tr3=currentTrip(); if(!tr3 || tr3.id!==_tid) return;   /* voyage changé -> abandon */
         exploreState.zone={name:r.name||q, lat:r.lat, lng:r.lng, cc:r.cc||(tr3.dest&&tr3.dest.cc)||"", forTrip:tr3.id};
         _exRadiusUserSet=false;
         closeExZone(); renderExplore(); });
@@ -6471,7 +6480,7 @@ async function dtVerify(places,dest){
   }catch(e){}
 }
 let _exploreReqSeq=0;   /* #4 : jeton anti-race Explorer */
-function _geoOk(o){ return !!o && Number.isFinite(+o.lat) && Number.isFinite(+o.lng); }   /* géolocalisable = latitude ET longitude finies */
+function _geoOk(o){ if(!o) return false; const _v=(x)=>{ if(x==null) return false; if(typeof x==="string" && x.trim()==="") return false; return Number.isFinite(+x); }; return _v(o.lat) && _v(o.lng); }   /* lat ET lng présentes et finies ; rejette null/undefined/""/"   " ; 0 (et "0") restent valides */
 function _exShowControls(show){ try{ const v=document.getElementById("view-explore"); if(!v) return; [".daysel-wrap",".exp-search",".exp-controls"].forEach(sel=>{ const el=v.querySelector(sel); if(el) el.style.display=show?"":"none"; }); }catch(e){} }
 async function renderExplore(){ const _mySeq=++_exploreReqSeq;
   _subFetchKey=""; _subFetchSecs=null; _exMore=12; _exMorePending=false; _exMoreFn=null; _exMoreBusy=false;
@@ -6545,7 +6554,7 @@ async function renderExplore(){ const _mySeq=++_exploreReqSeq;
     [recPlaces,naturePlaces].forEach(a=>_fsqFilterInPlace(a,"divers"));
     _fsqFilterInPlace(foodPlaces,"restaurants");
     await dtVerify(naturePlaces,dest);   // dernier recours DATAtourisme (France) sur la section Nature
-    { const _f=[]; [recPlaces,naturePlaces].forEach(s=>(s||[]).slice(0,16).forEach(x=>_f.push(x))); await exFreePhotos(_f,_f.length); }
+    { const _f=[]; [recPlaces,naturePlaces,foodPlaces].forEach(s=>(s||[]).slice(0,16).forEach(x=>_f.push(x))); await exFreePhotos(_f,_f.length); }   /* cascade photo gratuite AUSSI pour les restaurants */
     if(_mySeq!==_exploreReqSeq) return;   /* #4 : garde avant d'écrire les sections « Tout » */
     _exSections=[
         {title:t("exp.recommended"),places:recPlaces,layout:"scroll",res:rec},
@@ -6707,6 +6716,14 @@ function openPriceForm(placeId,placeName,currency){ const box=document.getElemen
     <div class="fld2"><div class="fld" style="flex:1"><label>${pcT("amount")}</label><input id="pcPrice" type="number" inputmode="decimal" placeholder="0"></div><div class="fld" style="width:112px"><label>${pcT("cur")}</label><select id="pcCur">${curs.map(c=>`<option value="${c}" ${c===cur?'selected':''}>${c}</option>`).join("")}</select></div></div>
     <div class="fld2" style="margin-top:6px"><button class="btn ghostline2" id="pcCancel" style="flex:1">${pcT("cancel")}</button><button class="btn navy" id="pcSend" style="flex:1">${pcT("send")}</button></div>`; document.getElementById("pcCancel").onclick=()=>loadPriceCommunity(placeId,cur,placeName); document.getElementById("pcSend").onclick=async()=>{ const price=parseFloat(String(document.getElementById("pcPrice").value).replace(",","."))||0; if(price<=0){ toast(pcT("badAmount")); return; } const obj={ place_id:String(placeId), place_name:placeName||"", category:(openPlaceObj?catGuessForPlace(openPlaceObj):""), label:(document.getElementById("pcLabel").value||"").trim().slice(0,80), price, currency:document.getElementById("pcCur").value||cur }; const btn=document.getElementById("pcSend"); if(btn){ btn.disabled=true; btn.textContent="…"; } const r=await submitPriceReport(obj); if(r&&r.ok){ toast(pcT("thanks")); loadPriceCommunity(placeId,obj.currency,placeName); } else { if(r&&r.error==="auth"){ toast(pcT("loginNeeded")); } else { const e=(r&&r.error)||{}; const msg=(e.message||e.details||e.hint||e.code||String(e)||"?"); toast(pcT("err")); try{ alert("Prix — erreur Supabase :\n"+msg+(e.code?("\n(code "+e.code+")"):"")+"\n\nConnecté : "+(currentUser&&currentUser.id?"oui":"non")); }catch(_){} } if(btn){ btn.disabled=false; btn.textContent=pcT("send"); } } }; }
 let _placeCtaIO=null;
+function _wireRevCards(container){ try{ const car=container.querySelector(".rev-carousel");
+  container.querySelectorAll(".rev").forEach(rv=>{ const tx=rv.querySelector(".rev-txt"), mb=rv.querySelector(".rev-more"); if(!tx||!mb) return;
+    if(tx.scrollHeight>tx.clientHeight+2){ mb.hidden=false;
+      mb.onclick=()=>{ const willOpen=tx.classList.contains("clamp");
+        if(willOpen && car){ car.querySelectorAll(".rev-txt:not(.clamp)").forEach(o=>{ if(o!==tx){ o.classList.add("clamp"); const or=o.closest(".rev"); const om=or&&or.querySelector(".rev-more"); if(om) om.textContent=om.dataset.more; } }); }
+        const cl=tx.classList.toggle("clamp"); mb.textContent=cl?mb.dataset.more:mb.dataset.less; }; } });
+  if(car && !car._swipeWired){ car._swipeWired=true; car.addEventListener("scroll",()=>{ car.querySelectorAll(".rev-txt:not(.clamp)").forEach(o=>{ o.classList.add("clamp"); const or=o.closest(".rev"); const om=or&&or.querySelector(".rev-more"); if(om) om.textContent=om.dataset.more; }); }, {passive:true}); }
+}catch(e){} }
 function openPlace(p,mode,opts){ if(!p) return; mode=mode||"explore"; const _samePlace=!!(openPlaceObj && (openPlaceObj===p || openPlaceObj.id===p.id)); if(opts && ("reviewTripId" in opts)){ _magReviewCtxTrip=opts.reviewTripId||null; } else if(!_samePlace){ _magReviewCtxTrip=null; }   /* point 5+P1 : deep-link pose le contexte ; re-render du même lieu (galerie/détails async) le CONSERVE ; nouveau lieu le réinitialise */ openPlaceObj=p; openPlaceMode=mode; try{ const _st=_magReviewCtxTrip?_mgTripById(_magReviewCtxTrip):currentTrip(); if(_st&&typeof magotScanInvites==="function") magotScanInvites(_st); }catch(e){}   /* B3.1 : rafraîchit les invitations d’avis */ const trip=currentTrip(), inTrip=!!(trip&&trip.places&&trip.places.some(x=>x.id===p.id));
   try{ if(_placeCtaIO){ _placeCtaIO.disconnect(); _placeCtaIO=null; } }catch(e){}
   document.getElementById("placeHd").textContent=p.name;
@@ -6729,7 +6746,7 @@ function openPlace(p,mode,opts){ if(!p) return; mode=mode||"explore"; const _sam
     }
     galleryHtml=`<div class="pgal"><div class="pg-hero" data-lb="0" style="${_pbg(_photos[0])}"></div>${thumbs}</div>`;
   } else {
-    galleryHtml=`<div class="place-cover" style="background:${COVERS[hashStr(p.id)%COVERS.length]}"></div>`;
+    galleryHtml=(mode==="review")?`<div class="pgal"><div class="pg-hero skel"></div></div>`:`<div class="place-cover" style="background:${COVERS[hashStr(p.id)%COVERS.length]}"></div>`;   /* review : skeleton neutre (pas de gradient) pendant/après gDetails */
   }
   /* ---- Identité : note / catégorie / prix / résumé ---- */
   const idHtml=`<div class="prating big">${p.rating?('★ '+p.rating.toLocaleString(LOCALE[lang()]||'fr-FR')+' · '+t("place.reviews",{n:fmtCount(p.count)})+(((p.reviews&&p.reviews.length)||(p.count||0)>0)?' (Google)':'')):t("place.noReviews")}</div>
@@ -6742,7 +6759,7 @@ function openPlace(p,mode,opts){ if(!p) return; mode=mode||"explore"; const _sam
                  : isResto ? `🍽️ ${t("resto.addMeal")}`
                  : inTrip ? `${_checkIco} ${t("place.addedTrip")}` : `${_plusIco} ${t("place.addTrip")}`;
   const ctaId = mode==="hotel" ? "pChoose" : isResto ? "pMeal" : inTrip ? "pAdded" : "pAdd";
-  const primaryTop=`<button class="btn navy block" id="${ctaId}Top" data-cta="${ctaId}" style="margin-top:6px">${ctaLabel}</button>`;
+  const primaryTop=(mode==="review")?"":`<button class="btn navy block" id="${ctaId}Top" data-cta="${ctaId}" style="margin-top:6px">${ctaLabel}</button>`;   /* mode review : aucun CTA Ajouter/Repas/Hôtel */
   /* ---- A6 : Itinéraire / Site / Appeler compacts ---- */
   const routeHref = (p.lat!=null&&p.lng!=null) ? gmapsDir(p.lat,p.lng,"DRIVE") : (p.mapsUri||"");
   const icRoute=`<svg viewBox="0 0 24 24"><path d="M12 21s-7-6.2-7-11a7 7 0 0 1 14 0c0 4.8-7 11-7 11z"/><circle cx="12" cy="10" r="2.4"/></svg>`;
@@ -6772,7 +6789,7 @@ function openPlace(p,mode,opts){ if(!p) return; mode=mode||"explore"; const _sam
     ? (_googleN ? `<div class="reviews"><div class="rowhead"><h2>${t("attr.reviews")}</h2></div>${_googleCarousel}</div>` : "")
     : `<div class="reviews" data-pid="${escapeHtml(p.id)}"><div class="rowhead"><h2>${t("attr.reviews")}</h2></div><div class="rev-tabs" role="tablist"><button type="button" role="tab" id="revtab-g-${escapeHtml(p.id)}" aria-controls="revpanel-g-${escapeHtml(p.id)}" aria-selected="true" class="rev-tab on" data-revtab="google">Google (${_googleN})</button><button type="button" role="tab" id="revtab-m-${escapeHtml(p.id)}" aria-controls="revpanel-m-${escapeHtml(p.id)}" aria-selected="false" class="rev-tab" data-revtab="magot">Magot</button></div><div class="rev-panel" role="tabpanel" id="revpanel-g-${escapeHtml(p.id)}" aria-labelledby="revtab-g-${escapeHtml(p.id)}" data-revpanel="google">${_googleCarousel}</div><div class="rev-panel hidden" role="tabpanel" id="revpanel-m-${escapeHtml(p.id)}" aria-labelledby="revtab-m-${escapeHtml(p.id)}" data-revpanel="magot" data-pid="${escapeHtml(p.id)}"><div class="comm-empty">${t("magot.empty")}</div></div></div>`;
   /* ---- A7 : section premium « Autour de ce lieu > Manger autour » (préservé, gate identique v875) ---- */
-  const showAround = (mode!=="hotel" && p.lat!=null && !isResto);
+  const showAround = (mode!=="hotel" && mode!=="review" && p.lat!=null && !isResto);
   const aroundHtml = showAround
     ? `<div class="psec"><div class="psec-h">${t("place.around")}</div><button type="button" class="paround-btn" id="pNearResto"><span class="pa-ic">🍽</span><span class="pa-tx"><b>${t("resto.around")}</b><small>${t("resto.near")}</small></span><span class="pa-arrow">›</span></button></div>`
     : "";
@@ -6817,7 +6834,7 @@ function openPlace(p,mode,opts){ if(!p) return; mode=mode||"explore"; const _sam
   /* ---- Lightbox (préservé) ---- */
   { b.querySelectorAll("[data-lb]").forEach(el=>el.onclick=()=>openLightbox(_photos,+el.dataset.lb)); }
   document.getElementById("placeSheet").classList.add("show");
-  requestAnimationFrame(()=>{ try{ b.querySelectorAll(".rev").forEach(rv=>{ const tx=rv.querySelector(".rev-txt"), mb=rv.querySelector(".rev-more"); if(!tx||!mb) return; if(tx.scrollHeight>tx.clientHeight+2){ mb.hidden=false; mb.onclick=()=>{ const cl=tx.classList.toggle("clamp"); mb.textContent=cl?mb.dataset.more:mb.dataset.less; }; } }); }catch(e){} });
+  requestAnimationFrame(()=>{ _wireRevCards(b); });
   if(_free && !p._freeGallery && _free.source!=="datatourisme"){ freeGalleryOf(p).then(urls=>{ if(urls&&urls.length>=2){ p._freeGallery=urls; if(openPlaceObj===p && document.getElementById("placeSheet").classList.contains("show")) openPlace(p,mode); } }); }
   if(mode!=="hotel" && googleReady() && S.settings.autoTranslate!==false && ((p.lang0 && p.lang0!==lang()) || !p.reviews)){
     gDetails(p.id).then(fresh=>{ if(fresh && openPlaceObj===p){ Object.assign(p,fresh); persistPlace(p);
@@ -6885,7 +6902,6 @@ function renderCommunaute(box,sum){ if(!box) return;
     if(_storeEpoch!==_rep || _storeId!==_rsid || ((typeof currentUser!=="undefined"&&currentUser)?currentUser.id:null)!==_ruid) return;   /* P1 : compte changé pendant le calcul du CTA */
     if(st==="none") return;                      /* B3.1 : aucun bouton tant que non visité/invité */
     if(parent) parent.style.display="";
-    if(!html) box.innerHTML=`<div class="comm-empty">${t("magot.empty")}</div>`;   /* éligible mais aucune donnée -> invitation */
     const btn=document.createElement("button"); btn.type="button"; btn.className="btn navy block mg-share"; btn.style.marginTop="14px";
     btn.textContent=(st==="edit")?mgt("edit"):mgt("ctaInvite");
     btn.onclick=()=>{ if(openPlaceObj===p) openMagotSheet(p,{tripId:_tid,cta:st}); };
@@ -6974,6 +6990,8 @@ const MG_T={
   notifTitle:{fr:"Notifications",en:"Notifications",es:"Notificaciones",it:"Notifiche",de:"Benachrichtigungen"},
   nfInviteTitle:{fr:"Comment était {name} ?",en:"How was {name}?",es:"¿Qué tal {name}?",it:"Com'era {name}?",de:"Wie war {name}?"},
   nfInviteBody:{fr:"Partage ton avis · {trip}",en:"Share your review · {trip}",es:"Comparte tu opinión · {trip}",it:"Condividi la tua recensione · {trip}",de:"Teile deine Bewertung · {trip}"},
+  nfConfirmedTitle:{fr:"✓ Visite confirmée",en:"✓ Visit confirmed",es:"✓ Visita confirmada",it:"✓ Visita confermata",de:"✓ Besuch bestätigt"},
+  nfConfirmedBody:{fr:"Souhaites-tu partager ton expérience ?",en:"Want to share your experience?",es:"¿Quieres compartir tu experiencia?",it:"Vuoi condividere la tua esperienza?",de:"Möchtest du deine Erfahrung teilen?"},
   nfVisitTitle:{fr:"As-tu visité {name} ?",en:"Did you visit {name}?",es:"¿Visitaste {name}?",it:"Hai visitato {name}?",de:"Warst du in {name}?"},
   vcYes:{fr:"Oui, j'y suis allé",en:"Yes, I went",es:"Sí, fui",it:"Sì, ci sono andato",de:"Ja, war ich"},
   vcNo:{fr:"Non",en:"No",es:"No",it:"No",de:"Nein"},
@@ -7086,7 +7104,8 @@ function renderNotifPanel(){ const b=document.getElementById("notifBody"); if(!b
     } else if(n.type==="review_reminder"){
       h+=`<div class="notif-item rr"><span class="notif-ic">\uD83D\uDCDD</span><span class="notif-tx"><b>${escapeHtml(mgt("nfReminder",{n:n.count||0}))}</b><small>${escapeHtml(n._tripName||"")}</small></span><button type="button" class="notif-x" data-tid="${escapeHtml(n._tripId||"")}" data-nid="${escapeHtml(n.id||"")}" aria-label="\u2715">\u2715</button></div>`;
     } else { const nm=(n.place&&n.place.name)||n.placeId;
-      h+=`<div class="notif-item ri${n.read?"":" unread"}" data-tid="${escapeHtml(n._tripId||"")}" data-pid="${escapeHtml(n.placeId||"")}"><span class="notif-ic">\uD83D\uDD14</span><span class="notif-tx"><b>${escapeHtml(mgt("nfInviteTitle",{name:nm}))}</b><small>${escapeHtml(mgt("nfInviteBody",{trip:n._tripName||""}))}</small></span><span class="notif-go">${mgt("ctaInvite")} \u203A</span><button type="button" class="notif-x" data-tid="${escapeHtml(n._tripId||"")}" data-nid="${escapeHtml(n.id||"")}" aria-label="\u2715">\u2715</button></div>`;
+      const _rtitle=n.confirmed?mgt("nfConfirmedTitle"):mgt("nfInviteTitle",{name:nm}); const _rbody=n.confirmed?mgt("nfConfirmedBody"):mgt("nfInviteBody",{trip:n._tripName||""}); const _ric=n.confirmed?"\u2713":"\uD83D\uDD14";
+      h+=`<div class="notif-item ri${n.read?"":" unread"}${n.confirmed?" confirmed":""}" data-tid="${escapeHtml(n._tripId||"")}" data-pid="${escapeHtml(n.placeId||"")}"><span class="notif-ic">${_ric}</span><span class="notif-tx"><b>${escapeHtml(_rtitle)}</b><small>${escapeHtml(_rbody)}</small></span><span class="notif-go">${mgt("ctaInvite")} \u203A</span><button type="button" class="notif-x" data-tid="${escapeHtml(n._tripId||"")}" data-nid="${escapeHtml(n.id||"")}" aria-label="\u2715">\u2715</button></div>`;
     }
   });
   info.forEach(x=>{ h+=`<div class="notif-item info"><span class="notif-ic">\u2139\uFE0F</span><span class="notif-tx"><small>${escapeHtml(x)}</small></span></div>`; });
@@ -7097,16 +7116,31 @@ function renderNotifPanel(){ const b=document.getElementById("notifBody"); if(!b
   b.querySelectorAll(".notif-x").forEach(x=>x.onclick=(e)=>{ e.stopPropagation(); magotDismissNotif(x.dataset.tid, x.dataset.nid); });
 }
 function closeNotifs(){ const s=document.getElementById("notifSheet"); if(s) s.classList.remove("show"); const bd=document.getElementById("notifBackdrop"); if(bd) bd.classList.remove("show"); }
+function persistReviewPlace(tripId, p){ try{ const tr=_mgTripById(tripId); if(!tr||!p) return;
+  const F={name:p.name,lat:p.lat,lng:p.lng,types:p.types,primaryType:p.primaryType,ptype:p.ptype,rating:p.rating,count:p.count,price:p.price,photo:p.photo,photos:p.photos,address:p.address,website:p.website,phone:p.phone,openNow:p.openNow,mapsUri:p.mapsUri,hours:p.hours,reviews:p.reviews};
+  if(tr.reviewInvites && tr.reviewInvites[p.id] && tr.reviewInvites[p.id].place){ Object.assign(tr.reviewInvites[p.id].place, F); }
+  if(tr.places){ const pl=tr.places.find(x=>x.id===p.id); if(pl) Object.assign(pl, F); }
+  tr._ts=Date.now(); try{ saveState(); }catch(e){}
+}catch(e){} }
 function magotOpenReviewFromNotif(tripId, placeId){ try{
   const tr=_mgTripById(tripId); const inv=(tr&&tr.reviewInvites)?tr.reviewInvites[placeId]:null;
   let snap=(inv&&inv.place)||null; if(!snap && tr&&tr.notifs){ const nn=tr.notifs.find(n=>n.placeId===placeId); snap=nn&&nn.place; }
-  const p=Object.assign({types:[],hours:[],reviews:[]}, snap||{}, {id:placeId}); if(!p.name) p.name=placeId;
+  const fromTrip=(tr&&tr.places)?tr.places.find(x=>x.id===placeId):null;
+  const fromReg=(typeof _placeReg!=="undefined")?_placeReg[placeId]:null;
+  const p=Object.assign({types:[],hours:[],reviews:[]}, snap||{}, fromTrip||{}, fromReg||{}, {id:placeId}); if(!p.name) p.name=placeId;
   if(typeof _placeReg!=="undefined") _placeReg[placeId]=p;
   closeNotifs();
-  openPlace(p, "explore", {reviewTripId:tripId});
-  setTimeout(()=>{ try{ if(openPlaceObj && openPlaceObj.id===placeId){
-    const sec=document.querySelector('.reviews[data-pid="'+((window.CSS&&CSS.escape)?CSS.escape(placeId):placeId)+'"]'); if(sec){ const mt=sec.querySelector('.rev-tab[data-revtab="magot"]'); if(mt) mt.click(); }
-    openMagotSheet(p, {tripId:tripId}); } }catch(e){} }, 500);
+  openPlace(p, "review", {reviewTripId:tripId});   /* vraie fiche, mode review ; Google reste l'onglet par défaut */
+  try{ if(typeof googleReady==="function" && googleReady() && typeof gDetails==="function"){
+    const _sid=_storeId, _ep=_storeEpoch, _uid=(currentUser&&currentUser.id)||null;
+    gDetails(placeId).then(fresh=>{
+      if(_storeEpoch!==_ep || _storeId!==_sid || ((currentUser&&currentUser.id)||null)!==_uid) return;   /* compte/espace changé pendant la requête */
+      if(!fresh || !openPlaceObj || openPlaceObj.id!==placeId) return;
+      Object.assign(p,fresh); persistReviewPlace(tripId, p);   /* enrichit le VOYAGE d'origine (tripId), pas currentTrip */
+      openPlace(p,"review",{reviewTripId:tripId});
+    });
+  } }catch(e){}
+  setTimeout(()=>{ try{ if(openPlaceObj && openPlaceObj.id===placeId){ const bb=document.getElementById("placeBody"); const sec=bb&&bb.querySelector(".reviews"); if(sec) sec.scrollIntoView({block:"start",behavior:"smooth"}); } }catch(e){} }, 420);   /* scroll vers Avis ; on NE force PLUS l'onglet Magot */
 }catch(e){} }
 try{ document.addEventListener("visibilitychange",()=>{ if(!document.hidden){ try{ if(!_storeHydrating && typeof magotScanAllNotifs==="function"){ magotScanAllNotifs(); updateBellBadge(); } }catch(e){} } });
   setInterval(()=>{ try{ if(!_storeHydrating && typeof magotScanAllNotifs==="function"){ magotScanAllNotifs(); updateBellBadge(); } }catch(e){} }, 120000); }catch(e){}
@@ -7162,9 +7196,11 @@ function magotScanReminder(tr){ try{ if(!tr) return; let ch=false; tr.notifs=tr.
 function magotScanNotifs(tr){ try{ if(!tr) return; magotScanInvites(tr); magotScanVisitConfirm(tr); magotScanReminder(tr); }catch(e){} }
 function magotScanAllNotifs(){ try{ for(const tr of (S.trips||[])) magotScanNotifs(tr); }catch(e){} }   /* B3.1-b : TOUS les voyages (y compris archivés), pas seulement currentTrip */
 function magotVisitConfirmYes(tripId, stepId, placeId){ try{ const tr=_mgTripById(tripId); if(!tr) return;
+  const _vc=(tr.notifs||[]).find(n=>n.type==="visit_confirm"&&n.stepId===stepId); const _ca=_vc?_vc.createdAt:Date.now();
   tr.notifs=(tr.notifs||[]).filter(n=>!(n.type==="visit_confirm"&&n.stepId===stepId));
   const step=(tr.plan||[]).find(x=>_magStepId(x)===stepId);
-  magotEnsureInvite(tr, placeId, "user_confirmed", Date.now(), step||null);   /* visite DÉCLARÉE (jamais présentée comme GPS) -> invite pending + review_invite */
+  magotEnsureInvite(tr, placeId, "user_confirmed", Date.now(), step||null);
+  const _ri=(tr.notifs||[]).find(n=>n.type==="review_invite"&&n.placeId===placeId); if(_ri){ _ri.createdAt=_ca; _ri.confirmed=true; }   /* transforme SUR PLACE : même createdAt/ordre + marque confirmée */
   tr._ts=Date.now(); try{ saveState(); }catch(e){} try{ updateBellBadge(); }catch(e){} try{ magotScanReminder(tr); }catch(e){} try{ renderNotifPanel(); }catch(e){}
 }catch(e){} }
 function magotVisitConfirmNo(tripId, stepId){ try{ const tr=_mgTripById(tripId); if(!tr) return;
@@ -7433,13 +7469,15 @@ function addRestaurantMealFromExplore(p){ const tr=currentTrip(); if(!tr||!p) re
     _planPush(tr,{id:uid(),day,time:nextTimeFor(tr,day),title:p.name,sub:p.primaryType||"",subLang:(p.lang0||lang()),kind:"meal",placeId:p.id,lat:p.lat,lng:p.lng,price:p.price||"",hours:p.hours||[],dur:(durFromTypes(p.types)||KIND_DUR.meal||75),done:false});
   }
   saveState(); closeResto(); closePlace(); renderPlan(); toast(t("resto.added")); }
-async function openNearbyRestaurants(lat,lng,anchorName,anchorId){ const sheet=document.getElementById("restoSheet");
+let _restoReq=0;
+async function openNearbyRestaurants(lat,lng,anchorName,anchorId){ const _myReq=(++_restoReq); const sheet=document.getElementById("restoSheet");
   document.getElementById("restoHd").textContent=t("resto.near");
   const b=document.getElementById("restoBody");
   if(!googleReady()){ b.innerHTML=needKeyHtml(); sheet.classList.add("show"); return; }
   b.innerHTML=`<div class="exp-loading"><span class="spin"></span>${t("exp.loading")}</div>`; sheet.classList.add("show");
   _distRef={lat,lng,kind:'away'};
   const res=await gNearby(lat,lng,"restaurant",2500);
+  if(_myReq!==_restoReq) return;   /* une nouvelle ouverture (ou fermeture) a pris la place -> réponse tardive ignorée */
   if(!document.getElementById("restoBody")) return;
   if(res.error){ b.innerHTML= res.error==="nokey"?needKeyHtml():`<div class="empty" style="padding:28px 8px"><p>${t("exp.error")}</p></div>`; return; }
   const ps=((res.places)||[]).map(placeFromG).filter(x=>_isRealRestaurant(x,anchorId)); const _exCity=_exCityEff(); ps.sort((a,c)=>((sameCity(c,_exCity)?1:0)-(sameCity(a,_exCity)?1:0))||(scoreOf(c)-scoreOf(a))); ps.forEach(p=>_placeReg[p.id]=p);
@@ -7448,7 +7486,7 @@ async function openNearbyRestaurants(lat,lng,anchorName,anchorId){ const sheet=d
   try{ bindPlaceCards(b); }catch(e){}   /* câble le +/✓ rapide (comme Explore) */
   b.querySelectorAll(".pcard").forEach(c=>{ c.onclick=(e)=>{ if(e.target&&e.target.closest&&e.target.closest("[data-exquick]")) return; openRestoMini(_placeReg[c.dataset.id]); }; c.onkeydown=e=>{ if(e.target!==c||e.target.closest("[data-exquick]")) return; if(e.key==="Enter"||e.key===" "){ e.preventDefault(); openRestoMini(_placeReg[c.dataset.id]); } }; });
   try{ b.querySelectorAll("[data-exretry]").forEach(x=>x.onclick=()=>renderExplore()); }catch(e){} }
-function closeResto(){ document.getElementById("restoSheet").classList.remove("show"); }
+function closeResto(){ _restoReq++; document.getElementById("restoSheet").classList.remove("show"); }
 let _restoMiniPrev=null, _restoMiniPrevMode=null;
 function openRestoMini(p){ if(!p) return;
   _restoMiniPrev=openPlaceObj; _restoMiniPrevMode=openPlaceMode; openPlaceObj=p; openPlaceMode="explore";   /* contexte = restaurant pour les loaders Google/Magot (gardés par openPlaceObj) */
@@ -7473,7 +7511,7 @@ function openRestoMini(p){ if(!p) return;
   b.querySelectorAll("[data-lb]").forEach(el=>el.onclick=()=>openLightbox(_photos,+el.dataset.lb));
   b.querySelectorAll(".rev-tab").forEach(tb=>{ tb.onclick=()=>{ const sec=tb.closest(".reviews"); if(!sec) return; const which=tb.dataset.revtab; sec.querySelectorAll(".rev-tab").forEach(x=>x.classList.toggle("on",x===tb)); sec.querySelectorAll(".rev-panel").forEach(pnl=>pnl.classList.toggle("hidden",pnl.dataset.revpanel!==which)); if(which==="magot") loadMagotReviews(p); }; });
   try{ loadMagotSummary(p); }catch(e){}
-  requestAnimationFrame(()=>{ try{ b.querySelectorAll(".rev").forEach(rv=>{ const tx=rv.querySelector(".rev-txt"), mb=rv.querySelector(".rev-more"); if(!tx||!mb) return; if(tx.scrollHeight>tx.clientHeight+2){ mb.hidden=false; mb.onclick=()=>{ const cl=tx.classList.toggle("clamp"); mb.textContent=cl?mb.dataset.more:mb.dataset.less; }; } }); }catch(e){} });
+  requestAnimationFrame(()=>{ _wireRevCards(b); });
   b.scrollTop=0;
   document.getElementById("restoMini").classList.add("show");
   { const bd=document.getElementById("restoMiniBd"); if(bd) bd.classList.add("show"); }
@@ -7871,7 +7909,7 @@ function selectHotel(p){ const Lg={name:p.name,addr:p.address,lat:p.lat,lng:p.ln
   closePlace(); closeHotels(); toast(t("place.chosen")); _lodgeLeg=null; }
 function addPlaceToTrip(p){ const trip=currentTrip(); if(!trip) return; trip.places=trip.places||[];
   if(trip.places.some(x=>x.id===p.id)) return;
-  trip.places.push({id:p.id,lang0:p.lang0||lang(),name:p.name,lat:p.lat,lng:p.lng,types:p.types,primaryType:p.primaryType||"",summary:p.summary||"",rating:p.rating,count:p.count,price:p.price,photo:p.photo,photos:p.photos||[],address:p.address,mapsUri:p.mapsUri,website:p.website,hours:p.hours||[],fav:false});
+  trip.places.push({id:p.id,lang0:p.lang0||lang(),name:p.name,lat:p.lat,lng:p.lng,types:p.types,primaryType:p.primaryType||"",ptype:p.ptype||"",summary:p.summary||"",rating:p.rating,count:p.count,price:p.price,photo:p.photo,photos:p.photos||[],address:p.address,mapsUri:p.mapsUri,website:p.website,phone:p.phone||"",openNow:(p.openNow!=null?p.openNow:null),hours:p.hours||[],fav:false});
   saveState(); toast(t("place.added")); renderHome(); }
 function removePlaceFromTrip(p,after){ const trip=currentTrip(); if(!trip) return; const _do=()=>{ trip.places=(trip.places||[]).filter(x=>x.id!==p.id); trip.plan=(trip.plan||[]).filter(x=>x.placeId!==p.id); saveState(); toast(t("place.removed")); renderHome(); renderPlan(); if(typeof after==="function") after(); }; const _pl=(trip.plan||[]).filter(x=>x.placeId===p.id).length; if(_pl>0){ askConfirm(t("place.removePlannedConfirm",{n:_pl}),t("common.delete"),_do); } else { _do(); } }   /* #9 : confirmation si des étapes planifiées seront aussi supprimées */
 
