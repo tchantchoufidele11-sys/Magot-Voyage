@@ -3587,7 +3587,7 @@ const DEFAULT_S={ version:"0.2.0", settings:{ lang:"fr", theme:"system", units:"
 /* Clé Maps JS partagée (restreinte au domaine GitHub Pages). Repli : clé perso de l'utilisateur si fournie. */
 const SHARED_MAP_KEY="AIzaSyCt5iVx8nPr1V067A3daE0X1YA568XJNbU";
 function mapKey(){ return (S.settings.mapKey||"").trim() || SHARED_MAP_KEY; }
-const BUILD="0.5.83 · v892 notif-premium2";
+const BUILD="0.5.84 · v893 review-cred";
 let _idb=null; const _migrationReady=migrateLegacy(); let S=loadState();
 function normalizeTrip(tr){ if(!tr||typeof tr!=="object") return tr;
   tr.id=tr.id||("t"+Date.now()+Math.random().toString(36).slice(2,7));
@@ -6828,7 +6828,7 @@ function openPlace(p,mode,opts){ if(!p) return; mode=mode||"explore"; const _sam
     const _au=(_free&&_free.author&&_free.author!=="Wikimedia Commons")?_free.author:"";
     const ph=_free?(_free.source==="datatourisme"?(t("attr.photo")+" : DATAtourisme"+(_free.license?(" · "+_free.license):"")):(t("attr.photo")+" : "+(_au?_au+" · ":"")+"Wikimedia Commons"+(_free.license?(" · "+_free.license):""))):(p.photo?(t("attr.photos")+" : Google"):"");
     if(ph) bits.push(ph);
-    if((p.reviews&&p.reviews.length)||(p.count||0)>0) bits.push(t("attr.reviews")+" : Google");
+    if(mode!=="review" && ((p.reviews&&p.reviews.length)||(p.count||0)>0)) bits.push(t("attr.reviews")+" : Google");   /* mode review : pas d'avis Google affichés -> pas d'attribution avis */
     if(p._fsq) bits.push(t("attr.placeSource")+" : Foursquare");
     if(!bits.length) return "";
     return '<div style="margin-top:16px;padding-top:10px;border-top:1px solid var(--line);font-size:10.5px;line-height:1.5;color:var(--muted)">'+bits.map(escapeHtml).join(" · ")+(p._fsq?('<br><span style="opacity:.85">'+t("attr.poweredBy")+' Foursquare</span>'):"")+'</div>';
