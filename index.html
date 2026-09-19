@@ -859,6 +859,8 @@ a.btn{text-decoration:none}
 .notif-tx b{display:block;color:var(--ink);font:700 15px/1.3 "Inter",sans-serif;overflow-wrap:anywhere}
 .notif-tx small{display:block;margin-top:3px;color:var(--muted);font:500 12.5px/1.4 "Inter",sans-serif}
 .notif-trip{opacity:.82}
+.notif-date{display:block;margin-top:3px;color:var(--muted);font:600 11.5px/1.35 "Inter",sans-serif}
+[data-theme="dark"] .notif-date{color:var(--gold);opacity:.85}
 .notif-review-btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;min-height:44px;margin-top:11px;padding:0 16px;border:0;border-radius:12px;background:var(--navy);color:#fff;font:700 13px "Inter",sans-serif;cursor:pointer}
 [data-theme="dark"] .notif-review-btn{background:var(--navy-2)}
 .vc-actions{display:grid;grid-template-columns:minmax(0,1.25fr) minmax(0,.75fr);gap:8px;margin-top:12px}
@@ -3587,7 +3589,7 @@ const DEFAULT_S={ version:"0.2.0", settings:{ lang:"fr", theme:"system", units:"
 /* Clé Maps JS partagée (restreinte au domaine GitHub Pages). Repli : clé perso de l'utilisateur si fournie. */
 const SHARED_MAP_KEY="AIzaSyCt5iVx8nPr1V067A3daE0X1YA568XJNbU";
 function mapKey(){ return (S.settings.mapKey||"").trim() || SHARED_MAP_KEY; }
-const BUILD="0.5.84 · v893 review-cred";
+const BUILD="0.5.86 · v895 photo-refetch";
 let _idb=null; const _migrationReady=migrateLegacy(); let S=loadState();
 function normalizeTrip(tr){ if(!tr||typeof tr!=="object") return tr;
   tr.id=tr.id||("t"+Date.now()+Math.random().toString(36).slice(2,7));
@@ -7024,6 +7026,8 @@ const MG_T={
   nfVisitTitle:{fr:"{name}",en:"{name}",es:"{name}",it:"{name}",de:"{name}"},
   nfVisitBody:{fr:"As-tu visité ce lieu ? · {trip}",en:"Did you visit this place? · {trip}",es:"¿Visitaste este lugar? · {trip}",it:"Hai visitato questo luogo? · {trip}",de:"Hast du diesen Ort besucht? · {trip}"},
   nfPendingTag:{fr:"À confirmer",en:"To confirm",es:"Por confirmar",it:"Da confermare",de:"Zu bestätigen"},
+  nfVisitedOn:{fr:"Visité le {date}",en:"Visited on {date}",es:"Visitado el {date}",it:"Visitato il {date}",de:"Besucht am {date}"},
+  nfPlannedOn:{fr:"Prévu le {date}",en:"Planned for {date}",es:"Previsto el {date}",it:"Previsto il {date}",de:"Geplant am {date}"},
   nfReviewTag:{fr:"Avis à donner",en:"Review requested",es:"Opinión pendiente",it:"Recensione da lasciare",de:"Bewertung ausstehend"},
   vcYes:{fr:"Oui, j'y suis allé",en:"Yes, I went",es:"Sí, fui",it:"Sì, ci sono andato",de:"Ja, war ich"},
   vcNo:{fr:"Non",en:"No",es:"No",it:"No",de:"Nein"},
@@ -7129,19 +7133,29 @@ function magotDismissNotif(tripId, notifId){ try{ const tr=_mgTripById(tripId); 
   tr._ts=Date.now(); try{ saveState(); }catch(e){} try{ updateBellBadge(); }catch(e){} try{ renderNotifPanel(); }catch(e){}
 }catch(e){} }
 function magotConsumeInviteNotif(tripId, placeId){ try{ const tr=_mgTripById(tripId); if(tr&&tr.notifs){ const b=tr.notifs.length; tr.notifs=tr.notifs.filter(n=>!(n.type==="review_invite"&&n.placeId===placeId)); if(tr.notifs.length!==b){ tr._ts=Date.now(); saveState(); } } try{ updateBellBadge(); }catch(e){} }catch(e){} }
+function _notifStepDate(n){ try{ if(!n) return "";
+  const tr=(typeof _mgTripById==="function")?_mgTripById(n._tripId||n.tripId):null; if(!tr||!tr.dateStart) return "";
+  let step=null;
+  if(n.stepId && tr.plan) step=tr.plan.find(x=>_magStepId(x)===n.stepId);
+  if(!step && n.placeId && tr.plan) step=tr.plan.find(x=>x&&x.placeId===n.placeId);
+  const day=(step&&step.day!=null)?step.day:null; if(day==null) return "";
+  const d=new Date(tr.dateStart+"T00:00:00"); if(isNaN(d.getTime())) return ""; d.setDate(d.getDate()+(+day||0));
+  const ymd=d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0");
+  return (typeof fmtDateLong==="function")?fmtDateLong(ymd):ymd;
+}catch(e){} return ""; }
 function renderNotifPanel(){ const b=document.getElementById("notifBody"); if(!b) return;
   const info=(typeof _notifs==="function"?_notifs():[])||[]; const revs=magotAllNotifs();
   if(!info.length && !revs.length){ b.innerHTML=`<div class="empty" style="padding:30px 8px"><p>${t("notif.none")}</p></div>`; return; }
   let h="";
   revs.forEach(n=>{
-    if(n.type==="visit_confirm"){ const nm=(n.place&&n.place.name)||t("attr.placeSource");
-      h+=`<div class="notif-item vc"><span class="notif-ic">\uD83D\uDCCD</span><span class="notif-tx"><span class="notif-state pending">${escapeHtml(mgt("nfPendingTag"))}</span><b>${escapeHtml(mgt("nfVisitTitle",{name:nm}))}</b><small>${escapeHtml(mgt("nfVisitBody",{trip:n._tripName||""}))}</small><span class="vc-actions"><button type="button" class="vc-yes" data-tid="${escapeHtml(n._tripId||"")}" data-sid="${escapeHtml(n.stepId||"")}" data-pid="${escapeHtml(n.placeId||"")}">${escapeHtml(mgt("vcYes"))}</button><button type="button" class="vc-no" data-tid="${escapeHtml(n._tripId||"")}" data-sid="${escapeHtml(n.stepId||"")}">${escapeHtml(mgt("vcNo"))}</button></span></span></div>`;
+    if(n.type==="visit_confirm"){ const nm=(n.place&&n.place.name)||t("attr.placeSource"); const _dt=_notifStepDate(n);
+      h+=`<div class="notif-item vc"><span class="notif-ic">\uD83D\uDCCD</span><span class="notif-tx"><span class="notif-state pending">${escapeHtml(mgt("nfPendingTag"))}</span><b>${escapeHtml(mgt("nfVisitTitle",{name:nm}))}</b><small>${escapeHtml(mgt("nfVisitBody",{trip:n._tripName||""}))}</small>${_dt?`<small class="notif-date">${escapeHtml(mgt("nfPlannedOn",{date:_dt}))}</small>`:""}<span class="vc-actions"><button type="button" class="vc-yes" data-tid="${escapeHtml(n._tripId||"")}" data-sid="${escapeHtml(n.stepId||"")}" data-pid="${escapeHtml(n.placeId||"")}">${escapeHtml(mgt("vcYes"))}</button><button type="button" class="vc-no" data-tid="${escapeHtml(n._tripId||"")}" data-sid="${escapeHtml(n.stepId||"")}">${escapeHtml(mgt("vcNo"))}</button></span></span></div>`;
     } else if(n.type==="review_reminder"){
       h+=`<div class="notif-item rr"><span class="notif-ic">\uD83D\uDCDD</span><span class="notif-tx"><b>${escapeHtml(mgt((+n.count===1)?"nfReminderOne":"nfReminderMany",{n:n.count||0}))}</b><small>${escapeHtml(n._tripName||"")}</small></span><button type="button" class="notif-x" data-tid="${escapeHtml(n._tripId||"")}" data-nid="${escapeHtml(n.id||"")}" aria-label="\u2715">\u2715</button></div>`;
     } else { const nm=(n.place&&n.place.name)||t("attr.placeSource");
       const _rtitle=mgt("nfConfirmedTitle",{name:nm});   /* TOUJOURS le nom du lieu comme titre */
-      const _rbody=n.confirmed?mgt("nfConfirmedBody"):mgt("nfInviteBody",{trip:n._tripName||""}); const _ric=n.confirmed?"\u2713":"\uD83D\uDD14";
-      h+=`<div class="notif-item ri${n.read?"":" unread"}${n.confirmed?" confirmed":""}" data-tid="${escapeHtml(n._tripId||"")}" data-pid="${escapeHtml(n.placeId||"")}"><span class="notif-ic">${_ric}</span><span class="notif-tx"><span class="notif-state review">${escapeHtml(mgt("nfReviewTag"))}</span><b>${escapeHtml(_rtitle)}</b><small>${escapeHtml(_rbody)}</small>${n._tripName?`<small class="notif-trip">${escapeHtml(n._tripName)}</small>`:""}<button type="button" class="notif-review-btn">${mgt("ctaInvite")} <span>\u203A</span></button></span><button type="button" class="notif-x" data-tid="${escapeHtml(n._tripId||"")}" data-nid="${escapeHtml(n.id||"")}" aria-label="\u2715">\u2715</button></div>`;
+      const _rbody=n.confirmed?mgt("nfConfirmedBody"):mgt("nfInviteBody",{trip:n._tripName||""}); const _ric=n.confirmed?"\u2713":"\uD83D\uDD14"; const _dt=_notifStepDate(n);
+      h+=`<div class="notif-item ri${n.read?"":" unread"}${n.confirmed?" confirmed":""}" data-tid="${escapeHtml(n._tripId||"")}" data-pid="${escapeHtml(n.placeId||"")}"><span class="notif-ic">${_ric}</span><span class="notif-tx"><span class="notif-state review">${escapeHtml(mgt("nfReviewTag"))}</span><b>${escapeHtml(_rtitle)}</b><small>${escapeHtml(_rbody)}</small>${_dt?`<small class="notif-date">${escapeHtml(mgt("nfVisitedOn",{date:_dt}))}</small>`:""}${n._tripName?`<small class="notif-trip">${escapeHtml(n._tripName)}</small>`:""}<button type="button" class="notif-review-btn">${mgt("ctaInvite")} <span>\u203A</span></button></span><button type="button" class="notif-x" data-tid="${escapeHtml(n._tripId||"")}" data-nid="${escapeHtml(n.id||"")}" aria-label="\u2715">\u2715</button></div>`;
     }
   });
   info.forEach(x=>{ h+=`<div class="notif-item info"><span class="notif-ic">\u2139\uFE0F</span><span class="notif-tx"><small>${escapeHtml(x)}</small></span></div>`; });
@@ -7184,7 +7198,14 @@ function magotOpenReviewFromNotif(tripId, placeId){ try{
           persistReviewPlace(tripId,p);
         }
       }
-      if(!_hasPh() && typeof freePhotoOf==="function" && p.lat!=null && p.name){   /* Google sans photo -> cascade gratuite (Wikimedia/DATAtourisme) */
+      if(!_hasPh() && typeof gText==="function" && typeof placeFromG==="function" && p.name && p.lat!=null){   /* id Google périmé/sans photo (vieux voyages) -> ré-résoudre par nom+coords, garder l'id d'ORIGINE (n'emprunter QUE la photo) */
+        try{ const _ts=await gText(p.name,{lat:p.lat,lng:p.lng,radius:5000}); const _cands=(_ts&&_ts.places)||[];
+          let _best=null; for(const c of _cands){ if(c&&c.photos&&c.photos[0]&&c.photos[0].name){ _best=c; break; } }
+          if(_best){ const _fp2=placeFromG(_best); if(_fp2.photo && !p.photo) p.photo=_fp2.photo; if(Array.isArray(_fp2.photos)&&_fp2.photos.length && (!Array.isArray(p.photos)||!p.photos.length)) p.photos=_fp2.photos; persistReviewPlace(tripId,p); }
+        }catch(e){}
+        if(_stale()){ p._hydrating=false; return; }
+      }
+      if(!_hasPh() && typeof freePhotoOf==="function" && p.lat!=null && p.name){   /* toujours rien -> cascade gratuite (Wikimedia/DATAtourisme) */
         try{ const _pays=(tr&&tr.dest&&tr.dest.cc)||""; const _fp=await freePhotoOf({lat:p.lat,lng:p.lng,name:p.name}, _pays);
           if(_fp && _fp.photo){ p._freePhoto={ url:_fp.photo, author:_fp.author, source:_fp.source, license:_fp.license }; persistReviewPlace(tripId,p); }
         }catch(e){}
