@@ -795,16 +795,16 @@ a.btn{text-decoration:none}
 [data-theme="dark"] .notif-item.unread{border-color:var(--gold)}
 .notif-ic{font-size:20px;flex:0 0 auto}
 .notif-tx{flex:1;min-width:0}
-.notif-tx b{display:block;font:600 14px "Inter",sans-serif;color:var(--ink)}
+.notif-tx b{display:block;font:600 14px "Inter",sans-serif;color:var(--ink);overflow-wrap:anywhere}
 .notif-tx small{display:block;font:500 12px "Inter",sans-serif;color:var(--muted);margin-top:2px}
-.notif-go{flex:0 0 auto;font:700 12.5px "Inter",sans-serif;color:var(--navy)}
+.notif-go{flex:0 0 auto;white-space:nowrap;margin-left:auto;font:700 12.5px "Inter",sans-serif;color:var(--navy)}
 .notif-item.vc,.notif-item.rr{cursor:default;align-items:flex-start}
 .notif-item.rr{background:var(--surface-2)}
 .vc-actions{display:flex;gap:8px;margin-top:10px}
 .vc-actions button{flex:1;padding:9px 10px;border-radius:10px;border:1px solid var(--line);font:600 12.5px "Inter",sans-serif;cursor:pointer;min-height:40px}
 .vc-yes{background:var(--navy);border-color:var(--navy);color:#fff}
 .vc-no{background:var(--surface);color:var(--muted)}
-.notif-x{flex:0 0 auto;width:30px;height:30px;border:0;background:none;color:var(--muted);font-size:15px;cursor:pointer;border-radius:8px;line-height:1;margin-left:2px}
+.notif-x{flex:0 0 30px;width:30px;height:30px;border:0;background:none;color:var(--muted);font-size:15px;cursor:pointer;border-radius:8px;line-height:1;margin-left:2px}
 .notif-x:active{background:var(--surface-2)}
 .notif-item.ri{align-items:center}
 [data-theme="dark"] .notif-go{color:var(--gold)}
@@ -3566,7 +3566,7 @@ const DEFAULT_S={ version:"0.2.0", settings:{ lang:"fr", theme:"system", units:"
 /* Clé Maps JS partagée (restreinte au domaine GitHub Pages). Repli : clé perso de l'utilisateur si fournie. */
 const SHARED_MAP_KEY="AIzaSyCt5iVx8nPr1V067A3daE0X1YA568XJNbU";
 function mapKey(){ return (S.settings.mapKey||"").trim() || SHARED_MAP_KEY; }
-const BUILD="0.5.77 · v888 explore-fix2";
+const BUILD="0.5.80 · v890 explore-fix3";
 let _idb=null; const _migrationReady=migrateLegacy(); let S=loadState();
 function normalizeTrip(tr){ if(!tr||typeof tr!=="object") return tr;
   tr.id=tr.id||("t"+Date.now()+Math.random().toString(36).slice(2,7));
@@ -6427,14 +6427,15 @@ function openExZone(){ const tr=currentTrip(); if(!tr) return;
   if(inp){ inp.oninput=()=>{ _exZoneSeq++; clearTimeout(_exZoneT); const _mySeq=_exZoneSeq; const q=inp.value.trim();   /* TOUTE saisie (même <3) invalide une requête en cours */
     if(q.length<3){ ac.classList.remove("show"); ac.innerHTML=""; return; }
     _exZoneT=setTimeout(async()=>{
-      const tr2=currentTrip(); const cc=(tr2&&tr2.dest&&tr2.dest.cc)||null;
-      const list=await zoneSuggest(q,(tr2&&tr2.dest)||null,cc);
-      if(_mySeq!==_exZoneSeq || !sh.classList.contains("show")) return;   /* saisie changée / feuille fermée pendant la recherche */
+      const tr2=currentTrip(); const _searchTripId=tr2&&tr2.id; if(!_searchTripId) return; const cc=(tr2.dest&&tr2.dest.cc)||null;   /* la recherche APPARTIENT au voyage qui la lance */
+      const list=await zoneSuggest(q,tr2.dest||null,cc);
+      const trAfterSuggest=currentTrip();
+      if(_mySeq!==_exZoneSeq || !sh.classList.contains("show") || !trAfterSuggest || trAfterSuggest.id!==_searchTripId) return;   /* saisie / fermeture / VOYAGE changé pendant la recherche */
       if(!list||!list.length){ ac.classList.remove("show"); ac.innerHTML=""; return; }
       ac.innerHTML=list.map((r,i)=>`<div data-i="${i}"><svg viewBox="0 0 24 24"><path d="M12 21s-7-6.2-7-11a7 7 0 0 1 14 0c0 4.8-7 11-7 11z"/><circle cx="12" cy="10" r="2.4"/></svg><div class="ac-txt"><div class="ac-n">${escapeHtml(r.name||"")}</div>${(r.sub||r.label)?`<div class="ac-l">${escapeHtml(r.sub||r.label)}</div>`:""}</div><span class="exzone-go" aria-hidden="true">›</span></div>`).join("");
       ac.classList.add("show");
       ac.querySelectorAll("div[data-i]").forEach(el2=>el2.onclick=async()=>{ let r=list[+el2.dataset.i];
-        const _clickSeq=_exZoneSeq, _tid=(currentTrip()&&currentTrip().id)||null;
+        const _clickSeq=_exZoneSeq, _tid=_searchTripId;   /* origine = voyage de la recherche, jamais currentTrip() au clic */
         ac.classList.remove("show"); if(inp) inp.value=r.name||"";
         r=await resolveSuggestion(r)||r;
         if(r.lat==null){ toast("Lieu introuvable — précise la ville."); return; }
@@ -6746,7 +6747,7 @@ function openPlace(p,mode,opts){ if(!p) return; mode=mode||"explore"; const _sam
     }
     galleryHtml=`<div class="pgal"><div class="pg-hero" data-lb="0" style="${_pbg(_photos[0])}"></div>${thumbs}</div>`;
   } else {
-    galleryHtml=(mode==="review")?`<div class="pgal"><div class="pg-hero skel"></div></div>`:`<div class="place-cover" style="background:${COVERS[hashStr(p.id)%COVERS.length]}"></div>`;   /* review : skeleton neutre (pas de gradient) pendant/après gDetails */
+    galleryHtml=(mode==="review" && p._hydrating)?`<div class="pgal"><div class="pg-hero skel"></div></div>`:`<div class="place-cover" style="background:${COVERS[hashStr(p.id)%COVERS.length]}"></div>`;   /* review : skeleton UNIQUEMENT pendant une requête active ; sinon photo (branche ci-dessus) ou fallback COVERS stable */
   }
   /* ---- Identité : note / catégorie / prix / résumé ---- */
   const idHtml=`<div class="prating big">${p.rating?('★ '+p.rating.toLocaleString(LOCALE[lang()]||'fr-FR')+' · '+t("place.reviews",{n:fmtCount(p.count)})+(((p.reviews&&p.reviews.length)||(p.count||0)>0)?' (Google)':'')):t("place.noReviews")}</div>
@@ -6884,6 +6885,7 @@ function _magDate(iso){ try{ return new Date(iso).toLocaleDateString(LOCALE[lang
 function _magSel(sel,pid){ try{ return document.querySelector(sel+'[data-pid="'+((window.CSS&&CSS.escape)?CSS.escape(pid):pid)+'"]'); }catch(e){ return null; } }
 function renderCommunaute(box,sum){ if(!box) return;
   const parent=(box.closest&&box.closest("#pCommunaute"))||box.parentElement;
+  const seq=(+(box.dataset.ctaSeq||0))+1; box.dataset.ctaSeq=String(seq);   /* jeton par conteneur : invalide tout ancien calcul CTA */
   let html="";
   if(sum && sum.n){
     const rating=(sum.rating!=null)?(+sum.rating).toLocaleString(LOCALE[lang()]||"fr-FR"):"—";
@@ -6892,15 +6894,17 @@ function renderCommunaute(box,sum){ if(!box) return;
     html=`<div class="comm-head">★ ${rating} · ${t("trips.travelers",{n:sum.n})} · ${t("community.recommend",{p:sum.recommend_pct||0})}</div>${chips?`<div class="comm-chips">${chips}</div>`:""}`;
   }
   box.innerHTML=html;
-  if(parent) parent.style.display = html ? "" : "none";   /* pas d'agrégat -> bloc masqué (réapparaît si éligible) */
+  if(parent) parent.style.display = html ? "" : "none";
   const p=openPlaceObj; if(!p) return;
-  const _tid=_magReviewCtxTrip || ((typeof currentTrip==="function"&&currentTrip())?currentTrip().id:null);   /* point 5 : contexte deep-link -> sinon voyage courant */
+  const _tid=_magReviewCtxTrip || ((typeof currentTrip==="function"&&currentTrip())?currentTrip().id:null);
   const _ruid=(typeof currentUser!=="undefined"&&currentUser)?currentUser.id:null, _rsid=_storeId, _rep=_storeEpoch;
   (async()=>{
     let st="none"; try{ st=await magotReviewCTAState(p.id,_tid); }catch(e){ st="none"; }
-    if(openPlaceObj!==p) return;                 /* fiche changée */
-    if(_storeEpoch!==_rep || _storeId!==_rsid || ((typeof currentUser!=="undefined"&&currentUser)?currentUser.id:null)!==_ruid) return;   /* P1 : compte changé pendant le calcul du CTA */
-    if(st==="none") return;                      /* B3.1 : aucun bouton tant que non visité/invité */
+    if(box.dataset.ctaSeq!==String(seq)) return;   /* réponse d'un ancien rendu -> interdite */
+    if(openPlaceObj!==p) return;
+    if(_storeEpoch!==_rep || _storeId!==_rsid || ((typeof currentUser!=="undefined"&&currentUser)?currentUser.id:null)!==_ruid) return;
+    box.querySelectorAll(".mg-share").forEach(el=>el.remove());   /* singleton garanti */
+    if(st==="none") return;
     if(parent) parent.style.display="";
     const btn=document.createElement("button"); btn.type="button"; btn.className="btn navy block mg-share"; btn.style.marginTop="14px";
     btn.textContent=(st==="edit")?mgt("edit"):mgt("ctaInvite");
@@ -7061,11 +7065,14 @@ function _magStepEnded(tr,s){ try{
 }catch(e){ return false; } }
 /* ===================== B3.1-b : centre de notifications ===================== */
 function _magStepTypes(x){ const k=x&&x.kind; const m={meal:["restaurant"],cafe:["cafe"],bar:["bar"],lodging:["lodging"],culture:["museum"],museum:["museum"],nature:["park"],park:["park"],beach:["beach"],hike:["hiking_area"],shopping:["store"],sight:["tourist_attraction"]}; return m[k]||["tourist_attraction"]; }
-function _magPlaceSnap(placeId, step){ try{
-  if(step) return { id:placeId, name:step.title||"", lat:step.lat, lng:step.lng, types:_magStepTypes(step), primaryType:step.sub||"", zone:"", address:"", hours:[], reviews:[] };
-  const p=(typeof _placeReg!=="undefined")?_placeReg[placeId]:null;
-  if(p) return { id:p.id, name:p.name||"", lat:p.lat, lng:p.lng, types:(p.types||[]), primaryType:p.primaryType||"", zone:p.zone||"", address:p.address||"", hours:p.hours||[], reviews:[] };
-}catch(e){} return { id:placeId, name:"", types:[], hours:[], reviews:[] }; }
+function _magPlaceSnap(placeId, step, tr){ try{
+  const reg=(typeof _placeReg!=="undefined")?_placeReg[placeId]:null;
+  const saved=(tr&&tr.places)?tr.places.find(x=>x&&x.id===placeId):null;
+  const src=Object.assign({},step||{},saved||{},reg||{});   /* priorité : registre enrichi > lieu du voyage > étape */
+  const name=(reg&&reg.name)||(saved&&saved.name)||(step&&(step.title||step.name))||"";
+  const types=(reg&&reg.types)||(saved&&saved.types)||(step?_magStepTypes(step):[])||[];
+  return { id:placeId, name:name, lat:src.lat, lng:src.lng, types:types, primaryType:src.primaryType||src.ptype||src.sub||"", ptype:src.ptype||"", zone:src.zone||"", address:src.address||"", rating:src.rating, count:src.count, price:src.price, photo:src.photo||"", photos:Array.isArray(src.photos)?src.photos.slice(0,6):[], _freePhoto:src._freePhoto||null, _freeGallery:Array.isArray(src._freeGallery)?src._freeGallery.slice(0,4):null, website:src.website||"", phone:src.phone||"", openNow:src.openNow, mapsUri:src.mapsUri||"", hours:Array.isArray(src.hours)?src.hours:[], reviews:Array.isArray(src.reviews)?src.reviews:[] };
+}catch(e){} return { id:placeId, name:"", types:[], photo:"", photos:[], hours:[], reviews:[] }; }
 function _magPushNotif(tr, n){ if(!(tr&&n)) return; tr.notifs=tr.notifs||[]; if(tr.notifs.some(x=>x.id===n.id)) return; tr.notifs.unshift(n); }
 function magotAllNotifs(){ const out=[]; try{ for(const tr of (S.trips||[])){ for(const n of (tr.notifs||[])){ out.push(Object.assign({}, n, {_tripId:tr.id, _tripName:(typeof tripTitle==="function"?tripTitle(tr):"")})); } } }catch(e){} out.sort((a,b)=>(b.createdAt||0)-(a.createdAt||0)); return out; }
 function magotUnreadCount(){ let c=0; try{ for(const tr of (S.trips||[])) for(const n of (tr.notifs||[])) if(!n.read) c++; }catch(e){} return c; }
@@ -7076,8 +7083,7 @@ function magotReconcilePendingNotifs(){ try{ let changed=false;
       if(!tr.notifs.some(n=>n.type==="review_invite"&&n.placeId===pid) && !_magDismissed(tr,"review_invite:"+pid)){
         let snap=iv.place;
         if(!snap){ const step=(tr.plan||[]).find(x=>x&&x.placeId===pid);
-          if(step){ snap=_magPlaceSnap(pid, step); }
-          else { const pl=(tr.places||[]).find(x=>x&&x.id===pid); snap = pl ? { id:pl.id, name:pl.name||"", lat:pl.lat, lng:pl.lng, types:(pl.types||[]), primaryType:pl.primaryType||"", zone:pl.zone||"", address:pl.address||"", hours:pl.hours||[], reviews:[] } : _magPlaceSnap(pid, null); }
+          snap=_magPlaceSnap(pid, step||null, tr);   /* _magPlaceSnap cherche déjà tr.places + registre : plus de constructeur manuel qui reperd la photo */
           iv.place=snap;
         }
         tr.notifs.unshift({ id:"review_invite:"+pid, type:"review_invite", placeId:pid, place:snap, tripId:tr.id, createdAt:iv.createdAt||Date.now(), read:false });   /* répare une notif manquante, JAMAIS une nouvelle éligibilité */
@@ -7099,11 +7105,11 @@ function renderNotifPanel(){ const b=document.getElementById("notifBody"); if(!b
   if(!info.length && !revs.length){ b.innerHTML=`<div class="empty" style="padding:30px 8px"><p>${t("notif.none")}</p></div>`; return; }
   let h="";
   revs.forEach(n=>{
-    if(n.type==="visit_confirm"){ const nm=(n.place&&n.place.name)||n.placeId;
+    if(n.type==="visit_confirm"){ const nm=(n.place&&n.place.name)||t("attr.placeSource");
       h+=`<div class="notif-item vc"><span class="notif-ic">\uD83D\uDCCD</span><span class="notif-tx"><b>${escapeHtml(mgt("nfVisitTitle",{name:nm}))}</b><small>${escapeHtml(n._tripName||"")}</small><span class="vc-actions"><button type="button" class="vc-yes" data-tid="${escapeHtml(n._tripId||"")}" data-sid="${escapeHtml(n.stepId||"")}" data-pid="${escapeHtml(n.placeId||"")}">${escapeHtml(mgt("vcYes"))}</button><button type="button" class="vc-no" data-tid="${escapeHtml(n._tripId||"")}" data-sid="${escapeHtml(n.stepId||"")}">${escapeHtml(mgt("vcNo"))}</button></span></span></div>`;
     } else if(n.type==="review_reminder"){
       h+=`<div class="notif-item rr"><span class="notif-ic">\uD83D\uDCDD</span><span class="notif-tx"><b>${escapeHtml(mgt("nfReminder",{n:n.count||0}))}</b><small>${escapeHtml(n._tripName||"")}</small></span><button type="button" class="notif-x" data-tid="${escapeHtml(n._tripId||"")}" data-nid="${escapeHtml(n.id||"")}" aria-label="\u2715">\u2715</button></div>`;
-    } else { const nm=(n.place&&n.place.name)||n.placeId;
+    } else { const nm=(n.place&&n.place.name)||t("attr.placeSource");
       const _rtitle=n.confirmed?mgt("nfConfirmedTitle"):mgt("nfInviteTitle",{name:nm}); const _rbody=n.confirmed?mgt("nfConfirmedBody"):mgt("nfInviteBody",{trip:n._tripName||""}); const _ric=n.confirmed?"\u2713":"\uD83D\uDD14";
       h+=`<div class="notif-item ri${n.read?"":" unread"}${n.confirmed?" confirmed":""}" data-tid="${escapeHtml(n._tripId||"")}" data-pid="${escapeHtml(n.placeId||"")}"><span class="notif-ic">${_ric}</span><span class="notif-tx"><b>${escapeHtml(_rtitle)}</b><small>${escapeHtml(_rbody)}</small></span><span class="notif-go">${mgt("ctaInvite")} \u203A</span><button type="button" class="notif-x" data-tid="${escapeHtml(n._tripId||"")}" data-nid="${escapeHtml(n.id||"")}" aria-label="\u2715">\u2715</button></div>`;
     }
@@ -7127,17 +7133,28 @@ function magotOpenReviewFromNotif(tripId, placeId){ try{
   let snap=(inv&&inv.place)||null; if(!snap && tr&&tr.notifs){ const nn=tr.notifs.find(n=>n.placeId===placeId); snap=nn&&nn.place; }
   const fromTrip=(tr&&tr.places)?tr.places.find(x=>x.id===placeId):null;
   const fromReg=(typeof _placeReg!=="undefined")?_placeReg[placeId]:null;
-  const p=Object.assign({types:[],hours:[],reviews:[]}, snap||{}, fromTrip||{}, fromReg||{}, {id:placeId}); if(!p.name) p.name=placeId;
+  const p=Object.assign({types:[],hours:[],reviews:[]}, snap||{}, fromTrip||{}, fromReg||{}, {id:placeId}); if(!p.name) p.name=t("attr.placeSource");
   if(typeof _placeReg!=="undefined") _placeReg[placeId]=p;
   closeNotifs();
+  const _willHydrate=(typeof googleReady==="function" && googleReady() && typeof gDetails==="function");
+  if(_willHydrate) p._hydrating=true;   /* skeleton dès le 1er rendu si aucune photo, uniquement pendant la requête */
   openPlace(p, "review", {reviewTripId:tripId});   /* vraie fiche, mode review ; Google reste l'onglet par défaut */
-  try{ if(typeof googleReady==="function" && googleReady() && typeof gDetails==="function"){
+  try{ if(_willHydrate){
     const _sid=_storeId, _ep=_storeEpoch, _uid=(currentUser&&currentUser.id)||null;
     gDetails(placeId).then(fresh=>{
-      if(_storeEpoch!==_ep || _storeId!==_sid || ((currentUser&&currentUser.id)||null)!==_uid) return;   /* compte/espace changé pendant la requête */
-      if(!fresh || !openPlaceObj || openPlaceObj.id!==placeId) return;
-      Object.assign(p,fresh); persistReviewPlace(tripId, p);   /* enrichit le VOYAGE d'origine (tripId), pas currentTrip */
-      openPlace(p,"review",{reviewTripId:tripId});
+      p._hydrating=false;
+      if(_storeEpoch!==_ep || _storeId!==_sid || ((currentUser&&currentUser.id)||null)!==_uid) return;   /* compte/espace changé */
+      if(!openPlaceObj || openPlaceObj.id!==placeId) return;
+      if(fresh){ const oldPhoto=p.photo||""; const oldPhotos=Array.isArray(p.photos)?p.photos.slice():[];
+        Object.assign(p,fresh);
+        if(!p.photo && oldPhoto){ p.photo=oldPhoto; }                                             /* ne pas détruire une photo mémorisée si Google répond sans photo */
+        if((!Array.isArray(p.photos) || !p.photos.length) && oldPhotos.length){ p.photos=oldPhotos; }
+        persistReviewPlace(tripId, p);
+      }
+      openPlace(p,"review",{reviewTripId:tripId});   /* OBLIGATOIRE même si fresh===null : retire le skeleton -> photo connue ou COVERS */
+    }).catch(()=>{ p._hydrating=false;
+      if(_storeEpoch!==_ep || _storeId!==_sid || ((currentUser&&currentUser.id)||null)!==_uid) return;
+      if(openPlaceObj && openPlaceObj.id===placeId){ openPlace(p,"review",{reviewTripId:tripId}); }   /* sécurité : jamais de skeleton permanent */
     });
   } }catch(e){}
   setTimeout(()=>{ try{ if(openPlaceObj && openPlaceObj.id===placeId){ const bb=document.getElementById("placeBody"); const sec=bb&&bb.querySelector(".reviews"); if(sec) sec.scrollIntoView({block:"start",behavior:"smooth"}); } }catch(e){} }, 420);   /* scroll vers Avis ; on NE force PLUS l'onglet Magot */
@@ -7150,14 +7167,14 @@ function magotEnsureInvite(tr,placeId,source,visitedAt,step){ if(!(tr&&placeId))
   if(_ex){   /* déjà une invitation : backfill de la notif si manquante (upgrade v883->v884), sans recréer l'invitation */
     if(_ex.status!=="reviewed"){ tr.notifs=tr.notifs||[];
       if(!tr.notifs.some(n=>n.type==="review_invite"&&n.placeId===placeId) && !_magDismissed(tr,"review_invite:"+placeId)){
-        const sn=_ex.place || _magPlaceSnap(placeId, step); if(!_ex.place) _ex.place=sn;
+        const sn=_ex.place || _magPlaceSnap(placeId, step, tr); if(!_ex.place) _ex.place=sn;
         _magPushNotif(tr, { id:"review_invite:"+placeId, type:"review_invite", placeId:placeId, place:sn, tripId:tr.id, createdAt:_ex.createdAt||Date.now(), read:false });
         tr._ts=Date.now(); saveState(); try{ updateBellBadge(); }catch(e){}
       }
     }
     return false;
   }
-  const snap=_magPlaceSnap(placeId, step);
+  const snap=_magPlaceSnap(placeId, step, tr);
   tr.reviewInvites[placeId]={ placeId:placeId, tripId:tr.id, visitedAt:visitedAt||Date.now(), source:source||"gps_arrival", createdAt:Date.now(), status:"pending", place:snap };
   if(tr.notifDismissed) delete tr.notifDismissed["review_invite:"+placeId];   /* nouvelle invitation -> efface un ancien dismiss */
   _magPushNotif(tr, { id:"review_invite:"+placeId, type:"review_invite", placeId:placeId, place:snap, tripId:tr.id, createdAt:Date.now(), read:false });   /* B3.1-b : invitation + notification ATOMIQUES */
@@ -7181,7 +7198,7 @@ function magotScanVisitConfirm(tr){ try{ if(!(tr&&tr.plan)) return; let ch=false
     const sid=_magStepId(s); if(tr.visitDeclined[sid]) return;                        /* déjà refusé -> jamais redemander */
     if(tr.reviewInvites && tr.reviewInvites[s.placeId]) return;                        /* déjà une invitation -> pas de question */
     const nid="visit_confirm:"+sid; if(tr.notifs.some(n=>n.id===nid)) return;          /* idempotent (stepId) */
-    tr.notifs.unshift({ id:nid, type:"visit_confirm", placeId:s.placeId, stepId:sid, place:_magPlaceSnap(s.placeId,s), tripId:tr.id, createdAt:Date.now(), read:false }); tr._ts=Date.now(); ch=true;
+    tr.notifs.unshift({ id:nid, type:"visit_confirm", placeId:s.placeId, stepId:sid, place:_magPlaceSnap(s.placeId,s,tr), tripId:tr.id, createdAt:Date.now(), read:false }); tr._ts=Date.now(); ch=true;
   });
   if(ch){ try{ saveState(); }catch(e){} try{ updateBellBadge(); }catch(e){} }
 }catch(e){} }
@@ -7195,12 +7212,15 @@ function magotScanReminder(tr){ try{ if(!tr) return; let ch=false; tr.notifs=tr.
 }catch(e){} }
 function magotScanNotifs(tr){ try{ if(!tr) return; magotScanInvites(tr); magotScanVisitConfirm(tr); magotScanReminder(tr); }catch(e){} }
 function magotScanAllNotifs(){ try{ for(const tr of (S.trips||[])) magotScanNotifs(tr); }catch(e){} }   /* B3.1-b : TOUS les voyages (y compris archivés), pas seulement currentTrip */
-function magotVisitConfirmYes(tripId, stepId, placeId){ try{ const tr=_mgTripById(tripId); if(!tr) return;
-  const _vc=(tr.notifs||[]).find(n=>n.type==="visit_confirm"&&n.stepId===stepId); const _ca=_vc?_vc.createdAt:Date.now();
-  tr.notifs=(tr.notifs||[]).filter(n=>!(n.type==="visit_confirm"&&n.stepId===stepId));
+function magotVisitConfirmYes(tripId, stepId, placeId){ try{ const tr=_mgTripById(tripId); if(!tr) return; tr.notifs=tr.notifs||[];
+  const vc=tr.notifs.find(n=>n.type==="visit_confirm" && n.stepId===stepId);   /* objet ORIGINAL : reste physiquement dans le tableau */
+  const oldCreatedAt=(vc&&vc.createdAt)?vc.createdAt:Date.now();
   const step=(tr.plan||[]).find(x=>_magStepId(x)===stepId);
-  magotEnsureInvite(tr, placeId, "user_confirmed", Date.now(), step||null);
-  const _ri=(tr.notifs||[]).find(n=>n.type==="review_invite"&&n.placeId===placeId); if(_ri){ _ri.createdAt=_ca; _ri.confirmed=true; }   /* transforme SUR PLACE : même createdAt/ordre + marque confirmée */
+  magotEnsureInvite(tr, placeId, "user_confirmed", Date.now(), step||null);   /* garantit l'éligibilité (peut créer une review_invite en parallèle) */
+  const inv=tr.reviewInvites&&tr.reviewInvites[placeId];
+  tr.notifs=tr.notifs.filter(n=> n===vc || !(n.type==="review_invite" && n.placeId===placeId));   /* retire la review_invite parallèle ; conserve vc */
+  if(vc){ Object.assign(vc,{ id:"review_invite:"+placeId, type:"review_invite", placeId:placeId, place:(inv&&inv.place)||vc.place||_magPlaceSnap(placeId,step,tr), tripId:tr.id, createdAt:oldCreatedAt, read:true, confirmed:true }); delete vc.stepId; }   /* transformation RÉELLE sur place */
+  else { _magPushNotif(tr,{ id:"review_invite:"+placeId, type:"review_invite", placeId:placeId, place:(inv&&inv.place)||_magPlaceSnap(placeId,step,tr), tripId:tr.id, createdAt:oldCreatedAt, read:true, confirmed:true }); }   /* repli si la notif originale a réellement disparu */
   tr._ts=Date.now(); try{ saveState(); }catch(e){} try{ updateBellBadge(); }catch(e){} try{ magotScanReminder(tr); }catch(e){} try{ renderNotifPanel(); }catch(e){}
 }catch(e){} }
 function magotVisitConfirmNo(tripId, stepId){ try{ const tr=_mgTripById(tripId); if(!tr) return;
@@ -8956,7 +8976,6 @@ function wxIconSVG(c,day){ const night=(day===0); const cl='<path class="wx-drif
 let _wxReqSeq=0;   /* P2: jeton anti-race pour les réponses météo */
 function _refreshHomeWx(){ try{ if(document.hidden) return; if(currentTab!=="home") return; const tr=(typeof focusTrip==="function")?focusTrip():null; if(tr&&tr.dest&&tr.dest.lat!=null) loadWeather(tr,new Date(),(tripStatus(tr)==="ongoing"?ongoingDayIndex(tr):null),300000); (S.trips||[]).forEach(t2=>{ if(t2.dest&&t2.dest.lat!=null && t2.id!==(tr&&tr.id)) loadTripCardWeather(t2,300000); });   /* le voyage mis en avant est déjà rafraîchi par loadWeather -> pas de double requête */   /* P2 : refresh auto -> fraîcheur max 5 min (bascule jour/nuit), le cache 30 min reste pour le rendu normal */ }catch(e){} }   /* refresh du voyage AFFICHÉ, quel que soit son statut */
 function _notifs(){ const out=[]; try{
-  if((typeof loadDraft==="function")&&loadDraft()) out.push(t("notif.draft"));
   let ts=[]; try{ ts=(S&&S.trips)||[]; }catch(e){}
   for(const tr of ts){ const st=tripStatus(tr); if(st==="ongoing") out.push(t("notif.ongoing",{name:tripTitle(tr)})); else if(st==="upcoming"&&tr.dateStart){ const d=daysUntil(tr.dateStart); if(d>=0&&d<=2) out.push(t("notif.soon",{name:tripTitle(tr)})); } }
 }catch(e){} return out; }
