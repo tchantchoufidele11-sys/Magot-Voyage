@@ -3589,7 +3589,7 @@ const DEFAULT_S={ version:"0.2.0", settings:{ lang:"fr", theme:"system", units:"
 /* Clé Maps JS partagée (restreinte au domaine GitHub Pages). Repli : clé perso de l'utilisateur si fournie. */
 const SHARED_MAP_KEY="AIzaSyCt5iVx8nPr1V067A3daE0X1YA568XJNbU";
 function mapKey(){ return (S.settings.mapKey||"").trim() || SHARED_MAP_KEY; }
-const BUILD="0.5.86 · v895 photo-refetch";
+const BUILD="0.5.90 · v899 photo-race";
 let _idb=null; const _migrationReady=migrateLegacy(); let S=loadState();
 function normalizeTrip(tr){ if(!tr||typeof tr!=="object") return tr;
   tr.id=tr.id||("t"+Date.now()+Math.random().toString(36).slice(2,7));
@@ -6748,7 +6748,16 @@ function _wireRevCards(container){ try{ const car=container.querySelector(".rev-
         const cl=tx.classList.toggle("clamp"); mb.textContent=cl?mb.dataset.more:mb.dataset.less; }; } });
   if(car && !car._swipeWired){ car._swipeWired=true; car.addEventListener("scroll",()=>{ car.querySelectorAll(".rev-txt:not(.clamp)").forEach(o=>{ o.classList.add("clamp"); const or=o.closest(".rev"); const om=or&&or.querySelector(".rev-more"); if(om) om.textContent=om.dataset.more; }); }, {passive:true}); }
 }catch(e){} }
-function openPlace(p,mode,opts){ if(!p) return; mode=mode||"explore"; const _samePlace=!!(openPlaceObj && (openPlaceObj===p || openPlaceObj.id===p.id)); if(opts && ("reviewTripId" in opts)){ _magReviewCtxTrip=opts.reviewTripId||null; } else if(!_samePlace){ _magReviewCtxTrip=null; }   /* point 5+P1 : deep-link pose le contexte ; re-render du même lieu (galerie/détails async) le CONSERVE ; nouveau lieu le réinitialise */ openPlaceObj=p; openPlaceMode=mode; try{ const _st=_magReviewCtxTrip?_mgTripById(_magReviewCtxTrip):currentTrip(); if(_st&&typeof magotScanInvites==="function") magotScanInvites(_st); }catch(e){}   /* B3.1 : rafraîchit les invitations d’avis */ const trip=currentTrip(), inTrip=!!(trip&&trip.places&&trip.places.some(x=>x.id===p.id));
+function _photoRef(v){ return (typeof v==="string" && v.trim())?v.trim():""; }
+function _photoRefs(arr){ return Array.isArray(arr)?arr.map(_photoRef).filter(Boolean):[]; }
+function _normalizePlacePhotos(p){ if(!p) return p;
+  p.photo=_photoRef(p.photo); p.photos=_photoRefs(p.photos);
+  const fu=p._freePhoto && _photoRef(p._freePhoto.url);
+  p._freePhoto = fu ? Object.assign({},p._freePhoto,{url:fu}) : null;
+  p._freeGallery=_photoRefs(p._freeGallery); return p;
+}
+function _pickPhotos(p){ const _fg=_photoRefs(p&&p._freeGallery).slice(0,4); const _fu=(p&&p._freePhoto&&_photoRef(p._freePhoto.url))||""; const _gp=_photoRefs(p&&p.photos); const _sg=_photoRef(p&&p.photo); if(_fg.length>=2) return _fg; if(_fu) return [_fu]; if(_gp.length) return _gp; if(_sg) return [_sg]; if(_fg.length===1) return _fg; return []; }   /* moteur photo unique : source de vérité ; une galerie historique à 1 image reste exploitable */
+function openPlace(p,mode,opts){ if(!p) return; _normalizePlacePhotos(p); mode=mode||"explore"; const _samePlace=!!(openPlaceObj && (openPlaceObj===p || openPlaceObj.id===p.id)); if(opts && ("reviewTripId" in opts)){ _magReviewCtxTrip=opts.reviewTripId||null; } else if(!_samePlace){ _magReviewCtxTrip=null; }   /* point 5+P1 : deep-link pose le contexte ; re-render du même lieu (galerie/détails async) le CONSERVE ; nouveau lieu le réinitialise */ openPlaceObj=p; openPlaceMode=mode; try{ const _st=_magReviewCtxTrip?_mgTripById(_magReviewCtxTrip):currentTrip(); if(_st&&typeof magotScanInvites==="function") magotScanInvites(_st); }catch(e){}   /* B3.1 : rafraîchit les invitations d’avis */ const trip=currentTrip(), inTrip=!!(trip&&trip.places&&trip.places.some(x=>x.id===p.id));
   try{ if(_placeCtaIO){ _placeCtaIO.disconnect(); _placeCtaIO=null; } }catch(e){}
   document.getElementById("placeHd").textContent=p.name;
   const _free=p._freePhoto;
@@ -6757,7 +6766,7 @@ function openPlace(p,mode,opts){ if(!p) return; mode=mode||"explore"; const _sam
   const isResto=isRestaurant(p);
   const b=document.getElementById("placeBody");
   /* ---- Photos : galerie hero + miniatures (présentation maquette ; MÊMES données, MÊME lightbox, MÊMES sources, aucune requête sup.) ---- */
-  const _photos=_fg?_fg:(_free?[_free.url]:((p.photos&&p.photos.length)?p.photos:(p.photo?[p.photo]:[])));
+  const _photos=_pickPhotos(p);
   const _pbg=(sr)=>(typeof sr==="string"&&/^https?:\/\//.test(sr))?`background-image:url('${sr}')`:`background-image:url('${gPhoto(sr,800)}')`;
   let galleryHtml;
   if(_photos.length){
@@ -6863,8 +6872,8 @@ function openPlace(p,mode,opts){ if(!p) return; mode=mode||"explore"; const _sam
   { b.querySelectorAll("[data-lb]").forEach(el=>el.onclick=()=>openLightbox(_photos,+el.dataset.lb)); }
   document.getElementById("placeSheet").classList.add("show");
   requestAnimationFrame(()=>{ _wireRevCards(b); });
-  if(_free && !p._freeGallery && _free.source!=="datatourisme"){ freeGalleryOf(p).then(urls=>{ if(urls&&urls.length>=2){ p._freeGallery=urls; if(openPlaceObj===p && document.getElementById("placeSheet").classList.contains("show")) openPlace(p,mode); } }); }
-  if(mode!=="hotel" && googleReady() && S.settings.autoTranslate!==false && ((p.lang0 && p.lang0!==lang()) || !p.reviews)){
+  if(_free && _photoRefs(p._freeGallery).length < 2 && _free.source!=="datatourisme"){ freeGalleryOf(p).then(urls=>{ const clean=_photoRefs(urls); if(clean.length>=2){ p._freeGallery=clean.slice(0,4); if(openPlaceObj===p && document.getElementById("placeSheet").classList.contains("show")) openPlace(p, mode, _magReviewCtxTrip?{reviewTripId:_magReviewCtxTrip}:undefined); } }); }
+  if(mode!=="hotel" && mode!=="review" && googleReady() && S.settings.autoTranslate!==false && ((p.lang0 && p.lang0!==lang()) || !p.reviews)){   /* review : hydratation pilotée UNIQUEMENT par magotOpenReviewFromNotif (une seule autorité, photo protégée) */
     gDetails(p.id).then(fresh=>{ if(fresh && openPlaceObj===p){ Object.assign(p,fresh); persistPlace(p);
       if(document.getElementById("placeSheet").classList.contains("show")) openPlace(p,mode); } });
   }
@@ -7177,10 +7186,10 @@ function magotOpenReviewFromNotif(tripId, placeId){ try{
   let snap=(inv&&inv.place)||null; if(!snap && tr&&tr.notifs){ const nn=tr.notifs.find(n=>n.placeId===placeId); snap=nn&&nn.place; }
   const fromTrip=(tr&&tr.places)?tr.places.find(x=>x.id===placeId):null;
   const fromReg=(typeof _placeReg!=="undefined")?_placeReg[placeId]:null;
-  const p=Object.assign({types:[],hours:[],reviews:[]}, snap||{}, fromTrip||{}, fromReg||{}, {id:placeId}); if(!p.name) p.name=t("attr.placeSource");
+  const p=Object.assign({types:[],hours:[],reviews:[]}, snap||{}, fromTrip||{}, fromReg||{}, {id:placeId}); if(!p.name) p.name=t("attr.placeSource"); _normalizePlacePhotos(p);
   if(typeof _placeReg!=="undefined") _placeReg[placeId]=p;
   closeNotifs();
-  const _hasPh=()=> !!(p.photo || (Array.isArray(p.photos)&&p.photos.length) || p._freePhoto || (Array.isArray(p._freeGallery)&&p._freeGallery.length));
+  const _hasPh=()=>{ _normalizePlacePhotos(p); return _pickPhotos(p).length>0; };
   const _canG=(typeof googleReady==="function" && googleReady() && typeof gDetails==="function");
   const _willHydrate = _canG || (!_hasPh() && typeof freePhotoOf==="function" && p.lat!=null && !!(p.name));
   if(_willHydrate) p._hydrating=true;   /* skeleton dès le 1er rendu si aucune photo, uniquement pendant la requête */
@@ -7191,17 +7200,21 @@ function magotOpenReviewFromNotif(tripId, placeId){ try{
     (async()=>{ try{
       if(_canG){ let fresh=null; try{ fresh=await gDetails(placeId); }catch(e){}
         if(_stale()){ p._hydrating=false; return; }
-        if(fresh){ const oldPhoto=p.photo||""; const oldPhotos=Array.isArray(p.photos)?p.photos.slice():[];
+        if(fresh){ const oldPhoto=_photoRef(p.photo); const oldPhotos=_photoRefs(p.photos);
           Object.assign(p,fresh);
-          if(!p.photo && oldPhoto) p.photo=oldPhoto;                                              /* ne pas détruire une photo mémorisée */
-          if((!Array.isArray(p.photos)||!p.photos.length) && oldPhotos.length) p.photos=oldPhotos;
-          persistReviewPlace(tripId,p);
+          if(!_photoRef(p.photo) && oldPhoto) p.photo=oldPhoto;                                    /* ne pas détruire une photo mémorisée */
+          if(!_photoRefs(p.photos).length && oldPhotos.length) p.photos=oldPhotos;
+          _normalizePlacePhotos(p); persistReviewPlace(tripId,p);
         }
       }
-      if(!_hasPh() && typeof gText==="function" && typeof placeFromG==="function" && p.name && p.lat!=null){   /* id Google périmé/sans photo (vieux voyages) -> ré-résoudre par nom+coords, garder l'id d'ORIGINE (n'emprunter QUE la photo) */
-        try{ const _ts=await gText(p.name,{lat:p.lat,lng:p.lng,radius:5000}); const _cands=(_ts&&_ts.places)||[];
-          let _best=null; for(const c of _cands){ if(c&&c.photos&&c.photos[0]&&c.photos[0].name){ _best=c; break; } }
-          if(_best){ const _fp2=placeFromG(_best); if(_fp2.photo && !p.photo) p.photo=_fp2.photo; if(Array.isArray(_fp2.photos)&&_fp2.photos.length && (!Array.isArray(p.photos)||!p.photos.length)) p.photos=_fp2.photos; persistReviewPlace(tripId,p); }
+      if(!_hasPh() && typeof gText==="function" && typeof placeFromG==="function" && p.name){   /* Google details sans photo (ou id périmé) -> ré-résoudre par la RECHERCHE (comme Explore), garder l'id d'ORIGINE (n'emprunter QUE la photo) */
+        try{ const _o=(p.lat!=null&&p.lng!=null)?{lat:p.lat,lng:p.lng,radius:5000}:{}; const _ts=await gText(p.name,_o); const _cands=(_ts&&_ts.places)||[];
+          const _withPhoto=_cands.filter(c=>c&&c.photos&&c.photos.some(ph=>ph&&_photoRef(ph.name)));
+          let _best=_withPhoto.find(c=>c.id===placeId)||null;   /* 1) même Google placeId */
+          if(!_best && p.lat!=null && p.lng!=null){ const _norm=x=>String(x||"").normalize("NFD").replace(/[\u0300-\u036f]/g,"").trim().toLowerCase(); const _target=_norm(p.name);
+            _best=_withPhoto.find(c=>{ const cn=_norm(c.displayName&&c.displayName.text); if(cn!==_target) return false; if(!c.location||c.location.latitude==null||c.location.longitude==null) return false; return haversineKm({lat:p.lat,lng:p.lng},{lat:c.location.latitude,lng:c.location.longitude})<=1; })||null;   /* 2) même nom + <=1 km */
+          }   /* 3) sinon : aucune photo Google empruntée -> freePhotoOf/COVERS */
+          if(_best){ const _fp2=placeFromG(_best); const _np=_photoRef(_fp2.photo); const _nps=_photoRefs(_fp2.photos); if(_np) p.photo=_np; if(_nps.length) p.photos=_nps; _normalizePlacePhotos(p); persistReviewPlace(tripId,p); }
         }catch(e){}
         if(_stale()){ p._hydrating=false; return; }
       }
@@ -7566,12 +7579,12 @@ async function openNearbyRestaurants(lat,lng,anchorName,anchorId){ const _myReq=
   try{ b.querySelectorAll("[data-exretry]").forEach(x=>x.onclick=()=>renderExplore()); }catch(e){} }
 function closeResto(){ _restoReq++; document.getElementById("restoSheet").classList.remove("show"); }
 let _restoMiniPrev=null, _restoMiniPrevMode=null;
-function openRestoMini(p){ if(!p) return;
+function openRestoMini(p){ if(!p) return; _normalizePlacePhotos(p);
   _restoMiniPrev=openPlaceObj; _restoMiniPrevMode=openPlaceMode; openPlaceObj=p; openPlaceMode="explore";   /* contexte = restaurant pour les loaders Google/Magot (gardés par openPlaceObj) */
   const b=document.getElementById("restoMiniBody"); const hd=document.getElementById("restoMiniHd"); if(!b) return;
   if(hd) hd.textContent=p.name||"";
   const _free=p._freePhoto; const _fg=(p._freeGallery&&p._freeGallery.length>=2)?p._freeGallery.slice(0,4):null;
-  const _photos=_fg?_fg:(_free?[_free.url]:((p.photos&&p.photos.length)?p.photos:(p.photo?[p.photo]:[])));
+  const _photos=_pickPhotos(p);
   const _pbg=(sr)=>(typeof sr==="string"&&/^https?:\/\//.test(sr))?`background-image:url('${sr}')`:`background-image:url('${gPhoto(sr,800)}')`;
   let galleryHtml;
   if(_photos.length){ let thumbs=""; if(_photos.length>=2){ const th1=`<div class="pg-th" data-lb="1" style="${_pbg(_photos[1])}"></div>`; let th2=""; if(_photos.length>=3){ const _e=_photos.length-3; th2=`<div class="pg-th" data-lb="2" style="${_pbg(_photos[2])}">${_e>0?`<div class="pg-more">+${_e}</div>`:""}</div>`; } thumbs=`<div class="pg-thumbs">${th1}${th2}</div>`; } galleryHtml=`<div class="pgal"><div class="pg-hero" data-lb="0" style="${_pbg(_photos[0])}"></div>${thumbs}</div>`; }
