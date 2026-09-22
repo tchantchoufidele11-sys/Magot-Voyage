@@ -4993,7 +4993,7 @@ async function _paintDayCosts(tr, day, tk, tid){   /* coûts dépendant du traje
   let hasRoute=false; try{ hasRoute=buildDayRoutePoints(tr,day,{}).length>=2; }catch(_e){}
   if(!isDrive || !hasRoute){ setF(isDrive?"\u2014":""); const m=(mealC>0)?money(mealC,tr.currency):""; setD(m); setS(m); return; }   /* pas de route -> pas de carburant, total = repas (immédiat) */
   setF("\u2026"); setD("\u2026"); setS("\u2026");
-  try{ await ensureBudgetEstimate(tr); }catch(_e){}   /* v958-A : declenche le moteur Budget (SEUL ecrivain de _routeSnap) ; _paintDayCosts ne route/calcule RIEN lui-meme */
+  /* v958-A : LECTEUR PUR. Aucun ensureBudgetEstimate/budgetRouteSegment/appel reseau ici. On lit uniquement le snapshot deja fige par le moteur Budget ; absent -> etat neutre. */
   if(tk!==_routeUIToken) return; const cur=currentTrip(); if(!cur||cur.id!==tid||planState.dayIndex!==day) return;
   const _bref=(tr._budgetDayRoute||{})[day]; const _bsnap=(_bref&&_bref.sig&&tr._routeSnap)?tr._routeSnap[_bref.sig]:null;
   const _bMeters=(_bsnap && _bsnap.policyVersion===ROUTE_POLICY_VERSION && Number.isFinite(_bsnap.distanceMeters) && _bsnap.distanceMeters>0)?_bsnap.distanceMeters:null;
@@ -11017,7 +11017,9 @@ function _runEstimate(tr, sig){ const id=tr.id||"?"; const key=id+"|"+sig;   /* 
   const run=(async()=>{ let est=null; try{ est=await estimateBudget(tr); }catch(_e){ return null; }
     const current=(_estLatest.get(id)===sig) && (_estSignature(tr)===sig);   /* anti-stale sur le RESULTAT : un est obsolete ne sort JAMAIS du helper */
     if(!current) return null;   /* stale -> pas de _estCache, pas de tr.budget, pas de rerender issu de ce resultat */
-    _writeEstCache(tr, est, sig); if(_budgetSnapDirty){ _budgetSnapDirty=false; try{ saveState(); }catch(_e){} }   /* v958-A : un seul saveState, snapshots persistes (resultat non-stale uniquement) */ return est; })();
+    _writeEstCache(tr, est, sig); if(_budgetSnapDirty){ _budgetSnapDirty=false; try{ saveState(); }catch(_e){} }   /* v958-A : un seul saveState, snapshots persistes (resultat non-stale uniquement) */
+    try{ const _ct=currentTrip(); if(_ct && _ct.id===(tr.id||"?") && typeof planState==="object" && planState.dayIndex!=null){ _paintDayCosts(tr, planState.dayIndex, _routeUIToken, tr.id); } }catch(_e){}   /* v958-A : le Budget vient de figer le snapshot -> notifie le daycard (lecteur pur) de re-lire ; _paintDayCosts ne declenche toujours rien lui-meme */
+    return est; })();
   _estInflight.set(key, run); run.then(()=>{ if(_estInflight.get(key)===run) _estInflight.delete(key); }, ()=>{ if(_estInflight.get(key)===run) _estInflight.delete(key); });
   return run; }
 async function ensureBudgetEstimate(tr){ if(!tr) return null; const id=tr.id||"?"; const sig=_estSignature(tr); _estLatest.set(id, sig);   /* sig courante enregistree DES l entree, avant tout cache-hit */
