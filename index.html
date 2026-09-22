@@ -3514,6 +3514,7 @@ function switchStore(newId){ newId=newId||"guest"; if(newId===_storeId) return;
   try{ renderHome(); }catch(e){} }
 /* ---- Backend Magot Voyage (Phase A) : proxy Google + agent IA ---- */
 const WORKER_URL="https://magot-voyage-api.fidelevictoire01.workers.dev";
+const APPLE_WORKER_URL="https://magot-apple-preview.fidelevictoire01.workers.dev";   /* APPLE B2 : base dediee (preview), isolee de la prod tant que la campagne A/B n'a pas tranche */
 function deviceId(){ try{ let d=localStorage.getItem("mv_device_id"); if(!d){ d=(crypto.randomUUID?crypto.randomUUID():("dev-"+Date.now()+"-"+Math.random().toString(36).slice(2))); localStorage.setItem("mv_device_id",d); } return d; }catch(e){ return "anon"; } }
 function googleReady(){ return true; } /* Phase A : Google passe par le Worker, plus de clé utilisateur requise */
 async function workerFetch(path,body,signal){
@@ -3597,7 +3598,7 @@ const DEFAULT_S={ version:"0.2.0", settings:{ lang:"fr", theme:"system", units:"
 /* Clé Maps JS partagée (restreinte au domaine GitHub Pages). Repli : clé perso de l'utilisateur si fournie. */
 const SHARED_MAP_KEY="AIzaSyCt5iVx8nPr1V067A3daE0X1YA568XJNbU";
 function mapKey(){ return (S.settings.mapKey||"").trim() || SHARED_MAP_KEY; }
-const BUILD="0.6.42 · v951 returnhub-b";
+const BUILD="0.6.49 · v958 route-fallback-a";
 let _idb=null; const _migrationReady=migrateLegacy(); let S=loadState();
 function normalizeTrip(tr){ if(!tr||typeof tr!=="object") return tr;
   tr.id=tr.id||("t"+Date.now()+Math.random().toString(36).slice(2,7));
@@ -4992,9 +4993,11 @@ async function _paintDayCosts(tr, day, tk, tid){   /* coûts dépendant du traje
   let hasRoute=false; try{ hasRoute=buildDayRoutePoints(tr,day,{}).length>=2; }catch(_e){}
   if(!isDrive || !hasRoute){ setF(isDrive?"\u2014":""); const m=(mealC>0)?money(mealC,tr.currency):""; setD(m); setS(m); return; }   /* pas de route -> pas de carburant, total = repas (immédiat) */
   setF("\u2026"); setD("\u2026"); setS("\u2026");
-  let planned=null; try{ planned=await ensureDayRouteCore(tr,day,{mode:travelMode(tr)}); }catch(_e){ planned=null; }
+  try{ await ensureBudgetEstimate(tr); }catch(_e){}   /* v958-A : declenche le moteur Budget (SEUL ecrivain de _routeSnap) ; _paintDayCosts ne route/calcule RIEN lui-meme */
   if(tk!==_routeUIToken) return; const cur=currentTrip(); if(!cur||cur.id!==tid||planState.dayIndex!==day) return;
-  const fuel=planned?_dayFuelCost(tr, planned.distanceMeters, day):null;
+  const _bref=(tr._budgetDayRoute||{})[day]; const _bsnap=(_bref&&_bref.sig&&tr._routeSnap)?tr._routeSnap[_bref.sig]:null;
+  const _bMeters=(_bsnap && _bsnap.policyVersion===ROUTE_POLICY_VERSION && Number.isFinite(_bsnap.distanceMeters) && _bsnap.distanceMeters>0)?_bsnap.distanceMeters:null;
+  const fuel=(_bMeters!=null)?_dayFuelCost(tr, _bMeters, day):null;   /* v958-A : euro carburant = snapshot Budget fige (jamais _routeCore) */
   if(fuel==null){ setF("\u2014"); setD("\u2014"); setS("\u2014"); return; }   /* route attendue mais échec -> jamais l\u2019ancien coût comme actuel */
   setF(money(fuel,tr.currency)); const tot=fuel+mealC; const m=money(tot,tr.currency); setD(m); setS(m); }
 const FUEL_BY_CC={FR:{essence:1.85,diesel:1.75,gpl:0.95,elec:0.25},DE:{essence:1.80,diesel:1.70,gpl:1.05,elec:0.40},ES:{essence:1.55,diesel:1.45,gpl:0.95,elec:0.30},IT:{essence:1.85,diesel:1.75,gpl:0.75,elec:0.40},PT:{essence:1.75,diesel:1.60,gpl:0.85,elec:0.30},NL:{essence:2.05,diesel:1.75,gpl:0.95,elec:0.40},BE:{essence:1.70,diesel:1.80,gpl:0.95,elec:0.40},AT:{essence:1.55,diesel:1.55,gpl:0.95,elec:0.35},IE:{essence:1.75,diesel:1.70,gpl:0.95,elec:0.35},GR:{essence:1.80,diesel:1.65,gpl:0.95,elec:0.30},LU:{essence:1.55,diesel:1.45,gpl:0.75,elec:0.30},FI:{essence:1.90,diesel:1.75,gpl:0.95,elec:0.20},CH:{essence:1.80,diesel:1.95,gpl:1.10,elec:0.30},GB:{essence:1.45,diesel:1.55,gpl:0.85,elec:0.30},US:{essence:0.95,diesel:1.05,gpl:0.70,elec:0.16},CA:{essence:1.55,diesel:1.75,gpl:0.95,elec:0.15},JP:{essence:175,diesel:155,gpl:110,elec:30},AU:{essence:1.95,diesel:1.95,gpl:1.10,elec:0.30},MA:{essence:14.5,diesel:13.5,gpl:8,elec:1.5},TN:{essence:2.5,diesel:2.1,gpl:1.6,elec:0.3},DZ:{essence:45,diesel:29,gpl:9,elec:4},MX:{essence:24,diesel:25,gpl:12,elec:3},BR:{essence:6.0,diesel:6.2,gpl:3.8,elec:1.0},CN:{essence:7.8,diesel:7.2,gpl:4.5,elec:1.0},TH:{essence:38,diesel:33,gpl:16,elec:4},IN:{essence:100,diesel:90,gpl:55,elec:9},TR:{essence:43,diesel:43,gpl:22,elec:2.5},AE:{essence:2.9,diesel:3.0,gpl:2.0,elec:0.3},SE:{essence:18,diesel:20,gpl:11,elec:3},NO:{essence:22,diesel:21,gpl:13,elec:3},DK:{essence:14,diesel:13,gpl:8,elec:3},PL:{essence:6.5,diesel:6.7,gpl:2.8,elec:0.8},CZ:{essence:38,diesel:37,gpl:16,elec:8},CM:{essence:840,diesel:828,gpl:500,elec:100},GA:{essence:715,diesel:655,gpl:500,elec:120},CG:{essence:715,diesel:865,gpl:500,elec:110},TD:{essence:840,diesel:828,gpl:500,elec:120},SN:{essence:990,diesel:755,gpl:600,elec:115},CI:{essence:875,diesel:715,gpl:600,elec:110},BJ:{essence:700,diesel:680,gpl:600,elec:110},BF:{essence:790,diesel:730,gpl:600,elec:120},ML:{essence:830,diesel:760,gpl:600,elec:120},NG:{essence:1000,diesel:1100,gpl:700,elec:70},GH:{essence:14,diesel:14,gpl:10,elec:1.5},KE:{essence:190,diesel:175,gpl:130,elec:25},ZA:{essence:24,diesel:22,gpl:18,elec:3},EG:{essence:15,diesel:13,gpl:8,elec:1.5},MU:{essence:75,diesel:62,gpl:40,elec:7},KR:{essence:1700,diesel:1550,gpl:1000,elec:300},SG:{essence:2.8,diesel:2.6,gpl:1.8,elec:0.4},MY:{essence:2.05,diesel:2.15,gpl:1.5,elec:0.5},PH:{essence:65,diesel:60,gpl:45,elec:11},SA:{essence:2.33,diesel:0.75,gpl:0.6,elec:0.18},IL:{essence:7.4,diesel:6.8,gpl:4,elec:0.55},RU:{essence:55,diesel:62,gpl:30,elec:5},ID:{essence:13000,diesel:13000,gpl:7000,elec:1500}};
@@ -8103,10 +8106,10 @@ async function computeBudgetHubRoute(tr){   /* domicile -> hub de départ (avion
   R.expected=true;
   const dep=_rcPoint(tr.depart), hub=_rcPoint(tr.depHub);
   if(!dep || !hub){ R.unavailable=true; return R; }   /* attendu mais coordonnées absentes */
-  let r=null; try{ r=await routeProvider.computeRoute({provider:"google", points:[dep,hub], mode:"DRIVE"}); }catch(_e){ r=null; }
+  let r=null; try{ r=await routeProvider.computeRoute({points:[dep,hub], mode:"DRIVE"}); }catch(_e){ r=null; }
   if(!r || !Number.isFinite(r.distanceMeters) || r.distanceMeters<=0){ R.unavailable=true; return R; }   /* provider échoue -> non calculable, jamais de fallback */
   R.meters=r.distanceMeters; return R; }
-async function computeBudgetArrHubRoute(tr){   /* arrHub -> firstBase (+ lastBase -> arrHub si retour) ; taxi seul route ; jamais tripDistance/haversine/faux 0 */
+async function computeBudgetArrHubRoute(tr){   /* arrHub -> firstBase (+ lastBase -> returnHub || arrHub si retour) ; taxi seul route ; jamais tripDistance/haversine/faux 0 */
   const R={expected:false, unavailable:false, priceUnavailable:false, arrMeters:0, retMeters:0, mode:null}; if(!tr) return R;
   if(!(tr.transport==="plane"||tr.transport==="boat")) return R;
   const mode=tr.arrHubMode||null; if(!mode) return R;   /* non configuré -> non applicable, aucun incomplete */
@@ -8118,18 +8121,19 @@ async function computeBudgetArrHubRoute(tr){   /* arrHub -> firstBase (+ lastBas
   const firstBase=_firstLeg?routeLegAnchor(_firstLeg):(_rcPoint(tr.lodging)||_rcPoint(tr.dest));   /* ancre STRICTE : lodging || dest, jamais une autre étape */
   const lastBase=_lastLeg?routeLegAnchor(_lastLeg):(_rcPoint(tr.lodging)||_rcPoint(tr.dest));
   if(!hub || !firstBase){ R.unavailable=true; return R; }
-  let ro=null; try{ ro=await routeProvider.computeRoute({provider:"google", points:[hub,firstBase], mode:"DRIVE"}); }catch(_e){ ro=null; }
+  let ro=null; try{ ro=await routeProvider.computeRoute({points:[hub,firstBase], mode:"DRIVE"}); }catch(_e){ ro=null; }
   if(!ro || !Number.isFinite(ro.distanceMeters) || ro.distanceMeters<=0){ R.unavailable=true; return R; }
   R.arrMeters=ro.distanceMeters;
   if(tr.arrHubRoundTrip){   /* retour : deux courses distinctes, atomique */
     const retHub=(tr.returnHub!=null)?_rcPoint(tr.returnHub):hub;   /* returnHub absent -> arrHub (rétrocompat) ; présent mais coords invalides -> null (jamais de fallback silencieux) */
     if(!lastBase || !retHub){ R.unavailable=true; return R; }
-    let rr=null; try{ rr=await routeProvider.computeRoute({provider:"google", points:[lastBase,retHub], mode:"DRIVE"}); }catch(_e){ rr=null; }
+    let rr=null; try{ rr=await routeProvider.computeRoute({points:[lastBase,retHub], mode:"DRIVE"}); }catch(_e){ rr=null; }
     if(!rr || !Number.isFinite(rr.distanceMeters) || rr.distanceMeters<=0){ R.unavailable=true; return R; }
     R.retMeters=rr.distanceMeters; }
   return R; }
 async function computeBudgetRouteMeters(tr){   /* retourne des MÈTRES canoniques classés ; jamais de haversine ni de 0 inventé */
   const R={mainTripMeters:0, localMeters:0, interLegMeters:0, unavailableDays:[]}; if(!tr) return R;
+  const _dayRouteMap={};   /* v958-A : jour -> {sig} (reference vers tr._routeSnap, aucune duplication de metres/provider) */
   /* A. trajet principal domicile <-> base destination — voiture terrestre uniquement (avion/bateau : poste hub séparé, plus tard) */
   const mainTripExpected=routeUsesTripDeparture(tr) && usesCar(tr);   /* voiture terrestre attend un trajet principal ; avion/bateau non (poste hub séparé) */
   if(mainTripExpected){
@@ -8139,8 +8143,8 @@ async function computeBudgetRouteMeters(tr){   /* retourne des MÈTRES canonique
     const lastBase=_lastLeg?routeLegAnchor(_lastLeg):(_rcPoint(tr.lodging)||_rcPoint(tr.dest));   /* dernière étape sans coords -> null -> main unavailable, JAMAIS un faux retour depuis la 1re étape */
     if(!dep || !firstBase || !lastBase){ R.unavailableDays.push("main"); }   /* coordonnées absentes -> non calculable (jamais un faux 0) */
     else { let ro=null, rb=null;
-      try{ ro=await routeProvider.computeRoute({provider:"google",points:[dep,firstBase],mode:"DRIVE"}); }catch(_e){ ro=null; }
-      try{ rb=await routeProvider.computeRoute({provider:"google",points:[lastBase,dep],mode:"DRIVE"}); }catch(_e){ rb=null; }   /* aller et retour calculés séparément (peuvent différer) */
+      try{ ro=await budgetRouteSegment(tr,[dep,firstBase],"DRIVE",false); }catch(_e){ ro=null; }
+      try{ rb=await budgetRouteSegment(tr,[lastBase,dep],"DRIVE",false); }catch(_e){ rb=null; }   /* aller et retour calculés séparément (peuvent différer) */
       const okO=ro&&Number.isFinite(ro.distanceMeters)&&ro.distanceMeters>0, okB=rb&&Number.isFinite(rb.distanceMeters)&&rb.distanceMeters>0;
       if(okO && okB) R.mainTripMeters=ro.distanceMeters+rb.distanceMeters;   /* home->firstBase + lastBase->home */
       else R.unavailableDays.push("main"); } }   /* ATOMIQUE : une seule direction échoue -> 0 + main unavailable, aucun demi-trajet */
@@ -8152,14 +8156,14 @@ async function computeBudgetRouteMeters(tr){   /* retourne des MÈTRES canonique
     const pts=buildBudgetDayRoutePoints(tr, i); const _bTi=pts?pts.findIndex(p=>p&&p.type==="transfer"):-1;
     if(_bHasTrans && (!pts || _bTi<=0)){ R.unavailableDays.push(i); continue; }   /* transfert attendu sans segment entrant A->B -> jour non calculable, MÊME avec 0/1 point (avant le filtre <2) */
     if(!pts || pts.length<2) continue;
-    let r=null; try{ r=await routeProvider.computeRoute({provider:"google",points:pts,mode:"DRIVE"}); }catch(_e){ r=null; }
+    let r=null; try{ r=await budgetRouteSegment(tr, pts, "DRIVE", false); }catch(_e){ r=null; }
     if(!r || !Array.isArray(r.legs) || r.legs.length!==(pts.length-1)){ R.unavailableDays.push(i); continue; }   /* données incomplètes -> jour marqué, jamais 0 km */
     let dayLocal=0, dayInter=0, ok=true;   /* journée ATOMIQUE : accumulation temporaire */
     for(let k=0;k<r.legs.length;k++){ const lg=r.legs[k]; const arrival=pts[k+1]; if(!lg || !Number.isFinite(lg.distanceMeters)){ ok=false; break; }
       if(arrival && arrival.type==="transfer") dayInter+=lg.distanceMeters; else dayLocal+=lg.distanceMeters; }   /* A->B compté UNE fois via le leg d'arrivée transfer */
     if(!ok){ R.unavailableDays.push(i); continue; }   /* un seul leg invalide -> aucun km partiel conservé */
-    R.localMeters+=dayLocal; R.interLegMeters+=dayInter; }
-  return R; }
+    _dayRouteMap[i]={sig:r.sig}; R.localMeters+=dayLocal; R.interLegMeters+=dayInter; }   /* v958-A : jour calcule -> reference son segment */
+  tr._budgetDayRoute=_dayRouteMap; return R; }
 function _dayHasRemainingRouteDestination(tr, day){   /* destination restante NON terminée : lecture pure, aucun faux point, aucun réseau */
   const items=(typeof dayRouteItemsSnapshot==="function")?dayRouteItemsSnapshot(tr, day):[];
   const dt=(typeof routeTransitionForDay==="function")?routeTransitionForDay(tr, day):null;
@@ -8187,17 +8191,110 @@ function routeSignature(request){ request=request||{}; const mode=request.mode||
   const pts=(request.points||[]).map(_rcPoint).filter(Boolean).map(p=>p.lat.toFixed(5)+","+p.lng.toFixed(5)).join(">");   /* pas de Date.now ; points validés */
   const _dep=normalizeRouteDepartureTime(request.departureTime); const depKey=(mode==="TRANSIT"&&_dep)?_dep:"";   /* departureTime signé UNIQUEMENT en TRANSIT et s'il est valide */
   return [request.provider||"google", mode, pts, request.avoidTolls?"1":"0", depKey].join("|"); }
-const routeProvider={ active:"google",
+
+/* ===== v958-A : cascade Apple->Google + snapshot Budget deterministe ===== */
+const ROUTE_POLICY_VERSION="route-v958";
+let _budgetSnapDirty=false;   /* module : au moins un snapshot ecrit pendant ce calcul Budget -> un seul saveState en fin */
+
+/* signature PROVIDER-AGNOSTIQUE : un segment est defini par sa geometrie, jamais par le provider (le provider est le RESULTAT). */
+function budgetRouteSignature(request){ request=request||{}; const mode=request.mode||"DRIVE";
+  const pts=(request.points||[]).map(_rcPoint).filter(Boolean).map(p=>p.lat.toFixed(5)+","+p.lng.toFixed(5)).join(">");
+  const _dep=normalizeRouteDepartureTime(request.departureTime); const depKey=(mode==="TRANSIT"&&_dep)?_dep:"";
+  return [mode, pts, request.avoidTolls?"1":"0", depKey].join("|"); }
+
+/* cascade voulue et explicite : validation LOCALE d'abord, puis Apple -> Google. */
+async function routeCascade(request){ request=request||{}; const mode=request.mode||"DRIVE";
+  const valid=(request.points||[]).map(_rcPoint).filter(Boolean);
+  if(valid.length<2) return null;   /* requete invalide -> 0 appel reseau, aucune cascade inutile */
+  const order=["apple","google"];   /* ordre confirme par la campagne (distance ~0%) ; Google secours n1 */
+  for(let lvl=0; lvl<order.length; lvl++){ const prov=order[lvl];
+    if(!routeProvider.supports(prov, mode)) continue;   /* provider non compatible (ex. apple+TRANSIT) -> skip, PAS un fallback */
+    let res=null; try{ res=await routeProvider.computeRoute(Object.assign({}, request, {provider:prov})); }catch(_e){ res=null; }
+    if(res && res.provider===prov && Number.isFinite(res.distanceMeters) && res.distanceMeters>0 && Number.isFinite(res.durationSeconds) && res.durationSeconds>0){
+      return { result:res, provider:prov, fallbackLevel:lvl }; }   /* premier resultat VALIDE de ce provider */
+  }   /* echec reel (null/timeout/5xx/no_route/invalide) -> provider suivant ; reponse valide-mais-differente n'arrive jamais ici (elle serait deja retournee) */
+  return null; }   /* tous echoue -> null, jamais de faux snapshot */
+
+function _routeSnapStore(tr){ if(!tr._routeSnap || typeof tr._routeSnap!=="object") tr._routeSnap={}; return tr._routeSnap; }
+
+/* segment Budget : lit le snapshot fige par segSig (0 appel) ; sinon cascade -> persiste. SEUL ecrivain de tr._routeSnap. */
+async function budgetRouteSegment(tr, points, mode, avoidTolls){
+  const sig=budgetRouteSignature({points, mode, avoidTolls});
+  const store=_routeSnapStore(tr); const snap=store[sig];
+  if(snap && snap.policyVersion===ROUTE_POLICY_VERSION && Number.isFinite(snap.distanceMeters) && snap.distanceMeters>0 && Number.isFinite(snap.durationSeconds) && snap.durationSeconds>0){
+    return snap; }   /* HIT : meme sig + snapshot valide -> 0 Apple, 0 Google, resultat exact */
+  const casc=await routeCascade({points, mode, avoidTolls});
+  if(!casc || !casc.result) return null;   /* echec total -> null, aucun faux snapshot a 0 */
+  const res=casc.result;
+  const fresh={ sig, provider:casc.provider, fallbackLevel:casc.fallbackLevel,
+    distanceMeters:res.distanceMeters, durationSeconds:res.durationSeconds,
+    legs:(res.legs||[]).map(l=>({distanceMeters:l.distanceMeters, durationSeconds:l.durationSeconds})),
+    calculatedAt:Date.now(), policyVersion:ROUTE_POLICY_VERSION };
+  store[sig]=fresh; _budgetSnapDirty=true;   /* nouveau snapshot -> a persister (un seul saveState en fin de calcul) */
+  return fresh; }
+
+const routeProvider={ active:"google",   /* APPLE A : registre de providers + resolver ; Google par défaut, sorties identiques à v951 */
+  providers:{
+    google:{
+      supports(mode){ return mode==="DRIVE"||mode==="WALK"||mode==="BIKE"||mode==="TRANSIT"; },
+      async compute(valid, mode, opts){ const cr=await computeRoute(valid.map(p=>({lat:p.lat,lng:p.lng})), mode, opts); if(!cr) return null;   /* distance/durée RÉELLES depuis Google Routes — jamais haversine ici */
+        return { distanceMeters:cr.distanceMeters, durationSeconds:cr.duration, legs:(cr.legs||[]).map(l=>({distanceMeters:l.dist,durationSeconds:l.dur,polyline:l.poly||""})), polyline:cr.polyline||"" }; }
+    },
+    apple:{   /* APPLE B2 : adapter diagnostic. active reste "google" -> jamais appele par defaut ni par le Budget ; seulement sur provider:"apple" explicite */
+      supports(mode){ return mode==="DRIVE"||mode==="WALK"||mode==="BIKE"; },   /* pas TRANSIT (le resolver garde TRANSIT cote Google) */
+      async compute(valid, mode, opts){
+        const body={ points: valid.map(p=>({lat:p.lat,lng:p.lng})), mode, avoidTolls: !!(opts&&opts.avoidTolls) };
+        let j=null;
+        try{ const r=await fetch(APPLE_WORKER_URL+"/apple/routes",{method:"POST",headers:{"Content-Type":"application/json","Authorization":"Bearer "+deviceId()},body:JSON.stringify(body)}); j=await r.json(); }catch(_e){ return null; }
+        if(!j || j.error || j.source!=="apple_routes" || !j.data) return null;   /* erreur/absent -> null : jamais de resultat partiel, jamais de fallback silencieux vers Google */
+        const d=j.data;
+        const num=(x)=>typeof x==="number" && Number.isFinite(x);   /* vrai nombre : rejette null/"bad" (+null=0 passerait sinon) */
+        if(!num(d.distanceMeters) || d.distanceMeters<=0 || !num(d.durationSeconds) || d.durationSeconds<=0 || !Array.isArray(d.legs) || d.legs.length!==valid.length-1 || !d.legs.every(l=>l && num(l.distanceMeters) && l.distanceMeters>=0 && num(l.durationSeconds) && l.durationSeconds>=0)) return null;   /* contrat STRICT : reponse Apple malformee -> null, jamais 0m/0s artificiel qui fausserait le compare A/B */
+        return { distanceMeters:d.distanceMeters, durationSeconds:d.durationSeconds, legs:d.legs.map(l=>({distanceMeters:l.distanceMeters, durationSeconds:l.durationSeconds, polyline:l.polyline||""})), polyline:d.polyline||"" };   /* deja valides : aucun ||0 */
+      }
+    }
+  },
+  supports(provider, mode){ const p=this.providers[provider]; return !!p && !!p.supports && p.supports(mode); },
+  resolve(mode, requestedProvider){ const req=requestedProvider||this.active; if(this.providers[req] && this.supports(req, mode)) return req; return "google"; },   /* capabilité connue (ex. apple ne fait pas TRANSIT) ou provider absent -> google ; JAMAIS d'auto-fallback silencieux après erreur */
   async computeRoute(request){ request=request||{}; const mode=request.mode||"DRIVE";
     const valid=(request.points||[]).map(_rcPoint).filter(Boolean);   /* validation stricte : points routés == métadonnées origin/destination */
     if(valid.length<2) return null;
-    const cr=await computeRoute(valid.map(p=>({lat:p.lat,lng:p.lng})), mode, {avoidTolls:!!request.avoidTolls, departureTime:request.departureTime});
-    if(!cr) return null;   /* distance/durée RÉELLES depuis Google Routes — jamais haversine ici */
-    return { provider:"google", calculatedAt:Date.now(), mode,
+    const prov=this.resolve(mode, request.provider); const impl=this.providers[prov]; if(!impl) return null;
+    const cr=await impl.compute(valid, mode, {avoidTolls:!!request.avoidTolls, departureTime:request.departureTime});
+    if(!cr) return null;
+    return { provider:prov, calculatedAt:Date.now(), mode,
       origin:{lat:valid[0].lat,lng:valid[0].lng}, destination:{lat:valid[valid.length-1].lat,lng:valid[valid.length-1].lng},
-      distanceMeters:cr.distanceMeters, durationSeconds:cr.duration,
-      legs:(cr.legs||[]).map(l=>({distanceMeters:l.dist,durationSeconds:l.dur,polyline:l.poly||""})),
-      polyline:cr.polyline||"" }; } };
+      distanceMeters:cr.distanceMeters, durationSeconds:cr.durationSeconds,
+      legs:cr.legs, polyline:cr.polyline }; } };
+
+/* APPLE C : comparaison A/B DIAGNOSTIQUE. Appelle explicitement Google ET Apple sur le MEME request,
+   renvoie les deltas total + par leg. Ne touche JAMAIS ensureDayRouteCore/saveState/Budget/Planning,
+   ni routeProvider.active. Un provider qui echoue (ou qui n'a pas reellement tourne, ex. Apple+TRANSIT
+   re-route vers Google) est rapporte null : aucun delta invente. */
+async function compareRouteProviders(request){
+  request = request || {};
+  const base = { points:request.points, mode:request.mode||"DRIVE", avoidTolls:!!request.avoidTolls, departureTime:request.departureTime };
+  const safe = (pr)=> Promise.resolve(pr).catch(()=>null);   /* un provider qui throw -> null, sans faire echouer l'autre (contrat : echec -> null) */
+  const gp = routeProvider.supports("google", base.mode) ? safe(routeProvider.computeRoute(Object.assign({}, base, {provider:"google"}))) : Promise.resolve(null);
+  const ap = routeProvider.supports("apple", base.mode) ? safe(routeProvider.computeRoute(Object.assign({}, base, {provider:"apple"}))) : Promise.resolve(null);   /* Apple ne supporte pas ce mode (ex. TRANSIT) -> null, AUCUN appel : ni Apple, ni fallback Google via le resolver */
+  const [g0, a0] = await Promise.all([gp, ap]);
+  const google = (g0 && g0.provider==="google") ? g0 : null;
+  const apple  = (a0 && a0.provider==="apple")  ? a0 : null;   /* Apple+TRANSIT re-route Google -> apple:null (Apple n'a pas tourne) */
+  let delta = null;
+  if(google && apple){   /* delta UNIQUEMENT si les deux ont reellement produit une route */
+    const pct=(x,ref)=> (ref>0 ? (x/ref*100) : null);
+    delta = {
+      distanceMeters: apple.distanceMeters - google.distanceMeters,
+      distancePct: pct(apple.distanceMeters - google.distanceMeters, google.distanceMeters),
+      durationSeconds: apple.durationSeconds - google.durationSeconds,
+      durationPct: pct(apple.durationSeconds - google.durationSeconds, google.durationSeconds),
+      legs: (Array.isArray(google.legs) && Array.isArray(apple.legs) && google.legs.length===apple.legs.length)
+        ? google.legs.map((gl,i)=>({ distanceMeters: apple.legs[i].distanceMeters - gl.distanceMeters, durationSeconds: apple.legs[i].durationSeconds - gl.durationSeconds }))
+        : null   /* nombre de legs different -> pas de delta par leg (jamais force) */
+    };
+  }
+  return { google, apple, delta };
+}
 function _routeCoreMode(tr,options){ return (options&&options.mode) || ((typeof travelMode==="function")?travelMode(tr):"DRIVE"); }
 async function ensureDayRouteCore(tr, day, options){ options=options||{}; if(!tr) return null;
   const store=routeCoreFor(tr); const latestKey=(tr.id||"?")+"|"+day;
@@ -8207,7 +8304,8 @@ async function ensureDayRouteCore(tr, day, options){ options=options||{}; if(!tr
     return null; }
   const mode=_routeCoreMode(tr,options);
   const dep=(mode==="TRANSIT")?normalizeRouteDepartureTime(options.departureTime):null;
-  const request={ provider:"google", points, mode, avoidTolls:!!options.avoidTolls, departureTime:dep };
+  const provider=routeProvider.resolve(mode, options.provider || routeProvider.active);   /* résoudre le provider AVANT de signer : on signe le provider réellement utilisé (pas celui demandé), sinon un résultat Apple pourrait être caché sous une clé google */
+  const request={ provider, points, mode, avoidTolls:!!options.avoidTolls, departureTime:dep };
   const sig=routeSignature(request);
   const hasLiveOrigin=!!_rcPoint(options.liveOrigin);
   const cacheable=!hasLiveOrigin && ((mode!=="TRANSIT") || !!dep);   /* live GPS OU TRANSIT sans heure -> calcul autorisé mais JAMAIS de cache durable/persisté (aucune coord live dans tr) */
@@ -10919,7 +11017,7 @@ function _runEstimate(tr, sig){ const id=tr.id||"?"; const key=id+"|"+sig;   /* 
   const run=(async()=>{ let est=null; try{ est=await estimateBudget(tr); }catch(_e){ return null; }
     const current=(_estLatest.get(id)===sig) && (_estSignature(tr)===sig);   /* anti-stale sur le RESULTAT : un est obsolete ne sort JAMAIS du helper */
     if(!current) return null;   /* stale -> pas de _estCache, pas de tr.budget, pas de rerender issu de ce resultat */
-    _writeEstCache(tr, est, sig); return est; })();
+    _writeEstCache(tr, est, sig); if(_budgetSnapDirty){ _budgetSnapDirty=false; try{ saveState(); }catch(_e){} }   /* v958-A : un seul saveState, snapshots persistes (resultat non-stale uniquement) */ return est; })();
   _estInflight.set(key, run); run.then(()=>{ if(_estInflight.get(key)===run) _estInflight.delete(key); }, ()=>{ if(_estInflight.get(key)===run) _estInflight.delete(key); });
   return run; }
 async function ensureBudgetEstimate(tr){ if(!tr) return null; const id=tr.id||"?"; const sig=_estSignature(tr); _estLatest.set(id, sig);   /* sig courante enregistree DES l entree, avant tout cache-hit */
