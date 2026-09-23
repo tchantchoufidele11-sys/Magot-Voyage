@@ -3515,6 +3515,7 @@ function switchStore(newId){ newId=newId||"guest"; if(newId===_storeId) return;
 /* ---- Backend Magot Voyage (Phase A) : proxy Google + agent IA ---- */
 const WORKER_URL="https://magot-voyage-api.fidelevictoire01.workers.dev";
 const APPLE_WORKER_URL="https://magot-apple-preview.fidelevictoire01.workers.dev";   /* APPLE B2 : base dediee (preview), isolee de la prod tant que la campagne A/B n'a pas tranche */
+const MAPKIT_TOKEN="eyJraWQiOiJaUVVOODI0TktIIiwidHlwIjoiSldUIiwiYWxnIjoiRVMyNTYifQ.eyJpc3MiOiI3S1M2R1MzNlRCIiwiaWF0IjoxNzkwMTM5MTg0LCJvcmlnaW4iOiJ0Y2hhbnRjaG91ZmlkZWxlMTEtc3lzLmdpdGh1Yi5pbyIsInNjb3BlIjoibWFwa2l0X2pzIn0.4QARw_ZmGISjh06Tp6S1TkUB0GuJcqDfJETagkT0T2FbgZUXttoKWVBW5zU3SkbWun4j5xPh0CPbMAMeleMMfA";   /* v958-B2a : token MapKit JS DOMAINE-RESTREINT (portail Apple, origin=tchantchoufidele11-sys.github.io) a coller ici ; jamais la cle .p8. Vide -> MapKit inactif (B2b retombe sur Google). */
 function deviceId(){ try{ let d=localStorage.getItem("mv_device_id"); if(!d){ d=(crypto.randomUUID?crypto.randomUUID():("dev-"+Date.now()+"-"+Math.random().toString(36).slice(2))); localStorage.setItem("mv_device_id",d); } return d; }catch(e){ return "anon"; } }
 function googleReady(){ return true; } /* Phase A : Google passe par le Worker, plus de clé utilisateur requise */
 async function workerFetch(path,body,signal){
@@ -3598,7 +3599,7 @@ const DEFAULT_S={ version:"0.2.0", settings:{ lang:"fr", theme:"system", units:"
 /* Clé Maps JS partagée (restreinte au domaine GitHub Pages). Repli : clé perso de l'utilisateur si fournie. */
 const SHARED_MAP_KEY="AIzaSyCt5iVx8nPr1V067A3daE0X1YA568XJNbU";
 function mapKey(){ return (S.settings.mapKey||"").trim() || SHARED_MAP_KEY; }
-const BUILD="0.6.49 · v958 route-fallback-a";
+const BUILD="0.6.55 · v964 mapkit-b2a2";
 let _idb=null; const _migrationReady=migrateLegacy(); let S=loadState();
 function normalizeTrip(tr){ if(!tr||typeof tr!=="object") return tr;
   tr.id=tr.id||("t"+Date.now()+Math.random().toString(36).slice(2,7));
@@ -8100,16 +8101,16 @@ function buildBudgetDayRoutePoints(tr, day){   /* même ordre + transferts que l
   const push=(pt,label,type,itemId)=>{ const prev=pts[pts.length-1]; if(prev&&Math.abs(prev.lat-pt.lat)<1e-7&&Math.abs(prev.lng-pt.lng)<1e-7) return; pts.push({lat:pt.lat,lng:pt.lng,label:label||"",type,itemId}); };
   for(const it of items){ if(it&&it._trans){ if(dt&&dt.toLeg){ const pt=routeLegAnchor(dt.toLeg); if(pt) push(pt,"","transfer",it.id); } continue; } const pt=_rcPoint(it); if(!pt) continue; push(pt,(it.title||""),"stop",it.id); }
   return pts; }
-async function computeBudgetHubRoute(tr){   /* domicile -> hub de départ (avion/bateau) en km canoniques Google ; jamais tripDistance/haversine/faux 0 */
+async function computeBudgetHubRoute(tr, snapWrites){   /* domicile -> hub de départ (avion/bateau) en km canoniques Google ; jamais tripDistance/haversine/faux 0 */
   const R={meters:0, unavailable:false, expected:false}; if(!tr) return R;
   if(!(tr.transport==="plane" || tr.transport==="boat")) return R;   /* non applicable -> aucun changement */
   R.expected=true;
   const dep=_rcPoint(tr.depart), hub=_rcPoint(tr.depHub);
   if(!dep || !hub){ R.unavailable=true; return R; }   /* attendu mais coordonnées absentes */
-  let r=null; try{ r=await routeProvider.computeRoute({points:[dep,hub], mode:"DRIVE"}); }catch(_e){ r=null; }
+  let r=null; try{ r=await budgetRouteSegment(tr,[dep,hub],"DRIVE",false,snapWrites); }catch(_e){ r=null; }
   if(!r || !Number.isFinite(r.distanceMeters) || r.distanceMeters<=0){ R.unavailable=true; return R; }   /* provider échoue -> non calculable, jamais de fallback */
   R.meters=r.distanceMeters; return R; }
-async function computeBudgetArrHubRoute(tr){   /* arrHub -> firstBase (+ lastBase -> returnHub || arrHub si retour) ; taxi seul route ; jamais tripDistance/haversine/faux 0 */
+async function computeBudgetArrHubRoute(tr, snapWrites){   /* arrHub -> firstBase (+ lastBase -> returnHub || arrHub si retour) ; taxi seul route ; jamais tripDistance/haversine/faux 0 */
   const R={expected:false, unavailable:false, priceUnavailable:false, arrMeters:0, retMeters:0, mode:null}; if(!tr) return R;
   if(!(tr.transport==="plane"||tr.transport==="boat")) return R;
   const mode=tr.arrHubMode||null; if(!mode) return R;   /* non configuré -> non applicable, aucun incomplete */
@@ -8121,17 +8122,17 @@ async function computeBudgetArrHubRoute(tr){   /* arrHub -> firstBase (+ lastBas
   const firstBase=_firstLeg?routeLegAnchor(_firstLeg):(_rcPoint(tr.lodging)||_rcPoint(tr.dest));   /* ancre STRICTE : lodging || dest, jamais une autre étape */
   const lastBase=_lastLeg?routeLegAnchor(_lastLeg):(_rcPoint(tr.lodging)||_rcPoint(tr.dest));
   if(!hub || !firstBase){ R.unavailable=true; return R; }
-  let ro=null; try{ ro=await routeProvider.computeRoute({points:[hub,firstBase], mode:"DRIVE"}); }catch(_e){ ro=null; }
+  let ro=null; try{ ro=await budgetRouteSegment(tr,[hub,firstBase],"DRIVE",false,snapWrites); }catch(_e){ ro=null; }
   if(!ro || !Number.isFinite(ro.distanceMeters) || ro.distanceMeters<=0){ R.unavailable=true; return R; }
   R.arrMeters=ro.distanceMeters;
   if(tr.arrHubRoundTrip){   /* retour : deux courses distinctes, atomique */
     const retHub=(tr.returnHub!=null)?_rcPoint(tr.returnHub):hub;   /* returnHub absent -> arrHub (rétrocompat) ; présent mais coords invalides -> null (jamais de fallback silencieux) */
     if(!lastBase || !retHub){ R.unavailable=true; return R; }
-    let rr=null; try{ rr=await routeProvider.computeRoute({points:[lastBase,retHub], mode:"DRIVE"}); }catch(_e){ rr=null; }
+    let rr=null; try{ rr=await budgetRouteSegment(tr,[lastBase,retHub],"DRIVE",false,snapWrites); }catch(_e){ rr=null; }
     if(!rr || !Number.isFinite(rr.distanceMeters) || rr.distanceMeters<=0){ R.unavailable=true; return R; }
     R.retMeters=rr.distanceMeters; }
   return R; }
-async function computeBudgetRouteMeters(tr){   /* retourne des MÈTRES canoniques classés ; jamais de haversine ni de 0 inventé */
+async function computeBudgetRouteMeters(tr, snapWrites){   /* retourne des MÈTRES canoniques classés ; jamais de haversine ni de 0 inventé */
   const R={mainTripMeters:0, localMeters:0, interLegMeters:0, unavailableDays:[]}; if(!tr) return R;
   const _dayRouteMap={};   /* v958-A : jour -> {sig} (reference vers tr._routeSnap, aucune duplication de metres/provider) */
   /* A. trajet principal domicile <-> base destination — voiture terrestre uniquement (avion/bateau : poste hub séparé, plus tard) */
@@ -8143,8 +8144,8 @@ async function computeBudgetRouteMeters(tr){   /* retourne des MÈTRES canonique
     const lastBase=_lastLeg?routeLegAnchor(_lastLeg):(_rcPoint(tr.lodging)||_rcPoint(tr.dest));   /* dernière étape sans coords -> null -> main unavailable, JAMAIS un faux retour depuis la 1re étape */
     if(!dep || !firstBase || !lastBase){ R.unavailableDays.push("main"); }   /* coordonnées absentes -> non calculable (jamais un faux 0) */
     else { let ro=null, rb=null;
-      try{ ro=await budgetRouteSegment(tr,[dep,firstBase],"DRIVE",false); }catch(_e){ ro=null; }
-      try{ rb=await budgetRouteSegment(tr,[lastBase,dep],"DRIVE",false); }catch(_e){ rb=null; }   /* aller et retour calculés séparément (peuvent différer) */
+      try{ ro=await budgetRouteSegment(tr,[dep,firstBase],"DRIVE",false,snapWrites); }catch(_e){ ro=null; }
+      try{ rb=await budgetRouteSegment(tr,[lastBase,dep],"DRIVE",false,snapWrites); }catch(_e){ rb=null; }   /* aller et retour calculés séparément (peuvent différer) */
       const okO=ro&&Number.isFinite(ro.distanceMeters)&&ro.distanceMeters>0, okB=rb&&Number.isFinite(rb.distanceMeters)&&rb.distanceMeters>0;
       if(okO && okB) R.mainTripMeters=ro.distanceMeters+rb.distanceMeters;   /* home->firstBase + lastBase->home */
       else R.unavailableDays.push("main"); } }   /* ATOMIQUE : une seule direction échoue -> 0 + main unavailable, aucun demi-trajet */
@@ -8156,14 +8157,14 @@ async function computeBudgetRouteMeters(tr){   /* retourne des MÈTRES canonique
     const pts=buildBudgetDayRoutePoints(tr, i); const _bTi=pts?pts.findIndex(p=>p&&p.type==="transfer"):-1;
     if(_bHasTrans && (!pts || _bTi<=0)){ R.unavailableDays.push(i); continue; }   /* transfert attendu sans segment entrant A->B -> jour non calculable, MÊME avec 0/1 point (avant le filtre <2) */
     if(!pts || pts.length<2) continue;
-    let r=null; try{ r=await budgetRouteSegment(tr, pts, "DRIVE", false); }catch(_e){ r=null; }
+    let r=null; try{ r=await budgetRouteSegment(tr, pts, "DRIVE", false, snapWrites); }catch(_e){ r=null; }
     if(!r || !Array.isArray(r.legs) || r.legs.length!==(pts.length-1)){ R.unavailableDays.push(i); continue; }   /* données incomplètes -> jour marqué, jamais 0 km */
     let dayLocal=0, dayInter=0, ok=true;   /* journée ATOMIQUE : accumulation temporaire */
     for(let k=0;k<r.legs.length;k++){ const lg=r.legs[k]; const arrival=pts[k+1]; if(!lg || !Number.isFinite(lg.distanceMeters)){ ok=false; break; }
       if(arrival && arrival.type==="transfer") dayInter+=lg.distanceMeters; else dayLocal+=lg.distanceMeters; }   /* A->B compté UNE fois via le leg d'arrivée transfer */
     if(!ok){ R.unavailableDays.push(i); continue; }   /* un seul leg invalide -> aucun km partiel conservé */
     _dayRouteMap[i]={sig:r.sig}; R.localMeters+=dayLocal; R.interLegMeters+=dayInter; }   /* v958-A : jour calcule -> reference son segment */
-  tr._budgetDayRoute=_dayRouteMap; return R; }
+  R.dayRouteMap=_dayRouteMap; return R; }   /* v958-A P1 : retourne le mapping, ne touche PAS tr (commit differe apres anti-stale) */
 function _dayHasRemainingRouteDestination(tr, day){   /* destination restante NON terminée : lecture pure, aucun faux point, aucun réseau */
   const items=(typeof dayRouteItemsSnapshot==="function")?dayRouteItemsSnapshot(tr, day):[];
   const dt=(typeof routeTransitionForDay==="function")?routeTransitionForDay(tr, day):null;
@@ -8194,7 +8195,7 @@ function routeSignature(request){ request=request||{}; const mode=request.mode||
 
 /* ===== v958-A : cascade Apple->Google + snapshot Budget deterministe ===== */
 const ROUTE_POLICY_VERSION="route-v958";
-let _budgetSnapDirty=false;   /* module : au moins un snapshot ecrit pendant ce calcul Budget -> un seul saveState en fin */
+const UI_ROUTE_POLICY="route-ui-v1";   /* v958-B1 : version de politique Route UI (Apple->Google) ; bump = invalidation propre du cache tr._routeCore */
 
 /* signature PROVIDER-AGNOSTIQUE : un segment est defini par sa geometrie, jamais par le provider (le provider est le RESULTAT). */
 function budgetRouteSignature(request){ request=request||{}; const mode=request.mode||"DRIVE";
@@ -8202,27 +8203,37 @@ function budgetRouteSignature(request){ request=request||{}; const mode=request.
   const _dep=normalizeRouteDepartureTime(request.departureTime); const depKey=(mode==="TRANSIT"&&_dep)?_dep:"";
   return [mode, pts, request.avoidTolls?"1":"0", depKey].join("|"); }
 
+/* v958-B1 : signature de politique Route UI, PROVIDER-INDEPENDANTE (le provider reel est dans le resultat). Versionnee -> bump = cache invalide. */
+function uiRouteSignature(request){ request=request||{}; const mode=request.mode||"DRIVE";
+  const pts=(request.points||[]).map(_rcPoint).filter(Boolean).map(p=>p.lat.toFixed(5)+","+p.lng.toFixed(5)).join(">");
+  const _dep=normalizeRouteDepartureTime(request.departureTime); const depKey=(mode==="TRANSIT"&&_dep)?_dep:"";
+  return [UI_ROUTE_POLICY, mode, pts, request.avoidTolls?"1":"0", depKey].join("|"); }
+
 /* cascade voulue et explicite : validation LOCALE d'abord, puis Apple -> Google. */
 async function routeCascade(request){ request=request||{}; const mode=request.mode||"DRIVE";
-  const valid=(request.points||[]).map(_rcPoint).filter(Boolean);
-  if(valid.length<2) return null;   /* requete invalide -> 0 appel reseau, aucune cascade inutile */
-  const order=["apple","google"];   /* ordre confirme par la campagne (distance ~0%) ; Google secours n1 */
-  for(let lvl=0; lvl<order.length; lvl++){ const prov=order[lvl];
-    if(!routeProvider.supports(prov, mode)) continue;   /* provider non compatible (ex. apple+TRANSIT) -> skip, PAS un fallback */
+  const raw=(request.points||[]); const valid=raw.map(_rcPoint).filter(Boolean);
+  if(valid.length<2 || valid.length!==raw.length) return null;   /* v958-A P2 : STRICT -> tout point invalide rejette la requete (0 appel, aucun A->C silencieux) */
+  const order=["apple","google"]; let attempted=0;   /* fallbackLevel = providers REELLEMENT tentes+echoues avant le succes ; un skip (mode non supporte) ne consomme PAS de niveau */
+  for(const prov of order){
+    if(!routeProvider.supports(prov, mode)) continue;   /* non compatible (Apple+TRANSIT) -> skip, PAS un fallback */
     let res=null; try{ res=await routeProvider.computeRoute(Object.assign({}, request, {provider:prov})); }catch(_e){ res=null; }
     if(res && res.provider===prov && Number.isFinite(res.distanceMeters) && res.distanceMeters>0 && Number.isFinite(res.durationSeconds) && res.durationSeconds>0){
-      return { result:res, provider:prov, fallbackLevel:lvl }; }   /* premier resultat VALIDE de ce provider */
-  }   /* echec reel (null/timeout/5xx/no_route/invalide) -> provider suivant ; reponse valide-mais-differente n'arrive jamais ici (elle serait deja retournee) */
+      return { result:res, provider:prov, fallbackLevel:attempted }; }   /* niveau = nb de providers tentes avant celui-ci */
+    attempted++;   /* ce provider a ete REELLEMENT tente et a echoue */
+  }
   return null; }   /* tous echoue -> null, jamais de faux snapshot */
 
 function _routeSnapStore(tr){ if(!tr._routeSnap || typeof tr._routeSnap!=="object") tr._routeSnap={}; return tr._routeSnap; }
 
-/* segment Budget : lit le snapshot fige par segSig (0 appel) ; sinon cascade -> persiste. SEUL ecrivain de tr._routeSnap. */
-async function budgetRouteSegment(tr, points, mode, avoidTolls){
+/* segment Budget : lit le staging du calcul courant puis le snapshot fige (0 appel) ; sinon cascade -> STAGE dans snapWrites. Ne touche JAMAIS tr._routeSnap ; c'est _runEstimate qui commit apres le controle anti-stale. */
+async function budgetRouteSegment(tr, points, mode, avoidTolls, snapWrites){
+  const _raw=(points||[]); const _valid=_raw.map(_rcPoint).filter(Boolean);
+  if(_valid.length<2 || _valid.length!==_raw.length) return null;   /* v958-A P2 : STRICT -> point invalide -> null AVANT toute signature/cache-hit */
   const sig=budgetRouteSignature({points, mode, avoidTolls});
-  const store=_routeSnapStore(tr); const snap=store[sig];
-  if(snap && snap.policyVersion===ROUTE_POLICY_VERSION && Number.isFinite(snap.distanceMeters) && snap.distanceMeters>0 && Number.isFinite(snap.durationSeconds) && snap.durationSeconds>0){
-    return snap; }   /* HIT : meme sig + snapshot valide -> 0 Apple, 0 Google, resultat exact */
+  const staged=snapWrites && snapWrites[sig]; if(staged) return staged;   /* deja calcule dans CE calcul (dedup intra-calcul) */
+  const persisted=(tr && tr._routeSnap)?tr._routeSnap[sig]:null;
+  if(persisted && persisted.policyVersion===ROUTE_POLICY_VERSION && Number.isFinite(persisted.distanceMeters) && persisted.distanceMeters>0 && Number.isFinite(persisted.durationSeconds) && persisted.durationSeconds>0){
+    return persisted; }   /* HIT snapshot FIGE d'un calcul precedent (lecture seule) -> 0 Apple, 0 Google */
   const casc=await routeCascade({points, mode, avoidTolls});
   if(!casc || !casc.result) return null;   /* echec total -> null, aucun faux snapshot a 0 */
   const res=casc.result;
@@ -8230,7 +8241,7 @@ async function budgetRouteSegment(tr, points, mode, avoidTolls){
     distanceMeters:res.distanceMeters, durationSeconds:res.durationSeconds,
     legs:(res.legs||[]).map(l=>({distanceMeters:l.distanceMeters, durationSeconds:l.durationSeconds})),
     calculatedAt:Date.now(), policyVersion:ROUTE_POLICY_VERSION };
-  store[sig]=fresh; _budgetSnapDirty=true;   /* nouveau snapshot -> a persister (un seul saveState en fin de calcul) */
+  if(snapWrites) snapWrites[sig]=fresh;   /* v958-A P1 : STAGING -> jamais tr._routeSnap directement ; commit differe apres anti-stale (un calcul stale n'ecrit rien) */
   return fresh; }
 
 const routeProvider={ active:"google",   /* APPLE A : registre de providers + resolver ; Google par défaut, sorties identiques à v951 */
@@ -8304,9 +8315,8 @@ async function ensureDayRouteCore(tr, day, options){ options=options||{}; if(!tr
     return null; }
   const mode=_routeCoreMode(tr,options);
   const dep=(mode==="TRANSIT")?normalizeRouteDepartureTime(options.departureTime):null;
-  const provider=routeProvider.resolve(mode, options.provider || routeProvider.active);   /* résoudre le provider AVANT de signer : on signe le provider réellement utilisé (pas celui demandé), sinon un résultat Apple pourrait être caché sous une clé google */
-  const request={ provider, points, mode, avoidTolls:!!options.avoidTolls, departureTime:dep };
-  const sig=routeSignature(request);
+  const request={ points, mode, avoidTolls:!!options.avoidTolls, departureTime:dep };   /* v958-B1 : pas de provider fige -> la cascade decide */
+  const sig=uiRouteSignature(request);   /* v958-B1 : signature de POLITIQUE UI (provider-independante, versionnee) */
   const hasLiveOrigin=!!_rcPoint(options.liveOrigin);
   const cacheable=!hasLiveOrigin && ((mode!=="TRANSIT") || !!dep);   /* live GPS OU TRANSIT sans heure -> calcul autorisé mais JAMAIS de cache durable/persisté (aucune coord live dans tr) */
   if(cacheable) _routeCoreLatest[latestKey]=sig;   /* jamais mis à jour pour une requête non-cacheable */
@@ -8315,12 +8325,13 @@ async function ensureDayRouteCore(tr, day, options){ options=options||{}; if(!tr
   const key=(tr.id||"?")+"|"+day+"|"+sig;
   if(_routeCoreInflight[key]) return _routeCoreInflight[key];   /* anti-rafale : une seule promesse par day|sig */
   const run=(async()=>{
-    let res=null; try{ res=await routeProvider.computeRoute(request); }catch(_e){ return null; }   /* exception provider -> null, jamais propagée à ROUTE UI */
-    if(!res) return null;   /* échec réseau/Google : cache existant préservé, jamais de faux 0 */
+    let casc=null; try{ casc=await routeCascade(request); }catch(_e){ return null; }   /* v958-B1 : cascade explicite Apple->Google (routeProvider.active reste "google") ; exception -> null, jamais propagee a ROUTE UI */
+    if(!casc || !casc.result) return null;   /* echec des deux providers : cache existant preserve */
+    const res=casc.result;
     const okLegs=Array.isArray(res.legs) && res.legs.length===(points.length-1);
     const okNums=Number.isFinite(res.distanceMeters) && res.distanceMeters>0 && Number.isFinite(res.durationSeconds) && res.durationSeconds>0 && res.legs.every(l=>l && Number.isFinite(l.distanceMeters) && Number.isFinite(l.durationSeconds));
     if(!okLegs || !okNums) return null;   /* incomplet/incohérent -> jamais de faux 0 km */
-    const canonical={ sig, provider:res.provider, calculatedAt:res.calculatedAt, mode:res.mode, origin:res.origin, destination:res.destination, distanceMeters:res.distanceMeters, durationSeconds:res.durationSeconds, legs:res.legs, polyline:res.polyline };
+    const canonical={ sig, provider:res.provider, fallbackLevel:casc.fallbackLevel, uiPolicyVersion:UI_ROUTE_POLICY, calculatedAt:res.calculatedAt, mode:res.mode, origin:res.origin, destination:res.destination, distanceMeters:res.distanceMeters, durationSeconds:res.durationSeconds, legs:res.legs, polyline:res.polyline };   /* v958-B1 : provider REEL + niveau de fallback memorises */
     if(cacheable && _routeCoreLatest[latestKey]===sig){ store[day]=canonical; try{ saveState(); }catch(_e){} }   /* commit seulement si cacheable ET toujours la dernière signature demandée (anti stale-write) */
     return canonical;   /* renvoyé au caller même si non commité */
   })();
@@ -8636,7 +8647,7 @@ function renderPlan(){ try{ if(!_storeHydrating && _ensureLegIds(currentTrip())>
   const distBreakHtml=(_transStep&&_localKm>=1&&_dayKmC>0)?`<div class="ds-fuel">🚗 ${t("plan.travel")} · <b>${fmtDist(_dayKmC*1000)}</b> <span class="ds-costs">${t("plan.distBreak",{a:fmtDist(_transKm*1000),b:fmtDist(_localKm*1000)})}</span></div>`:"";
   const statsHtml=items.length?`<div class="day-stats"><div class="dstat"><svg class="dst-svg" viewBox="0 0 24 24"><path d="M12 21s-7-6.2-7-11a7 7 0 0 1 14 0c0 4.8-7 11-7 11z"/><circle cx="12" cy="10" r="2.4"/></svg><div><b>${stops.length} ${t(stops.length<=1?"plan.step":"plan.steps")}</b><span>${t("plan.visitsTime")}</span></div></div><div class="dstat"><svg class="dst-svg" viewBox="0 0 24 24"><path d="M6 19a3 3 0 0 1 0-6h8a3 3 0 0 0 0-6H6"/><circle cx="6" cy="19" r="1.5"/><circle cx="18" cy="7" r="1.5"/></svg><div><b class="rc-dist">…</b><span>${t("plan.travel")}</span></div></div>${(stops.length>1)?`<div class="dstat"><span class="dst-em">${modeEmoji(travelMode(tr))}</span><div><b><span class="rc-dur">…</span><span id="dstTraffic"></span></b><span>${t("plan.travelTime")}</span></div></div>`:""}<div class="dstat"><svg class="dst-svg" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.5"/><path d="M12 7.5V12l3 2"/></svg><div><b>${endT||"—"}</b><span>${t("plan.end")}</span></div></div></div>`:"";
   const hasNavRoute=(()=>{ try{ return routeCanNavigate(buildDayRoutePoints(tr,d.i,{})); }catch(_e){ return false; } })();   /* P2 : « Y aller » dispo dès qu'une route canonique existe (même transfert sans visite) */
-  const actsHtml=items.length?`${(!ro&&stops.length>=2)?`<div class="day-acts primary"><button class="dact primary" id="optDay">✨ ${t("plan.optimize")}</button></div>`:""}<div class="act-bar"><div class="act-cells">${hasNavRoute?`<button class="acell" id="navDay" title="${escapeHtml(t("map.launch"))}"><svg class="aci" viewBox="0 0 24 24"><path d="M3 11l18-8-8 18-2-8z"/></svg><span class="al">${t("plan.aNav")}</span></button>`:""}${stops.length?`<button class="acell" id="calDay" title="${escapeHtml(t("map.cal"))}"><svg class="aci" viewBox="0 0 24 24"><rect x="3.5" y="5" width="17" height="15" rx="2.5"/><path d="M3.5 9.5h17M8 3v4M16 3v4"/></svg><span class="al">${t("plan.aCal")}</span></button>`:""}${(!ro&&stops.length)?`<button class="acell arrive" id="arriveDay" title="${escapeHtml(t("gps.arrive"))}"><svg class="aci" viewBox="0 0 24 24"><path d="M12 21s-7-6.2-7-11a7 7 0 0 1 14 0c0 4.8-7 11-7 11z"/><circle cx="12" cy="10" r="2.4"/></svg><span class="al">${t("plan.aArrive")}</span></button>`:""}${(!ro&&!hasMeal)?`<button class="acell" id="lunchDay" title="${escapeHtml(t("plan.lunch"))}"><svg class="aci" viewBox="0 0 24 24"><path d="M4 8h12v5a4 4 0 0 1-4 4H8a4 4 0 0 1-4-4z"/><path d="M16 9h2.5a2.5 2.5 0 0 1 0 5H16"/></svg><span class="al">${t("plan.aPause")}</span></button>`:""}</div><button class="acell toggle" id="toggleList" title="${escapeHtml(planState.collapsed?t("plan.showList"):t("plan.hideList"))}" aria-label="${escapeHtml(planState.collapsed?t("plan.showList"):t("plan.hideList"))}">${planState.collapsed?"▸":"▾"}</button></div>`:"";
+  const actsHtml=items.length?`${(!ro&&stops.length>=2)?`<div class="day-acts primary"><button class="dact primary" id="optDay">✨ ${t("plan.optimize")}</button></div>`:""}<div class="act-bar"><div class="act-cells">${hasNavRoute?`<button class="acell" id="navDay" title="${escapeHtml(t("map.launch"))+" (Apple Plans)"}"><svg class="aci" viewBox="0 0 24 24"><path d="M3 11l18-8-8 18-2-8z"/></svg><span class="al">${t("plan.aNav")}</span></button><button class="acell" id="navDayG" title="Google Maps" aria-label="Google Maps"><svg class="aci" viewBox="0 0 24 24"><path d="M12 2a7 7 0 0 0-7 7c0 5 7 13 7 13s7-8 7-13a7 7 0 0 0-7-7zm0 9.5A2.5 2.5 0 1 1 12 6.5a2.5 2.5 0 0 1 0 5z"/></svg><span class="al">Google</span></button>`:""}${stops.length?`<button class="acell" id="calDay" title="${escapeHtml(t("map.cal"))}"><svg class="aci" viewBox="0 0 24 24"><rect x="3.5" y="5" width="17" height="15" rx="2.5"/><path d="M3.5 9.5h17M8 3v4M16 3v4"/></svg><span class="al">${t("plan.aCal")}</span></button>`:""}${(!ro&&stops.length)?`<button class="acell arrive" id="arriveDay" title="${escapeHtml(t("gps.arrive"))}"><svg class="aci" viewBox="0 0 24 24"><path d="M12 21s-7-6.2-7-11a7 7 0 0 1 14 0c0 4.8-7 11-7 11z"/><circle cx="12" cy="10" r="2.4"/></svg><span class="al">${t("plan.aArrive")}</span></button>`:""}${(!ro&&!hasMeal)?`<button class="acell" id="lunchDay" title="${escapeHtml(t("plan.lunch"))}"><svg class="aci" viewBox="0 0 24 24"><path d="M4 8h12v5a4 4 0 0 1-4 4H8a4 4 0 0 1-4-4z"/><path d="M16 9h2.5a2.5 2.5 0 0 1 0 5H16"/></svg><span class="al">${t("plan.aPause")}</span></button>`:""}</div><button class="acell toggle" id="toggleList" title="${escapeHtml(planState.collapsed?t("plan.showList"):t("plan.hideList"))}" aria-label="${escapeHtml(planState.collapsed?t("plan.showList"):t("plan.hideList"))}">${planState.collapsed?"▸":"▾"}</button></div>`:"";
   const _veh=tr.veh||{}; const _fd=fuelDefault(_veh.fuel);
   const _conso=parseFloat(String(_veh.conso||"").replace(",","."))||_fd.conso; const _price=parseFloat(String(_veh.price||"").replace(",","."))||fuelPrice((destForDay(tr,d.i)||tr.dest||{}).cc,_veh.fuel);
   const _dayKm=_dayKmC;
@@ -8665,7 +8676,7 @@ function renderPlan(){ try{ if(!_storeHydrating && _ensureLegIds(currentTrip())>
   { const _tb=body.querySelector("#addTransBtn"); if(_tb) _tb.onclick=()=>addTransitionStep(d.i); }
   renderDayRoute(tr, d.i, ro);   /* ROUTE UI : distance/durée réelles depuis _routeCore */
   if(!ro){ (tr.plan||[]).filter(x=>x.day===d.i&&x._trans).forEach(_it=>ensureTransRoute(tr,_it)); }   /* R2 : inclure les occupés pour actualiser la signature voulue */
-  { const od=body.querySelector("#optDay"); if(od) od.onclick=optimizeDay; const ld=body.querySelector("#lunchDay"); if(ld) ld.onclick=chooseMeal; const ar=body.querySelector("#arriveDay"); if(ar) ar.onclick=arriveHere; const nv=body.querySelector("#navDay"); if(nv) nv.onclick=launchDayMaps; const cl=body.querySelector("#calDay"); if(cl) cl.onclick=exportDayIcs; }
+  { const od=body.querySelector("#optDay"); if(od) od.onclick=optimizeDay; const ld=body.querySelector("#lunchDay"); if(ld) ld.onclick=chooseMeal; const ar=body.querySelector("#arriveDay"); if(ar) ar.onclick=arriveHere; const nv=body.querySelector("#navDay"); if(nv) nv.onclick=function(){ launchDayMaps("apple"); }; const nvg=body.querySelector("#navDayG"); if(nvg) nvg.onclick=function(){ launchDayMaps("google"); }; const cl=body.querySelector("#calDay"); if(cl) cl.onclick=exportDayIcs; }
   { const tg=body.querySelector("#toggleList"); if(tg) tg.onclick=()=>{ planState.collapsed=!planState.collapsed; renderPlan(); }; }
   body.querySelectorAll(".js-planmode").forEach(b=>b.onclick=()=>{ _planDetailed=!_planDetailed; try{localStorage.setItem("mv_plan_detailed",_planDetailed?"1":"0");}catch(e){} renderPlan(); });
   { const mw=body.querySelector("#mapWrap"), mf=body.querySelector("#mapFull"); if(mf&&mw) mf.onclick=()=>{ const full=mw.classList.toggle("full"); mf.textContent=full?"✕":"⛶"; document.body.classList.toggle("map-locked",full); const el=document.getElementById("planMap"); if(el&&el._gmap&&window.google&&google.maps){ const g=el._gmap, f=el._fit; const c=g.getCenter();
@@ -9052,17 +9063,26 @@ function _routeUseMyPosition(tripId, day){ if(!navigator.geolocation){ toast(t("
     renderDayRoute(cur, day, isPlanDayReadOnly(cur,day)); },
     function(){ const cur=currentTrip(); if(!cur || cur.id!==tripId || planState.dayIndex!==day) return; const _planned=!!resolveDayOrigin(cur, day, {}); toast(t(_planned?"route.gpsRefused":"route.gpsRefusedNoRoute")); }   /* refus : garde tripId/day + message selon origine planifiée */
   ); }
-function launchDayMaps(){ const tr=currentTrip(); if(!tr) return; const day=planState.dayIndex;
+function launchDayMaps(provider){ const tr=currentTrip(); if(!tr) return; const day=planState.dayIndex;
   const all=buildDayRoutePoints(tr, day, _routeUILiveOpt(tr,day));   /* ROUTE UI : même ordre + origine que ROUTE CORE */
   if(!routeCanNavigate(all)){ toast(t("gps.noStops")); return; }   /* une origine seule n'est pas une destination */
   const f=p=>(+p.lat).toFixed(6)+","+(+p.lng).toFixed(6);
-  if(all.length<2){ const s0=all[0]; openExt(gmapsDir(s0.lat,s0.lng,travelMode(tr))); return; }
-  const origin=all[0], destination=all[all.length-1]; let mids=all.slice(1,-1);
-  if(mids.length>9){ mids=mids.slice(0,9); toast(t("map.tooMany")); }
-  const tm=({DRIVE:"driving",WALK:"walking",BICYCLE:"bicycling",TRANSIT:"transit"})[travelMode(tr)]||"driving";
-  let url="https://www.google.com/maps/dir/?api=1&origin="+f(origin)+"&destination="+f(destination)+"&travelmode="+tm;
-  if(mids.length) url+="&waypoints="+mids.map(f).join("|");
+  const mode=travelMode(tr);
+  if(provider==="google"){   /* v958-B3 : alternative explicite Google Maps (handoff URL, aucune cle) */
+    const gm=({DRIVE:"driving",WALK:"walking",BICYCLE:"bicycling",TRANSIT:"transit"})[mode]||"driving";
+    if(all.length<2){ openExt(gmapsDir(all[0].lat,all[0].lng,mode)); return; }
+    const o=all[0], d=all[all.length-1]; let mids=all.slice(1,-1); if(mids.length>9){ mids=mids.slice(0,9); toast(t("map.tooMany")); }
+    let url="https://www.google.com/maps/dir/?api=1&origin="+f(o)+"&destination="+f(d)+"&travelmode="+gm;
+    if(mids.length) url+="&waypoints="+mids.map(f).join("|");
+    openExt(url); return; }
+  /* v958-B3 : Apple Maps par defaut (Unified Maps URLs, iOS 18.4+/mac 15.4+ ; sinon web maps.apple.com) ; vélo = cycling */
+  const am=({DRIVE:"driving",WALK:"walking",BICYCLE:"cycling",TRANSIT:"transit"})[mode]||"driving";
+  if(all.length<2){ openExt("https://maps.apple.com/directions?destination="+f(all[0])+"&mode="+am); return; }
+  const o=all[0], d=all[all.length-1]; let mids=all.slice(1,-1); if(mids.length>9){ mids=mids.slice(0,9); toast(t("map.tooMany")); }
+  let url="https://maps.apple.com/directions?source="+f(o)+"&destination="+f(d)+"&mode="+am;
+  if(mids.length) url+=mids.map(p=>"&waypoint="+f(p)).join("");   /* waypoint repete (max Magot 9), jamais de suppression silencieuse */
   openExt(url); }
+
 function _icsEsc(x){ return String(x||"").replace(/([\\,;])/g,"\\$1").replace(/\n/g,"\\n"); }
 function _icsDt(date,hhmm){ const pp=n=>String(n).padStart(2,"0"); const a=(hhmm||"09:00").split(":"); const d=new Date(date.getTime()); d.setHours(+a[0]||0,+a[1]||0,0,0);
   return d.getFullYear()+pp(d.getMonth()+1)+pp(d.getDate())+"T"+pp(d.getHours())+pp(d.getMinutes())+"00"; }
@@ -9461,6 +9481,28 @@ async function loadWeather(tr,date,day,maxAgeMs){ if(maxAgeMs==null) maxAgeMs=18
 let _mapsP=null;
 function loadMaps(){ if(window.google&&window.google.maps) return Promise.resolve(); if(_mapsP) return _mapsP; const key=mapKey(); if(!key) return Promise.reject("nokey");
   _mapsP=new Promise((res,rej)=>{ const s=document.createElement("script"); s.src="https://maps.googleapis.com/maps/api/js?key="+encodeURIComponent(key)+"&libraries=geometry&language="+lang(); s.async=true; s.defer=true; s.onload=()=>res(); s.onerror=()=>{ _mapsP=null; rej("load"); }; document.head.appendChild(s); }); return _mapsP; }
+
+/* v958-B2a : chargement MapKit JS (token domaine-restreint cote navigateur ; la cle .p8 ne va JAMAIS dans l'app). ADDITIF : ne touche ni Budget, ni Route UI, ni Nav. */
+const MAPKIT_LIBS=["map","annotations","overlays","services"];   /* v958-B2a : bibliotheques OBLIGATOIRES pour B2b (carte + annotations + overlays + services) */
+function mapKitReady(){ const libs=window.mapkit && window.mapkit.loadedLibraries; return Array.isArray(libs) && MAPKIT_LIBS.every(x=>libs.includes(x)); }   /* v958-B2a P2 : MapKit JS 6 appelle data-callback meme si une lib echoue -> exiger TOUTES les libs (jamais un faux positif sur ["services"] seul) */
+let _mapkitP=null;
+function loadMapKit(){
+  if(mapKitReady()) return Promise.resolve(window.mapkit);
+  if(_mapkitP) return _mapkitP;
+  if(!MAPKIT_TOKEN) return Promise.reject(new Error("mapkit_no_token"));   /* token non configure -> MapKit inactif (B2b retombera sur Google) */
+  _mapkitP=new Promise((res,rej)=>{
+    const ready=()=>{ try{ delete window.initMapKit; }catch(_e){} if(mapKitReady()) res(window.mapkit); else rej(new Error("mapkit_library_load")); };   /* callback avec liste partielle -> rejet, B2b cascade vers Google */
+    window.initMapKit=ready;
+    const el=document.createElement("script");
+    el.src="https://cdn.apple-mapkit.com/mk/6/mapkit.core.js"; el.crossOrigin="anonymous"; el.async=true;
+    el.dataset.callback="initMapKit"; el.dataset.libraries=MAPKIT_LIBS.join(","); el.dataset.token=MAPKIT_TOKEN;
+    el.onerror=()=>{ try{ delete window.initMapKit; }catch(_e){} rej(new Error("mapkit_sdk_load")); };
+    document.head.appendChild(el);
+  });
+  _mapkitP.catch(()=>{ _mapkitP=null; });   /* echec -> autoriser une nouvelle tentative */
+  return _mapkitP; }
+/* v958-B2a : auto-test live (console). Sur le domaine autorise du token : loadMapKit() doit resoudre. */
+function mapkitSelfTest(){ return loadMapKit().then(mk=>({ok:true, libs:(mk.loadedLibraries||[]).slice()})).catch(e=>({ok:false, error:String((e&&e.message)||e)})); }
 /* Destination du jour : le tronçon (leg) du jour, repli sur la destination globale. */
 function destForDay(tr,day){ const d=(typeof destOfDay==="function")?destOfDay(tr,day):null; return (d&&d.name)?d:((tr&&tr.dest&&tr.dest.name)?tr.dest:null); }
 /* Base du jour (point de départ) : hébergement du tronçon du jour, sinon sa destination.
@@ -11017,8 +11059,13 @@ function _runEstimate(tr, sig){ const id=tr.id||"?"; const key=id+"|"+sig;   /* 
   const run=(async()=>{ let est=null; try{ est=await estimateBudget(tr); }catch(_e){ return null; }
     const current=(_estLatest.get(id)===sig) && (_estSignature(tr)===sig);   /* anti-stale sur le RESULTAT : un est obsolete ne sort JAMAIS du helper */
     if(!current) return null;   /* stale -> pas de _estCache, pas de tr.budget, pas de rerender issu de ce resultat */
-    _writeEstCache(tr, est, sig); if(_budgetSnapDirty){ _budgetSnapDirty=false; try{ saveState(); }catch(_e){} }   /* v958-A : un seul saveState, snapshots persistes (resultat non-stale uniquement) */
-    try{ const _ct=currentTrip(); if(_ct && _ct.id===(tr.id||"?") && typeof planState==="object" && planState.dayIndex!=null){ _paintDayCosts(tr, planState.dayIndex, _routeUIToken, tr.id); } }catch(_e){}   /* v958-A : le Budget vient de figer le snapshot -> notifie le daycard (lecteur pur) de re-lire ; _paintDayCosts ne declenche toujours rien lui-meme */
+    _writeEstCache(tr, est, sig);
+    const _writes=(est&&est._routeSnapWrites)||{}; const _hasWrites=Object.keys(_writes).length>0;
+    const _newMap=(est&&est._dayRouteMap)||{}; const _mapChanged=JSON.stringify(tr._budgetDayRoute||{})!==JSON.stringify(_newMap);
+    if(_hasWrites){ const _st=_routeSnapStore(tr); for(const _k in _writes) _st[_k]=_writes[_k]; }   /* v958-A P1 : commit des snapshots STAGES uniquement pour un calcul COURANT (un stale n'ecrit jamais tr._routeSnap) */
+    tr._budgetDayRoute=_newMap;   /* v958-A P1 : commit du mapping jour->sig APRES le controle anti-stale */
+    if(_hasWrites || _mapChanged){ try{ saveState(); }catch(_e){} }   /* v958-A P1 : un seul saveState (snapshots + mapping) */
+    try{ const _ct=currentTrip(); if(_ct && _ct.id===(tr.id||"?") && typeof planState==="object" && planState.dayIndex!=null){ _paintDayCosts(tr, planState.dayIndex, _routeUIToken, tr.id); } }catch(_e){}   /* v958-A : le Budget a fige snapshot+mapping -> notifie le daycard (lecteur pur) de re-lire */
     return est; })();
   _estInflight.set(key, run); run.then(()=>{ if(_estInflight.get(key)===run) _estInflight.delete(key); }, ()=>{ if(_estInflight.get(key)===run) _estInflight.delete(key); });
   return run; }
@@ -11290,9 +11337,9 @@ async function estimateBudget(tr){
   const conso=parseFloat(String(v.conso||"").replace(",","."))||fd.conso;
   const homePrice=parseFloat(String(v.price||"").replace(",","."))||fuelPrice(tr.depart&&tr.depart.cc,v.fuel)||fd.price;
   const localPrice=parseFloat(String(v.price||"").replace(",","."))||fuelPrice(tr.dest&&tr.dest.cc,v.fuel)||fd.price;
-  const routeKm=await computeBudgetRouteMeters(tr);   /* BUDGET 2B : km canoniques (2A figé), source unique des postes voiture */
-  const hubR=await computeBudgetHubRoute(tr);
-  const arrR=await computeBudgetArrHubRoute(tr);
+  const _snapWrites={}; const routeKm=await computeBudgetRouteMeters(tr, _snapWrites);   /* v958-A : snapshots STAGES ; BUDGET 2B : km canoniques (2A figé), source unique des postes voiture */
+  const hubR=await computeBudgetHubRoute(tr, _snapWrites);
+  const arrR=await computeBudgetArrHubRoute(tr, _snapWrites);
   const routeUnavailable=[...(routeKm.unavailableDays||[])]; if(hubR.expected && hubR.unavailable) routeUnavailable.push("hub");   /* HUB départ non calculable */
   if(arrR.expected && arrR.unavailable) routeUnavailable.push("arrHub");   /* transfert arrivée non calculable (route) */
   if(arrR.expected && arrR.priceUnavailable) routeUnavailable.push("arrHubPrice");   /* tarif manuel navette/transit manquant */
@@ -11343,7 +11390,7 @@ async function estimateBudget(tr){
     local:{cost:td.local, meters:routeKm.localMeters, source:"auto", state:_numDays.length?"partial":"ok", applicable:_locAppl},
     interLeg:{cost:td.interLeg, meters:routeKm.interLegMeters, source:"auto", state:_numDays.length?"partial":"ok", applicable:(_locAppl&&_legN>1)},   /* inter-étapes seulement en multi-étapes réel (>=2 legs) */
     incompleteDays:_numDays };
-  return {byCat,td,total,byCurrency,transportSegments,perDay:days?Math.round(total/days):total,perPerson:trav?Math.round(total/trav):total,days,nights,travelers:trav,rooms,fg,fm,regional:_regional,srcMap,routeIncomplete,routeUnavailable:[...routeUnavailable],canEcoFood:_gastroRaw,canEcoLodge:_premiumRaw,hasData:((tr.places&&tr.places.length)||days>1)}; }
+  return {byCat,td,total,byCurrency,transportSegments,_dayRouteMap:(routeKm&&routeKm.dayRouteMap)||{},_routeSnapWrites:_snapWrites,perDay:days?Math.round(total/days):total,perPerson:trav?Math.round(total/trav):total,days,nights,travelers:trav,rooms,fg,fm,regional:_regional,srcMap,routeIncomplete,routeUnavailable:[...routeUnavailable],canEcoFood:_gastroRaw,canEcoLodge:_premiumRaw,hasData:((tr.places&&tr.places.length)||days>1)}; }
 let _estLodgeOpen=false;
 async function openBudgetEst(){ const tr=currentTrip(); if(!tr) return; _estLodgeOpen=false;
   document.getElementById("budgetEstHd").textContent=t("bud.estTitle");
