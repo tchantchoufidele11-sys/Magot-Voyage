@@ -3515,7 +3515,7 @@ function switchStore(newId){ newId=newId||"guest"; if(newId===_storeId) return;
 /* ---- Backend Magot Voyage (Phase A) : proxy Google + agent IA ---- */
 const WORKER_URL="https://magot-voyage-api.fidelevictoire01.workers.dev";
 const APPLE_WORKER_URL=WORKER_URL;   /* PROD B2 : Apple integre au Worker principal (/apple/routes), teste OK 2026-09-24 -- variable separee conservee pour pouvoir reseparer Apple plus tard sans toucher au front */
-const MAPKIT_TOKEN="";   /* v958-B2a : token MapKit JS DOMAINE-RESTREINT (portail Apple, origin=tchantchoufidele11-sys.github.io) a coller ici ; jamais la cle .p8. Vide -> MapKit inactif (B2b retombe sur Google). */
+const MAPKIT_TOKEN="eyJraWQiOiJaUVVOODI0TktIIiwidHlwIjoiSldUIiwiYWxnIjoiRVMyNTYifQ.eyJpc3MiOiI3S1M2R1MzNlRCIiwiaWF0IjoxNzkwMTM5MTg0LCJvcmlnaW4iOiJ0Y2hhbnRjaG91ZmlkZWxlMTEtc3lzLmdpdGh1Yi5pbyIsInNjb3BlIjoibWFwa2l0X2pzIn0.4QARw_ZmGISjh06Tp6S1TkUB0GuJcqDfJETagkT0T2FbgZUXttoKWVBW5zU3SkbWun4j5xPh0CPbMAMeleMMfA";   /* v958-B2a : token MapKit JS DOMAINE-RESTREINT (portail Apple, origin=tchantchoufidele11-sys.github.io) a coller ici ; jamais la cle .p8. Vide -> MapKit inactif (B2b retombe sur Google). */
 function deviceId(){ try{ let d=localStorage.getItem("mv_device_id"); if(!d){ d=(crypto.randomUUID?crypto.randomUUID():("dev-"+Date.now()+"-"+Math.random().toString(36).slice(2))); localStorage.setItem("mv_device_id",d); } return d; }catch(e){ return "anon"; } }
 function googleReady(){ return true; } /* Phase A : Google passe par le Worker, plus de clé utilisateur requise */
 async function workerFetch(path,body,signal){
