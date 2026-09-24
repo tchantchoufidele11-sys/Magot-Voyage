@@ -1771,7 +1771,7 @@ body.dragging-on{-webkit-user-select:none;user-select:none}
 @media(min-width:540px){.souvmap-ov{align-items:center}.souvmap-sheet{height:92vh;border-radius:20px;overflow:hidden}}
 .smh{display:flex;align-items:center;justify-content:space-between;padding:14px 16px;border-bottom:1px solid var(--line)}
 .smh-t{font-weight:800;font-size:clamp(14.4px,4.103vw,16px);color:var(--ink);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.souvmap-canvas{height:44vh;min-height:clamp(192px,30dvh,240px);width:100%;background:#e9eef5}
+.souvmap-canvas{position:relative;height:44vh;min-height:clamp(192px,30dvh,240px);width:100%;background:#e9eef5}
 .souvmap-scroll{flex:1;overflow-y:auto;padding:14px 16px;-webkit-overflow-scrolling:touch}
 .souvmap-legendhd{font-family:var(--font-serif,Georgia,serif);font-weight:700;font-size:clamp(14.1px,3.846vw,15px);color:var(--ink);margin-bottom:10px}
 .souvmap-legend{display:flex;flex-direction:column;gap:11px}
@@ -1803,7 +1803,7 @@ body.dragging-on{-webkit-user-select:none;user-select:none}
 .sv-st{display:block;font-weight:600;color:var(--ink);font-size:clamp(13.2px,3.59vw,14px)}
 .sv-sd{display:block;color:var(--muted);font-size:clamp(11.3px,3.077vw,12px);margin-top:1px}
 .sv-all{margin-top:8px;background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:11px;font:600 13px system-ui;font-size:clamp(12.2px,3.333vw,13px);color:var(--ink);cursor:pointer;display:flex;justify-content:space-between;width:100%}
-.sv-mapmini{height:clamp(224px,34dvh,280px);border-radius:14px;overflow:hidden;background:#e9eef5;border:1px solid var(--line)}
+.sv-mapmini{position:relative;height:clamp(224px,34dvh,280px);border-radius:14px;overflow:hidden;background:#e9eef5;border:1px solid var(--line)}
 .sv-duo{display:grid;grid-template-columns:1fr 1fr;gap:11px;margin-bottom:14px}
 .sv-duo .sv-ht h3{font-size:clamp(13.6px,3.718vw,14.5px)}
 .sv-duo .sv-ht p{font-size:clamp(10.8px,2.949vw,11.5px)}
@@ -3514,7 +3514,7 @@ function switchStore(newId){ newId=newId||"guest"; if(newId===_storeId) return;
   try{ renderHome(); }catch(e){} }
 /* ---- Backend Magot Voyage (Phase A) : proxy Google + agent IA ---- */
 const WORKER_URL="https://magot-voyage-api.fidelevictoire01.workers.dev";
-const APPLE_WORKER_URL="https://magot-apple-preview.fidelevictoire01.workers.dev";   /* APPLE B2 : base dediee (preview), isolee de la prod tant que la campagne A/B n'a pas tranche */
+const APPLE_WORKER_URL=WORKER_URL;   /* PROD B2 : Apple integre au Worker principal (/apple/routes), teste OK 2026-09-24 -- variable separee conservee pour pouvoir reseparer Apple plus tard sans toucher au front */
 const MAPKIT_TOKEN="";   /* v958-B2a : token MapKit JS DOMAINE-RESTREINT (portail Apple, origin=tchantchoufidele11-sys.github.io) a coller ici ; jamais la cle .p8. Vide -> MapKit inactif (B2b retombe sur Google). */
 function deviceId(){ try{ let d=localStorage.getItem("mv_device_id"); if(!d){ d=(crypto.randomUUID?crypto.randomUUID():("dev-"+Date.now()+"-"+Math.random().toString(36).slice(2))); localStorage.setItem("mv_device_id",d); } return d; }catch(e){ return "anon"; } }
 function googleReady(){ return true; } /* Phase A : Google passe par le Worker, plus de clé utilisateur requise */
@@ -3599,7 +3599,7 @@ const DEFAULT_S={ version:"0.2.0", settings:{ lang:"fr", theme:"system", units:"
 /* Clé Maps JS partagée (restreinte au domaine GitHub Pages). Repli : clé perso de l'utilisateur si fournie. */
 const SHARED_MAP_KEY="AIzaSyCt5iVx8nPr1V067A3daE0X1YA568XJNbU";
 function mapKey(){ return (S.settings.mapKey||"").trim() || SHARED_MAP_KEY; }
-const BUILD="0.6.66 · v972b mapkit-b2c-fix";
+const BUILD="0.6.77 · v983 mapkit-prod";
 let _idb=null; const _migrationReady=migrateLegacy(); let S=loadState();
 function normalizeTrip(tr){ if(!tr||typeof tr!=="object") return tr;
   tr.id=tr.id||("t"+Date.now()+Math.random().toString(36).slice(2,7));
@@ -7567,19 +7567,159 @@ function lbNext(){ if(_lbPhotos.length<2) return; _lbIdx=(_lbIdx+1)%_lbPhotos.le
 function lbPrev(){ if(_lbPhotos.length<2) return; _lbIdx=(_lbIdx-1+_lbPhotos.length)%_lbPhotos.length; lbRender(); }
 function closeLightbox(){ try{ if(window._lbReset) window._lbReset(false); }catch(e){}
   document.getElementById("lightbox").classList.remove("show"); document.body.classList.remove("map-locked"); }
-/* ----- Street View (vue panoramique d'un lieu sur la carte) ----- */
-function openStreetView(lat,lng,title){ if(!(window.google&&google.maps&&google.maps.StreetViewService)){ toast(t("map.noPano")); return; }
-  const ov=document.getElementById("svPano"), host=document.getElementById("svPanoView"); if(!ov||!host) return;
-  host.innerHTML=""; ov.classList.add("show"); document.body.classList.add("map-locked");
-  const sv=new google.maps.StreetViewService();
-  sv.getPanorama({location:{lat,lng},radius:160,source:(google.maps.StreetViewSource&&google.maps.StreetViewSource.OUTDOOR)||undefined},(data,status)=>{
-    if(status==="OK"&&data&&data.location){
-      const pano=new google.maps.StreetViewPanorama(host,{pano:data.location.pano,visible:true,addressControl:false,fullscreenControl:false,motionTrackingControl:false,enableCloseButton:false});
-      try{ const h=google.maps.geometry.spherical.computeHeading(data.location.latLng,new google.maps.LatLng(lat,lng)); pano.setPov({heading:h,pitch:0,zoom:1}); }catch(e){}
-    } else { closeStreetView(); toast(t("map.noPano")); }
+/* ============================================================
+   v958-B2d : Look Around (Apple) -> Street View (Google) -> indisponible
+   Chargeur look-around DEDIE, separe de MAPKIT_LIBS/mapKitReady (B2a intact) --
+   charge uniquement au clic, via mapkit.load() (bibliotheques additionnelles).
+   Reutilise #svPano/#svPanoView. Sous-conteneur propre a chaque tentative.
+   Generation : toute nouvelle demande ou fermeture invalide la precedente ;
+   une tentative perimee ne declenche jamais le repli suivant.
+   ============================================================ */
+let _lookAroundP=null;
+function loadLookAround(){
+  if(window.mapkit && Array.isArray(window.mapkit.loadedLibraries) && window.mapkit.loadedLibraries.includes("look-around")) return Promise.resolve(window.mapkit);
+  if(_lookAroundP) return _lookAroundP;
+  _lookAroundP=loadMapKit().then(mk=>mk.load("look-around"));
+  _lookAroundP.catch(()=>{ _lookAroundP=null; });   /* echec -> autoriser une nouvelle tentative, comme loadMapKit()/loadMaps() */
+  return _lookAroundP;
+}
+
+let _panoGen=0, _panoActive=null;
+const _panoPending=new Set();   /* v958-B2d-fix : TOUTES les attentes en cours (chargeur SDK + construction viewer) -- annulees immediatement par invalidatePano() */
+function panoWait(promise,stillCurrent,errorCode){
+  return new Promise((resolve,reject)=>{
+    let settled=false;
+    let timer=null;
+    const finish=(error,value)=>{
+      if(settled) return;
+      settled=true;
+      clearTimeout(timer);
+      _panoPending.delete(cancel);
+      if(error) reject(error);
+      else resolve(value);
+    };
+    const cancel=()=>finish(new Error("pano_stale"));
+    _panoPending.add(cancel);
+    timer=setTimeout(()=>{
+      finish(new Error(stillCurrent() ? errorCode : "pano_stale"));
+    },8000);
+    Promise.resolve(promise).then(value=>{
+      if(!stillCurrent()) cancel();
+      else finish(null,value);
+    },error=>finish(error));
   });
 }
-function closeStreetView(){ const ov=document.getElementById("svPano"), host=document.getElementById("svPanoView"); if(host) host.innerHTML=""; if(ov) ov.classList.remove("show"); document.body.classList.remove("map-locked"); }
+function invalidatePano(){
+  const gen=(_panoGen=_panoGen+1);
+  for(const cancel of [..._panoPending]){ cancel(); }   /* toute attente en cours (SDK ou viewer) s'arrete immediatement */
+  const active=_panoActive; _panoActive=null;
+  if(active){ try{ active.destroy(); }catch(e){} }
+  return gen;
+}
+
+/* Look Around : construction + ecoute load/error/readystatechange posee immediatement, etat immediat verifie, delai maximal, nettoyage garanti. */
+function tryLookAround(lat,lng,host,stillCurrent){
+  return panoWait(loadLookAround(),stillCurrent,"pano_lookaround_sdk_timeout").then(mk=>{
+    if(!stillCurrent()) throw new Error("pano_stale");
+    if(!mk.LookAround) throw new Error("pano_lookaround_unsupported");
+    const box=document.createElement("div"); box.style.cssText="position:absolute;inset:0;width:100%;height:100%;";
+    host.appendChild(box);
+    let viewer;
+    try{ viewer=new mk.LookAround(box,new mk.Coordinate(lat,lng),{showsDialogControl:false,showsCloseControl:false}); }
+    catch(error){ try{ box.remove(); }catch(ig){} throw error; }
+    return new Promise((resolve,reject)=>{
+      let settled=false, timeoutId=null;
+      const cleanup=()=>{
+        try{ viewer.removeEventListener("load",onLoad); }catch(e){}
+        try{ viewer.removeEventListener("error",onError); }catch(e){}
+        try{ viewer.removeEventListener("readystatechange",onReadyState); }catch(e){}
+        if(timeoutId){ clearTimeout(timeoutId); timeoutId=null; }
+        _panoPending.delete(cancel);
+      };
+      const destroyAll=()=>{ try{ viewer.destroy(); }catch(e){} try{ box.remove(); }catch(e){} };
+      const fail=(err)=>{ if(settled) return; settled=true; cleanup(); destroyAll(); reject(err); };
+      const succeed=()=>{ if(settled) return; settled=true; cleanup(); resolve({ destroy(){ destroyAll(); } }); };
+      const cancel=()=>fail(new Error("pano_stale"));   /* v958-B2d-fix : fermeture/nouvelle demande pendant le chargement Apple -> destruction immediate */
+      _panoPending.add(cancel);
+      const onLoad=()=>{ if(!stillCurrent()){ fail(new Error("pano_stale")); return; } succeed(); };
+      const onError=(e)=>{ fail((e&&e.message)?new Error(e.message):new Error("pano_lookaround_unavailable")); };
+      const onReadyState=()=>{   /* v958-B2d-fix : etat immediat -- ne pas attendre 8s si deja complete/error/destroyed */
+        const states=mk.LookAround.ReadyStates; if(!states) return;
+        if(viewer.readyState===states.Complete){ onLoad(); }
+        else if(viewer.readyState===states.Error||viewer.readyState===states.Destroyed){ fail(new Error("pano_lookaround_unavailable")); }
+      };
+      viewer.addEventListener("load",onLoad);
+      viewer.addEventListener("error",onError);
+      viewer.addEventListener("readystatechange",onReadyState);
+      timeoutId=setTimeout(()=>{ fail(new Error("pano_lookaround_timeout")); },8000);
+      onReadyState();
+    });
+  });
+}
+
+/* Street View : Google charge au moment du repli seulement. settled verifie en tete du callback ; nettoyage complet (pano + DOM), idempotent. */
+function tryStreetView(lat,lng,host,stillCurrent){
+  return panoWait(loadMaps(),stillCurrent,"pano_google_sdk_timeout").then(()=>{
+    if(!stillCurrent()) throw new Error("pano_stale");
+    if(!(window.google&&google.maps&&google.maps.StreetViewService)) throw new Error("pano_streetview_unsupported");
+    const box=document.createElement("div"); box.style.cssText="position:absolute;inset:0;width:100%;height:100%;";
+    host.appendChild(box);
+    return new Promise((resolve,reject)=>{
+      let settled=false, timeoutId=null, pano=null, disposed=false;
+      const destroyAll=()=>{
+        if(disposed) return; disposed=true;
+        if(pano){ try{ pano.setVisible(false); }catch(e){} try{ google.maps.event.clearInstanceListeners(pano); }catch(e){} try{ pano.unbindAll(); }catch(e){} pano=null; }
+        try{ box.remove(); }catch(e){}
+      };
+      const fail=(err)=>{ if(settled) return; settled=true; if(timeoutId){ clearTimeout(timeoutId); timeoutId=null; } _panoPending.delete(cancel); destroyAll(); reject(err); };
+      const succeed=()=>{ if(settled) return; settled=true; if(timeoutId){ clearTimeout(timeoutId); timeoutId=null; } _panoPending.delete(cancel); resolve({ destroy:destroyAll }); };
+      const cancel=()=>fail(new Error("pano_stale"));
+      _panoPending.add(cancel);
+      timeoutId=setTimeout(()=>{ fail(new Error("pano_streetview_timeout")); },8000);
+      try{
+        const sv=new google.maps.StreetViewService();
+        sv.getPanorama({location:{lat,lng},radius:160,source:(google.maps.StreetViewSource&&google.maps.StreetViewSource.OUTDOOR)||undefined},(data,status)=>{
+          if(settled) return;   /* v958-B2d-fix : une reponse APRES expiration ne doit plus rien construire */
+          if(!stillCurrent()){ fail(new Error("pano_stale")); return; }
+          if(status==="OK"&&data&&data.location){
+            try{
+              pano=new google.maps.StreetViewPanorama(box,{pano:data.location.pano,visible:true,addressControl:false,fullscreenControl:false,motionTrackingControl:false,enableCloseButton:false});
+              try{ const h=google.maps.geometry.spherical.computeHeading(data.location.latLng,new google.maps.LatLng(lat,lng)); pano.setPov({heading:h,pitch:0,zoom:1}); }catch(e){}
+              succeed();
+            }catch(error){ fail(error); }
+          } else { fail(new Error("pano_streetview_unavailable")); }
+        });
+      }catch(error){ fail(error); }
+    });
+  });
+}
+
+function closeStreetView(){
+  invalidatePano();
+  const ov=document.getElementById("svPano"), host=document.getElementById("svPanoView");
+  if(host) host.innerHTML="";
+  if(ov) ov.classList.remove("show");
+  document.body.classList.remove("map-locked");
+}
+function openStreetView(lat,lng,title){
+  const gen=invalidatePano();
+  const ov=document.getElementById("svPano"), host=document.getElementById("svPanoView"); if(!ov||!host) return;
+  host.innerHTML=""; ov.classList.add("show"); document.body.classList.add("map-locked");
+  const stillCurrent=()=>gen===_panoGen;
+  tryLookAround(lat,lng,host,stillCurrent).then(handle=>{
+    if(!stillCurrent()){ try{ handle.destroy(); }catch(e){} return; }
+    _panoActive=handle;
+  }).catch(()=>{
+    if(!stillCurrent()) return;
+    tryStreetView(lat,lng,host,stillCurrent).then(handle=>{
+      if(!stillCurrent()){ try{ handle.destroy(); }catch(e){} return; }
+      _panoActive=handle;
+    }).catch(()=>{
+      if(!stillCurrent()) return;
+      host.innerHTML='<div style="padding:24px;text-align:center;color:#7a8398;font:600 13px system-ui">'+escapeHtml(t("map.noPano"))+'</div>';
+    });
+  });
+}
 
 
 function isRestaurant(p){ const ty=p&&p.types||[]; return ty.includes("restaurant")||ty.includes("cafe")||ty.includes("bar")||ty.includes("bakery")||ty.includes("meal_takeaway")||ty.includes("meal_delivery")||ty.some(x=>x.endsWith("_restaurant")); }
@@ -10101,15 +10241,15 @@ const DAY_COLORS=["#0E2148","#E0A33E","#16A34A","#2F6BE0","#DC2626","#9333EA","#
    v958-B2c : carte-souvenir partagee (mini #svMapMini + plein ecran #souvMapCanvas)
    Cascade Apple(MapKit) -> Google -> MapLibre. Contrat minimal :
    { provider, resize(), fitBounds(), setSatellite(enabled)->Promise, setDayRoute(dayIndex,route), destroy() }
-   Etat par ELEMENT (el._tripMapGen / el._tripMapRenderer), pas global : mini et plein ecran
-   peuvent exister successivement sans se marcher dessus (contrairement a l'ancien _souvMap unique).
+   Etat par ELEMENT (el._tripMapGen / el._tripMapRenderer), pas global.
    route.polyline (champ toujours "") reste un champ mort documente -- ce renderer n'utilise QUE
    route.legsInfo via legVisualSegments(), jamais route.polyline.
    Hors perimetre, non touches : openSouvPlace(), souvOffscreenMap(), souvMapPdf() (son propre
    moteur MapLibre hors-ecran ; limite P3 de parite documentee, pas presentee comme B2c).
+   _addPinImg() historique (utilise par les exports/_souvAddLayers) reste intact et non touche --
+   B2c a sa propre copie protegee (_b2cAddPinImg) pour ne pas elargir le lot.
    ============================================================ */
 
-/* Modele : reutilise souvPoints(tr), deja la source canonique de souvMiniMap/openSouvenirMap/souvMapPdf. */
 function souvTripModel(tr){
   const pts=souvPoints(tr);
   const byDay={}; pts.forEach(p=>{ (byDay[p.day]=byDay[p.day]||[]).push(p); });
@@ -10118,7 +10258,6 @@ function souvTripModel(tr){
   const start=(typeof dayStart==="function")?dayStart(tr):null;
   return {tr,pts,byDay,dayIdx,mode,start};
 }
-/* Marqueurs : numerotation GLOBALE (index+1 dans souvPoints) -- doit rester alignee avec la legende (data-svlg) d'openSouvenirMap, inchangee. */
 function souvMarkersModel(base){
   const out=[];
   if(base.start&&base.start.lat!=null) out.push({lat:base.start.lat,lng:base.start.lng,kind:"lodging",color:"#E0A33E",title:base.start.name||""});
@@ -10126,12 +10265,39 @@ function souvMarkersModel(base){
   return out;
 }
 function souvTripBounds(markers){ return geoBBox(markers); }
-/* Segments d'un jour : EXCLUSIVEMENT route.legsInfo -> legVisualSegments (jamais route.polyline, champ mort). */
 function souvDaySegments(route){
+  const legs=route&&route.legsInfo;
+  if(!Array.isArray(legs)||!legs.length){ throw new Error("souv_missing_route_geometry"); }
   const segments=[];
-  ((route&&route.legsInfo)||[]).forEach((leg,i)=>{ legVisualSegments(leg,i).forEach(segment=>{
-    segments.push({coords:segment.coords,color:segment.color,dashed:segment.dashed,mode:segment.mode||""}); }); });
+  legs.forEach((leg,i)=>{
+    if(!leg) throw new Error("souv_missing_leg_"+i);
+    const parts=legVisualSegments(leg,i);
+    if(!parts.length){ throw new Error("souv_missing_leg_geometry_"+i); }
+    parts.forEach(segment=>{
+      const coords=segment.coords;
+      if(!Array.isArray(coords)||coords.length<2||coords.some(p=>!Array.isArray(p)||!Number.isFinite(p[0])||!Number.isFinite(p[1]))){
+        throw new Error("souv_invalid_leg_geometry_"+i);
+      }
+      segments.push({coords,color:segment.color,dashed:segment.dashed,mode:segment.mode||""});
+    });
+  });
   return segments;
+}
+function _b2cAddPinImg(map,key,svg,num,color,alive,pendingSet){
+  return new Promise(res=>{
+    let done=false, timer=null, img=null;
+    const cancel=()=>{ finish(); };
+    const finish=()=>{ if(done) return; done=true; if(timer){ clearTimeout(timer); timer=null; } if(img){ img.onload=null; img.onerror=null; img=null; } pendingSet.delete(cancel); res(); };
+    pendingSet.add(cancel);
+    const fb=()=>{ if(!alive()){ finish(); return; } try{ if(!map.hasImage(key)){ const im=_pinFallback(num,color); if(im) map.addImage(key,im,{pixelRatio:2}); } }catch(e){} finish(); };
+    try{
+      img=new Image();
+      img.onload=()=>{ if(!alive()){ finish(); return; } try{ if(!map.hasImage(key)) map.addImage(key,img); finish(); }catch(e){ fb(); } };
+      img.onerror=fb;
+      timer=setTimeout(()=>{ if(!done) fb(); },2500);
+      img.src="data:image/svg+xml;charset=UTF-8,"+encodeURIComponent(svg);
+    }catch(e){ fb(); }
+  });
 }
 
 /* ---------------- APPLE (MapKit JS) ---------------- */
@@ -10144,32 +10310,35 @@ function createAppleSouvRenderer(el,base,isValid,options){
     el.appendChild(box);
     const markers=souvMarkersModel(base);
     const c0=markers.length?markers[0]:{lat:0,lng:0};
-    map=new mapkit.Map(box,{center:new mapkit.Coordinate(c0.lat,c0.lng),showsCompass:mapkit.FeatureVisibility.Hidden,showsScale:mapkit.FeatureVisibility.Hidden,showsMapTypeControl:false,showsZoomControl:false,isRotationEnabled:false,isZoomEnabled:!!(options&&options.interactive)!==false,isScrollEnabled:(options&&options.interactive)!==false});
-    let markerAnns=[]; const dayLines={}; let disposed=false;
-    function mkAnn(m){ const a=new mapkit.MarkerAnnotation(new mapkit.Coordinate(m.lat,m.lng),{color:m.color,glyphText:m.kind==="lodging"?"🏨":String(m.num||""),calloutEnabled:false}); return a; }
-    markerAnns=markers.map(mkAnn); try{ map.addAnnotations(markerAnns); }catch(e){}
-    const bb=souvTripBounds(markers);
+    map=new mapkit.Map(box,{center:new mapkit.Coordinate(c0.lat,c0.lng),showsCompass:mapkit.FeatureVisibility.Hidden,showsScale:mapkit.FeatureVisibility.Hidden,showsMapTypeControl:false,showsZoomControl:false,isRotationEnabled:false,isZoomEnabled:(options&&options.interactive)!==false,isScrollEnabled:(options&&options.interactive)!==false});
+    let markerAnns=[]; const dayOverlays={}; let disposed=false;
+    markerAnns=markers.map(m=>new mapkit.MarkerAnnotation(new mapkit.Coordinate(m.lat,m.lng),{color:m.color,glyphText:m.kind==="lodging"?"🏨":String(m.num||""),calloutEnabled:false}));
+    map.addAnnotations(markerAnns);
+    let bb=souvTripBounds(markers);
     function applyBounds(){ if(!bb) return; const padLat=(bb.maxLat-bb.minLat)*0.15+0.01, padLng=(bb.maxLng-bb.minLng)*0.15+0.01;
       try{ map.region=new mapkit.CoordinateRegion(new mapkit.Coordinate((bb.minLat+bb.maxLat)/2,(bb.minLng+bb.maxLng)/2),new mapkit.CoordinateSpan(Math.max(0.01,(bb.maxLat-bb.minLat)+padLat*2),Math.max(0.01,(bb.maxLng-bb.minLng)+padLng*2))); }catch(e){} }
     applyBounds();
+    function drawDayRoute(dayIndex,route){
+      const old=dayOverlays[dayIndex]; if(old) old.forEach(o=>{ try{ map.removeOverlay(o); }catch(e){} });
+      const segs=souvDaySegments(route);
+      const created=[]; const coordsList=[];
+      segs.forEach(segment=>{ const overlay=new mapkit.PolylineOverlay(segment.coords.map(p=>new mapkit.Coordinate(p[0],p[1])),{style:new mapkit.Style({lineWidth:3.5,strokeColor:segment.color,lineDash:segment.dashed?[1,10]:undefined,lineJoin:"round",lineCap:"round"})});
+        map.addOverlay(overlay); created.push(overlay); coordsList.push(segment.coords); });
+      dayOverlays[dayIndex]=created;
+      bb=bboxUnion(bb,bboxFromCoordsList(coordsList));
+    }
     const handle={
       provider:"apple",
       resize(){ try{ applyBounds(); }catch(e){} },
       fitBounds(){ applyBounds(); },
-      setSatellite(enabled){ return new Promise(resolve=>{ try{ map.mapType=enabled?mapkit.Map.MapTypes.Satellite:mapkit.Map.MapTypes.Standard; }catch(e){} resolve(); }); },
-      setDayRoute(dayIndex,route){
-        const old=dayLines[dayIndex]; if(old) old.forEach(o=>{ try{ map.removeOverlay(o); }catch(e){} });
-        const segs=souvDaySegments(route); const created=[]; const drawErrors=[]; let expected=0, drawn=0;
-        segs.forEach(segment=>{
-          if(!segment.coords||segment.coords.length<2){ drawErrors.push(new Error("apple_souv_missing_geom_"+dayIndex)); return; }
-          expected++;
-          try{ const overlay=new mapkit.PolylineOverlay(segment.coords.map(p=>new mapkit.Coordinate(p[0],p[1])),{style:new mapkit.Style({lineWidth:3.5,strokeColor:segment.color,lineDash:segment.dashed?[1,10]:undefined,lineJoin:"round",lineCap:"round"})});
-            map.addOverlay(overlay); created.push(overlay); drawn++; }catch(error){ drawErrors.push(error); }
+      setSatellite(enabled){
+        return Promise.resolve().then(()=>{
+          if(disposed) throw new Error("souv_renderer_destroyed");
+          map.mapType=enabled?mapkit.Map.MapTypes.Satellite:mapkit.Map.MapTypes.Standard;
         });
-        dayLines[dayIndex]=created;
-        if(drawErrors.length||drawn!==expected){ throw new Error("apple_souv_draw_failed_"+dayIndex+":"+drawErrors.length+"/"+expected); }
       },
-      destroy(){ if(disposed) return; disposed=true; try{ map.removeAnnotations(markerAnns); }catch(e){} Object.keys(dayLines).forEach(k=>dayLines[k].forEach(o=>{ try{ map.removeOverlay(o); }catch(e){} })); try{ map.destroy&&map.destroy(); }catch(e){} try{ box.remove(); }catch(e){} }   /* v958-B2c : idempotent, meme discipline que Google/MapLibre */
+      setDayRoute(dayIndex,route){ drawDayRoute(dayIndex,route); applyBounds(); },
+      destroy(){ if(disposed) return; disposed=true; try{ map.removeAnnotations(markerAnns); }catch(e){} Object.keys(dayOverlays).forEach(k=>dayOverlays[k].forEach(o=>{ try{ map.removeOverlay(o); }catch(e){} })); try{ map.destroy&&map.destroy(); }catch(e){} try{ box.remove(); }catch(e){} }
     };
     return handle;
     }catch(error){
@@ -10186,115 +10355,206 @@ function createGoogleSouvRenderer(el,base,isValid,options){
     if(isValid&&!isValid()) throw new Error("stale_before_build");
     let map=null;
     const box=document.createElement("div"); box.style.cssText="position:absolute;inset:0;width:100%;height:100%;";
-    try{
-    el.appendChild(box);
-    const markers=souvMarkersModel(base);
-    const c0=markers.length?markers[0]:{lat:0,lng:0};
-    map=new google.maps.Map(box,{center:{lat:c0.lat,lng:c0.lng},zoom:12,mapTypeId:"roadmap",mapTypeControl:false,streetViewControl:false,fullscreenControl:false,keyboardShortcuts:false,gestureHandling:(options&&options.interactive)===false?"none":"greedy"});
     const res={markers:[],polylines:[],destroyed:false};
     function trackMarker(m){ if(m) res.markers.push(m); return m; }
     function trackPolyline(p){ if(p) res.polylines.push(p); return p; }
     function clearRes(){ if(res.destroyed) return; res.destroyed=true;
       res.markers.forEach(m=>{ try{ google.maps.event.clearInstanceListeners(m); }catch(e){} try{ m.setMap(null); }catch(e){} });
       res.polylines.forEach(p=>{ try{ google.maps.event.clearInstanceListeners(p); }catch(e){} try{ p.setMap(null); }catch(e){} });
-      try{ google.maps.event.clearInstanceListeners(map); }catch(e){} }
+      if(map){ try{ google.maps.event.clearInstanceListeners(map); }catch(e){} } }
+    try{
+    el.appendChild(box);
+    const markers=souvMarkersModel(base);
+    const c0=markers.length?markers[0]:{lat:0,lng:0};
+    map=new google.maps.Map(box,{center:{lat:c0.lat,lng:c0.lng},zoom:12,mapTypeId:"roadmap",mapTypeControl:false,streetViewControl:false,fullscreenControl:false,keyboardShortcuts:false,gestureHandling:(options&&options.interactive)===false?"none":"greedy"});
     markers.forEach(m=>trackMarker(new google.maps.Marker({position:{lat:m.lat,lng:m.lng},map,
       label:m.kind==="lodging"?undefined:{text:String(m.num||""),color:"#fff",fontWeight:"700",fontSize:"11px"},
       icon:m.kind==="lodging"?{path:google.maps.SymbolPath.CIRCLE,scale:9,fillColor:"#E0A33E",fillOpacity:1,strokeColor:"#fff",strokeWeight:2}:{path:google.maps.SymbolPath.CIRCLE,scale:10,fillColor:m.color,fillOpacity:1,strokeColor:"#fff",strokeWeight:2}})));
     const bounds=new google.maps.LatLngBounds(); markers.forEach(m=>bounds.extend({lat:m.lat,lng:m.lng}));
-    function applyBounds(){ if(markers.length>1) map.fitBounds(bounds,(options&&options.compact)?24:40); else if(markers.length===1) map.setZoom(13); }
+    function applyBounds(){ if(!bounds.isEmpty()) map.fitBounds(bounds,(options&&options.compact)?24:40); }
     applyBounds();
     const dayLines={};
+    function drawDayRoute(dayIndex,route){
+      const old=dayLines[dayIndex]; if(old) old.forEach(p=>{ try{ p.setMap(null); }catch(e){} });
+      const segs=souvDaySegments(route);
+      const created=[];
+      segs.forEach(segment=>{
+        const path=segment.coords.map(p=>({lat:p[0],lng:p[1]})); path.forEach(pt=>bounds.extend(pt));
+        const pl=trackPolyline(new google.maps.Polyline({path,map,strokeColor:segment.color,strokeOpacity:segment.dashed?0:.85,strokeWeight:3.5,
+          icons:segment.dashed?[{icon:{path:"M 0,-1 0,1",strokeColor:segment.color,strokeOpacity:.9,strokeWeight:2.5,scale:2.5},offset:"0",repeat:"12px"}]:undefined}));
+        created.push(pl);
+      });
+      dayLines[dayIndex]=created;
+    }
     const handle={
       provider:"google",
       resize(){ google.maps.event.trigger(map,"resize"); applyBounds(); },
       fitBounds(){ applyBounds(); },
-      setSatellite(enabled){ return new Promise(resolve=>{ try{ map.setMapTypeId(enabled?"hybrid":"roadmap"); }catch(e){} resolve(); }); },
-      setDayRoute(dayIndex,route){
-        const old=dayLines[dayIndex]; if(old) old.forEach(p=>{ try{ p.setMap(null); }catch(e){} });
-        const segs=souvDaySegments(route); const created=[]; const drawErrors=[]; let expected=0, drawn=0;
-        segs.forEach(segment=>{
-          if(!segment.coords||segment.coords.length<2){ drawErrors.push(new Error("google_souv_missing_geom_"+dayIndex)); return; }
-          expected++;
-          try{ const path=segment.coords.map(p=>({lat:p[0],lng:p[1]}));
-            const pl=trackPolyline(new google.maps.Polyline({path,map,strokeColor:segment.color,strokeOpacity:segment.dashed?0:.85,strokeWeight:3.5,
-              icons:segment.dashed?[{icon:{path:"M 0,-1 0,1",strokeColor:segment.color,strokeOpacity:.9,strokeWeight:2.5,scale:2.5},offset:"0",repeat:"12px"}]:undefined}));
-            created.push(pl); drawn++; }catch(error){ drawErrors.push(error); }
+      setSatellite(enabled){
+        return Promise.resolve().then(()=>{
+          if(res.destroyed) throw new Error("souv_renderer_destroyed");
+          map.setMapTypeId(enabled?"hybrid":"roadmap");
         });
-        dayLines[dayIndex]=created;
-        if(drawErrors.length||drawn!==expected){ throw new Error("google_souv_draw_failed_"+dayIndex+":"+drawErrors.length+"/"+expected); }
       },
+      setDayRoute(dayIndex,route){ drawDayRoute(dayIndex,route); applyBounds(); },
       destroy(){ clearRes(); try{ box.remove(); }catch(e){} }
     };
     return handle;
     }catch(error){
-      if(map){ try{ google.maps.event.clearInstanceListeners(map); }catch(ignore){} }
+      clearRes();
       try{ box.remove(); }catch(ignore){}
       throw error;
     }
   });
 }
 
-/* ---------------- MAPLIBRE (pastilles via les briques visuelles existantes _souvSvgPin/_addPinImg/_pinFallback) ---------------- */
+/* ---------------- MAPLIBRE (pastilles via _souvSvgPin/_pinFallback + _b2cAddPinImg protege) ---------------- */
 function createMapLibreSouvRenderer(el,base,isValid,options){
   return new Promise((res,rej)=>{
     loadMapLibre((err)=>{
       if(err||!window.maplibregl){ rej(new Error("maplibre_load")); return; }
       if(isValid&&!isValid()){ rej(new Error("stale_before_build")); return; }
       const box=document.createElement("div"); box.style.cssText="position:absolute;inset:0;width:100%;height:100%;visibility:hidden;"; el.appendChild(box);
-      let map, ready=false, disposed=false;
+      let map, ready=false, disposed=false, satSeq=0, transitioning=false, imageGeneration=0;
+      const pendingSat=new Set();
+      const pendingImages=new Set();
       try{ map=new maplibregl.Map({container:box,style:OSM_PLAN_STYLE,center:[6,47],zoom:4,attributionControl:{compact:true},dragRotate:false,pitchWithRotate:false,touchPitch:false,interactive:(options&&options.interactive)!==false}); }
       catch(e){ try{ box.remove(); }catch(x){} rej(e); return; }
       try{ map.touchZoomRotate.disableRotation(); }catch(e){}
       const markers=souvMarkersModel(base);
-      const bb=souvTripBounds(markers);
+      let bb=souvTripBounds(markers);
       function applyBounds(){ if(!bb) return; try{ map.fitBounds(new maplibregl.LngLatBounds([bb.minLng,bb.minLat],[bb.maxLng,bb.maxLat]),{padding:(options&&options.compact)?24:44,maxZoom:15,duration:0}); }catch(e){} }
-      const dayLineIds={};
+      const dayLineIds={}; const dayRoutes={};
       function clearDayLine(dayIndex){ (dayLineIds[dayIndex]||[]).forEach(id=>{ try{ if(map.getLayer(id))map.removeLayer(id); if(map.getSource(id))map.removeSource(id); }catch(e){} }); dayLineIds[dayIndex]=[]; }
+      function drawDayRoute(dayIndex,route){
+        clearDayLine(dayIndex);
+        const segs=souvDaySegments(route);
+        const ids=[]; const coordsList=[];
+        segs.forEach((segment,segmentIndex)=>{
+          const id="b2csouvline"+dayIndex+"s"+segmentIndex;
+          const coordinates=segment.coords.map(p=>[p[1],p[0]]);
+          map.addSource(id,{type:"geojson",data:{type:"Feature",geometry:{type:"LineString",coordinates}}}); ids.push(id);
+          map.addLayer({id,type:"line",source:id,layout:{"line-cap":"round","line-join":"round"},paint:Object.assign({"line-color":segment.color,"line-width":3.5},segment.dashed?{"line-dasharray":[2,1.4]}:{})});
+          coordsList.push(segment.coords);
+        });
+        dayLineIds[dayIndex]=ids;
+        bb=bboxUnion(bb,bboxFromCoordsList(coordsList));
+      }
       function addMarkers(){
-        const jobs=markers.map(m=>{ const key=m.kind==="lodging"?"souvb2c_lodge":"souvb2c_p"+m.num;
+        const myGen=++imageGeneration;
+        const alive=()=>!disposed&&(!isValid||isValid())&&myGen===imageGeneration;
+        const jobs=markers.map(m=>{
+          const key=m.kind==="lodging"?"souvb2c_lodge":"souvb2c_p"+m.num;
           const svg=_souvSvgPin(m.kind==="lodging"?"🏨":"",m.kind==="lodging"?"":String(m.num),m.color);
-          m._imgKey=key; return _addPinImg(map,key,svg,m.num,m.color).catch(()=>{}); });
+          m._imgKey=key;
+          return _b2cAddPinImg(map,key,svg,m.num,m.color,alive,pendingImages);
+        });
         return Promise.all(jobs).then(()=>{
+          if(!alive()) throw new Error("souv_stale_build");
           const feats=markers.map(m=>({type:"Feature",properties:{img:m._imgKey},geometry:{type:"Point",coordinates:[m.lng,m.lat]}}));
           const data={type:"FeatureCollection",features:feats};
-          try{ if(map.getSource("b2csouvpts")) map.getSource("b2csouvpts").setData(data); else map.addSource("b2csouvpts",{type:"geojson",data});
-            if(!map.getLayer("b2csouvpts-l")) map.addLayer({id:"b2csouvpts-l",type:"symbol",source:"b2csouvpts",layout:{"icon-image":["get","img"],"icon-size":.5,"icon-allow-overlap":true,"icon-anchor":"bottom"}}); }catch(e){}
+          if(map.getSource("b2csouvpts")) map.getSource("b2csouvpts").setData(data); else map.addSource("b2csouvpts",{type:"geojson",data});
+          if(!map.getLayer("b2csouvpts-l")) map.addLayer({id:"b2csouvpts-l",type:"symbol",source:"b2csouvpts",layout:{"icon-image":["get","img"],"icon-size":.5,"icon-allow-overlap":true,"icon-anchor":"bottom"}});
         });
       }
+      function endTransition(mySeq){ if(mySeq===satSeq) transitioning=false; }
       const handle={
         provider:"maplibre",
         resize(){ try{ map.resize(); }catch(e){} applyBounds(); },
         fitBounds(){ applyBounds(); },
-        setSatellite(enabled){
-          return new Promise(resolve=>{
-            try{ map.setStyle(enabled?_satStyle():OSM_PLAN_STYLE); }catch(e){ resolve(); return; }
-            map.once("styledata",()=>{ addMarkers().then(()=>{ Object.keys(dayLineIds).forEach(di=>{ dayLineIds[di]=[]; }); resolve(); }).catch(()=>resolve()); });
+        setSatellite(enabled){   /* v958-B2c-fixR2 : styledata peut se declencher plusieurs fois pour UNE transition -- garde de re-entree + isStyleLoaded() avant de reconstruire */
+          if(disposed) return Promise.reject(new Error("souv_renderer_destroyed"));
+          const seq=++satSeq;
+          transitioning=true;
+          return new Promise((resolve,reject)=>{
+            let settled=false, rebuilding=false, timeoutId=null;
+            const cleanup=()=>{
+              try{ map.off("styledata",onStyleData); }catch(e){}
+              try{ map.off("error",onStyleError); }catch(e){}
+              if(timeoutId){ clearTimeout(timeoutId); timeoutId=null; }
+              pendingSat.delete(cancel);
+            };
+            const cancel=(err)=>{ if(settled) return; settled=true; cleanup(); reject(err); };
+            const succeed=()=>{ if(settled) return; settled=true; cleanup(); resolve(); };
+            const fail=(err)=>{ if(settled) return; settled=true; cleanup(); reject(err); };
+            const onStyleData=()=>{
+              if(settled||rebuilding) return;
+              if(disposed){ endTransition(seq); fail(new Error("souv_renderer_destroyed")); return; }
+              if(seq!==satSeq){ fail(new Error("souv_stale_satellite")); return; }
+              if(!map.isStyleLoaded()) return;   /* styledata ne garantit pas que le style soit utilisable */
+              rebuilding=true;
+              map.off("styledata",onStyleData);
+              addMarkers().then(()=>{
+                if(settled) return;
+                if(disposed||seq!==satSeq){ endTransition(seq); fail(disposed?new Error("souv_renderer_destroyed"):new Error("souv_stale_satellite")); return; }
+                try{
+                  Object.keys(dayRoutes).forEach(di=>{ drawDayRoute(+di,dayRoutes[di]); });
+                  applyBounds();
+                  endTransition(seq);
+                  succeed();
+                }catch(error){ endTransition(seq); fail(error); }
+              }).catch(error=>{   /* v958-B2c-fixR4 : reclassifie a la source (seq/disposed) au lieu de laisser fuir le message brut (ex: souv_stale_build) */
+                if(settled) return;
+                endTransition(seq);
+                if(disposed){ fail(new Error("souv_renderer_destroyed")); return; }
+                if(seq!==satSeq){ fail(new Error("souv_stale_satellite")); return; }   /* la reconstruction appartenait a une demande deja perimee */
+                fail(error);   /* une erreur de la demande COURANTE reste une vraie erreur */
+              });
+            };
+            const onStyleError=(e)=>{   /* v958-B2c-fixR4 : meme reclassification -- une erreur de style ne veut rien dire pour une operation deja perimee */
+              endTransition(seq);
+              if(disposed){ fail(new Error("souv_renderer_destroyed")); return; }
+              if(seq!==satSeq){ fail(new Error("souv_stale_satellite")); return; }
+              fail((e&&e.error)||new Error("souv_style_load_failed"));
+            };
+            pendingSat.add(cancel);
+            map.on("styledata",onStyleData);
+            map.on("error",onStyleError);
+            timeoutId=setTimeout(()=>{   /* v958-B2c-fixR4 : idem pour le delai maximal */
+              endTransition(seq);
+              if(disposed){ fail(new Error("souv_renderer_destroyed")); return; }
+              if(seq!==satSeq){ fail(new Error("souv_stale_satellite")); return; }
+              fail(new Error("souv_style_load_timeout"));
+            },8000);
+            try{
+              map.setStyle(enabled?_satStyle():OSM_PLAN_STYLE);
+              onStyleData();   /* couvre un style deja pret / un evenement emis avant l'attache du listener */
+            }catch(error){ endTransition(seq); fail(error); }
           });
         },
         setDayRoute(dayIndex,route){
-          clearDayLine(dayIndex);
-          const segs=souvDaySegments(route); const ids=[]; const drawErrors=[]; let expected=0, drawn=0;
-          segs.forEach((segment,segmentIndex)=>{
-            if(!segment.coords||segment.coords.length<2){ drawErrors.push(new Error("maplibre_souv_missing_geom_"+dayIndex)); return; }
-            expected++;
-            const id="b2csouvline"+dayIndex+"s"+segmentIndex;
-            const coordinates=segment.coords.map(p=>[p[1],p[0]]);
-            try{ map.addSource(id,{type:"geojson",data:{type:"Feature",geometry:{type:"LineString",coordinates}}}); ids.push(id);
-              map.addLayer({id,type:"line",source:id,layout:{"line-cap":"round","line-join":"round"},paint:Object.assign({"line-color":segment.color,"line-width":3.5},segment.dashed?{"line-dasharray":[2,1.4]}:{})});
-              drawn++; }catch(error){ drawErrors.push(error); }
-          });
-          dayLineIds[dayIndex]=ids;
-          if(drawErrors.length||drawn!==expected){ throw new Error("maplibre_souv_draw_failed_"+dayIndex+":"+drawErrors.length+"/"+expected); }
+          souvDaySegments(route);
+          dayRoutes[dayIndex]=route;
+          if(transitioning) return;
+          drawDayRoute(dayIndex,route);
+          applyBounds();
         },
-        destroy(){ if(disposed) return; disposed=true; try{ map.remove(); }catch(e){} try{ box.remove(); }catch(e){} }
+        destroy(){
+          if(disposed) return; disposed=true;
+          for(const cancel of [...pendingSat]){ try{ cancel(new Error("souv_renderer_destroyed")); }catch(e){} }
+          pendingSat.clear();
+          for(const cancelImg of [...pendingImages]){ try{ cancelImg(); }catch(e){} }
+          pendingImages.clear();
+          try{ map.remove(); }catch(e){} try{ box.remove(); }catch(e){}
+        }
       };
-      map.on("error",(e)=>{ if(disposed||ready) return; try{ map.remove(); }catch(x){} try{ box.remove(); }catch(x){} rej((e&&e.error)||new Error("maplibre_error")); });
+      map.on("error",(e)=>{   /* v958-B2c-fixQ3 : passe desormais par handle.destroy() -- disposed est mis a jour, pendingImages annule */
+        if(disposed||ready) return;
+        const error=(e&&e.error)||new Error("maplibre_error");
+        try{ handle.destroy(); }catch(ig){}
+        rej(error);
+      });
       map.on("load",()=>{
         if(disposed||ready) return;
-        if(isValid&&!isValid()){ try{ map.remove(); }catch(e){} try{ box.remove(); }catch(e){} rej(new Error("stale_at_load")); return; }
+        if(isValid&&!isValid()){ try{ handle.destroy(); }catch(ig){} rej(new Error("stale_at_load")); return; }   /* v958-B2c-fixQ3 */
         box.style.visibility="visible";
-        addMarkers().then(()=>{ applyBounds(); ready=true; res(handle); }).catch(()=>{ applyBounds(); ready=true; res(handle); });
+        addMarkers().then(()=>{
+          if(disposed||(isValid&&!isValid())){ throw new Error("souv_stale_build"); }
+          applyBounds(); ready=true; res(handle);
+        }).catch(error=>{
+          try{ handle.destroy(); }catch(e){}
+          rej(error);
+        });
       });
     });
   });
@@ -10306,6 +10566,8 @@ function invalidateTripMapEl(el){
   const gen=(el._tripMapGen=(el._tripMapGen||0)+1);
   const renderer=el._tripMapRenderer; el._tripMapRenderer=null;
   if(renderer){ try{ renderer.destroy(); }catch(e){} }
+  const stale=el.querySelector('[data-tripmap-unavailable]');   /* v958-B2c-fixR5 : le message n'appartient a aucun renderer -- appendChild() ne le remplacerait jamais tout seul */
+  if(stale){ try{ stale.remove(); }catch(e){} }
   return gen;
 }
 function renderTripMap(tr,el,options){
@@ -10314,6 +10576,15 @@ function renderTripMap(tr,el,options){
   const gen=invalidateTripMapEl(el);
   if(!mapKey()) return;
   const stillCurrentEl=()=>gen===el._tripMapGen && el.isConnected;
+  function showUnavailable(){
+    if(!stillCurrentEl()||el._tripMapRenderer) return;
+    const message=document.createElement("div");
+    message.setAttribute("role","status");
+    message.setAttribute("data-tripmap-unavailable","1");
+    message.style.cssText="padding:24px;text-align:center;color:#7a8398;font:600 13px system-ui;";
+    message.textContent="Carte indisponible pour le moment.";
+    el.replaceChildren(message);
+  }
   const base=souvTripModel(tr);
   if(!base.pts.length) return;
 
@@ -10329,37 +10600,62 @@ function renderTripMap(tr,el,options){
       return cascade(list.slice(1));
     });
   }
+  /* v958-B2c-fixQ2 : UN SEUL point responsable du repli, utilise a la fois par le bouton (appel direct)
+     et par le contrôleur (restauration pendant commit) -- evite les deux cascades sur la meme erreur. */
+  function triggerFallback(handle,error){
+    if(!stillCurrentEl()||el._tripMapRenderer!==handle) return Promise.reject(error);
+    const currentIndex=providerOrder.indexOf(handle.provider);
+    if(el._tripMapRenderer===handle) el._tripMapRenderer=null;
+    try{ handle.destroy(); }catch(e){}
+    const fallback=providerOrder.slice(currentIndex+1);
+    if(!fallback.length){ showUnavailable(); return Promise.reject(error); }
+    return cascade(fallback).then(commit).catch(error=>{ showUnavailable(); throw error; });
+  }
   function wireHandle(handle){
     const raw=handle.setSatellite.bind(handle);
-    handle.setSatellite=function(enabled){ requestedSatellite=enabled;
-      return raw(enabled).then(()=>{ if(options.souvSatPref) _souvSat=enabled; }); };
+    handle.setSatellite=function(enabled){
+      requestedSatellite=enabled;
+      return raw(enabled).then(()=>{
+        if(!stillCurrentEl()||el._tripMapRenderer!==handle){ throw new Error("souv_stale_satellite"); }
+        if(options.souvSatPref) _souvSat=enabled;
+      }).catch(error=>{
+        if(!stillCurrentEl()) throw error;
+        /* v958-B2c-fixR3 : une demande satellite plus recente a annule celle-ci (ou un autre handle est deja actif) --
+           ce n'est pas une panne du provider, ne pas declencher de repli pour une simple obsolescence de concurrence. */
+        if(error && error.message==="souv_stale_satellite"){ throw error; }
+        return triggerFallback(handle,error);   /* rejoue sur le provider suivant ; la promesse reflete le resultat FINAL, meme apres changement de provider */
+      });
+    };
     return handle;
   }
   function commit(result){
     const handle=wireHandle(result.handle);
-    if(!stillCurrentEl()){ try{ handle.destroy(); }catch(e){} return; }
+    if(!stillCurrentEl()){ try{ handle.destroy(); }catch(e){} return Promise.reject(new Error("souv_stale_commit")); }
     el._tripMapRenderer=handle;
-    if(requestedSatellite){ handle.setSatellite(true).catch(()=>{}); }   /* repli en cours de session : reapplique l'etat demande */
-    base.dayIdx.forEach(dayIndex=>{
-      const dayPts=base.byDay[dayIndex]; if(!dayPts||dayPts.length<2) return;
-      const rstops=base.start?[base.start].concat(dayPts,[base.start]):dayPts;
-      if(rstops.length<2) return;
-      ensureRoute(tr,dayIndex,rstops).then(route=>{
-        if(!route) return; if(!stillCurrentEl()||el._tripMapRenderer!==handle) return;
-        try{ handle.setDayRoute(dayIndex,route); }
-        catch(error){
-          if(!stillCurrentEl()) return;
-          const currentIndex=providerOrder.indexOf(result.provider);
-          if(el._tripMapRenderer===handle) el._tripMapRenderer=null;
-          try{ handle.destroy(); }catch(e){}
-          const fallback=providerOrder.slice(currentIndex+1);
-          if(!fallback.length) return;
-          cascade(fallback).then(commit).catch(()=>{});
-        }
+    function startDayRoutes(){
+      if(!stillCurrentEl()||el._tripMapRenderer!==handle) return;
+      base.dayIdx.forEach(dayIndex=>{
+        const dayPts=base.byDay[dayIndex]; if(!dayPts||dayPts.length<2) return;
+        const rstops=dayPts.map(p=>({lat:p.lat,lng:p.lng,name:p.title,title:p.title}));
+        ensureRoute(tr,dayIndex,rstops).then(route=>{
+          if(!route) return; if(!stillCurrentEl()||el._tripMapRenderer!==handle) return;
+          try{ handle.setDayRoute(dayIndex,route); }
+          catch(error){ triggerFallback(handle,error).catch(()=>{}); }
+        }).catch(()=>{});
       });
-    });
+    }
+    if(requestedSatellite){   /* v958-B2c-fixR1 : plus de callback qui transforme un echec en succes -- un rejet reste un rejet */
+      return handle.setSatellite(true).then(()=>{
+        const active=el._tripMapRenderer;
+        if(!stillCurrentEl()||!active){ throw new Error("souv_stale_commit"); }
+        if(active===handle){ startDayRoutes(); }   /* sinon un repli a deja lance ses propres routes */
+        return active;
+      });
+    }
+    startDayRoutes();
+    return Promise.resolve(handle);
   }
-  cascade(providerOrder).then(commit).catch(()=>{});
+  cascade(providerOrder).then(commit).catch(()=>{ showUnavailable(); });
 }
 /* ============ Carte-souvenir (MapLibre + OpenFreeMap, points numérotés, export PDF) ============ */
 let _souvMap=null, _souvPts=[], _souvSat=false, _souvTr=null;
@@ -10432,24 +10728,26 @@ function _souvAddLayers(map,pts){ if(!map||!pts||!pts.length) return; const L=DA
   }
 }
 function openSouvenirMap(tr){ tr=tr||souvTrip(); if(!tr) return; const pts=souvPoints(tr); if(!pts.length){ toast(smT("noPts")); return; } _souvPts=pts; _souvTr=tr; ensureMaplibreCss();
-  let ov=document.getElementById("souvMapOv"); if(ov) ov.remove();
+  let ov=document.getElementById("souvMapOv"); if(ov){ invalidateTripMapEl(ov.querySelector("#souvMapCanvas")); ov.remove(); }   /* v958-B2c-fix3 : invalide AVANT de retirer l'overlay existant */
   ov=document.createElement("div"); ov.id="souvMapOv"; ov.className="souvmap-ov";
   const _st=(tr.souvStory||{});
   const legend=pts.map((p,i)=>`<div class="smlg" data-svlg="${i}" style="cursor:pointer"><span class="smlg-n" style="background:${(typeof catColor==="function"?catColor(p):DAY_COLORS[p.day%DAY_COLORS.length])}">${i+1}</span><div class="smlg-b"><div class="smlg-t">${(typeof catEmoji==="function"?catEmoji(p)+" ":"")}${escapeHtml(p.title||"\u2014")}</div><div class="smlg-d">${smT("day")} ${p.day+1}${p.time?" \u00b7 "+escapeHtml(p.time):""}</div>${_st[i]?`<div class="smlg-s">${escapeHtml(_st[i])}</div>`:""}${p.note?`<div class="smlg-n2">${escapeHtml(p.note)}</div>`:""}</div></div>`).join("");
   ov.innerHTML=`<div class="souvmap-sheet"><div class="smh"><div class="smh-t">${smT("title")} · ${escapeHtml(tripTitle(tr))}</div><button class="cal-x" id="smClose" type="button">✕</button></div><div id="souvMapCanvas" class="souvmap-canvas"></div><div class="souvmap-scroll"><div class="souvmap-legendhd"><span>${smT("steps")}</span><button class="sv-storybtn" id="smStory" type="button">${(tr.souvStory?_smk2("regen"):_smk2("gen"))}</button></div><div class="souvmap-legend">${legend}</div></div><div class="souvmap-foot"><button class="btn ghostline2" id="smSat" type="button">🛰️ Satellite</button><button class="btn navy" id="smPdf" type="button">📄 ${smT("export")}</button></div></div>`;
   document.body.appendChild(ov);
-  const close=()=>{ const cel0=document.getElementById("souvMapCanvas"); if(cel0&&cel0._tripMapRenderer){ try{ cel0._tripMapRenderer.destroy(); }catch(e){} } ov.remove(); };   /* v958-B2c : handle.destroy() generique, plus de _souvMap partage */
+  const close=()=>{ invalidateTripMapEl(ov.querySelector("#souvMapCanvas")); ov.remove(); };   /* v958-B2c-fix3 : invalidateTripMapEl (pas juste destroy()) -- incremente aussi la generation pour couper tout callback ensureRoute en vol */
   ov.querySelector("#smClose").onclick=close;
   ov.querySelectorAll("[data-svlg]").forEach(b=>b.onclick=()=>openSouvPlace(tr,parseInt(b.dataset.svlg,10)||0));
   { const sb=ov.querySelector("#smStory"); if(sb) sb.onclick=async()=>{ sb.disabled=true; const old=sb.textContent; sb.textContent=_smk2("writing");
       const map=await souvStory(tr);
+      if(document.getElementById("souvMapOv")!==ov) return;   /* v958-B2c-fixStory : cette fenetre a ete fermee/remplacee pendant l'attente -- ne rien rouvrir */
       if(map){ tr.souvStory=map; saveState(); close(); openSouvenirMap(tr); toast(_smk2("story")); }
       else { toast(_smk2("fail")); sb.disabled=false; sb.textContent=old; } }; }
   ov.querySelector("#smPdf").onclick=()=>souvMapPdf(tr);
-  { const _ss=ov.querySelector("#smSat"); if(_ss) _ss.onclick=()=>{   /* v958-B2c : generique via handle.setSatellite(), plus de branche par moteur */
+  let _localSat=false;   /* v958-B2c-fixR-A : etat propre a CETTE fenetre -- _souvSat ne sert plus qu'a l'export PDF, jamais lu pour le bouton */
+  { const _ss=ov.querySelector("#smSat"); if(_ss) _ss.onclick=()=>{
     const cel2=document.getElementById("souvMapCanvas"); const h=cel2&&cel2._tripMapRenderer; if(!h) return;
-    const next=!_souvSat;
-    h.setSatellite(next).then(()=>{ _ss.textContent=next?"🗺️ Plan":"🛰️ Satellite"; }).catch(()=>{});
+    const next=!_localSat;
+    h.setSatellite(next).then(()=>{ _localSat=next; _ss.textContent=next?"🗺️ Plan":"🛰️ Satellite"; }).catch(()=>{});
   }; }
   requestAnimationFrame(()=>ov.classList.add("show"));
   const cel=document.getElementById("souvMapCanvas");   /* v958-B2c : cascade Apple->Google->MapLibre via le controleur partage -- ancien Google direct + souvOverviewOSM(pts) remplaces */
@@ -15962,7 +16260,9 @@ function openDayAdd(dayVal){ const tr=souvTrip(); if(!tr){ toast(t("mem.noTrip")
   b.querySelector("#daImport").onclick=()=>{ closePhotoAdd(); document.getElementById("memFile").click(); };
   b.querySelector("#daCam").onclick=()=>{ closePhotoAdd(); document.getElementById("memCamera").click(); };
   document.getElementById("photoAddSheet").classList.add("show"); }
-function renderMemories(){ const body=document.getElementById("memBody"); if(!body) return; const chips=document.getElementById("memChips"); const tr=souvTrip();
+function renderMemories(){ const body=document.getElementById("memBody"); if(!body) return;   /* v958-B2c-fix3 : le body va etre reconstruit (innerHTML) plus bas -- invalider AVANT, sinon l'ancienne mini-carte reste vivante orpheline */
+  { const _oldMini=body.querySelector("#svMapMini"); if(_oldMini) invalidateTripMapEl(_oldMini); }
+  const chips=document.getElementById("memChips"); const tr=souvTrip();
   const viewingPast=!!souvState.tripId; const _past=S.trips.filter(x=>tripArchived(x)).sort((a,b)=>(b.dateEnd||"").localeCompare(a.dateEnd||""));
   const _pastHtml=(!viewingPast&&_past.length)?_pastTripsHtml(_past):"";
   const _backHtml=viewingPast?`<button class="mem-back" id="memBack">← ${t("mem.pastTrips")}</button><div class="folder-title">${escapeHtml(tripTitle(tr))}</div>`:"";
