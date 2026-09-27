@@ -3612,7 +3612,7 @@ const DEFAULT_S={ version:"0.2.0", settings:{ lang:"fr", theme:"system", units:"
 /* Clé Maps JS partagée (restreinte au domaine GitHub Pages). Repli : clé perso de l'utilisateur si fournie. */
 const SHARED_MAP_KEY="AIzaSyCt5iVx8nPr1V067A3daE0X1YA568XJNbU";
 function mapKey(){ return (S.settings.mapKey||"").trim() || SHARED_MAP_KEY; }
-const BUILD="0.6.124 · v1026 overview-presentation-migration";
+const BUILD="0.6.126 · v1028 souvenirs-guard-fallback-fix";
 let _idb=null; const _migrationReady=migrateLegacy(); let S=loadState();
 function normalizeTrip(tr){ if(!tr||typeof tr!=="object") return tr;
   tr.id=tr.id||("t"+Date.now()+Math.random().toString(36).slice(2,7));
@@ -11406,18 +11406,22 @@ const DAY_COLORS=["#0E2148","#E0A33E","#16A34A","#2F6BE0","#DC2626","#9333EA","#
 /* ============================================================
    v958-B2c : carte-souvenir partagee (mini #svMapMini + plein ecran #souvMapCanvas)
    Cascade Apple(MapKit) -> Google -> MapLibre. Contrat minimal :
-   { provider, resize(), fitBounds(), setSatellite(enabled)->Promise, setDayRoute(dayIndex,route), destroy() }
+   { provider, resize(), fitBounds(), setSatellite(enabled)->Promise, setDaySegments(dayIndex,segments), destroy() }
    Etat par ELEMENT (el._tripMapGen / el._tripMapRenderer), pas global.
-   route.polyline (champ toujours "") reste un champ mort documente -- ce renderer n'utilise QUE
-   route.legsInfo via legVisualSegments(), jamais route.polyline.
+   v1027 : les renderers ne connaissent plus route.legsInfo ni souvDaySegments() -- le controleur
+   (renderTripMap) resout DayRoutePresentation via getOrResolvePlanningPresentation(), la decoupe
+   en segments visuels via souvPresentationDaySegments()+presentationVisualSegments(), puis livre
+   des segments deja prets. MapLibre memorise ces segments (daySegments) pour les rejouer apres un
+   changement de style satellite, exactement comme avant avec route.
    Hors perimetre, non touches : openSouvPlace(), souvOffscreenMap(), souvMapPdf() (son propre
-   moteur MapLibre hors-ecran ; limite P3 de parite documentee, pas presentee comme B2c).
+   moteur MapLibre hors-ecran ; limite P3 de parite documentee, pas presentee comme B2c) --
+   ils continuent d'utiliser ensureRoute()/route.legsInfo/souvDaySegments() en l'etat.
    _addPinImg() historique (utilise par les exports/_souvAddLayers) reste intact et non touche --
    B2c a sa propre copie protegee (_b2cAddPinImg) pour ne pas elargir le lot.
    ============================================================ */
 
 function souvTripModel(tr){
-  const pts=souvPoints(tr);
+  const pts=souvMapPoints(tr);
   const byDay={}; pts.forEach(p=>{ (byDay[p.day]=byDay[p.day]||[]).push(p); });
   const dayIdx=Object.keys(byDay).map(Number).sort((a,b)=>a-b);
   const mode=travelMode(tr);
@@ -11487,11 +11491,10 @@ function createAppleSouvRenderer(el,base,isValid,options){
     function applyBounds(){ if(!bb) return; const padLat=(bb.maxLat-bb.minLat)*0.15+0.01, padLng=(bb.maxLng-bb.minLng)*0.15+0.01;
       try{ map.region=new mapkit.CoordinateRegion(new mapkit.Coordinate((bb.minLat+bb.maxLat)/2,(bb.minLng+bb.maxLng)/2),new mapkit.CoordinateSpan(Math.max(0.01,(bb.maxLat-bb.minLat)+padLat*2),Math.max(0.01,(bb.maxLng-bb.minLng)+padLng*2))); }catch(e){} }
     applyBounds();
-    function drawDayRoute(dayIndex,route){
+    function drawDaySegments(dayIndex,segments){
       const old=dayOverlays[dayIndex]; if(old) old.forEach(o=>{ try{ map.removeOverlay(o); }catch(e){} });
-      const segs=souvDaySegments(route);
       const created=[]; const coordsList=[];
-      segs.forEach(segment=>{ const overlay=new mapkit.PolylineOverlay(segment.coords.map(p=>new mapkit.Coordinate(p[0],p[1])),{style:new mapkit.Style({lineWidth:3.5,strokeColor:segment.color,lineDash:segment.dashed?[1,10]:undefined,lineJoin:"round",lineCap:"round"})});
+      (segments||[]).forEach(segment=>{ const overlay=new mapkit.PolylineOverlay(segment.coords.map(p=>new mapkit.Coordinate(p[0],p[1])),{style:new mapkit.Style({lineWidth:3.5,strokeColor:segment.color,lineDash:segment.dashed?[1,10]:undefined,lineJoin:"round",lineCap:"round"})});
         map.addOverlay(overlay); created.push(overlay); coordsList.push(segment.coords); });
       dayOverlays[dayIndex]=created;
       bb=bboxUnion(bb,bboxFromCoordsList(coordsList));
@@ -11506,7 +11509,7 @@ function createAppleSouvRenderer(el,base,isValid,options){
           map.mapType=_mapkitType(mapkit,enabled?"Satellite":"Standard");
         });
       },
-      setDayRoute(dayIndex,route){ drawDayRoute(dayIndex,route); applyBounds(); },
+      setDaySegments(dayIndex,segments){ drawDaySegments(dayIndex,segments); applyBounds(); },
       destroy(){ if(disposed) return; disposed=true; try{ map.removeAnnotations(markerAnns); }catch(e){} Object.keys(dayOverlays).forEach(k=>dayOverlays[k].forEach(o=>{ try{ map.removeOverlay(o); }catch(e){} })); try{ map.destroy&&map.destroy(); }catch(e){} try{ box.remove(); }catch(e){} }
     };
     return handle;
@@ -11544,11 +11547,10 @@ function createGoogleSouvRenderer(el,base,isValid,options){
     function applyBounds(){ if(!bounds.isEmpty()) map.fitBounds(bounds,(options&&options.compact)?24:40); }
     applyBounds();
     const dayLines={};
-    function drawDayRoute(dayIndex,route){
+    function drawDaySegments(dayIndex,segments){
       const old=dayLines[dayIndex]; if(old) old.forEach(p=>{ try{ p.setMap(null); }catch(e){} });
-      const segs=souvDaySegments(route);
       const created=[];
-      segs.forEach(segment=>{
+      (segments||[]).forEach(segment=>{
         const path=segment.coords.map(p=>({lat:p[0],lng:p[1]})); path.forEach(pt=>bounds.extend(pt));
         const pl=trackPolyline(new google.maps.Polyline({path,map,strokeColor:segment.color,strokeOpacity:segment.dashed?0:.85,strokeWeight:3.5,
           icons:segment.dashed?[{icon:{path:"M 0,-1 0,1",strokeColor:segment.color,strokeOpacity:.9,strokeWeight:2.5,scale:2.5},offset:"0",repeat:"12px"}]:undefined}));
@@ -11566,7 +11568,7 @@ function createGoogleSouvRenderer(el,base,isValid,options){
           map.setMapTypeId(enabled?"hybrid":"roadmap");
         });
       },
-      setDayRoute(dayIndex,route){ drawDayRoute(dayIndex,route); applyBounds(); },
+      setDaySegments(dayIndex,segments){ drawDaySegments(dayIndex,segments); applyBounds(); },
       destroy(){ clearRes(); try{ box.remove(); }catch(e){} }
     };
     return handle;
@@ -11595,13 +11597,12 @@ function createMapLibreSouvRenderer(el,base,isValid,options){
       const markers=souvMarkersModel(base);
       let bb=souvTripBounds(markers);
       function applyBounds(){ if(!bb) return; try{ map.fitBounds(new maplibregl.LngLatBounds([bb.minLng,bb.minLat],[bb.maxLng,bb.maxLat]),{padding:(options&&options.compact)?24:44,maxZoom:15,duration:0}); }catch(e){} }
-      const dayLineIds={}; const dayRoutes={};
+      const dayLineIds={}; const daySegments={};
       function clearDayLine(dayIndex){ (dayLineIds[dayIndex]||[]).forEach(id=>{ try{ if(map.getLayer(id))map.removeLayer(id); if(map.getSource(id))map.removeSource(id); }catch(e){} }); dayLineIds[dayIndex]=[]; }
-      function drawDayRoute(dayIndex,route){
+      function drawDaySegments(dayIndex,segments){
         clearDayLine(dayIndex);
-        const segs=souvDaySegments(route);
         const ids=[]; const coordsList=[];
-        segs.forEach((segment,segmentIndex)=>{
+        (segments||[]).forEach((segment,segmentIndex)=>{
           const id="b2csouvline"+dayIndex+"s"+segmentIndex;
           const coordinates=segment.coords.map(p=>[p[1],p[0]]);
           map.addSource(id,{type:"geojson",data:{type:"Feature",geometry:{type:"LineString",coordinates}}}); ids.push(id);
@@ -11659,7 +11660,7 @@ function createMapLibreSouvRenderer(el,base,isValid,options){
                 if(settled) return;
                 if(disposed||seq!==satSeq){ endTransition(seq); fail(disposed?new Error("souv_renderer_destroyed"):new Error("souv_stale_satellite")); return; }
                 try{
-                  Object.keys(dayRoutes).forEach(di=>{ drawDayRoute(+di,dayRoutes[di]); });
+                  Object.keys(daySegments).forEach(di=>{ drawDaySegments(+di,daySegments[di]); });
                   applyBounds();
                   endTransition(seq);
                   succeed();
@@ -11693,11 +11694,10 @@ function createMapLibreSouvRenderer(el,base,isValid,options){
             }catch(error){ endTransition(seq); fail(error); }
           });
         },
-        setDayRoute(dayIndex,route){
-          souvDaySegments(route);
-          dayRoutes[dayIndex]=route;
+        setDaySegments(dayIndex,segments){
+          daySegments[dayIndex]=segments;
           if(transitioning) return;
-          drawDayRoute(dayIndex,route);
+          drawDaySegments(dayIndex,segments);
           applyBounds();
         },
         destroy(){
@@ -11747,7 +11747,18 @@ function renderTripMap(tr,el,options){
   if(!el) return;
   const gen=invalidateTripMapEl(el);
   if(!mapKey()) return;
-  const stillCurrentEl=()=>gen===el._tripMapGen && el.isConnected;
+  const capturedStoreId=_storeId;
+  const capturedStoreEpoch=_storeEpoch;
+  const capturedTripId=tr&&tr.id;
+  const capturedModelKey=souvMapModelKey(tr);
+  const stillCurrentEl=()=>{
+    if(gen!==el._tripMapGen || !el.isConnected) return false;
+    if(_storeId!==capturedStoreId || _storeEpoch!==capturedStoreEpoch) return false;
+    const liveTrip=(S.trips||[]).find(t=>t && t.id===capturedTripId);   /* jamais currentTrip() -- Souvenirs doit rester affichable pour un voyage archive/non courant */
+    if(!liveTrip) return false;
+    if(souvMapModelKey(liveTrip)!==capturedModelKey) return false;   /* v1028-P1 : recalcule sur le voyage VIVANT de S.trips, jamais sur l'objet tr capture -- pullAndMergeTrips() peut remplacer l'objet par un nouveau, meme id, sans bumper store/epoch */
+    return true;
+  };
   function showUnavailable(){
     if(!stillCurrentEl()||el._tripMapRenderer) return;
     const message=document.createElement("div");
@@ -11765,9 +11776,9 @@ function renderTripMap(tr,el,options){
 
   function tryProvider(name){ return name==="apple"?createAppleSouvRenderer(el,base,stillCurrentEl,options):(name==="google"?createGoogleSouvRenderer(el,base,stillCurrentEl,options):createMapLibreSouvRenderer(el,base,stillCurrentEl,options)); }
   function cascade(list){
-    if(gen!==el._tripMapGen) return Promise.reject(new Error("stale_gen"));
+    if(!stillCurrentEl()) return Promise.reject(new Error("stale_gen"));
     return tryProvider(list[0]).then(handle=>({provider:list[0],handle})).catch(error=>{
-      if(gen!==el._tripMapGen) throw error;
+      if(!stillCurrentEl()) throw error;
       if(list.length<=1) throw error;
       return cascade(list.slice(1));
     });
@@ -11804,27 +11815,44 @@ function renderTripMap(tr,el,options){
     const handle=wireHandle(result.handle);
     if(!stillCurrentEl()){ try{ handle.destroy(); }catch(e){} return Promise.reject(new Error("souv_stale_commit")); }
     el._tripMapRenderer=handle;
-    function startDayRoutes(){
-      if(!stillCurrentEl()||el._tripMapRenderer!==handle) return;
-      base.dayIdx.forEach(dayIndex=>{
-        const dayPts=base.byDay[dayIndex]; if(!dayPts||dayPts.length<2) return;
-        const rstops=dayPts.map(p=>({lat:p.lat,lng:p.lng,name:p.title,title:p.title}));
-        ensureRoute(tr,dayIndex,rstops).then(route=>{
-          if(!route) return; if(!stillCurrentEl()||el._tripMapRenderer!==handle) return;
-          try{ handle.setDayRoute(dayIndex,route); }
-          catch(error){ triggerFallback(handle,error).catch(()=>{}); }
-        }).catch(()=>{});
-      });
+    /* v1027 : resolution SEQUENTIELLE, jour apres jour -- jamais de rafale parallele.
+       Marqueurs/renderer visibles immediatement ; seules les routes arrivent progressivement. */
+    async function startDayPresentations(){
+      for(const dayIndex of base.dayIdx){
+        if(!stillCurrentEl()||el._tripMapRenderer!==handle) return;
+        const dayPts=base.byDay[dayIndex]; if(!dayPts||dayPts.length<2) continue;
+        let presentation=null;
+        try{
+          presentation=await getOrResolvePlanningPresentation(tr,dayIndex,planningPresentationOptions(tr,dayIndex));
+        }catch(e){
+          presentation=null;   /* erreur de donnees/reseau simple -- traitee plus bas comme "ce jour reste sans trait", jamais comme une panne de renderer */
+        }
+        if(!stillCurrentEl()||el._tripMapRenderer!==handle) return;
+        if(presentation && presentation.meta && presentation.meta.stale===true){
+          /* Le Planning a change pendant l'attente : le modele des marqueurs (base) est lui-meme
+             perime -- on arrete toute la sequence, jamais de continuation avec les jours suivants. */
+          return;
+        }
+        if(!presentation || !presentation.meta){
+          continue;   /* echec de donnees/reseau : ce jour reste sans trait, la sequence continue -- jamais de fallback provider pour une simple erreur de donnees */
+        }
+        let segments=null;
+        try{ segments=souvPresentationDaySegments(presentation,dayPts); }catch(e){ segments=null; }
+        if(!segments || !segments.length) continue;
+        if(!stillCurrentEl()||el._tripMapRenderer!==handle) return;
+        try{ handle.setDaySegments(dayIndex,segments); }
+        catch(error){ triggerFallback(handle,error).catch(()=>{}); return; }   /* erreur de RENDERER (pas de donnees) -- seul cas ou le repli Apple->Google->MapLibre est declenche ici */
+      }
     }
     if(requestedSatellite){   /* v958-B2c-fixR1 : plus de callback qui transforme un echec en succes -- un rejet reste un rejet */
       return handle.setSatellite(true).then(()=>{
         const active=el._tripMapRenderer;
         if(!stillCurrentEl()||!active){ throw new Error("souv_stale_commit"); }
-        if(active===handle){ startDayRoutes(); }   /* sinon un repli a deja lance ses propres routes */
+        if(active===handle){ startDayPresentations(); }   /* sinon un repli a deja lance ses propres routes */
         return active;
       });
     }
-    startDayRoutes();
+    startDayPresentations();
     return Promise.resolve(handle);
   }
   cascade(providerOrder).then(commit).catch(()=>{ showUnavailable(); });
@@ -11840,6 +11868,119 @@ const _SMK={
 };
 function smT(k){ return (_SMK[lang()]||_SMK.fr)[k]||_SMK.fr[k]||k; }
 function souvPoints(tr){ const out=[]; tripDays(tr).forEach(dd=>{ (tr.plan||[]).filter(s=>s.day===dd.i && s.lat!=null).sort((a,b)=>String(a.time||"").localeCompare(String(b.time||""))||((a.ord!=null?a.ord:0)-(b.ord!=null?b.ord:0))).forEach(s=>{ const pl=s.placeId?(tr.places||[]).find(x=>x.id===s.placeId):null; out.push(Object.assign({},pl||{},{lat:s.lat,lng:s.lng,day:dd.i,time:(s.time||""),title:(s.title||(pl&&pl.name)||""),note:((pl&&pl.note)||s.note||""),kind:(s.kind||"place"),meal:s.meal,oi:out.length})); }); }); return out; }
+/* ============================================================
+   v1027 : modele de points dedie a la carte Souvenirs interactive.
+   souvPoints() reste byte-identique et continue de servir le film/recit/PDF ;
+   ce modele suit l'ordre canonique Planning (.ord via localRouteLogicalItemsSnapshot)
+   tout en conservant sur chaque point son indice historique souvPoints (_souvIndex)
+   et l'id reel de l'item Planning source (_planItemId), pour que clic/recit/legende
+   restent associes au bon lieu meme si l'ordre visuel carte differe de l'ordre historique.
+   Aucune mutation de tr.plan, rien de persiste.
+   ============================================================ */
+function souvMapPoints(tr){
+  const hist=souvPoints(tr);
+  /* Reconstruction positionnelle des references tr.plan reelles, avec EXACTEMENT
+     le meme filtre/tri que souvPoints() -- refs[i] correspond alors a hist[i]. */
+  const refs=[];
+  tripDays(tr).forEach(dd=>{
+    (tr.plan||[]).filter(s=>s.day===dd.i && s.lat!=null)
+      .sort((a,b)=>String(a.time||"").localeCompare(String(b.time||""))||((a.ord!=null?a.ord:0)-(b.ord!=null?b.ord:0)))
+      .forEach(s=>refs.push(s));
+  });
+  const idToSouvIndex=new Map();
+  refs.forEach((ref,i)=>{ if(ref && ref.id!=null && !idToSouvIndex.has(ref.id)) idToSouvIndex.set(ref.id,i); });
+  const TOL=0.0005;
+  const out=[];
+  tripDays(tr).forEach(dd=>{
+    const day=dd.i;
+    let seq=[]; try{ seq=localRouteLogicalItemsSnapshot(tr,day,{})||[]; }catch(e){ seq=[]; }
+    /* v1028-P2 : table des entrees historiques de CE jour, chacune marquee used au plus une fois --
+       remplace l'ancien histCursor, qui n'avancait que pour les items sans id et associait donc
+       le mauvais historique des qu'un jour melangeait items avec et sans id. */
+    const dayEntries=[];
+    hist.forEach((h,gi)=>{ if(h.day===day) dayEntries.push({globalIndex:gi, histPoint:h, used:false}); });
+    const findByContent=(item)=>{
+      let cand=dayEntries.filter(e=>!e.used && e.histPoint.lat!=null && item.lat!=null && Math.abs(e.histPoint.lat-item.lat)<TOL && Math.abs(e.histPoint.lng-item.lng)<TOL);
+      if(cand.length<=1) return cand[0]||null;
+      let next=cand.filter(e=>item.placeId && e.histPoint.placeId===item.placeId); if(next.length) cand=next;
+      if(cand.length>1){ next=cand.filter(e=>(item.time||"")===(e.histPoint.time||"")); if(next.length) cand=next; }
+      if(cand.length>1){ next=cand.filter(e=>(item.kind||"")===(e.histPoint.kind||"") && (item.meal||"")===(e.histPoint.meal||"")); if(next.length) cand=next; }
+      if(cand.length>1){ next=cand.filter(e=>(item.title||"")===(e.histPoint.title||"")); if(next.length) cand=next; }
+      return cand[0]||null;
+    };
+    seq.forEach(item=>{
+      if(!item || item._trans) return;
+      if(item.lat==null || item.lng==null) return;
+      const planItemId=(item.id!=null?item.id:null);
+      let entry=null;
+      const souvIdx=(item.id!=null && idToSouvIndex.has(item.id)) ? idToSouvIndex.get(item.id) : null;
+      if(souvIdx!=null){
+        entry=dayEntries.find(e=>e.globalIndex===souvIdx && !e.used) || null;
+      }
+      if(!entry){
+        entry=findByContent(item);
+      }
+      if(!entry){
+        /* Donnee ancienne sans correspondance exploitable : jamais supprimee silencieusement --
+           fallback sur le premier historique du jour encore non utilise. */
+        entry=dayEntries.find(e=>!e.used) || null;
+      }
+      if(entry){
+        entry.used=true;
+        out.push(Object.assign({},entry.histPoint,{_souvIndex:entry.globalIndex,_planItemId:planItemId}));
+      }else{
+        out.push({lat:item.lat,lng:item.lng,day,time:(item.time||""),title:(item.title||""),note:(item.note||""),kind:(item.kind||"place"),meal:item.meal,_souvIndex:null,_planItemId:planItemId});
+      }
+    });
+  });
+  return out;
+}
+/* Signature du modele carte Souvenirs : depend de l'ordre + identite cartographique.
+   Si le Planning change pendant un await, une signature differente rend l'ancien rendu perime.
+   Aucune ecriture persistante. */
+function souvMapModelKey(tr){
+  const pts=souvMapPoints(tr);
+  return pts.map(p=>[p.day,p._planItemId,p._souvIndex,(+p.lat).toFixed(5),(+p.lng).toFixed(5)].join(":")).join("|");
+}
+/* Adaptateur DayRoutePresentation -> segments visuels Souvenirs.
+   Ne dessine jamais origine->premier lieu ni dernier lieu->retour : uniquement
+   la route physique entre le premier et le dernier lieu Souvenir du jour, identites
+   fromItemId/toItemId en priorite (jamais de mapping positionnel par index de parts). */
+function souvPresentationDaySegments(presentation,dayPts){
+  if(!presentation || !presentation.meta || presentation.meta.stale===true) return null;
+  if(!dayPts || dayPts.length<2) return [];
+  const firstId=dayPts[0]._planItemId;
+  const lastId=dayPts[dayPts.length-1]._planItemId;
+  const TOL=0.0005;   /* fallback identite par coordonnees, uniquement pour donnees anciennes sans _planItemId -- jamais de coordonnee fabriquee */
+  const matchesPoint=(pt,p)=> !!pt && !!p && p.lat!=null && p.lng!=null && Math.abs(pt.lat-(+p.lat))<TOL && Math.abs(pt.lng-(+p.lng))<TOL;
+  const isFirst=(move)=>{
+    if(firstId!=null) return move.toItemId===firstId;
+    return matchesPoint(move.toPoint,dayPts[0]);
+  };
+  const isLast=(move)=>{
+    if(lastId!=null) return move.toItemId===lastId;
+    return matchesPoint(move.toPoint,dayPts[dayPts.length-1]);
+  };
+  const segments=[]; let colorIndex=0; let started=false; let done=false;
+  (presentation.moves||[]).forEach(move=>{
+    if(done || !move) return;
+    if(move.role==="return") return;
+    if(!started){
+      if(isFirst(move)) started=true;   /* le mouvement qui ARRIVE au premier lieu est lui-meme ignore, jamais dessine */
+      return;
+    }
+    (move.parts||[]).forEach(part=>{
+      if(!part) return;
+      let visual=[]; try{ visual=presentationVisualSegments(part,colorIndex++); }catch(e){ visual=[]; }
+      visual.forEach(seg=>{
+        if(!seg || !Array.isArray(seg.coords) || seg.coords.length<2) return;
+        segments.push({coords:seg.coords,color:seg.color,dashed:!!seg.dashed,mode:seg.mode||""});
+      });
+    });
+    if(isLast(move)) done=true;
+  });
+  return segments;
+}
 /* L'IA renvoie souvent sa phrase en minuscule : on lui rend sa majuscule
    sans toucher au reste du texte. */
 /* Date de la derniere composition, dite simplement. */
@@ -11900,10 +12041,11 @@ function _souvAddLayers(map,pts){ if(!map||!pts||!pts.length) return; const L=DA
   }
 }
 function openSouvenirMap(tr){ tr=tr||souvTrip(); if(!tr) return; const pts=souvPoints(tr); if(!pts.length){ toast(smT("noPts")); return; } _souvPts=pts; _souvTr=tr; ensureMaplibreCss();
+  const mapPts=souvMapPoints(tr);   /* v1027 : legende/numerotation carte suivent l'ordre canonique -- recit/clic restent associes a l'indice historique souvPoints via _souvIndex */
   let ov=document.getElementById("souvMapOv"); if(ov){ invalidateTripMapEl(ov.querySelector("#souvMapCanvas")); ov.remove(); }   /* v958-B2c-fix3 : invalide AVANT de retirer l'overlay existant */
   ov=document.createElement("div"); ov.id="souvMapOv"; ov.className="souvmap-ov";
   const _st=(tr.souvStory||{});
-  const legend=pts.map((p,i)=>`<div class="smlg" data-svlg="${i}" style="cursor:pointer"><span class="smlg-n" style="background:${(typeof catColor==="function"?catColor(p):DAY_COLORS[p.day%DAY_COLORS.length])}">${i+1}</span><div class="smlg-b"><div class="smlg-t">${(typeof catEmoji==="function"?catEmoji(p)+" ":"")}${escapeHtml(p.title||"\u2014")}</div><div class="smlg-d">${smT("day")} ${p.day+1}${p.time?" \u00b7 "+escapeHtml(p.time):""}</div>${_st[i]?`<div class="smlg-s">${escapeHtml(_st[i])}</div>`:""}${p.note?`<div class="smlg-n2">${escapeHtml(p.note)}</div>`:""}</div></div>`).join("");
+  const legend=mapPts.map((p,i)=>{ const hIdx=p._souvIndex; const storyText=(hIdx!=null&&_st[hIdx])?_st[hIdx]:""; return `<div class="smlg" data-svlg="${hIdx!=null?hIdx:""}" style="cursor:pointer"><span class="smlg-n" style="background:${(typeof catColor==="function"?catColor(p):DAY_COLORS[p.day%DAY_COLORS.length])}">${i+1}</span><div class="smlg-b"><div class="smlg-t">${(typeof catEmoji==="function"?catEmoji(p)+" ":"")}${escapeHtml(p.title||"\u2014")}</div><div class="smlg-d">${smT("day")} ${p.day+1}${p.time?" \u00b7 "+escapeHtml(p.time):""}</div>${storyText?`<div class="smlg-s">${escapeHtml(storyText)}</div>`:""}${p.note?`<div class="smlg-n2">${escapeHtml(p.note)}</div>`:""}</div></div>`; }).join("");
   ov.innerHTML=`<div class="souvmap-sheet"><div class="smh"><div class="smh-t">${smT("title")} · ${escapeHtml(tripTitle(tr))}</div><button class="cal-x" id="smClose" type="button">✕</button></div><div id="souvMapCanvas" class="souvmap-canvas"></div><div class="souvmap-scroll"><div class="souvmap-legendhd"><span>${smT("steps")}</span><button class="sv-storybtn" id="smStory" type="button">${(tr.souvStory?_smk2("regen"):_smk2("gen"))}</button></div><div class="souvmap-legend">${legend}</div></div><div class="souvmap-foot"><button class="btn ghostline2" id="smSat" type="button">🗺️ Plan</button><button class="btn navy" id="smPdf" type="button">📄 ${smT("export")}</button></div></div>`;
   document.body.appendChild(ov);
   const close=()=>{ invalidateTripMapEl(ov.querySelector("#souvMapCanvas")); ov.remove(); };   /* v958-B2c-fix3 : invalidateTripMapEl (pas juste destroy()) -- incremente aussi la generation pour couper tout callback ensureRoute en vol */
