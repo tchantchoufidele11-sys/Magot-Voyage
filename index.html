@@ -3612,9 +3612,10 @@ const DEFAULT_S={ version:"0.2.0", settings:{ lang:"fr", theme:"system", units:"
 /* Clé Maps JS partagée (restreinte au domaine GitHub Pages). Repli : clé perso de l'utilisateur si fournie. */
 const SHARED_MAP_KEY="AIzaSyCt5iVx8nPr1V067A3daE0X1YA568XJNbU";
 function mapKey(){ return (S.settings.mapKey||"").trim() || SHARED_MAP_KEY; }
-const BUILD="0.6.126 · v1028 souvenirs-guard-fallback-fix";
+const BUILD="0.6.139 · v1041 planning-final-fuel-closure";
 let _idb=null; const _migrationReady=migrateLegacy(); let S=loadState();
 function normalizeTrip(tr){ if(!tr||typeof tr!=="object") return tr;
+  if(Object.prototype.hasOwnProperty.call(tr,"_routes")) delete tr._routes;   /* v1033 : purge du cache legacy tr._routes deja persiste -- passage memoire seul, jamais de saveState() ici, jamais de reseau, jamais de conversion/copie du contenu */
   tr.id=tr.id||("t"+Date.now()+Math.random().toString(36).slice(2,7));
   if(!Array.isArray(tr.places)) tr.places=[];
   if(!Array.isArray(tr.plan)) tr.plan=[];
@@ -4995,7 +4996,9 @@ function _dayFuelCost(tr, meters, day){ if(!tr || !usesCar(tr) || travelMode(tr)
   if(!Number.isFinite(meters) || meters<=0) return null;
   const veh=tr.veh||{}; const fd=fuelDefault(veh.fuel);
   const conso=parseFloat(String(veh.conso||"").replace(",","."))||fd.conso;   /* conso user sinon défaut */
-  const price=parseFloat(String(veh.price||"").replace(",","."))||fuelPrice((((typeof destForDay==="function")?destForDay(tr,day):null)||tr.dest||{}).cc, veh.fuel);   /* prix user prioritaire sinon prix pays */
+  const _dfd=(((typeof destForDay==="function")?destForDay(tr,day):null)||tr.dest||{});
+  const _manualPrice=veh.priceManual ? parseFloat(String(veh.price||"").replace(",",".")) : NaN;   /* F1-B : un prix auto-rempli (applyCountryFuel) avec priceManual=false ne doit JAMAIS masquer la resolution reelle F1 */
+  const price=(_manualPrice>0?_manualPrice:0)||fuelPriceResolved(tr, _dfd.cc, veh.fuel, _dfd.lat, _dfd.lng);   /* F1 : prix VRAIMENT manuel prioritaire, sinon resolution reelle (France) avec repli fuelPrice() inchange */
   if(!(price>0) || !(conso>0)) return null;
   return (meters/1000)*conso/100*price; }
 function _dayMealCost(tr, day){ return (((tr&&tr.plan)||[]).filter(x=>x&&x.day===day&&x.kind==="meal")).reduce((a,it)=>a+(_mealCost(it,tr)||0),0); }
@@ -5011,11 +5014,139 @@ async function _paintDayCosts(tr, day, tk, tid){   /* coûts dépendant du traje
   if(tk!==_routeUIToken) return; const cur=currentTrip(); if(!cur||cur.id!==tid||planState.dayIndex!==day) return;
   const _bref=(tr._budgetDayRoute||{})[day]; const _bsnap=(_bref&&_bref.sig&&tr._routeSnap)?tr._routeSnap[_bref.sig]:null;
   const _bMeters=(_bsnap && _bsnap.policyVersion===ROUTE_POLICY_VERSION && Number.isFinite(_bsnap.distanceMeters) && _bsnap.distanceMeters>0)?_bsnap.distanceMeters:null;
-  const fuel=(_bMeters!=null)?_dayFuelCost(tr, _bMeters, day):null;   /* v958-A : euro carburant = snapshot Budget fige (jamais _routeCore) */
+  let fuel=null;
+  if(_bMeters!=null && usesCar(tr) && travelMode(tr)==="DRIVE"){   /* correctif audit v1039 : meme attribution segmentaire A/transfert/B que _perDayFuelCost() -- jamais un prix unique pour toute la journee de transfert */
+    const veh=tr.veh||{}, fd=fuelDefault(veh.fuel), conso=parseFloat(String(veh.conso||"").replace(",","."))||fd.conso;
+    const _pts=(typeof buildBudgetDayRoutePoints==="function")?buildBudgetDayRoutePoints(tr,day):null;
+    if(_pts && Array.isArray(_bsnap.legs) && _bsnap.legs.length===(_pts.length-1)){
+      const bd=_dayFuelBreakdown(tr, day, _pts, _bsnap.legs, conso, veh, fd);
+      fuel=(bd.totalCost>0)?bd.totalCost:null;
+    } else { fuel=_dayFuelCost(tr, _bMeters, day); }   /* repli defensif : structure inattendue -> ancien calcul scalaire, jamais un plantage */
+  }
   if(fuel==null){ setF("\u2014"); setD("\u2014"); setS("\u2014"); return; }   /* route attendue mais échec -> jamais l\u2019ancien coût comme actuel */
   setF(money(fuel,tr.currency)); const tot=fuel+mealC; const m=money(tot,tr.currency); setD(m); setS(m); }
 const FUEL_BY_CC={FR:{essence:1.85,diesel:1.75,gpl:0.95,elec:0.25},DE:{essence:1.80,diesel:1.70,gpl:1.05,elec:0.40},ES:{essence:1.55,diesel:1.45,gpl:0.95,elec:0.30},IT:{essence:1.85,diesel:1.75,gpl:0.75,elec:0.40},PT:{essence:1.75,diesel:1.60,gpl:0.85,elec:0.30},NL:{essence:2.05,diesel:1.75,gpl:0.95,elec:0.40},BE:{essence:1.70,diesel:1.80,gpl:0.95,elec:0.40},AT:{essence:1.55,diesel:1.55,gpl:0.95,elec:0.35},IE:{essence:1.75,diesel:1.70,gpl:0.95,elec:0.35},GR:{essence:1.80,diesel:1.65,gpl:0.95,elec:0.30},LU:{essence:1.55,diesel:1.45,gpl:0.75,elec:0.30},FI:{essence:1.90,diesel:1.75,gpl:0.95,elec:0.20},CH:{essence:1.80,diesel:1.95,gpl:1.10,elec:0.30},GB:{essence:1.45,diesel:1.55,gpl:0.85,elec:0.30},US:{essence:0.95,diesel:1.05,gpl:0.70,elec:0.16},CA:{essence:1.55,diesel:1.75,gpl:0.95,elec:0.15},JP:{essence:175,diesel:155,gpl:110,elec:30},AU:{essence:1.95,diesel:1.95,gpl:1.10,elec:0.30},MA:{essence:14.5,diesel:13.5,gpl:8,elec:1.5},TN:{essence:2.5,diesel:2.1,gpl:1.6,elec:0.3},DZ:{essence:45,diesel:29,gpl:9,elec:4},MX:{essence:24,diesel:25,gpl:12,elec:3},BR:{essence:6.0,diesel:6.2,gpl:3.8,elec:1.0},CN:{essence:7.8,diesel:7.2,gpl:4.5,elec:1.0},TH:{essence:38,diesel:33,gpl:16,elec:4},IN:{essence:100,diesel:90,gpl:55,elec:9},TR:{essence:43,diesel:43,gpl:22,elec:2.5},AE:{essence:2.9,diesel:3.0,gpl:2.0,elec:0.3},SE:{essence:18,diesel:20,gpl:11,elec:3},NO:{essence:22,diesel:21,gpl:13,elec:3},DK:{essence:14,diesel:13,gpl:8,elec:3},PL:{essence:6.5,diesel:6.7,gpl:2.8,elec:0.8},CZ:{essence:38,diesel:37,gpl:16,elec:8},CM:{essence:840,diesel:828,gpl:500,elec:100},GA:{essence:715,diesel:655,gpl:500,elec:120},CG:{essence:715,diesel:865,gpl:500,elec:110},TD:{essence:840,diesel:828,gpl:500,elec:120},SN:{essence:990,diesel:755,gpl:600,elec:115},CI:{essence:875,diesel:715,gpl:600,elec:110},BJ:{essence:700,diesel:680,gpl:600,elec:110},BF:{essence:790,diesel:730,gpl:600,elec:120},ML:{essence:830,diesel:760,gpl:600,elec:120},NG:{essence:1000,diesel:1100,gpl:700,elec:70},GH:{essence:14,diesel:14,gpl:10,elec:1.5},KE:{essence:190,diesel:175,gpl:130,elec:25},ZA:{essence:24,diesel:22,gpl:18,elec:3},EG:{essence:15,diesel:13,gpl:8,elec:1.5},MU:{essence:75,diesel:62,gpl:40,elec:7},KR:{essence:1700,diesel:1550,gpl:1000,elec:300},SG:{essence:2.8,diesel:2.6,gpl:1.8,elec:0.4},MY:{essence:2.05,diesel:2.15,gpl:1.5,elec:0.5},PH:{essence:65,diesel:60,gpl:45,elec:11},SA:{essence:2.33,diesel:0.75,gpl:0.6,elec:0.18},IL:{essence:7.4,diesel:6.8,gpl:4,elec:0.55},RU:{essence:55,diesel:62,gpl:30,elec:5},ID:{essence:13000,diesel:13000,gpl:7000,elec:1500}};
 function fuelPrice(cc,fuel){ const c=cc&&FUEL_BY_CC[String(cc).toUpperCase()]; if(c&&c[fuel||"essence"]!=null) return c[fuel||"essence"]; return null; }
+/* ============================================================
+   F1 -- COUCHE DE PRIX CARBURANT REELS (France uniquement)
+   BASE : v1033 · f4917adf9ce75fd8eadbadd69f75c4a0
+   Objectif strict : remplacer PROGRESSIVEMENT fuelPrice() (table statique)
+   comme source PRINCIPALE, jamais comme unique source -- FUEL_BY_CC reste
+   le dernier repli, inchange, dans tous les cas ou la donnee distante est
+   indisponible/invalide/hors rayon/perimee.
+   Hors perimetre (F2, plus tard) : tankCapacity, startFuelLevel, autonomie,
+   simulation de ravitaillement, connecteurs DE/IT/ES/UK/BE/NL, FX.
+   Ne touche jamais : computeBudgetRouteMeters(), td.drive/local/interLeg,
+   DayRoutePresentation, tr._routes, ensureRoute() (CLOSED).
+   ============================================================ */
+const FUEL_GEO_BUCKET_DEG=0.15;   /* ~15-16km a la latitude francaise -- a affiner empiriquement, jamais une precision inventee */
+const FUEL_STATION_MAX_RADIUS_KM=20;   /* garde-fou explicite, testable : etre dans le meme bucket ne prouve pas la pertinence geographique */
+const FUEL_FRESH_MS=2*3600*1000;          /* 2h -- determine si un DECLARED_PRICE est affichable (base sur reportedAt) */
+const FUEL_STALE_ACCEPTABLE_MS=72*3600*1000;   /* 72h -- au-dela : EXPIRED, jamais utilise comme prix station actuel */
+const FUEL_REFETCH_TTL_MS=15*60*1000;   /* audit v1034 P2-1 : horloge SEPAREE (basee sur fetchedAt), determine quand le Worker PEUT etre rappele -- 15min car la source France se rafraichit ~10min, inutile de solliciter plus souvent. N'a AUCUN rapport avec reportedAt/FRESH/STALE_ACCEPTABLE/EXPIRED, qui restent uniquement une notion d'affichage. */
+function _fuelGeoBucket(lat,lng){ if(lat==null||lng==null) return null; const b=FUEL_GEO_BUCKET_DEG; return (Math.round(lat/b)*b).toFixed(3)+","+(Math.round(lng/b)*b).toFixed(3); }
+function _fuelPriceSnapStore(tr){ if(!tr._fuelPriceSnap||typeof tr._fuelPriceSnap!=="object") tr._fuelPriceSnap={}; return tr._fuelPriceSnap; }
+function _fuelNeededPositions(tr){   /* audit v1034 P2-2 : depart + TOUTES les destinations d'etapes uniques (deduplication geographique), plus tr.dest si aucune etape explicite */
+  if(!tr) return [];
+  const positions=[]; const seen=new Set();
+  const add=(cc,lat,lng)=>{ if(!cc) return; const key=cc+"|"+(_fuelGeoBucket(lat,lng)||"national"); if(seen.has(key)) return; seen.add(key); positions.push({cc,lat,lng}); };
+  add((tr.depart&&tr.depart.cc)||null,(tr.depart&&tr.depart.lat!=null)?tr.depart.lat:null,(tr.depart&&tr.depart.lng!=null)?tr.depart.lng:null);
+  const legs=(typeof tripLegs==="function")?tripLegs(tr):[];
+  if(legs&&legs.length){ legs.forEach(l=>{ if(l&&l.dest) add(l.dest.cc||null,(l.dest.lat!=null)?l.dest.lat:null,(l.dest.lng!=null)?l.dest.lng:null); }); }
+  else if(tr.dest){ add(tr.dest.cc||null,(tr.dest.lat!=null)?tr.dest.lat:null,(tr.dest.lng!=null)?tr.dest.lng:null); }
+  return positions; }
+function _fuelResolveSignature(tr){ if(!tr) return ""; const v=tr.veh||{};
+  const ps=_fuelNeededPositions(tr).map(p=>p.cc+":"+(p.lat!=null?p.lat:"")+","+(p.lng!=null?p.lng:"")).join("|");
+  return ps+"##"+(v.fuel||""); }
+function _fuelWithinRadius(record,lat,lng){ if(!record||lat==null||lng==null||record.latitude==null||record.longitude==null) return false;
+  try{ return haversineKm({lat,lng},{lat:record.latitude,lng:record.longitude})<=FUEL_STATION_MAX_RADIUS_KM; }catch(e){ return false; } }
+function _fuelFreshnessOf(record){
+  if(!record) return "MISSING";
+  if(record.priceKind==="DECLARED_PRICE"){
+    if(!record.reportedAt) return "EXPIRED";   /* garde-fou : reportedAt absent -- jamais implicitement FRESH via fetchedAt */
+    const t=Date.parse(record.reportedAt);
+    if(!Number.isFinite(t)) return "EXPIRED";   /* N6 : horodatage invalide -- jamais fraiche */
+    const age=Date.now()-t;
+    if(age<0) return "EXPIRED";   /* N6 : horodatage futur -- jamais fraiche */
+    if(age<FUEL_FRESH_MS) return "FRESH";
+    if(age<=FUEL_STALE_ACCEPTABLE_MS) return "STALE_ACCEPTABLE";
+    return "EXPIRED"; }
+  /* autres priceKind (OBSERVED_AVERAGE/REGULATED_CEILING/DAILY_SNAPSHOT) : regle propre a leurs futurs connecteurs -- non generalisee ici, F1 ne produit que DECLARED_PRICE */
+  return "STALE_ACCEPTABLE"; }
+async function resolveFuelPriceRemote(cc,fuel,lat,lng){
+  try{
+    const j=await workerFetch("/fuel-price",{cc,fuel,lat,lng});
+    if(!j||j.error) return null;
+    if(j.fuelType!==fuel) return null;                                   /* N5 */
+    if(!(Number.isFinite(j.price)&&j.price>0)) return null;               /* N3 */
+    if(j.currency!=="EUR"||j.unit!=="L") return null;                     /* garde-fou devise : aucune conversion FX dans F1 */
+    if(!j.scope||!j.priceKind||!j.source) return null;
+    return { price:j.price, currency:j.currency, unit:j.unit, scope:j.scope, priceKind:j.priceKind,
+             source:j.source, sourceId:j.sourceId||null, country:j.country||cc,
+             latitude:(j.latitude!=null?j.latitude:null), longitude:(j.longitude!=null?j.longitude:null),
+             reportedAt:j.reportedAt||null, fetchedAt:Date.now() };
+  }catch(e){ return null; } }
+function _fuelStoreKeyFor(record,cc,fuel,lat,lng){   /* audit v1034 P1-3 : la cle depend du SCOPE REEL du record retourne, jamais des coordonnees de la requete */
+  if(record && record.scope==="NATIONAL") return cc+"|"+fuel+"|national";
+  const b=_fuelGeoBucket(lat,lng);
+  return cc+"|"+fuel+"|"+(b||"national"); }
+function fuelPriceRecordResolved(tr,cc,fuel,lat,lng){
+  if(!tr||!cc||!fuel) return null;
+  const store=_fuelPriceSnapStore(tr);
+  const bucket=_fuelGeoBucket(lat,lng);
+  if(bucket){
+    const rec=store[cc+"|"+fuel+"|"+bucket];
+    if(rec){ const fr=_fuelFreshnessOf(rec);
+      if((fr==="FRESH"||fr==="STALE_ACCEPTABLE") && _fuelWithinRadius(rec,lat,lng)) return Object.assign({},rec,{freshness:fr});
+      /* hors rayon ou perime -> jamais utilise comme STATION ; on tente le national ensuite, jamais un LOCAL degrade silencieusement */ } }
+  const natRec=store[cc+"|"+fuel+"|national"];
+  if(natRec){ const fr=_fuelFreshnessOf(natRec); if(fr==="FRESH"||fr==="STALE_ACCEPTABLE") return Object.assign({},natRec,{freshness:fr}); }
+  return null; }
+function fuelPriceResolved(tr,cc,fuel,lat,lng){
+  const rec=fuelPriceRecordResolved(tr,cc,fuel,lat,lng);
+  return (rec&&Number.isFinite(rec.price)&&rec.price>0) ? rec.price : fuelPrice(cc,fuel); }
+let _fuelResolveInflight={};
+let _fuelGen={};   /* F1-A : generation carburant par voyage -- incrementee UNIQUEMENT dans ensureFuelPriceFresh() sur priceChanged===true reel ; jamais serialisee dans _estSignature() */
+async function ensureFuelPriceFresh(tr){
+  /* audit v1034 -- integration reelle (P1-1), invalidation cache Budget cible (P1-2), scope au stockage (P1-3),
+     horloge de refetch separee (P2-1), couverture multi-etapes dedupliquee (P2-2).
+     Lecteurs (fuelPriceResolved/fuelPriceRecordResolved/_dayFuelCost) restent purs/synchrones -- AUCUN reseau ici n'est jamais appele depuis eux. */
+  if(!tr) return;
+  if(!(usesCar(tr)&&travelMode(tr)==="DRIVE")) return;   /* pas de resolution pour WALK/TRANSIT/BICYCLE */
+  const v=tr.veh||{};
+  if(v.fuel==="elec") return;   /* garde-fou electrique : F1 ne concerne que les carburants liquides de la source francaise, jamais elec */
+  if(v.priceManual) return;   /* prix manuel actif : le calcul ne consommera jamais la resolution automatique (voir estimateBudget()/_dayFuelCost()) -- inutile de solliciter le reseau */
+  const id=tr.id||"?"; const sig=_fuelResolveSignature(tr); const key=id+"|"+sig;
+  if(_fuelResolveInflight[key]) return _fuelResolveInflight[key];
+  const positions=_fuelNeededPositions(tr).filter(p=>p.cc==="FR");   /* F1 France uniquement */
+  if(!positions.length) return;
+  const needsList=positions.filter(p=>{
+    const rec=fuelPriceRecordResolved(tr,p.cc,v.fuel,p.lat,p.lng);
+    return !rec || ((Date.now()-(rec.fetchedAt||0))>=FUEL_REFETCH_TTL_MS);   /* P2-1 : refetch pilote par fetchedAt, jamais par reportedAt/STALE_ACCEPTABLE seul */
+  });
+  if(!needsList.length) return;   /* rien n'a besoin d'etre rafraichi -- zero appel reseau (F1-9/F1-11/F1-13) */
+  const _oldPrices=positions.map(p=>({p,price:fuelPriceResolved(tr,p.cc,v.fuel,p.lat,p.lng)}));
+  const run=(async()=>{
+    const staged={};
+    for(const p of needsList){
+      const r=await resolveFuelPriceRemote(p.cc,v.fuel,p.lat,p.lng);
+      if(r){ staged[_fuelStoreKeyFor(r,p.cc,v.fuel,p.lat,p.lng)]=r; }   /* P1-3 : cle deduite du scope REEL retourne */
+    }
+    const stillCurrent=(_fuelResolveSignature(tr)===sig) && (S.trips||[]).some(t=>t&&t.id===id);
+    if(!stillCurrent || !Object.keys(staged).length) return;   /* anti-stale : une reponse perimee (F1-8/N8) ne commit jamais, meme partiellement */
+    const store=_fuelPriceSnapStore(tr);
+    for(const k in staged) store[k]=staged[k];
+    try{ saveState(); }catch(_e){}   /* UN SEUL saveState pour tout le staging de ce cycle */
+    let priceChanged=false;   /* P1-2 : detection du changement REEL avant d'invalider quoi que ce soit */
+    for(const {p,price} of _oldPrices){ const np=fuelPriceResolved(tr,p.cc,v.fuel,p.lat,p.lng); if(np!==price){ priceChanged=true; break; } }
+    if(priceChanged){ _fuelGen[id]=(_fuelGen[id]||0)+1; try{ delete _estCache[id]; }catch(_e){} }   /* F1-A : generation incrementee UNE fois, uniquement sur changement reel -- solution B : invalidation ciblee, _estSignature() ne depend jamais du cache carburant */
+    try{ const _ct=currentTrip(); if(_ct && _ct.id===id && typeof planState==="object" && planState.dayIndex!=null){ _paintDayCosts(tr, planState.dayIndex, _routeUIToken, id); } }catch(_e){}   /* Planning : lecteur pur re-lit le nouveau snapshot */
+    if(priceChanged){ try{ renderBudget(); }catch(_e){} }   /* Budget : cache invalide -> renderBudget() redeclenche lui-meme ensureBudgetEstimate()+renderBudget() (motif deja existant, UN seul recalcul controle) */
+  })();
+  _fuelResolveInflight[key]=run;
+  run.then(()=>{ if(_fuelResolveInflight[key]===run) delete _fuelResolveInflight[key]; }, ()=>{ if(_fuelResolveInflight[key]===run) delete _fuelResolveInflight[key]; });
+  return run; }
+
 const INTL_AIRPORTS=[
 ["CDG","Paris-Charles de Gaulle","FR",49.01,2.55],["ORY","Paris-Orly","FR",48.73,2.38],["BVA","Paris-Beauvais","FR",49.45,2.11],["NCE","Nice Côte d'Azur","FR",43.66,7.21],["LYS","Lyon-Saint-Exupéry","FR",45.73,5.08],["MRS","Marseille-Provence","FR",43.44,5.22],["TLS","Toulouse-Blagnac","FR",43.63,1.37],["BOD","Bordeaux-Mérignac","FR",44.83,-0.72],["NTE","Nantes Atlantique","FR",47.15,-1.61],["LIL","Lille-Lesquin","FR",50.56,3.09],["MPL","Montpellier","FR",43.58,3.96],["SXB","Strasbourg","FR",48.54,7.63],
 ["LHR","Londres Heathrow","GB",51.47,-0.45],["LGW","Londres Gatwick","GB",51.15,-0.18],["STN","Londres Stansted","GB",51.89,0.24],["LTN","Londres Luton","GB",51.87,-0.37],["MAN","Manchester","GB",53.35,-2.27],["BHX","Birmingham","GB",52.45,-1.75],["EDI","Édimbourg","GB",55.95,-3.37],["GLA","Glasgow","GB",55.87,-4.43],["BRS","Bristol","GB",51.38,-2.72],
@@ -5181,7 +5312,11 @@ function haversineKm(a,b){ const R=6371,toR=x=>x*Math.PI/180; const dLa=toR(b.la
 async function tripDistance(origin,dest,transport){ const gmode=({car:"DRIVE",walk:"WALK",bike:"BIKE",transit:"TRANSIT"})[transport];
   if(googleReady()&&gmode){ const r=await computeRoute([{lat:origin.lat,lng:origin.lng},{lat:dest.lat,lng:dest.lng}],gmode); if(r&&r.distanceMeters){ return {km:r.distanceMeters/1000,sec:r.duration,road:true}; } }
   const km=haversineKm(origin,dest); return {km,sec:km/modeSpeed(transport)*3600,road:false}; }
-let _vehT=null;
+let _vehT=null,_vehEstimateSeq=0;
+const _vehFuelSnapHolder={_fuelPriceSnap:{}};
+const _vehFuelInflight={};
+const _vehFuelFail={};   /* cache NEGATIF : un echec Worker ne relance pas un appel a chaque frappe (conso/prix) */
+const _VEH_FUEL_FAIL_TTL_MS=60*1000;
 /* Les deux champs chiffrés ne sont proposés que si la personne les demande :
    le prix du pays et la consommation par motorisation sont déjà connus. */
 let _vehOpen=false;
@@ -5192,7 +5327,7 @@ function renderVehPanel(){ const wrap=document.getElementById("cVehPanel"); if(!
   const _fuelBlock=()=>{ const v=draft.veh||{}; const isE=(v.fuel||'essence')==="elec"; const u=isE?'kWh':'L';
     return `<div class="fld"><label>${t("veh.fuel")}</label><div class="chips" id="cFuel">${["essence","diesel","gpl","elec"].map(f=>`<button type="button" class="chip ${(v.fuel||'essence')===f?'on':''}" data-fuel="${f}">${t("fuel."+f)}</button>`).join("")}</div></div>
       ${_vehOpen?`<div class="veh-row"><div class="fld"><label>${t("veh.conso")} (${u}/100)</label><input id="cConso" type="number" inputmode="decimal" placeholder="${fuelDefault(v.fuel).conso}" value="${v.conso||''}"></div>
-      <div class="fld"><label>${t("veh.price")} (${curSym(draft.currency)}/${u})</label><input id="cPrice" type="number" inputmode="decimal" placeholder="${fuelDefault(v.fuel).price}" value="${v.price||''}"></div></div>`
+      <div class="fld"><label>${t("veh.price")} (${curSym(draft.currency)}/${u})</label><input id="cPrice" type="number" inputmode="decimal" placeholder="${fuelDefault(v.fuel).price}" value="${v.priceManual?(v.price||''):''}"></div></div>`
       : `<div class="veh-auto">${escapeHtml(t("veh.autoNote",{fuel:t("fuel."+(v.fuel||'essence'))}))}</div><button type="button" class="linkbtn" id="cVehMore">${t("veh.custom")}</button>`}`; };
   if(tp==="car"){ h+=_fuelBlock(); }
   if(tp==="plane"||tp==="boat"){ const isP=tp==="plane";
@@ -5215,7 +5350,16 @@ function renderVehPanel(){ const wrap=document.getElementById("cVehPanel"); if(!
   wrap.querySelectorAll("[data-fuel]").forEach(bb=>bb.onclick=()=>{ draft.veh=draft.veh||{}; draft.veh.fuel=bb.dataset.fuel; if(!draft.veh.priceManual){ const fp=fuelPrice(draft.country&&draft.country.cc,bb.dataset.fuel); draft.veh.price=fp!=null?String(fp):""; } renderVehPanel(); });
   { const cc=wrap.querySelector("#cConso"), pp=wrap.querySelector("#cPrice");
     if(cc) cc.addEventListener("input",()=>{ draft.veh=draft.veh||{}; draft.veh.conso=cc.value; computeVehEstimate(); });
-    if(pp) pp.addEventListener("input",()=>{ draft.veh=draft.veh||{}; draft.veh.price=pp.value; draft.veh.priceManual=true; computeVehEstimate(); }); }
+    if(pp) pp.addEventListener("input",()=>{
+      draft.veh=draft.veh||{};
+      draft.veh.price=pp.value;
+      const n=parseFloat(
+        String(pp.value||"").replace(",",".")
+      );
+      draft.veh.priceManual=
+        Number.isFinite(n)&&n>0;   /* vider le champ / 0 / valeur invalide => automatique (F1 redevient actif) */
+      computeVehEstimate();
+    }); }
   computeVehEstimate();
 }
 function hubIntl(){ const a=draft.depart,b=draft.dest; if(!a||!b||a.lat==null||b.lat==null) return false;
@@ -5266,36 +5410,237 @@ async function populateHub(selId, center, kind, which){
   sel.innerHTML=`<option value="">${t("hub.choose")}</option>`+hubs.map(hb=>`<option value="${escapeHtml(hb.id)}" ${cur&&cur.id===hb.id?'selected':''}>${escapeHtml(hb.name)}</option>`).join(""); sel.classList.toggle("hub-unset", !cur);
   sel.onchange=()=>{ const hb=hubs.find(x=>x.id===sel.value)||null; if(which==="dep") draft.depHub=hb; else if(which==="return") draft.returnHub=hb; else draft.arrHub=hb; sel.classList.toggle("hub-unset", !hb); computeVehEstimate(); };
 }
-function computeHubEstimate(est){
-  const dep=draft.depart, arr=draft.dest, dh=draft.depHub, ah=draft.arrHub;
-  const from=dh||dep, to=ah||arr;
-  if(!from||from.lat==null||!to||to.lat==null){ est.innerHTML=`<div class="veh-hint">${t("hub.needHubs")}</div>`; return; }
+async function _creationFuelPrice(cc,fuel,lat,lng,v){
+  v=v||{};
+  const f=fuel||"essence";
+  const fd=fuelDefault(f);
+  const CC=String(cc||"").toUpperCase();
+  const manual=v.priceManual
+    ? parseFloat(String(v.price||"").replace(",","."))
+    : NaN;
+  if(manual>0) return manual;
+  const fallback=fuelPrice(CC,f)||fd.price;
+  /* F1 distant uniquement pour France + carburants liquides. */
+  if(
+    f==="elec"
+    ||CC!=="FR"
+    ||lat==null
+    ||lng==null
+  ) return fallback;
+  const cached=fuelPriceRecordResolved(
+    _vehFuelSnapHolder,
+    CC,
+    f,
+    lat,
+    lng
+  );
+  if(
+    cached
+    &&(Date.now()-(cached.fetchedAt||0))<FUEL_REFETCH_TTL_MS
+  ) return cached.price;
+  const key=
+    CC+"|"+f+"|"+String(lat)+","+String(lng);
+  const _failAt=_vehFuelFail[key];
+  if(_failAt&&(Date.now()-_failAt)<_VEH_FUEL_FAIL_TTL_MS) return fallback;   /* echec recent : pas de nouvel appel */
+  let req=_vehFuelInflight[key];
+  if(!req){
+    req=resolveFuelPriceRemote(CC,f,lat,lng);
+    _vehFuelInflight[key]=req;
+    req.finally(()=>{
+      if(_vehFuelInflight[key]===req)
+        delete _vehFuelInflight[key];
+    }).catch(()=>{});
+  }
+  let fresh=null;
+  try{ fresh=await req; }catch(_e){ fresh=null; }   /* jamais d'exception non capturee dans le callback d'estimation */
+  if(fresh){
+    const store=_fuelPriceSnapStore(_vehFuelSnapHolder);
+    store[_fuelStoreKeyFor(
+      fresh,
+      CC,
+      f,
+      lat,
+      lng
+    )]=fresh;
+    delete _vehFuelFail[key];
+  }else{
+    _vehFuelFail[key]=Date.now();
+  }
+  const best=fuelPriceRecordResolved(
+    _vehFuelSnapHolder,
+    CC,
+    f,
+    lat,
+    lng
+  );
+  return (best&&best.price>0)
+    ? best.price
+    : fallback;
+}
+function computeHubEstimate(est,vehSeq){
+  const dep=draft.depart,
+        arr=draft.dest,
+        dh=draft.depHub,
+        ah=draft.arrHub;
+  const mySeq=vehSeq==null
+    ? ++_vehEstimateSeq
+    : vehSeq;
+  const from=dh||dep,
+        to=ah||arr;
+  if(!from||from.lat==null||!to||to.lat==null){
+    est.innerHTML=`<div class="veh-hint">${t("hub.needHubs")}</div>`;
+    return;
+  }
   est.innerHTML=`<div class="veh-hint">${t("veh.calc")}</div>`;
-  clearTimeout(_vehT); _vehT=setTimeout(async()=>{
-    if(!document.getElementById("cEst")) return;
+  clearTimeout(_vehT);
+  _vehT=setTimeout(async()=>{
+    if(
+      mySeq!==_vehEstimateSeq
+      ||!document.getElementById("cEst")
+    ) return;
     const isPlane=draft.transport==="plane";
-    const flightKm=haversineKm(from,to); const flightSec=flightKm/modeSpeed(draft.transport)*3600;
+    const flightKm=haversineKm(from,to);
+    const flightSec=flightKm/modeSpeed(draft.transport)*3600;
     let carLine="";
-    if(dep&&dep.lat!=null&&dh&&dh.lat!=null){ const cr=await computeRoute([{lat:dep.lat,lng:dep.lng},{lat:dh.lat,lng:dh.lng}],"DRIVE"); if(cr&&cr.distanceMeters){ const v=draft.veh||{}; const fd=fuelDefault(v.fuel); const _co=parseFloat(String(v.conso||"").replace(",","."))||fd.conso; const _pr=parseFloat(String(v.price||"").replace(",","."))||fuelPrice(draft.depart&&draft.depart.cc,v.fuel); const _km=cr.distanceMeters/1000; const _cost=(_co>0&&_pr>0)?" · ~"+money(_km*_co/100*_pr,draft.currency):""; carLine=`<div class="veh-arr">${t("hub.carLeg")} · ${fmtDist(cr.distanceMeters)} · ${fmtDur(cr.duration)}${_cost}</div>`; } }
-    if(!document.getElementById("cEst")) return;
-    let html=`<div class="veh-est-line">${t("veh.estimate")}</div><div class="veh-est-main">${isPlane?t("hub.flight"):t("hub.sea")} ≈ ${fmtDist(flightKm*1000)} <small>(${t("veh.approx")})</small> · ${fmtDur(flightSec)}</div>`+carLine;
-    const arrName=(ah&&ah.name)||arr.name||""; if(arrName) html+=`<div class="veh-arr">${t("veh.arrival")} · ${escapeHtml(arrName)}</div>`;
+    if(dep&&dep.lat!=null&&dh&&dh.lat!=null){
+      const cr=await computeRoute(
+        [
+          {lat:dep.lat,lng:dep.lng},
+          {lat:dh.lat,lng:dh.lng}
+        ],
+        "DRIVE"
+      );
+      if(
+        mySeq!==_vehEstimateSeq
+        ||!document.getElementById("cEst")
+      ) return;
+      if(cr&&cr.distanceMeters){
+        const v=draft.veh||{};
+        const fd=fuelDefault(v.fuel);
+        const conso=parseFloat(
+          String(v.conso||"").replace(",",".")
+        )||fd.conso;
+        const price=await _creationFuelPrice(
+          dep.cc,
+          v.fuel,
+          dep.lat,
+          dep.lng,
+          v
+        );
+        if(
+          mySeq!==_vehEstimateSeq
+          ||!document.getElementById("cEst")
+        ) return;
+        const km=cr.distanceMeters/1000;
+        const cost=(conso>0&&price>0)
+          ?" · ~"+money(
+              km*conso/100*price,
+              draft.currency
+            )
+          :"";
+        carLine=
+          `<div class="veh-arr">${t("hub.carLeg")} · ${fmtDist(cr.distanceMeters)} · ${fmtDur(cr.duration)}${cost}</div>`;
+      }
+    }
+    if(
+      mySeq!==_vehEstimateSeq
+      ||!document.getElementById("cEst")
+    ) return;
+    let html=
+      `<div class="veh-est-line">${t("veh.estimate")}</div>`
+      +`<div class="veh-est-main">${isPlane?t("hub.flight"):t("hub.sea")} ≈ ${fmtDist(flightKm*1000)} <small>(${t("veh.approx")})</small> · ${fmtDur(flightSec)}</div>`
+      +carLine;
+    const arrName=(ah&&ah.name)||arr.name||"";
+    if(arrName){
+      html+=`<div class="veh-arr">${t("veh.arrival")} · ${escapeHtml(arrName)}</div>`;
+    }
     est.innerHTML=html;
   },300);
 }
-function computeVehEstimate(){ const est=document.getElementById("cEst"); if(!est) return; const dep=draft.depart;
-  if(draft.transport==="plane"||draft.transport==="boat"){ return computeHubEstimate(est); }
-  const arr=draft.dest; const arrIsCenter=true;
-  if(!dep||dep.lat==null||!arr||arr.lat==null){ est.innerHTML=`<div class="veh-hint">${t("veh.needDepart")}</div>`; return; }
+function computeVehEstimate(){
+  const est=document.getElementById("cEst");
+  if(!est) return;
+  const dep=draft.depart;
+  const mySeq=++_vehEstimateSeq;
+  if(
+    draft.transport==="plane"
+    ||draft.transport==="boat"
+  ){
+    return computeHubEstimate(est,mySeq);
+  }
+  const arr=draft.dest;
+  const arrIsCenter=true;
+  if(
+    !dep
+    ||dep.lat==null
+    ||!arr
+    ||arr.lat==null
+  ){
+    est.innerHTML=`<div class="veh-hint">${t("veh.needDepart")}</div>`;
+    return;
+  }
   est.innerHTML=`<div class="veh-hint">${t("veh.calc")}</div>`;
-  clearTimeout(_vehT); _vehT=setTimeout(async()=>{ const r=await tripDistance(dep,arr,draft.transport); if(!document.getElementById("cEst")) return; let html="";
-    if(draft.transport==="car"){ const v=draft.veh||{}; const d=fuelDefault(v.fuel); const conso=parseFloat(v.conso)||d.conso; const price=parseFloat(v.price)||d.price; const isE=(v.fuel||'essence')==="elec"; const kmAR=r.km*2; const qty=kmAR*conso/100; const cost=qty*price;
-      html=`<div class="veh-est-line">${t("veh.estimate")}</div><div class="veh-est-main">${fmtDist(kmAR*1000)} <small>(${t("veh.roundtrip")})</small> · ≈ ${qty<10?qty.toFixed(1):Math.round(qty)} ${isE?'kWh':'L'} · ≈ ${money(cost,draft.currency)}</div>`;
-    } else { const extra=draft.transport==="walk"?` · ≈ ${Math.round(r.km*50)} ${t("veh.calories")}`:""; const approx=r.road?"":(" "+t("veh.approx"));
-      html=`<div class="veh-est-line">${t("veh.estimate")}</div><div class="veh-est-main">≈ ${fmtDist(r.km*1000)}${approx} · ${fmtDur(r.sec)}${extra}</div>`; }
-    const arrName=arr.name||arr.label||arr.addr||""; if(arrName) html+=`<div class="veh-arr">${t("veh.arrival")} · ${escapeHtml(arrName)}${arrIsCenter?` (${t("veh.center")})`:""}</div>`;
+  clearTimeout(_vehT);
+  _vehT=setTimeout(async()=>{
+    const r=await tripDistance(
+      dep,
+      arr,
+      draft.transport
+    );
+    if(
+      mySeq!==_vehEstimateSeq
+      ||!document.getElementById("cEst")
+    ) return;
+    let html="";
+    if(draft.transport==="car"){
+      const v=draft.veh||{};
+      const d=fuelDefault(v.fuel);
+      const conso=parseFloat(
+        String(v.conso||"").replace(",",".")
+      )||d.conso;
+      const fuelLoc=(dep&&dep.cc)?dep:arr;
+      const price=await _creationFuelPrice(
+        fuelLoc&&fuelLoc.cc,
+        v.fuel,
+        fuelLoc&&fuelLoc.lat,
+        fuelLoc&&fuelLoc.lng,
+        v
+      );
+      if(
+        mySeq!==_vehEstimateSeq
+        ||!document.getElementById("cEst")
+      ) return;
+      const isE=(v.fuel||"essence")==="elec";
+      const kmAR=r.km*2;
+      const qty=kmAR*conso/100;
+      const cost=qty*price;
+      html=
+        `<div class="veh-est-line">${t("veh.estimate")}</div>`
+        +`<div class="veh-est-main">${fmtDist(kmAR*1000)} <small>(${t("veh.roundtrip")})</small> · ≈ ${qty<10?qty.toFixed(1):Math.round(qty)} ${isE?"kWh":"L"} · ≈ ${money(cost,draft.currency)}</div>`;
+    }else{
+      const extra=draft.transport==="walk"
+        ?` · ≈ ${Math.round(r.km*50)} ${t("veh.calories")}`
+        :"";
+      const approx=r.road
+        ?""
+        :(" "+t("veh.approx"));
+      html=
+        `<div class="veh-est-line">${t("veh.estimate")}</div>`
+        +`<div class="veh-est-main">≈ ${fmtDist(r.km*1000)}${approx} · ${fmtDur(r.sec)}${extra}</div>`;
+    }
+    if(
+      mySeq!==_vehEstimateSeq
+      ||!document.getElementById("cEst")
+    ) return;
+    const arrName=
+      arr.name||arr.label||arr.addr||"";
+    if(arrName){
+      html+=
+        `<div class="veh-arr">${t("veh.arrival")} · ${escapeHtml(arrName)}${arrIsCenter?` (${t("veh.center")})`:""}</div>`;
+    }
     est.innerHTML=html;
-  },300); }
+  },300);
+}
 
 /* Création par phrase : Fidèle extrait, le worker valide, l'application PRÉ-REMPLIT.
    Rien n'est créé automatiquement — la personne relit puis valide. */
@@ -8215,7 +8560,7 @@ function _rcCoord(v,min,max){ if(v===null||v===undefined) return null; if(typeof
 function _rcPoint(p){ if(!p) return null; const lat=_rcCoord(p.lat,-90,90), lng=_rcCoord(p.lng,-180,180); return (lat==null||lng==null)?null:{lat,lng}; }
 function routeLegAnchor(l){ if(!l) return null; return _rcPoint(l.lodging) || _rcPoint(l.dest) || null; }   /* ancre d'étape STRICTE — jamais le legAnchor legacy (qui produit 0,0 sur ""/null) */
 function routeCanNavigate(pts){ return !!pts && (pts.length>=2 || (pts.length===1 && pts[0] && pts[0].type==="stop")); }   /* navigable si >=2 points OU un unique vrai lieu (jamais une origine seule) */
-function routeCoreFor(tr){ if(!tr) return null; tr._routeCore=tr._routeCore||{}; return tr._routeCore; }   /* namespace canonique préparé — JAMAIS tr._routes (cache legacy) */
+function routeCoreFor(tr){ if(!tr) return null; tr._routeCore=tr._routeCore||{}; return tr._routeCore; }   /* namespace canonique prepare -- distinct de tr._routeSnap (Budget) */
 function normalizeRouteDepartureTime(value){ if(value===null||value===undefined) return null; if(typeof value==="string"&&!value.trim()) return null; const d=new Date(value); const ms=d.getTime(); return (typeof ms==="number"&&isFinite(ms))?d.toISOString():null; }   /* null/vide/invalide -> null ; jamais de throw */
 const _routeCoreInflight={};   /* anti-rafale : promesses en vol, hors objet voyage (jamais persistées) */
 const _routeCoreLatest={};   /* dernière signature demandée par tripId|day : empêche une ancienne promesse d'écraser un cache plus récent */
@@ -8754,10 +9099,10 @@ const INTENS_BUF={calme:15,normal:5,intense:0};
 function fmtMin(min){ return fmtDur((min||0)*60); }
 /* ------------------------------------------------------------
    B1f -- correspondance identite pour daySchedule(), remplace
-   geoSeen/li/legs[li] (positionnel, tr._routes). Jamais de reseau,
-   jamais de lecture tr._routes. Utilise le MEME ordre que "items"
-   (parametre de daySchedule()), jamais un ordre reconstruit --
-   seule la correspondance itemId->routePointIndex vient de
+   geoSeen/li/legs[li] (positionnel, cache legacy). Jamais de reseau.
+   Utilise le MEME ordre que "items" (parametre de daySchedule()),
+   jamais un ordre reconstruit -- seule la correspondance
+   itemId->routePointIndex vient de
    buildLocalDayRouteRequestParts()/tr._localRouteCore (B1e-2, pur).
    ------------------------------------------------------------ */
 const _dayScheduleRuntimeSnapshot={};   /* v958-B1f-fix7 : UN SEUL snapshot par store|epoch|trip|day -- jamais persiste (pas de saveState), jamais accumule par signature, remplace integralement a chaque ecriture (r14/v1015 P2) */
@@ -8816,7 +9161,7 @@ async function _dayScheduleResolveFresh(tr, day, itemsOverride){   /* v958-B1e-3
   return {status:"failed"};
 }
 function daySchedule(items,tr,day){
-  const {idxById,core}=_dayScheduleRouteIndex(tr,day);   /* v958-B1f : remplace tr._routes[day].legs -- correspondance par identite, jamais positionnelle */
+  const {idxById,core}=_dayScheduleRouteIndex(tr,day);   /* v958-B1f : correspondance par identite, jamais positionnelle */
   const buf=INTENS_BUF[(tr.intensity||"normal")]!=null?INTENS_BUF[tr.intensity||"normal"]:5;
   const _dd=(tripDays(tr)[day]||{}).date;
   const _gi=_dd?((_dd.getDay()+6)%7):null;
@@ -8826,7 +9171,7 @@ function daySchedule(items,tr,day){
   for(let i=0;i<items.length;i++){ const it=items[i]; const isGeo=it.lat!=null; let travel=0;
     if(isGeo){ const curRouteIdx=idxById.get(it.id);
       if(prevRouteIdx!=null && curRouteIdx!=null && core && curRouteIdx===prevRouteIdx+1){ const leg=core.legs[prevRouteIdx]; if(leg && Number.isFinite(leg.durationSeconds)) travel=Math.round(leg.durationSeconds/60); }
-      /* premier item geolocalise (prevRouteIdx==null), items co-localises (curRouteIdx===prevRouteIdx), ou correspondance non fiable (sig/ordre divergents) : travel reste 0 -- meme degradation gracieuse que legacy quand tr._routes[day] etait absent */
+      /* premier item geolocalise (prevRouteIdx==null), items co-localises (curRouteIdx===prevRouteIdx), ou correspondance non fiable (sig/ordre divergents) : travel reste 0 -- degradation gracieuse quand aucune donnee de route n'est disponible */
       if(curRouteIdx!=null) prevRouteIdx=curRouteIdx; }
     else if(it._trans){ const curRouteIdx=idxById.get(it.id);   /* v958-B1f-fix5 : le transfert occupe son propre routePointIndex (buildLocalDayRouteRequestParts) sans etre isGeo -- avancer l'ancre pour que la visite suivante consomme le bon leg, sans jamais ajouter de travel AU transfert lui-meme (sa duree vient de it.transMin, hors perimetre B1f) */
       if(prevRouteIdx!=null && curRouteIdx!=null && (curRouteIdx===prevRouteIdx || curRouteIdx===prevRouteIdx+1)){ prevRouteIdx=curRouteIdx; }
@@ -9042,18 +9387,6 @@ function renderPlan(){
   const stops=items.filter(x=>x.lat!=null);
   const intensity=tr.intensity||"normal";
   const visitMin=items.reduce((s,it)=>s+stepDur(it),0);
-  const routeC=tr._routes&&tr._routes[d.i];
-  const _transStep=items.find(x=>x._trans && x.transKm!=null && x.transMin!=null);
-  /* La route du jour (tr._routes) ne vaut que s'il existe des visites géolocalisées :
-     sinon c'est une valeur périmée (ex. jour de transition à 0 visite). */
-  const _rcDay=(stops.length>=1)?routeC:null;
-  let _dayKmC=(_rcDay&&_rcDay.distanceMeters)?_rcDay.distanceMeters/1000:0;
-  let travelMin=(_rcDay&&_rcDay.duration)?Math.round(_rcDay.duration/60):0;
-  /* Le trajet inter-étapes (transition) fait partie de la route du jour : on l'AJOUTE
-     à la distance/au temps/au coût du jour, EN PLUS des visites locales éventuelles.
-     Sans ça, un jour de transition avec une visite ne comptait que le trajet local
-     (ex. 3,9 km) et le coût carburant était faux. */
-  if(_transStep){ _dayKmC+=_transStep.transKm; travelMin+=_transStep.transMin; }
   const startT=sched.length?sched[0].startStr:""; const endMin=sched.length?sched[sched.length-1].end:0; const endT=sched.length?sched[sched.length-1].endStr:"";
   const anyShift=sched.some(s=>s.shifted);
   const visitEndMin=(function(){ let e=0; sched.forEach(s=>{ const it=items.find(x=>x.id===s.id); if(it&&it.kind!=="meal"&&s.end>e) e=s.end; }); return e; })();
@@ -9064,15 +9397,10 @@ function renderPlan(){
   const over=items.length>0 && (overEnd || tooMany || (wantEnd==null && (visitEndMin>20*60 || daySpan>INTENS_CAP[intensity])));
   const intHtml=`<div class="seg modes">${[["calme","plan.intCalm","🪷"],["normal","plan.intNormal","〰️"],["intense","plan.intIntense","⛰️"]].map(([k,lk,ic])=>`<button data-int="${k}" class="${intensity===k?'on':''}"><span class="seg-ic">${ic}</span>${t(lk)}</button>`).join("")}</div>`;
   const hasMeal=items.some(x=>x.kind==="meal");
-  const dayDist=_dayKmC?fmtDist(_dayKmC*1000):"—";
-  const _transKm=_transStep?(_transStep.transKm||0):0; const _localKm=Math.max(0,_dayKmC-_transKm);
-  const distBreakHtml=(_transStep&&_localKm>=1&&_dayKmC>0)?`<div class="ds-fuel">🚗 ${t("plan.travel")} · <b>${fmtDist(_dayKmC*1000)}</b> <span class="ds-costs">${t("plan.distBreak",{a:fmtDist(_transKm*1000),b:fmtDist(_localKm*1000)})}</span></div>`:"";
   const _hasRouteCandidate=items.some(it=>it && (it.lat!=null || it._trans));   /* v958-B1d-5 : route canonique >=2 points, pas "au moins deux visites locales" */
   const statsHtml=items.length?`<div class="day-stats"><div class="dstat"><svg class="dst-svg" viewBox="0 0 24 24"><path d="M12 21s-7-6.2-7-11a7 7 0 0 1 14 0c0 4.8-7 11-7 11z"/><circle cx="12" cy="10" r="2.4"/></svg><div><b>${stops.length} ${t(stops.length<=1?"plan.step":"plan.steps")}</b><span>${t("plan.visitsTime")}</span></div></div><div class="dstat"><svg class="dst-svg" viewBox="0 0 24 24"><path d="M6 19a3 3 0 0 1 0-6h8a3 3 0 0 0 0-6H6"/><circle cx="6" cy="19" r="1.5"/><circle cx="18" cy="7" r="1.5"/></svg><div><b class="rc-dist">…</b><span>${t("plan.travel")}</span></div></div>${_hasRouteCandidate?`<div class="dstat"><span class="dst-em">${modeEmoji(travelMode(tr))}</span><div><b><span class="rc-dur">…</span><span id="dstTraffic"></span></b><span>${t("plan.travelTime")}</span></div></div>`:""}<div class="dstat"><svg class="dst-svg" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.5"/><path d="M12 7.5V12l3 2"/></svg><div><b>${endT||"—"}</b><span>${t("plan.end")}</span></div></div></div>`:"";
   const hasNavRoute=(()=>{ try{ return routeCanNavigate(buildDayRoutePoints(tr,d.i,{})); }catch(_e){ return false; } })();   /* P2 : « Y aller » dispo dès qu'une route canonique existe (même transfert sans visite) */
   const actsHtml=items.length?`${(!ro&&stops.length>=2)?`<div class="day-acts primary"><button class="dact primary" id="optDay">✨ ${t("plan.optimize")}</button></div>`:""}<div class="act-bar"><div class="act-cells">${hasNavRoute?`<button class="acell" id="navDay" title="${escapeHtml(t("map.launch"))+" (Apple Plans)"}"><svg class="aci" viewBox="0 0 24 24"><path d="M3 11l18-8-8 18-2-8z"/></svg><span class="al">${t("plan.aNav")}</span></button><button class="acell" id="navDayG" title="Google Maps" aria-label="Google Maps"><svg class="aci" viewBox="0 0 24 24"><path d="M12 2a7 7 0 0 0-7 7c0 5 7 13 7 13s7-8 7-13a7 7 0 0 0-7-7zm0 9.5A2.5 2.5 0 1 1 12 6.5a2.5 2.5 0 0 1 0 5z"/></svg><span class="al">Google</span></button>`:""}${stops.length?`<button class="acell" id="calDay" title="${escapeHtml(t("map.cal"))}"><svg class="aci" viewBox="0 0 24 24"><rect x="3.5" y="5" width="17" height="15" rx="2.5"/><path d="M3.5 9.5h17M8 3v4M16 3v4"/></svg><span class="al">${t("plan.aCal")}</span></button>`:""}${(!ro&&stops.length)?`<button class="acell arrive" id="arriveDay" title="${escapeHtml(t("gps.arrive"))}"><svg class="aci" viewBox="0 0 24 24"><path d="M12 21s-7-6.2-7-11a7 7 0 0 1 14 0c0 4.8-7 11-7 11z"/><circle cx="12" cy="10" r="2.4"/></svg><span class="al">${t("plan.aArrive")}</span></button>`:""}${(!ro&&!hasMeal)?`<button class="acell" id="lunchDay" title="${escapeHtml(t("plan.lunch"))}"><svg class="aci" viewBox="0 0 24 24"><path d="M4 8h12v5a4 4 0 0 1-4 4H8a4 4 0 0 1-4-4z"/><path d="M16 9h2.5a2.5 2.5 0 0 1 0 5H16"/></svg><span class="al">${t("plan.aPause")}</span></button>`:""}</div><button class="acell toggle" id="toggleList" title="${escapeHtml(planState.collapsed?t("plan.showList"):t("plan.hideList"))}" aria-label="${escapeHtml(planState.collapsed?t("plan.showList"):t("plan.hideList"))}">${planState.collapsed?"▸":"▾"}</button></div>`:"";
-  const _veh=tr.veh||{}; const _fd=fuelDefault(_veh.fuel);
-  const _conso=parseFloat(String(_veh.conso||"").replace(",","."))||_fd.conso; const _price=parseFloat(String(_veh.price||"").replace(",","."))||fuelPrice((destForDay(tr,d.i)||tr.dest||{}).cc,_veh.fuel);
   const _dayKm=(function(){   /* v958-B1e-3a : lecture cache synchrone, jamais un total partiel affiche comme correct (arch-r8/r9 Correctif 1, arch-r10 Correctif 4) */
     try{
       const _b3aOpts=planningPresentationOptions(tr,d.i);
@@ -9499,9 +9827,6 @@ async function optimizeDay(){ const tr=currentTrip(); if(!tr||isPlanDayReadOnly(
   const sched=daySchedule(candidateItems,tr,day); const sById={}; sched.forEach(s=>sById[s.id]=s);   /* .ord deja committe ci-dessus : daySchedule() voit desormais le core du candidat via tr.plan */
   seq.forEach(it=>{ const s=sById[it.id]; if(s){ if(it.kind!=="meal" && !it.fixed && !isLocked(it)) it.time=s.startStr; if(it.kind==="meal") it.fixed=true; } });
   saveState(); renderPlan(); toast(t("plan.optimized"));
-  const base2=dayStart(tr,day); const gstops=seq.filter(x=>x.lat!=null);
-  const routeStops=base2?[base2].concat(gstops,[base2]):gstops;
-  if(routeStops.length>1 && googleReady()){ ensureRoute(tr,day,routeStops,{commitGuard:{genKey:_genKey,myGen:_myGen}}).catch(()=>{}); } else if(tr._routes) delete tr._routes[day];   /* v958-B1e-3b : arriere-plan, non bloquant -- ne sert plus que la dette Overview, jamais le Planning actif (arch B1e-3b Decision 2/3) */
 }
 const FIT_FLOOR={nature:75,hike:120,beach:75,culture:40,place:40,sport:60,shopping:40,relax:40,cafe:30,nightlife:60,custom:30};
 function fitDurations(tr,day,items){ try{
@@ -9568,7 +9893,7 @@ let _routeUIToken=0;   /* async-safe : garde anti-stale sur l'affichage route */
 const _ROUTE_LIVE_TTL=600000;   /* 10 min : la position live expire, uniquement en mémoire */
 function _routeUILiveGet(tr,day){ const k=((tr&&tr.id)||"?")+"|"+day; const l=_routeUILive[k]; if(!l) return null; if(l.capturedAt && (Date.now()-l.capturedAt)>_ROUTE_LIVE_TTL){ delete _routeUILive[k]; return null; } return l; }
 function _routeUILiveOpt(tr,day){ const l=_routeUILiveGet(tr,day); return l?{liveOrigin:l}:{}; }
-function _trafficWhenMsFromResolved(resolved, trafficCtx){   /* v958-B1d-5-fix2 : heure de depart deduite du ResolvedDayRoute canonique -- jamais de tr._routes legacy, y compris via le scheduler quand aucune origine canonique n'existe */
+function _trafficWhenMsFromResolved(resolved, trafficCtx){   /* v958-B1d-5-fix2 : heure de depart deduite du ResolvedDayRoute canonique */
   try{
     if(!resolved || !resolved.request || !resolved.result) return null;
     const req=resolved.request;
@@ -9576,9 +9901,8 @@ function _trafficWhenMsFromResolved(resolved, trafficCtx){   /* v958-B1d-5-fix2 
     const pts=Array.isArray(req.points) ? req.points : [];
     if(pts.length<2 || !trafficCtx || !trafficCtx.dayDate || !trafficCtx.schedById) return null;
     const first=pts[0];
-    /* Sans origine canonique fiable, la route commence directement sur une etape. Le scheduler visible (daySchedule().start)
-       depend encore de tr._routes legacy pour ce cas precis : ne pas l'utiliser pour fabriquer une heure trafic.
-       null => resolveDayTraffic() bascule proprement en classe NOW, aucune dependance temporelle a tr._routes. */
+    /* Sans origine canonique fiable, la route commence directement sur une etape : ne pas fabriquer
+       une heure trafic dans ce cas -- null => resolveDayTraffic() bascule proprement en classe NOW. */
     if(!first || first.type!=="origin") return null;
     const p=pts[1];   /* destination du premier segment canonique */
     const sc=(p && p.itemId) ? trafficCtx.schedById[p.itemId] : null;
@@ -9616,6 +9940,7 @@ async function renderDayRoute(tr, day, ro, trafficCtx){ const tk=++_routeUIToken
   const setSlots=(dTxt,tTxt)=>{ document.querySelectorAll(".rc-dist").forEach(e=>e.textContent=dTxt); document.querySelectorAll(".rc-dur").forEach(e=>e.textContent=tTxt); };
   _paintResolvedTraffic(null);   /* v958-B1d-5 : efface tout badge trafic precedent des le debut du rendu */
   _paintDayCosts(tr, day, tk, tid);   /* flux coût/carburant PLANIFIÉ, indépendant du live (ne bloque pas) */
+  try{ ensureFuelPriceFresh(tr); }catch(_e){}   /* audit v1034 P1-1 : point d'integration Planning, non attendu -- _paintDayCosts() reste un lecteur pur */
   const live=_routeUILiveGet(tr,day);
   const pts=buildDayRoutePoints(tr, day, live?{liveOrigin:live}:{});
   if(!pts || pts.length<2){
@@ -9842,6 +10167,7 @@ function paintDayNudges(){ if(!_dayCtx) return; const el=document.getElementById
 let _nudgeOpen=false;
 const _agentTrajetCache={};
 const _agentBudgetCache={};
+const _agentBudgetLatest={};   /* audit v1036 : tripId -> derniere ck (contexte Budget complet) effectivement demandee -- anti-stale de peinture, jamais un simple tr.id (le meme voyage peut changer de budget/est/spent/statut/reste/projection) */
 /* Conseil budget IA — dépliable, basé uniquement sur les chiffres réels de l'app */
 async function maybeAskAgentBudget(tr){
   const el=document.getElementById("budgetAgentAdvice"); if(!el||!tr) return;
@@ -9866,9 +10192,6 @@ async function maybeAskAgentBudget(tr){
   const _refs=(tr.expenses||[]).filter(e=>(+e.amount)<0);
   const refTxt=_refs.length?`${_refs.length} remboursement(s) totalisant ${money(Math.round(_refs.reduce((a,e)=>a+expToTripCur(e,tr),0)),cur)} (déjà déduits du dépensé)`:null;
   const fxMissTxt=_fxMiss.size?Array.from(_fxMiss).join(", "):null;
-  const ck=(tr.id||"")+"_"+budget+"_"+est+"_"+spent+"_"+_st+"_"+_left+"_"+(_pj&&_pj.enough?_pj.projection:0);
-  if(_agentBudgetCache[ck]) return paintAgentBudget(_agentBudgetCache[ck]);
-  el.innerHTML=`<div class="agent-thinking">🧭 ${t("agent.thinking")}</div>`;
   const payload={ lang:lang(),
     statut: statutTxt,
     voyageurs: tr.travelers||1,
@@ -9881,9 +10204,14 @@ async function maybeAskAgentBudget(tr){
   if(devTxt) payload.parDevise=devTxt;
   if(refTxt) payload.remboursements=refTxt;
   if(fxMissTxt) payload.tauxManquant=fxMissTxt;
+  const ck=(tr.id||"")+"_"+JSON.stringify(payload);   /* audit v1037 : la cle DOIT etre derivee du payload REEL envoye a l'IA, jamais d'une liste de champs recopiee a la main -- toute donnee qui entre dans payload entre desormais automatiquement dans ck, y compris de futurs champs ; l'ordre des cles de l'objet payload est stable (ordre d'insertion JS), donc JSON.stringify() est deterministe pour un meme etat */
+  _agentBudgetLatest[tr.id]=ck;   /* audit v1036 : enregistre le contexte demande MAINTENANT, avant tout await -- reference pour detecter la peremption au retour */
+  if(_agentBudgetCache[ck]) return paintAgentBudget(_agentBudgetCache[ck]);
+  el.innerHTML=`<div class="agent-thinking">🧭 ${t("agent.thinking")}</div>`;
   const out=await workerFetch("/agent/conseil-budget",payload);
-  if(out&&out.text){ _agentBudgetCache[ck]=out.text; paintAgentBudget(out.text); }
-  else if(el){ el.innerHTML=""; }
+  const _stillCurrent=(_agentBudgetLatest[tr.id]===ck) && (typeof currentTrip==="function") && currentTrip() && currentTrip().id===tr.id;   /* audit v1036 : anti-stale AVANT toute peinture -- le cache reste ecrit dans tous les cas (jamais perdu), mais une reponse perimee ne repeint jamais le DOM */
+  if(out&&out.text){ _agentBudgetCache[ck]=out.text; if(_stillCurrent) paintAgentBudget(out.text); }
+  else if(el && _stillCurrent){ el.innerHTML=""; }
 }
 function paintAgentBudget(text){ const el=document.getElementById("budgetAgentAdvice"); if(!el) return;
   const clean=(text||"").trim().replace(/^[«"'"]\s*([\s\S]*?)\s*[»"'"]$/,"$1");
@@ -11331,7 +11659,34 @@ function renderDayMapOnline(el,stops,tr,day,gen){
           if(_b3aSecondaryCommitted) return;   /* deja commis par une tentative provider precedente -- jamais une fois par provider (arch-r10 Correctif 2) */
           _b3aSecondaryCommitted=true;
           const simpleTopology=presentationDoneEnabled(presentationRef);
-          if(simpleTopology) injectPresentationLegs(presentationRef, base.mode, tr);
+          if(simpleTopology){
+            injectPresentationLegs(presentationRef, base.mode, tr);
+            /* F1 Planning final :
+               ensureFuelPriceFresh() est deja lance plus haut dans renderDayRoute() ; on s'accroche a SA promesse en vol (meme inflight).
+               Sans requete F1 en vol (rien a rafraichir, prix manuel, electrique, hors France, deja resolue...) : AUCUN repeint inutile --
+               le premier injectPresentationLegs() est deja correct (invariant "un seul jeu d'effets", testv971 T6).
+               Aucun nouveau routage, aucun blocage de la carte.
+               Quand le snapshot carburant est pret, on repeint seulement les `.pl-leg`. */
+            try{
+              const _fp=_fuelInflightForPlanning(tr);
+              if(_fp){
+                _fp.then(()=>{
+                  if(!stillCurrent()) return;
+                  if(el._mapRenderer!==handle) return;
+                  if(
+                    presentationRef
+                    &&presentationRef.meta
+                    &&presentationRef.meta.stale
+                  ) return;
+                  injectPresentationLegs(
+                    presentationRef,
+                    base.mode,
+                    tr
+                  );
+                }).catch(()=>{});
+              }
+            }catch(_e){}
+          }
           renderFideleAIFromPresentation(tr,day,presentationRef,_b3aAiPlaces,_b3aAiGeneration,base.dd);
           _osmData={presentation:presentationRef,pts:base.pts,tr}; autoOfflineOSM(tr);
         });
@@ -11413,9 +11768,9 @@ const DAY_COLORS=["#0E2148","#E0A33E","#16A34A","#2F6BE0","#DC2626","#9333EA","#
    en segments visuels via souvPresentationDaySegments()+presentationVisualSegments(), puis livre
    des segments deja prets. MapLibre memorise ces segments (daySegments) pour les rejouer apres un
    changement de style satellite, exactement comme avant avec route.
-   Hors perimetre, non touches : openSouvPlace(), souvOffscreenMap(), souvMapPdf() (son propre
-   moteur MapLibre hors-ecran ; limite P3 de parite documentee, pas presentee comme B2c) --
-   ils continuent d'utiliser ensureRoute()/route.legsInfo/souvDaySegments() en l'etat.
+   Hors perimetre, non touches : openSouvPlace().
+   souvOffscreenMap()/souvMapPdf() migres en v1030 vers assembleSouvenirRouteData()/projectCanonicalLegs()
+   (moteur MapLibre hors-ecran propre, aucune dependance a un mecanisme de route legacy).
    _addPinImg() historique (utilise par les exports/_souvAddLayers) reste intact et non touche --
    B2c a sa propre copie protegee (_b2cAddPinImg) pour ne pas elargir le lot.
    ============================================================ */
@@ -11751,12 +12106,14 @@ function renderTripMap(tr,el,options){
   const capturedStoreEpoch=_storeEpoch;
   const capturedTripId=tr&&tr.id;
   const capturedModelKey=souvMapModelKey(tr);
+  const capturedPresentationKey=souvPresentationInputKey(tr);
   const stillCurrentEl=()=>{
     if(gen!==el._tripMapGen || !el.isConnected) return false;
     if(_storeId!==capturedStoreId || _storeEpoch!==capturedStoreEpoch) return false;
     const liveTrip=(S.trips||[]).find(t=>t && t.id===capturedTripId);   /* jamais currentTrip() -- Souvenirs doit rester affichable pour un voyage archive/non courant */
     if(!liveTrip) return false;
     if(souvMapModelKey(liveTrip)!==capturedModelKey) return false;   /* v1028-P1 : recalcule sur le voyage VIVANT de S.trips, jamais sur l'objet tr capture -- pullAndMergeTrips() peut remplacer l'objet par un nouveau, meme id, sans bumper store/epoch */
+    if(souvPresentationInputKey(liveTrip)!==capturedPresentationKey) return false;   /* v1029-P1 : souvMapModelKey() ne couvre que l'identite/ordre des marqueurs -- DayRoutePresentation depend aussi du mode, de la sequence logique, de l'ancre de retour et du logement, qui peuvent changer sans toucher aux points (ex: mode DRIVE->WALK). Complementaire, jamais un remplacement de la garde precedente. */
     return true;
   };
   function showUnavailable(){
@@ -11942,6 +12299,22 @@ function souvMapModelKey(tr){
   const pts=souvMapPoints(tr);
   return pts.map(p=>[p.day,p._planItemId,p._souvIndex,(+p.lat).toFixed(5),(+p.lng).toFixed(5)].join(":")).join("|");
 }
+/* Signature des inputs canoniques de DayRoutePresentation pour tous les jours Souvenirs du voyage --
+   mode, sequence logique, ancre de retour, logement/destination, options Planning. Complementaire de
+   souvMapModelKey() (identite/ordre des marqueurs) : celle-ci couvre ce que la Presentation consomme
+   reellement au-dela des seuls points, notamment travelMode(tr) qui peut changer sans toucher aux points.
+   Aucune ecriture, aucune mutation -- lecture seule via les memes constructeurs que le moteur canonique. */
+function souvPresentationInputKey(tr){
+  const pts=souvMapPoints(tr);
+  const days=[...new Set(pts.map(p=>Number(p.day)))].sort((a,b)=>a-b);
+  return days.map(day=>{
+    try{
+      return day+"="+dayPresentationUIInputKey(tr, day, planningPresentationOptions(tr,day));
+    }catch(e){
+      return day+"=!invalid";
+    }
+  }).join("||");
+}
 /* Adaptateur DayRoutePresentation -> segments visuels Souvenirs.
    Ne dessine jamais origine->premier lieu ni dernier lieu->retour : uniquement
    la route physique entre le premier et le dernier lieu Souvenir du jour, identites
@@ -11981,6 +12354,146 @@ function souvPresentationDaySegments(presentation,dayPts){
   });
   return segments;
 }
+/* projectCanonicalLegs() -- v1030 : projection de la sequence canonique complete sur les seuls
+   points Souvenirs visibles (P9). Jamais de mapping positionnel legs[i]<->pts[i] : chaque
+   extremite est retrouvee par identite (_planItemId), puis par coordonnees (TOL identique a
+   souvPresentationDaySegments()), avec un curseur sequentiel comme tie-break deterministe pour
+   plusieurs candidats co-localises sans id (jamais un meme point consomme deux fois). */
+function projectCanonicalLegs(presentation, dayPts){
+  if(!presentation || !dayPts || dayPts.length<2) return [];
+  const TOL=0.0005;
+  const consumed=new Array(dayPts.length).fill(false);
+  const matchesPoint=(pt,p)=> !!pt && !!p && p.lat!=null && p.lng!=null && Math.abs(pt.lat-(+p.lat))<TOL && Math.abs(pt.lng-(+p.lng))<TOL;
+  const findNextIndex=(itemId, point, fromCursor)=>{
+    if(itemId!=null){
+      const idx=dayPts.findIndex((p,i)=>!consumed[i] && p._planItemId===itemId);
+      if(idx>=0) return idx;
+    }
+    if(point){
+      for(let i=fromCursor;i<dayPts.length;i++){ if(!consumed[i] && matchesPoint(point,dayPts[i])) return i; }
+    }
+    return -1;
+  };
+  const firstId=dayPts[0]._planItemId;
+  const isFirstMove=(move)=>{ if(firstId!=null) return move.toItemId===firstId; return matchesPoint(move.toPoint,dayPts[0]); };
+  consumed[0]=true;
+  let visibleFromIdx=0, cursor=0, hasStarted=false;
+  let accDist=0, accDur=0, chainValid=true;
+  const legs=[];
+  (presentation.moves||[]).forEach(move=>{
+    if(!move) return;
+    if(move.role==="return") return;
+    if(!hasStarted){ if(isFirstMove(move)) hasStarted=true; return; }
+    let moveValid;
+    if(move.notNeeded===true && (!move.parts || move.parts.length===0)){
+      moveValid=true;   /* liaison legitime 0m/0s -- points co-localises reels */
+    }else if(!Array.isArray(move.parts) || !move.parts.length){
+      moveValid=false;   /* move non-notNeeded sans parts : chaine invalide */
+    }else{
+      moveValid=true;
+      move.parts.forEach(part=>{
+        if(!part){ moveValid=false; return; }
+        if(part.gap===true || !Number.isFinite(Number(part.distanceMeters)) || !Number.isFinite(Number(part.durationSeconds))){
+          moveValid=false;   /* un gap porte 0/0 numeriquement valides sans l'etre reellement -- jamais une vraie liaison zero */
+        }else{
+          accDist+=Number(part.distanceMeters); accDur+=Number(part.durationSeconds);
+        }
+      });
+    }
+    if(!moveValid) chainValid=false;
+    const nextIdx=findNextIndex(move.toItemId, move.toPoint, cursor+1);
+    if(nextIdx>=0 && nextIdx!==visibleFromIdx){
+      if(chainValid){
+        legs.push({ fromPointKey:visibleFromIdx, toPointKey:nextIdx,
+          fromPlanItemId:dayPts[visibleFromIdx]._planItemId, toPlanItemId:dayPts[nextIdx]._planItemId,
+          distanceMeters:accDist, durationSeconds:accDur });
+      }   /* chaine invalide : liaison entiere omise -- jamais de distance partielle ni de zero fabrique */
+      consumed[nextIdx]=true; cursor=nextIdx; visibleFromIdx=nextIdx; accDist=0; accDur=0; chainValid=true;
+    }
+  });
+  return legs;
+}
+/* souvDayRouteData() -- v1030 : resolution/agregation d'un seul jour, read-only, aucune persistance. */
+/* souvExportChangedMessage() -- v1030 : message dedie pour le cas snapshot.complete===false (le voyage a
+   change pendant l'assemblage), distinct de "aucun voyage" -- helper local au bloc Souvenirs/export,
+   aucun ajout au catalogue i18n global. */
+function souvExportChangedMessage(){
+  const D={
+    fr:"Le voyage a été modifié pendant l'export. Relance l'export.",
+    en:"The trip changed during export. Please start the export again.",
+    es:"El viaje cambió durante la exportación. Vuelve a iniciar la exportación.",
+    it:"Il viaggio è cambiato durante l'esportazione. Riavvia l'esportazione.",
+    de:"Die Reise hat sich während des Exports geändert. Bitte starte den Export erneut."
+  };
+  return D[lang()]||D.fr;
+}
+async function souvDayRouteData(tr, day, dayPts){
+  if(!dayPts || dayPts.length<2){
+    return { available:true, segments:[], legs:[], totalDistanceMeters:0, totalDurationSeconds:0 };   /* zero connu -- aucun appel reseau */
+  }
+  let presentation;
+  try{
+    presentation=await getOrResolvePlanningPresentation(tr, day, planningPresentationOptions(tr,day));
+  }catch(e){
+    return { available:false, segments:null, legs:[], totalDistanceMeters:null, totalDurationSeconds:null };   /* un rejet isole ne doit jamais faire echouer l'assemblage entier (P4) */
+  }
+  if(!presentation || !presentation.meta || presentation.meta.stale===true){
+    return { available:false, segments:null, legs:[], totalDistanceMeters:null, totalDurationSeconds:null };
+  }
+  const segments=souvPresentationDaySegments(presentation, dayPts);
+  const legs=projectCanonicalLegs(presentation, dayPts);
+  const totalDistanceMeters=legs.reduce((s,l)=>s+l.distanceMeters,0);
+  const totalDurationSeconds=legs.reduce((s,l)=>s+l.durationSeconds,0);
+  return { available:true, segments, legs, totalDistanceMeters, totalDurationSeconds };
+}
+/* assembleSouvenirRouteData() -- v1030 : snapshot coherent multi-jours, point d'entree unique
+   pour souvMapPdf()/mvStats()/exportCarnetComplet(). Resolution sequentielle (jamais de rafale) ;
+   une mutation du voyage pendant l'assemblage invalide le snapshot entier (complete:false),
+   distinct d'une panne isolee d'un jour (allRoutesAvailable:false, P4). */
+async function assembleSouvenirRouteData(tr){
+  const capturedStoreId=_storeId, capturedStoreEpoch=_storeEpoch, capturedTripId=tr&&tr.id;
+  const capturedModelKey=souvMapModelKey(tr);
+  const capturedPresentationKey=souvPresentationInputKey(tr);
+  const currentValidTrip=()=>{
+    if(_storeId!==capturedStoreId || _storeEpoch!==capturedStoreEpoch) return null;
+    const live=(S.trips||[]).find(t=>t && t.id===capturedTripId);
+    if(!live) return null;
+    if(souvMapModelKey(live)!==capturedModelKey) return null;
+    if(souvPresentationInputKey(live)!==capturedPresentationKey) return null;
+    return live;
+  };
+  const historicalPts=souvPoints(tr).map(p=>Object.assign({},p));
+  const mapPts=souvMapPoints(tr).map(p=>Object.assign({},p));
+  const byDayPts={}; mapPts.forEach(p=>{ (byDayPts[p.day]=byDayPts[p.day]||[]).push(p); });
+  const dayIdx=Object.keys(byDayPts).map(Number).sort((a,b)=>a-b);
+  const incomplete=()=>({ complete:false, allRoutesAvailable:false, historicalPts, mapPts,
+    byDay:resultByDay, legsGlobal:[], totalDistanceMeters:null, totalDurationSeconds:null });
+  const resultByDay={};
+  let allRoutesAvailable=true;
+  for(const day of dayIdx){
+    const before=currentValidTrip();
+    if(!before) return incomplete();
+    const dayData=await souvDayRouteData(before, day, byDayPts[day]);
+    const after=currentValidTrip();   /* jamais reutiliser "before" pour ce controle -- il peut avoir ete remplace pendant l'await */
+    if(!after) return incomplete();
+    resultByDay[day]=dayData;
+    if(!dayData.available) allRoutesAvailable=false;
+  }
+  /* traduction pointKey (index dans dayPts du jour) -> _souvIndex, pour la legende historique */
+  const legsGlobal=[];
+  dayIdx.forEach(day=>{
+    const dayPts=byDayPts[day]; const dd=resultByDay[day];
+    (dd.legs||[]).forEach(l=>{
+      const fromPt=dayPts[l.fromPointKey], toPt=dayPts[l.toPointKey];
+      legsGlobal.push({ day, fromSouvIndex:fromPt?fromPt._souvIndex:null, toSouvIndex:toPt?toPt._souvIndex:null,
+        fromPlanItemId:l.fromPlanItemId, toPlanItemId:l.toPlanItemId,
+        distanceMeters:l.distanceMeters, durationSeconds:l.durationSeconds });
+    });
+  });
+  const totalDistanceMeters=allRoutesAvailable ? dayIdx.reduce((s,d)=>s+resultByDay[d].totalDistanceMeters,0) : null;
+  const totalDurationSeconds=allRoutesAvailable ? dayIdx.reduce((s,d)=>s+resultByDay[d].totalDurationSeconds,0) : null;
+  return { complete:true, allRoutesAvailable, historicalPts, mapPts, byDay:resultByDay, legsGlobal, totalDistanceMeters, totalDurationSeconds };
+}
 /* L'IA renvoie souvent sa phrase en minuscule : on lui rend sa majuscule
    sans toucher au reste du texte. */
 /* Date de la derniere composition, dite simplement. */
@@ -12016,29 +12529,44 @@ function _addPinImg(map,key,svg,num,color){ return new Promise(res=>{ let done=f
   try{ const img=new Image(); img.onload=()=>{ try{ if(!map.hasImage(key)) map.addImage(key,img); finish(); }catch(e){ fb(); } }; img.onerror=fb; setTimeout(()=>{ if(!done) fb(); },2500); img.src="data:image/svg+xml;charset=UTF-8,"+encodeURIComponent(svg); }catch(e){ fb(); } }); }
 const _SOUV_ROUTE=["#E0467E","#E0A33E","#16A34A","#2F6BE0","#DC2626","#9333EA","#0891B2","#DB2777","#CA8A04","#15803D"];
 function _satStyle(){ return {version:8, glyphs:"https://tiles.openfreemap.org/fonts/{fontstack}/{range}.pbf", sources:{sat:{type:"raster",tiles:["https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}"],tileSize:256,attribution:"Imagery © Esri"}}, layers:[{id:"sat",type:"raster",source:"sat"}]}; }
-function _souvAddLayers(map,pts){ if(!map||!pts||!pts.length) return; const L=DAY_COLORS.length;
-  const byDay={}; pts.forEach(pp=>{ (byDay[pp.day]=byDay[pp.day]||[]).push(pp); });
-  let _lx=0; const rfeats=[]; Object.keys(byDay).sort((a,b)=>(+a)-(+b)).forEach(d=>{ const arr=byDay[d]; if(arr.length<2){ return; }
-    arr.slice(0,-1).forEach((x,i)=>{ rfeats.push({type:"Feature",properties:{color:LEG_COLORS[(_lx+i)%LEG_COLORS.length]},geometry:{type:"LineString",coordinates:[[x.lng,x.lat],[arr[i+1].lng,arr[i+1].lat]]}}); });
-    _lx+=arr.length-1; });
-  const rdata={type:"FeatureCollection",features:rfeats};
-  if(map.getSource("smr")) map.getSource("smr").setData(rdata); else map.addSource("smr",{type:"geojson",data:rdata});
-  if(!map.getLayer("smr-casing")) map.addLayer({id:"smr-casing",type:"line",source:"smr",layout:{"line-cap":"round","line-join":"round"},paint:{"line-color":"#ffffff","line-width":7.5,"line-opacity":0.92}});
-  if(!map.getLayer("smr-l")) map.addLayer({id:"smr-l",type:"line",source:"smr",layout:{"line-cap":"round","line-join":"round"},paint:{"line-color":["get","color"],"line-width":4,"line-opacity":1}});
-  const pfeats=pts.map((pp,i)=>{ let _sc=0; for(let _j=0;_j<i;_j++){ if(Math.abs(pts[_j].lat-pp.lat)<0.0045 && Math.abs(pts[_j].lng-pp.lng)<0.0075) _sc++; } return {type:"Feature",properties:{idx:i,off:[((_sc%2)?1:-1)*Math.ceil(_sc/2)*24,-Math.ceil(_sc/2)*8]},geometry:{type:"Point",coordinates:[pp.lng,pp.lat]}}; });
-  const pdata={type:"FeatureCollection",features:pfeats};
-  if(map.getSource("smp")) map.getSource("smp").setData(pdata); else map.addSource("smp",{type:"geojson",data:pdata});
-  Promise.all(pts.map((pp,i)=>{ const key="smpin"+i; if(map.hasImage(key)) return Promise.resolve(); const col=(window._souvByDay)?DAY_COLORS[(((pp&&pp.day!=null)?pp.day:0))%DAY_COLORS.length]:((pp&&pp._dayColor)||((typeof catColor==="function"&&catColor(pp))||DAY_COLORS[pp.day%L])); const emo=(typeof catEmoji==="function"?catEmoji(pp):"📍"); return _addPinImg(map,key,_souvSvgPin(emo,i+1,col),i+1,col); })).then(()=>{ if(map.getLayer("smp-pin")) return; try{ map.addLayer({id:"smp-pin",type:"symbol",source:"smp",layout:{"icon-image":["concat","smpin",["to-string",["get","idx"]]],"icon-size":1.35,"icon-anchor":"bottom","icon-offset":["get","off"],"icon-allow-overlap":true,"icon-ignore-placement":true}}); }catch(e){} }).catch(()=>{});
-  if(_souvTr && typeof ensureRoute==="function"){ const _tr=_souvTr; const _keys=Object.keys(byDay).sort((a,b)=>(+a)-(+b)); let _bx=0; const _base={};
-    _keys.forEach(d=>{ _base[d]=_bx; _bx+=Math.max(0,byDay[d].length-1); });
-    Promise.all(_keys.map(async d=>{ const arr=byDay[d]; if(arr.length<2) return [];
-      const stops=arr.map(pp=>({lat:pp.lat,lng:pp.lng,name:pp.title,title:pp.title}));
-      try{ const route=await ensureRoute(_tr,+d,stops); const legs=(route&&route.legsInfo)||[]; const out=[];
-        legs.forEach((lg,i)=>{ if(!(lg&&lg.poly)) return; const c=decodePolyLL(lg.poly).map(pt=>[pt[1],pt[0]]); if(c.length>1) out.push({type:"Feature",properties:{color:LEG_COLORS[(_base[d]+i)%LEG_COLORS.length]},geometry:{type:"LineString",coordinates:c}}); });
-        if(out.length) return out; }catch(e){}
-      return arr.slice(0,-1).map((x,i)=>({type:"Feature",properties:{color:LEG_COLORS[(_base[d]+i)%LEG_COLORS.length]},geometry:{type:"LineString",coordinates:[[x.lng,x.lat],[arr[i+1].lng,arr[i+1].lat]]}}));
-    })).then(groups=>{ const feats=[].concat.apply([],groups); const src=map.getSource("smr"); if(src&&src.setData&&feats.length) src.setData({type:"FeatureCollection",features:feats}); }).catch(()=>{});
-  }
+/* _souvAddLayers() -- v1030 : renderer pur, reellement async. Recoit uniquement ce dont elle a
+   besoin (aucune lecture de _souvTr/_souvPts, aucun appel reseau de resolution de route). Les
+   traits viennent exclusivement de segments (deja resolus par le moteur canonique) ; les numeros
+   de pastille viennent de l'identite historique (_souvIndex/oi), jamais de la position i dans pts. */
+function _souvAddLayers(map,pts,segments){
+  return new Promise((resolveLayers)=>{
+    if(!map || !pts || !pts.length){ resolveLayers(); return; }
+    const segs=Array.isArray(segments)?segments:[];
+    const solidFeats=[], dashedFeats=[];
+    segs.forEach(seg=>{
+      if(!seg || !Array.isArray(seg.coords) || seg.coords.length<2) return;
+      const feat={type:"Feature",properties:{color:seg.color||"#0E2148"},geometry:{type:"LineString",coordinates:seg.coords.map(c=>[c[1],c[0]])}};
+      (seg.dashed?dashedFeats:solidFeats).push(feat);
+    });
+    const solidData={type:"FeatureCollection",features:solidFeats};
+    const dashedData={type:"FeatureCollection",features:dashedFeats};
+    if(map.getSource("smr")) map.getSource("smr").setData(solidData); else map.addSource("smr",{type:"geojson",data:solidData});
+    if(!map.getLayer("smr-casing")) map.addLayer({id:"smr-casing",type:"line",source:"smr",layout:{"line-cap":"round","line-join":"round"},paint:{"line-color":"#ffffff","line-width":7.5,"line-opacity":0.92}});
+    if(!map.getLayer("smr-l")) map.addLayer({id:"smr-l",type:"line",source:"smr",layout:{"line-cap":"round","line-join":"round"},paint:{"line-color":["get","color"],"line-width":4,"line-opacity":1}});
+    if(map.getSource("smrd")) map.getSource("smrd").setData(dashedData); else map.addSource("smrd",{type:"geojson",data:dashedData});
+    if(!map.getLayer("smr-dashed")) map.addLayer({id:"smr-dashed",type:"line",source:"smrd",layout:{"line-cap":"round","line-join":"round"},paint:{"line-color":["get","color"],"line-width":2.5,"line-opacity":0.7,"line-dasharray":[2,1.4]}});
+    const pfeats=pts.map((pp,i)=>{ let _sc=0; for(let _j=0;_j<i;_j++){ if(Math.abs(pts[_j].lat-pp.lat)<0.0045 && Math.abs(pts[_j].lng-pp.lng)<0.0075) _sc++; } return {type:"Feature",properties:{idx:i,off:[((_sc%2)?1:-1)*Math.ceil(_sc/2)*24,-Math.ceil(_sc/2)*8]},geometry:{type:"Point",coordinates:[pp.lng,pp.lat]}}; });
+    const pdata={type:"FeatureCollection",features:pfeats};
+    if(map.getSource("smp")) map.getSource("smp").setData(pdata); else map.addSource("smp",{type:"geojson",data:pdata});
+    Promise.all(pts.map((pp,i)=>{
+      const key="smpin"+i; if(map.hasImage(key)) return Promise.resolve();
+      const col=(pp&&pp._dayColor)||((typeof catColor==="function"&&catColor(pp))||DAY_COLORS[pp.day%DAY_COLORS.length]);   /* v1031-P2 : renderer pur -- couleur uniquement depuis pp._dayColor ou catColor(), aucune globale */
+      const emo=(typeof catEmoji==="function"?catEmoji(pp):"📍");
+      const histIndex=Number.isInteger(pp._souvIndex)?pp._souvIndex:(Number.isInteger(pp.oi)?pp.oi:null);
+      const markerNumber=(pp.kind==="lodging")?null:(histIndex!=null?histIndex+1:null);
+      const numLabel=markerNumber!=null?String(markerNumber):"";   /* meme convention que createMapLibreSouvRenderer (CLOSED) pour un logement : chaine vide, jamais "null" */
+      return _addPinImg(map,key,_souvSvgPin(emo,numLabel,col),numLabel,col);
+    })).then(()=>{
+      if(map.getLayer("smp-pin")) { resolveLayers(); return; }
+      try{ map.addLayer({id:"smp-pin",type:"symbol",source:"smp",layout:{"icon-image":["concat","smpin",["to-string",["get","idx"]]],"icon-size":1.35,"icon-anchor":"bottom","icon-offset":["get","off"],"icon-allow-overlap":true,"icon-ignore-placement":true}}); }catch(e){}
+      resolveLayers();
+    }).catch(()=>{ resolveLayers(); });
+  });
 }
 function openSouvenirMap(tr){ tr=tr||souvTrip(); if(!tr) return; const pts=souvPoints(tr); if(!pts.length){ toast(smT("noPts")); return; } _souvPts=pts; _souvTr=tr; ensureMaplibreCss();
   const mapPts=souvMapPoints(tr);   /* v1027 : legende/numerotation carte suivent l'ordre canonique -- recit/clic restent associes a l'indice historique souvPoints via _souvIndex */
@@ -12048,7 +12576,7 @@ function openSouvenirMap(tr){ tr=tr||souvTrip(); if(!tr) return; const pts=souvP
   const legend=mapPts.map((p,i)=>{ const hIdx=p._souvIndex; const storyText=(hIdx!=null&&_st[hIdx])?_st[hIdx]:""; return `<div class="smlg" data-svlg="${hIdx!=null?hIdx:""}" style="cursor:pointer"><span class="smlg-n" style="background:${(typeof catColor==="function"?catColor(p):DAY_COLORS[p.day%DAY_COLORS.length])}">${i+1}</span><div class="smlg-b"><div class="smlg-t">${(typeof catEmoji==="function"?catEmoji(p)+" ":"")}${escapeHtml(p.title||"\u2014")}</div><div class="smlg-d">${smT("day")} ${p.day+1}${p.time?" \u00b7 "+escapeHtml(p.time):""}</div>${storyText?`<div class="smlg-s">${escapeHtml(storyText)}</div>`:""}${p.note?`<div class="smlg-n2">${escapeHtml(p.note)}</div>`:""}</div></div>`; }).join("");
   ov.innerHTML=`<div class="souvmap-sheet"><div class="smh"><div class="smh-t">${smT("title")} · ${escapeHtml(tripTitle(tr))}</div><button class="cal-x" id="smClose" type="button">✕</button></div><div id="souvMapCanvas" class="souvmap-canvas"></div><div class="souvmap-scroll"><div class="souvmap-legendhd"><span>${smT("steps")}</span><button class="sv-storybtn" id="smStory" type="button">${(tr.souvStory?_smk2("regen"):_smk2("gen"))}</button></div><div class="souvmap-legend">${legend}</div></div><div class="souvmap-foot"><button class="btn ghostline2" id="smSat" type="button">🗺️ Plan</button><button class="btn navy" id="smPdf" type="button">📄 ${smT("export")}</button></div></div>`;
   document.body.appendChild(ov);
-  const close=()=>{ invalidateTripMapEl(ov.querySelector("#souvMapCanvas")); ov.remove(); };   /* v958-B2c-fix3 : invalidateTripMapEl (pas juste destroy()) -- incremente aussi la generation pour couper tout callback ensureRoute en vol */
+  const close=()=>{ invalidateTripMapEl(ov.querySelector("#souvMapCanvas")); ov.remove(); };   /* v958-B2c-fix3 : invalidateTripMapEl (pas juste destroy()) -- incremente aussi la generation pour couper tout callback de resolution de route (Presentation) en vol */
   ov.querySelector("#smClose").onclick=close;
   ov.querySelectorAll("[data-svlg]").forEach(b=>b.onclick=()=>openSouvPlace(tr,parseInt(b.dataset.svlg,10)||0));
   { const sb=ov.querySelector("#smStory"); if(sb) sb.onclick=async()=>{ sb.disabled=true; const old=sb.textContent; sb.textContent=_smk2("writing");
@@ -12078,27 +12606,41 @@ function souvOverviewOSM(pts){
   });
 }
 /* PDF : la carte Google n'est pas exportable -> on rend une carte MapLibre hors ecran pour l'image */
-function souvOffscreenMap(pts){ return new Promise((res,rej)=>{ ensureMaplibreCss(); loadMapLibre(err=>{ if(err||!window.maplibregl) return rej(new Error("map"));
+/* souvOffscreenMap() -- v1030 : recoit desormais pts+segments explicitement (P10). Capture
+   bornee a 5000ms apres resolution complete des couches applicatives + signal idle MapLibre --
+   jamais un delai fixe, jamais une capture best-effort au timeout. Nettoyage idempotent :
+   onIdle/onTimeout sont mutuellement exclusifs, chacun ne s'execute qu'une seule fois. */
+function souvOffscreenMap(pts,segments){ return new Promise((res,rej)=>{ ensureMaplibreCss(); loadMapLibre(err=>{ if(err||!window.maplibregl) return rej(new Error("map"));
     const box=document.createElement("div"); box.style.cssText="position:fixed;left:-10000px;top:0;width:1000px;height:680px;"; document.body.appendChild(box);
     try{ const m=new maplibregl.Map({container:box,style:(_souvSat?_satStyle():OSM_PLAN_STYLE),center:[pts[0].lng,pts[0].lat],zoom:12,attributionControl:false,interactive:false,dragRotate:false,preserveDrawingBuffer:true});
-      m.on("load",()=>{ _souvAddLayers(m,pts);
+      m.on("load",async()=>{
+        await _souvAddLayers(m,pts,segments);
         let a=Infinity,b=Infinity,c=-Infinity,d=-Infinity; pts.forEach(pp=>{ a=Math.min(a,pp.lng);c=Math.max(c,pp.lng);b=Math.min(b,pp.lat);d=Math.max(d,pp.lat); });
         if(pts.length>1) m.fitBounds([[a,b],[c,d]],{padding:{top:80,bottom:56,left:60,right:60},maxZoom:14.5,duration:0}); else m.setZoom(13.5);
-        setTimeout(()=>{ try{ m.triggerRepaint(); }catch(e){}
-          setTimeout(()=>{ let url=""; try{ url=m.getCanvas().toDataURL("image/png"); }catch(e){}
-            const cv=m.getCanvas(); const w=cv.width,h=cv.height;
-            try{ m.remove(); }catch(e){} try{ box.remove(); }catch(e){}
+        let settled=false;
+        const cleanup=()=>{ try{ m.remove(); }catch(e){} try{ box.remove(); }catch(e){} };
+        const onIdle=()=>{ if(settled) return; settled=true; clearTimeout(timer);
+          requestAnimationFrame(()=>{ let url=""; try{ url=m.getCanvas().toDataURL("image/png"); }catch(e){}
+            const cv=m.getCanvas(); const w=cv.width,h=cv.height; cleanup();
             if(url) res({url,w,h}); else rej(new Error("canvas"));
-          },900);
-        },700);
+          });
+        };
+        const onTimeout=()=>{ if(settled) return; settled=true; try{ m.off("idle",onIdle); }catch(e){} cleanup(); rej(new Error("offscreen_timeout")); };
+        m.once("idle",onIdle);
+        const timer=setTimeout(onTimeout,5000);
+        try{ m.triggerRepaint(); }catch(e){}
       });
     }catch(e){ try{ box.remove(); }catch(_){} rej(e); }
   }); }); }
 async function souvMapPdf(tr){ try{ toast(smT("making")); await loadJsPDF();
-  const _pts=(_souvPts&&_souvPts.length)?_souvPts:souvPoints(tr);
-  const shot=await souvOffscreenMap(_pts);
+  const snap=await assembleSouvenirRouteData(tr);
+  if(!snap.complete){ toast(souvExportChangedMessage()); return; }   /* le voyage a change pendant l'assemblage -- abandon, jamais un PDF a moitie ancien/nouveau */
+  const _pts=snap.historicalPts;
+  const _mapPts=snap.mapPts;
+  const _segments=[]; Object.keys(snap.byDay).forEach(d=>{ const dd=snap.byDay[d]; if(dd&&Array.isArray(dd.segments)) _segments.push.apply(_segments,dd.segments); });
+  let shot; try{ shot=await souvOffscreenMap(_mapPts,_segments); }catch(e){ toast("PDF: "+((e&&e.message)||e)); return; }   /* echec/timeout de la carte unique : abandon PDF + toast, jamais de capture partielle */
   const img=shot.url; const canvas={width:shot.w,height:shot.h};
-  let _legs=[]; try{ _legs=await souvLegs(tr,_pts); }catch(e){}
+  const _legs=snap.legsGlobal;
   const _story=tr.souvStory||{};
   const jsPDF=window.jspdf.jsPDF; const doc=new jsPDF({unit:"pt",format:"a4"});
   const W=doc.internal.pageSize.getWidth(), H=doc.internal.pageSize.getHeight(), M=42;
@@ -12139,21 +12681,19 @@ async function souvMapPdf(tr){ try{ toast(smT("making")); await loadJsPDF();
       doc.setFont("times","italic"); doc.setFontSize(10.5); doc.setTextColor(60,72,102);
       const ws=doc.splitTextToSize(String(_story[i]), W-2*M-34); doc.text(ws, M+29, y); y+=ws.length*12.5+2; }
     if(pp.note){ doc.setFont("helvetica","normal"); doc.setFontSize(9.5); doc.setTextColor(120,131,152); const wn=doc.splitTextToSize(String(pp.note), W-2*M-26); doc.text(wn, M+22, y); y+=wn.length*11.5; }
-    /* Trajet vers l'étape suivante */
-    const lg=_legs.find(x=>x.from===i && x.to===i+1);
-    if(lg && (lg.dist||lg.dur)){ if(y > H-M-24){ doc.addPage(); y=M+6; }
+    /* Trajet vers l'étape suivante -- uniquement si le trajet canonique projette reellement une liaison i->i+1 (P8/P9), jamais fabrique depuis la seule proximite des numeros */
+    const lg=_legs.find(x=>x.fromSouvIndex===i && x.toSouvIndex===i+1);
+    if(lg && (lg.distanceMeters||lg.durationSeconds)){ if(y > H-M-24){ doc.addPage(); y=M+6; }
       const lc=LEG_COLORS[_legs.indexOf(lg)%LEG_COLORS.length], lrgb=hex2(lc);
       doc.setDrawColor(lrgb[0],lrgb[1],lrgb[2]); doc.setLineWidth(1.6); doc.line(M+7, y-2, M+7, y+8);
       doc.setFont("helvetica","normal"); doc.setFontSize(9); doc.setTextColor(lrgb[0],lrgb[1],lrgb[2]);
-      const md=(String(lg.mode||"").toUpperCase()==="WALK")?"\u00e0 pied":"";
-      doc.text((i+1)+" \u2192 "+(i+2)+"   "+_fmtKm(lg.dist)+"  \u00b7  "+_fmtDur(lg.dur)+(md?("  \u00b7  "+md):""), M+22, y+6);
+      doc.text((i+1)+" \u2192 "+(i+2)+"   "+_fmtKm(lg.distanceMeters)+"  \u00b7  "+_fmtDur(lg.durationSeconds), M+22, y+6);
       y+=18; }
     y+=8;
   });
   /* Totaux + légende des couleurs de trajet */
   if(_legs.length){
     if(y > H-M-70){ doc.addPage(); y=M+6; }
-    const tk=_legs.reduce((a,l)=>a+(+l.dist||0),0), td=_legs.reduce((a,l)=>a+(+String(l.dur||0).replace("s","")||0),0);
     doc.setDrawColor(232,236,244); doc.setLineWidth(0.7); doc.line(M, y, W-M, y); y+=16;
     doc.setFont("times","bold"); doc.setFontSize(12); doc.setTextColor(NAVY[0],NAVY[1],NAVY[2]);
     doc.text(_smk2("legend"), M, y); y+=14;
@@ -12162,9 +12702,11 @@ async function souvMapPdf(tr){ try{ toast(smT("making")); await loadJsPDF();
       const lc=LEG_COLORS[i%LEG_COLORS.length], lr=hex2(lc);
       doc.setFillColor(lr[0],lr[1],lr[2]); doc.circle(M+5, y-3, 4, "F");
       doc.setTextColor(MUT[0],MUT[1],MUT[2]);
-      doc.text((l.from+1)+" \u2192 "+(l.to+1)+"   "+_fmtKm(l.dist)+"  \u00b7  "+_fmtDur(l.dur), M+16, y); y+=13; });
-    y+=4; doc.setFont("helvetica","bold"); doc.setFontSize(10); doc.setTextColor(NAVY[0],NAVY[1],NAVY[2]);
-    doc.text(_smk2("total")+" :   "+_fmtKm(tk)+"   \u00b7   "+_fmtDur(td), M, y); y+=10;
+      doc.text((l.fromSouvIndex+1)+" \u2192 "+(l.toSouvIndex+1)+"   "+_fmtKm(l.distanceMeters)+"  \u00b7  "+_fmtDur(l.durationSeconds), M+16, y); y+=13; });
+    if(snap.allRoutesAvailable===true && snap.totalDistanceMeters!=null && snap.totalDurationSeconds!=null){   /* v1031-P1 : jamais de total recalcule depuis _legs -- omis entierement si une journee routable manque (P6/R16), toujours la meme source que mvStats() */
+      y+=4; doc.setFont("helvetica","bold"); doc.setFontSize(10); doc.setTextColor(NAVY[0],NAVY[1],NAVY[2]);
+      doc.text(_smk2("total")+" :   "+_fmtKm(snap.totalDistanceMeters)+"   \u00b7   "+_fmtDur(snap.totalDurationSeconds), M, y); y+=10;
+    }
   }
 
   /* --- Pied de page --- */
@@ -12368,7 +12910,7 @@ async function exportCarnetComplet(){
     const cur=tr.currency||"EUR";
     const fr=(typeof lang==="function"&&lang()==="fr");
     const L=(o)=>o[(typeof lang==="function"&&lang())||"fr"]||o.fr;
-    const days=(typeof tripDays==="function")?tripDays(tr):[]; window._souvByDay=true;
+    const days=(typeof tripDays==="function")?tripDays(tr):[];
     var _floraCache={}; var _floraFlip={};
     var _fseed=0; (function(){ var _id=String((tr&&(tr.id||tr.name))||""); for(var _z=0;_z<_id.length;_z++) _fseed=(_fseed*31+_id.charCodeAt(_z))>>>0; })();
     async function _loadFlora(n){ if(n in _floraCache) return _floraCache[n]; try{ var r=await fetch(n+".png"); if(r&&r.ok){ var b=await r.blob(); var _du=await new Promise(function(res){ var fr=new FileReader(); fr.onload=function(){res(fr.result);}; fr.onerror=function(){res(null);}; fr.readAsDataURL(b); }); _floraCache[n]=_du;
@@ -12380,7 +12922,8 @@ async function exportCarnetComplet(){
     const title=(tr.dest&&tr.dest.name)||tr.name||"Voyage";
     const dr=(typeof fmtRange==="function")?fmtRange(tr.dateStart,tr.dateEnd):"";
     const money=(n)=>(typeof window.money==="function")?window.money(n,cur):((Math.round((+n||0)*100)/100)+" "+cur);
-    try{ _souvTr=tr; for(const _dd of days){ const _st=pts.filter(p=>p.day===_dd.i); if(_st.length>=2 && typeof ensureRoute==="function"){ const _stops=_st.map(p=>({lat:p.lat,lng:p.lng,name:p.title,title:p.title})); try{ await ensureRoute(tr,_dd.i,_stops); }catch(e){} } } }catch(e){}
+    try{ var souvenirRouteSnapshot=await assembleSouvenirRouteData(tr); }catch(e){ souvenirRouteSnapshot=null; }
+    if(!souvenirRouteSnapshot || !souvenirRouteSnapshot.complete){ toast(souvExportChangedMessage()); return; }   /* v1030 : le voyage a change pendant l'assemblage -- abandon entier, jamais un carnet a moitie ancien/nouveau voyage */
 
     function sig(x,y,scale,col){ col=col||GOLDL; doc.setTextColor(col[0],col[1],col[2]); doc.setFont("times","bold"); doc.setFontSize(13*scale); doc.text("Magot",x,y); const w=doc.getTextWidth("Magot")+1.5*scale; doc.setFont("times","italic"); doc.setFontSize(14*scale); doc.text("Voyage",x+w,y); }
     function catLabel(c){ try{ return t("bcat."+c); }catch(e){ return c; } }
@@ -12497,11 +13040,11 @@ async function exportCarnetComplet(){
 
     /* ---------- CARTE DU VOYAGE ---------- */
     try{
-      const mapPts=pts.slice();
-      if(tr.lodging&&tr.lodging.lat!=null) mapPts.push({lng:tr.lodging.lng,lat:tr.lodging.lat,title:(tr.lodging.name||""),kind:"lodging"});
+      const mapPts=souvenirRouteSnapshot.mapPts.map(p=>Object.assign({},p,{_dayColor:DAY_COLORS[p.day%DAY_COLORS.length]}));   /* v1031-P2 : copie explicite -- jamais de mutation du snapshot partage (slice() ne clone que le tableau, pas les objets) */
+      if(tr.lodging&&tr.lodging.lat!=null) mapPts.push({lng:tr.lodging.lng,lat:tr.lodging.lat,title:(tr.lodging.name||""),kind:"lodging"});   /* marqueur non numerote, ne devient jamais un endpoint Souvenirs (P8/P17) */
+      const _allSegments=[]; Object.keys(souvenirRouteSnapshot.byDay).forEach(function(d){ var dd=souvenirRouteSnapshot.byDay[d]; if(dd&&Array.isArray(dd.segments)) _allSegments.push.apply(_allSegments,dd.segments); });
       if(mapPts.length && typeof souvOffscreenMap==="function"){
-        mapPts.forEach(function(mp){ if(mp&&mp.day!=null) mp._dayColor=DAY_COLORS[mp.day%DAY_COLORS.length]; });
-        const shot=await souvOffscreenMap(mapPts);
+        let shot=null; try{ shot=await souvOffscreenMap(mapPts,_allSegments); }catch(e){ shot=null; }   /* echec/timeout de cette carte : image ignoree, le carnet continue */
         if(shot&&shot.url){
           y+=12;
           doc.setTextColor(INK[0],INK[1],INK[2]); doc.setFont("times","bold"); doc.setFontSize(20);
@@ -12569,6 +13112,8 @@ async function exportCarnetComplet(){
       const _iso=(dd.date?localYMD(dd.date):"");
       const _lodgPt=(tr.lodging&&tr.lodging.lat!=null)?{ id:"__lodging_"+dd.i, title:(tr.lodging.name||L({fr:"Hébergement",en:"Accommodation",es:"Alojamiento",it:"Alloggio",de:"Unterkunft"})), lat:tr.lodging.lat, lng:tr.lodging.lng, kind:"lodging", time:"", photo:(tr.lodging.photo||(tr.lodging.suggest&&tr.lodging.suggest.photo)||(tr.lodging.suggest&&tr.lodging.suggest.photos&&tr.lodging.suggest.photos[0]&&tr.lodging.suggest.photos[0].name)||null), _lodging:true }:null;
       const stAll=_lodgPt?[_lodgPt].concat(st):st;
+      const _dayMapPts=souvenirRouteSnapshot.mapPts.filter(p=>p.day===dd.i).map(p=>Object.assign({},p,{_dayColor:DAY_COLORS[p.day%DAY_COLORS.length]}));   /* v1031-P2 : copie explicite -- jamais de mutation du snapshot partage */
+      const stMapAll=_lodgPt?_dayMapPts.concat([_lodgPt]):_dayMapPts;   /* logement en fin de liste, marqueur non numerote (kind:"lodging"), jamais un endpoint Souvenirs */
       const dayExps=exps.filter(e=>e.date===_iso);
       const dayPhotos=(tr.memories||[]).filter(m=>m&&m.day===dd.i&&!m.video).slice(0,3);
       if(!st.length && !dayExps.length && !dayPhotos.length){ continue; }
@@ -12579,14 +13124,14 @@ async function exportCarnetComplet(){
       doc.text(t("plan.day")+" "+(dd.i+1),MG+6,y+8.6);
       if(dd.date){ doc.setFont("helvetica","normal"); doc.setFontSize(9.5); doc.setTextColor(214,204,176); doc.text((typeof fmtDayLong==="function"?fmtDayLong(dd.date):""),W-MG-6,y+8.4,{align:"right"}); }
       y+=18;
-      try{ var _wx=(tr._wx&&_iso)?tr._wx[_iso]:null; var _rc=(tr._routes&&tr._routes[dd.i])?tr._routes[dd.i]:null; var _dp=[];
+      try{ var _wx=(tr._wx&&_iso)?tr._wx[_iso]:null; var _dayRoute=souvenirRouteSnapshot.byDay[dd.i]; var _dp=[];
         if(_wx&&_wx.temp!=null) _dp.push(String(Math.round(_wx.temp))+"\u00b0C");
-        if(_rc&&_rc.distanceMeters>0) _dp.push((typeof fmtDist==="function")?fmtDist(_rc.distanceMeters):(Math.round(_rc.distanceMeters/1000)+" km"));
+        if(_dayRoute&&_dayRoute.available&&_dayRoute.totalDistanceMeters>0) _dp.push((typeof fmtDist==="function")?fmtDist(_dayRoute.totalDistanceMeters):(Math.round(_dayRoute.totalDistanceMeters/1000)+" km"));
         _dp.push(st.length+" "+(st.length>1?L({fr:"lieux",en:"places",es:"lugares",it:"luoghi",de:"Orte"}):L({fr:"lieu",en:"place",es:"lugar",it:"luogo",de:"Ort"})));
         if(_dp.length){ doc.setFont("helvetica","normal"); doc.setFontSize(9); doc.setTextColor(150,140,120); doc.text(_dp.join("   \u00b7   "),MG+1,y); y+=7; }
       }catch(e){}
       /* carte du jour */
-      if(stAll.length>=1){ try{ const _sh=await souvOffscreenMap(stAll); if(_sh&&_sh.url){ const _ratio=(_sh.h/_sh.w)||0.62; var iw=W-2*MG, ih=iw*_ratio; var _maxH=72; if(ih>_maxH){ ih=_maxH; iw=ih/_ratio; } var _ix=MG+((W-2*MG)-iw)/2; doc.addImage(_sh.url,"PNG",_ix,y,iw,ih,undefined,"FAST"); doc.setDrawColor(GOLDL[0],GOLDL[1],GOLDL[2]); doc.setLineWidth(0.4); doc.rect(_ix,y,iw,ih); y+=ih+6; } }catch(e){} }
+      if(stMapAll.length>=1){ try{ const _segDay=(souvenirRouteSnapshot.byDay[dd.i]&&souvenirRouteSnapshot.byDay[dd.i].segments)||[]; const _sh=await souvOffscreenMap(stMapAll,_segDay); if(_sh&&_sh.url){ const _ratio=(_sh.h/_sh.w)||0.62; var iw=W-2*MG, ih=iw*_ratio; var _maxH=72; if(ih>_maxH){ ih=_maxH; iw=ih/_ratio; } var _ix=MG+((W-2*MG)-iw)/2; doc.addImage(_sh.url,"PNG",_ix,y,iw,ih,undefined,"FAST"); doc.setDrawColor(GOLDL[0],GOLDL[1],GOLDL[2]); doc.setLineWidth(0.4); doc.rect(_ix,y,iw,ih); y+=ih+6; } }catch(e){} }   /* echec/timeout de cette carte : image ignoree, le carnet continue */
       /* ---- Lieux du jour : chaque lieu = photo (polaroid) + commentaire ---- */
       var _pays=""; try{ if(typeof _exploreCC==="function") _pays=_exploreCC()||""; }catch(e){}
       var _usedPh={};
@@ -12650,9 +13195,9 @@ async function exportCarnetComplet(){
     doc.text(doc.splitTextToSize(L({fr:"Merci d'avoir voyagé avec nous.",en:"Thank you for travelling with us.",es:"Gracias por viajar con nosotros.",it:"Grazie per aver viaggiato con noi.",de:"Danke, dass Sie mit uns gereist sind."}),W-2*MG-6),W/2,H/2-6,{align:"center"});
     sig(W/2-16,H/2+12,1.3);
 
-    window._souvByDay=false; doc.save((typeof safeName==="function"?safeName(tr.name):"voyage")+"_carnet.pdf");
+    doc.save((typeof safeName==="function"?safeName(tr.name):"voyage")+"_carnet.pdf");
     toast(t("mem.exportDone"));
-  }catch(e){ window._souvByDay=false; toast(t("mem.exportOffline")); }
+  }catch(e){ toast(t("mem.exportOffline")); }
 }
 function _carnetRerender(){ try{ var h=window._carnetInlineHost; if(h&&document.body.contains(h)) openExport(h); }catch(e){} }
 async function _carnetGenCn(tr){ try{ if(!tr) return;
@@ -12791,7 +13336,7 @@ async function computeRoute(stops,mode,opts){
   try{ let rt=null; const delays=[0,400]; // un réessai court suffit pour un vide passager ; on ne fige pas l'affichage
     for(let a=0;a<delays.length;a++){ if(delays[a]) await new Promise(r=>setTimeout(r,delays[a]));
       const j=await workerFetch("/google/routes",{fieldMask:fields,request:body}); rt=(((j&&j.data)||{}).routes||[])[0]; if(rt) break; }
-    if(!rt){ try{console.warn("[route] Google a renvoyé une réponse vide",{mode,points:clean.length,from:clean[0],to:clean[clean.length-1]});}catch(e){} return null; } // vide → ensureRoute retentera à pied ; le log dit POURQUOI (coords/mode) sans popup
+    if(!rt){ try{console.warn("[route] Google a renvoyé une réponse vide",{mode,points:clean.length,from:clean[0],to:clean[clean.length-1]});}catch(e){} return null; } // vide -> l'appelant tentera un mode degrade si prevu ; le log dit POURQUOI (coords/mode) sans popup
     return { distanceMeters:rt.distanceMeters||0, duration:parseInt((rt.duration||"0s").replace("s",""),10)||0,
       polyline:(rt.polyline&&rt.polyline.encodedPolyline)||"", mode,
       legs:(rt.legs||[]).map(l=>({dist:l.distanceMeters||0,dur:parseInt((l.duration||"0s").replace("s",""),10)||0,poly:(l.polyline&&l.polyline.encodedPolyline)||""})) };
@@ -12953,7 +13498,7 @@ async function resolveDayReturnRoute(tr, day, sourceResolved, options){
     const okNums=okLegs && Number.isFinite(res.distanceMeters) && res.distanceMeters>0 && Number.isFinite(res.durationSeconds) && res.durationSeconds>0 && !!leg && Number.isFinite(leg.distanceMeters) && leg.distanceMeters>0 && Number.isFinite(leg.durationSeconds) && leg.durationSeconds>0;
     if(!okLegs || !okNums) return { request, result:null, meta:emptyMeta(cacheable,false,false,false) };   /* incomplet/incoherent -> jamais de faux 0 */
     const canonical={ sig, provider:res.provider, fallbackLevel:casc.fallbackLevel, calculatedAt:res.calculatedAt, mode:res.mode, origin:res.origin, destination:res.destination, distanceMeters:res.distanceMeters, durationSeconds:res.durationSeconds, legs:res.legs, polyline:res.polyline };
-    if(cacheable) _dayReturnCache[cacheKey]=canonical;   /* memoire uniquement -- jamais saveState(), jamais tr._routes/tr._traffic/tr._routeCore/Budget */
+    if(cacheable) _dayReturnCache[cacheKey]=canonical;   /* memoire uniquement -- jamais saveState(), jamais tr._traffic/tr._routeCore/Budget */
     return { request, result:canonical, meta:emptyMeta(cacheable,false,false,false) };
   })();
   _dayReturnInflight[cacheKey]=run;
@@ -14894,7 +15439,7 @@ function presentationDoneEnabled(presentation){
 }
 
 /* ------------------------------------------------------------
-   AGREGATION injectLegs() -- par Move, fromItemId (arch-r3/r4).
+   AGREGATION DES MOVES POUR L'AFFICHAGE DES TRAJETS PLANNING -- par Move, fromItemId (arch-r3/r4).
    ------------------------------------------------------------ */
 function aggregateMoveForRow(move){
   if(move.notNeeded || !move.parts || !move.parts.length) return null;
@@ -14915,25 +15460,96 @@ function eligibleForInjectedLeg(move, tr){
   if(fromItem && fromItem._trans) return false;
   return true;
 }
+/* F1 Planning final : lecteur PUR de l'inflight F1 (aucun reseau, aucune ecriture). Meme table et meme cle que ensureFuelPriceFresh() (id|signature).
+   ensureFuelPriceFresh() est async : il renvoie TOUJOURS une promesse, meme sans requete -- on ne peut donc pas s'en servir pour savoir si un prix est attendu. */
+function _fuelInflightForPlanning(tr){
+  try{
+    if(!tr) return null;
+    const p=_fuelResolveInflight[(tr.id||"?")+"|"+_fuelResolveSignature(tr)];
+    return (p&&typeof p.then==="function")?p:null;
+  }catch(_e){ return null; }
+}
 function injectPresentationLegs(presentation, mode, tr){
-  const body=document.getElementById("planBody"); if(!body) return;
+  const body=document.getElementById("planBody");
+  if(!body) return;
   body.querySelectorAll(".pl-leg").forEach(e=>e.remove());
   if(!presentationDoneEnabled(presentation)) return;   /* garde partagee avec done -- reproduit if(!route.mixed) (arch-r9 Correctif 2) */
-  const veh=(tr&&tr.veh)||{}; const fd=fuelDefault(veh.fuel);
-  const conso=parseFloat(String(veh.conso||"").replace(",",".")) || fd.conso;
-  const price=parseFloat(String(veh.price||"").replace(",",".")) || fuelPrice(tr.dest&&tr.dest.cc,veh.fuel);
+  const veh=(tr&&tr.veh)||{};
+  const fd=fuelDefault(veh.fuel);
+  const conso=parseFloat(String(veh.conso||"").replace(",","."))||fd.conso;
+  /* F1 Planning final : le jour vient de presentation.meta.day (forme reelle de la Presentation) ; repli presentation.day puis planState.dayIndex. */
+  const day=(presentation.meta&&typeof presentation.meta.day==="number")
+    ? presentation.meta.day
+    : (typeof presentation.day==="number"
+        ? presentation.day
+        : ((typeof planState==="object"&&Number.isFinite(+planState.dayIndex))
+            ? +planState.dayIndex
+            : 0));
+  const trans=(typeof routeTransitionForDay==="function")
+    ? routeTransitionForDay(tr,day)
+    : null;
+  const legNow=(typeof legOfDay==="function")
+    ? legOfDay(tr,day)
+    : null;
+  const hasTransferMove=(presentation.moves||[])
+    .some(m=>m&&m.role==="transfer");
+  const legA=(trans&&hasTransferMove)?trans.fromLeg:legNow;
+  const legB=(trans&&hasTransferMove)?trans.toLeg:legNow;
+  const dstA=(legA&&legA.dest&&legA.dest.name)
+    ? legA.dest
+    : ((tr&&tr.dest)||{});
+  const dstB=(legB&&legB.dest&&legB.dest.name)
+    ? legB.dest
+    : ((tr&&tr.dest)||{});
+  /* seul priceManual===true fait office d'override ; jamais veh.price automatique */
+  const manual=veh.priceManual
+    ? parseFloat(String(veh.price||"").replace(",","."))
+    : NaN;
+  const priceA=(manual>0?manual:0)
+    ||fuelPriceResolved(tr,dstA.cc,veh.fuel,dstA.lat,dstA.lng);
+  const priceB=(manual>0?manual:0)
+    ||fuelPriceResolved(tr,dstB.cc,veh.fuel,dstB.lat,dstB.lng);
   const cur=(tr&&tr.currency)||"EUR";
-  const showFuel = mode==="DRIVE" && usesCar(tr) && conso>0 && price>0;
+  let crossedTransfer=false;
   (presentation.moves||[]).forEach(move=>{
-    if(!eligibleForInjectedLeg(move, tr)) return;
-    const row=body.querySelector('.pl-item[data-id="'+move.fromItemId+'"]'); if(!row) return;
-    const agg=aggregateMoveForRow(move); if(!agg) return;
+    if(move&&move.role==="transfer"){
+      crossedTransfer=true;   /* le trajet A->B de transfert lui-meme n'est jamais injecte dans .pl-leg */
+      return;
+    }
+    if(!eligibleForInjectedLeg(move,tr)) return;
+    const row=body.querySelector(
+      '.pl-item[data-id="'+move.fromItemId+'"]'
+    );
+    if(!row) return;
+    const agg=aggregateMoveForRow(move);
+    if(!agg) return;
     const next=move.toLabel||"";
+    const price=crossedTransfer?priceB:priceA;
+    const driveMeters=Number(agg.driveDist)||0;
+    const showFuel=
+      mode==="DRIVE"
+      &&usesCar(tr)
+      &&conso>0
+      &&price>0
+      &&driveMeters>0;
     let txt=`${modeEmoji(mode)} ${fmtDur(agg.dur)} · ${fmtDist(agg.dist)}`;
-    if(showFuel){ const cost=((agg.driveDist||0)/1000)*conso/100*price; txt+=` · ~${money(cost,cur)}`; }
-    const div=document.createElement("div"); div.className="pl-leg";
+    if(showFuel){
+      const cost=(driveMeters/1000)*conso/100*price;
+      txt+=` · ~${money(cost,cur)}`;
+    }
+    const div=document.createElement("div");
+    div.className="pl-leg";
     div.innerHTML=`<span class="pl-legbtn" role="button">${txt} <em class="pl-legmore">ⓘ</em></span>`;
-    div.querySelector(".pl-legbtn").onclick=()=>showLegDetail(next,{dist:agg.dist,dur:agg.dur},mode,conso,price,cur,veh.fuel);
+    div.querySelector(".pl-legbtn").onclick=()=>showLegDetail(
+      next,
+      {dist:agg.dist,dur:agg.dur},
+      mode,
+      conso,
+      price,
+      cur,
+      veh.fuel,
+      driveMeters
+    );
     row.insertAdjacentElement("afterend",div);
   });
 }
@@ -15302,117 +15918,51 @@ async function fetchAerialway(lat,lng){
     _aerialCache[key]=res; return res;
   }catch(e){ _aerialCache[key]=null; return null; } }
 function stopLabel(s){ return (s&&(s.title||s.name))||"—"; }
-async function ensureRoute(tr,day,stops,options){
-  const mode=travelMode(tr); const sig=stopsSig(stops,mode);
-  tr._routes=tr._routes||{}; const c=tr._routes[day]; if(c&&c.sig===sig&&c.legsInfo) return c;
-  // Garde anti-rafale : si un calcul identique est déjà en cours, on réutilise SA promesse au lieu d'en lancer un autre.
-  // (Sans ça, plusieurs rendus rapprochés déclenchent des rafales d'appels Google simultanés → Google bride → tout revient vide.)
-  tr._routeP=tr._routeP||{}; const pk=day+"|"+sig;
-  let job=tr._routeP[pk];
-  if(!job){
-  job=(async()=>{
-  let legsInfo=[], fallbackWalk=false, hasGap=false;
-  const WALK_MAX_M=8000, TAIL_MAX_M=3000, PARK_MIN_M=60;
-  const isLoop = stops.length>1 && Math.abs(stops[0].lat-stops[stops.length-1].lat)<1e-6 && Math.abs(stops[0].lng-stops[stops.length-1].lng)<1e-6;
-  let Pcar=stops[0], PcarName=stopLabel(stops[0]); // position RÉELLE de la voiture : elle reste où on l'a garée
-  for(let i=1;i<stops.length;i++){
-    const B=stops[i];
-    const isReturnToLodging = isLoop && i===stops.length-1;
-    const baseAB={from:PcarName,to:stopLabel(B),fromLL:{lat:Pcar.lat,lng:Pcar.lng},toLL:{lat:B.lat,lng:B.lng}};
-    // Pour chaque LIEU VISITÉ : la voiture roule DEPUIS SA POSITION ACTUELLE jusqu'au parking le plus proche du lieu,
-    // puis on rejoint le lieu à pied — ALLER-RETOUR, car il faut revenir chercher la voiture pour la suite.
-    if(mode==="DRIVE" && !isReturnToLodging){
-      let handled=false;
-      try{
-        const near=await gNearby(B.lat,B.lng,"parking",1500,"DISTANCE");
-        const ps=(((near&&near.places)||[]).map(placeFromG).filter(p=>p&&p.lat!=null));
-        if(ps.length){ ps.sort((x,y)=>haversineKm({lat:B.lat,lng:B.lng},{lat:x.lat,lng:x.lng})-haversineKm({lat:B.lat,lng:B.lng},{lat:y.lat,lng:y.lng}));
-          const P=ps[0]; const dPB=haversineKm({lat:B.lat,lng:B.lng},{lat:P.lat,lng:P.lng})*1000;
-          if(dPB>=PARK_MIN_M){ // parking distinct du lieu (sinon inutile de "parker")
-            const driveP=await computeRoute([Pcar,P],"DRIVE");
-            const walkPB=driveP?await computeRoute([P,B],"WALK"):null;
-            if(driveP&&walkPB&&(walkPB.distanceMeters||0)<=TAIL_MAX_M){
-              const d0=(driveP.legs&&driveP.legs[0])||{}, w0=(walkPB.legs&&walkPB.legs[0])||{};
-              legsInfo.push({from:PcarName,to:(P.name||t("park.btn")),fromLL:{lat:Pcar.lat,lng:Pcar.lng},toLL:{lat:P.lat,lng:P.lng},mode:"DRIVE",dist:d0.dist||driveP.distanceMeters||0,dur:d0.dur||driveP.duration||0,poly:d0.poly||driveP.polyline||"",drivable:true,toParking:true});
-              legsInfo.push({from:(P.name||t("park.btn")),to:stopLabel(B),fromLL:{lat:P.lat,lng:P.lng},toLL:{lat:B.lat,lng:B.lng},mode:"WALK",dist:w0.dist||walkPB.distanceMeters||0,dur:w0.dur||walkPB.duration||0,poly:w0.poly||walkPB.polyline||"",drivable:false,approach:true,roundTrip:true,parkName:P.name||"",parkLL:{lat:P.lat,lng:P.lng}});
-              Pcar=P; PcarName=(P.name||t("park.btn")); fallbackWalk=true; handled=true;
-            }
-          }
-        }
-      }catch(e){}
-      if(handled) continue;
-    }
-    // Sinon : la voiture directement depuis sa position actuelle (elle prime).
-    let drive=await computeRoute([Pcar,B],mode);
-    if(drive){ const l0=(drive.legs&&drive.legs[0])||{};
-      legsInfo.push(Object.assign({},baseAB,{mode,dist:l0.dist||drive.distanceMeters||0,dur:l0.dur||drive.duration||0,poly:l0.poly||drive.polyline||"",drivable:mode==="DRIVE"})); Pcar=B; PcarName=stopLabel(B); continue; }
-    // Voiture refusée → petite marche directe si raisonnable, sinon transport motorisé.
-    if(mode==="DRIVE"){ const w=await computeRoute([Pcar,B],"WALK");
-      if(w&&(w.distanceMeters||0)<=WALK_MAX_M){ const l0=(w.legs&&w.legs[0])||{};
-        legsInfo.push(Object.assign({},baseAB,{mode:"WALK",dist:l0.dist||w.distanceMeters||0,dur:l0.dur||w.duration||0,poly:l0.poly||w.polyline||"",drivable:false})); fallbackWalk=true; continue; } }
-    legsInfo.push(Object.assign({},baseAB,{mode:"NONE",dist:0,dur:0,poly:"",drivable:false,gap:true})); hasGap=true;
-  }
-  const mixed = legsInfo.some(l=>!l.drivable) || legsInfo.length!==stops.length-1;
-  // Péage : appel SÉPARÉ pour les tronçons voiture assez longs (les courts sauts de parking n'ont pas de péage).
-  for(const lg of legsInfo){ if(lg.drivable && lg.mode==="DRIVE" && (lg.dist||0)>5000 && lg.fromLL && lg.toLL){ try{
-    lg.toll=await computeToll(lg.fromLL,lg.toLL);
-    if(lg.toll&&lg.toll.has){ const alt=await computeRoute([lg.fromLL,lg.toLL],"DRIVE",{avoidTolls:true});
-      if(alt&&(alt.distanceMeters||0)>0){ lg.tollAlt={dur:alt.duration||0,dist:alt.distanceMeters||0,poly:alt.polyline||""}; } }
-  }catch(e){} } }
-  // Montagne : pour chaque tronçon "transport requis", chercher la ligne de téléphérique (OSM) + un sentier piéton optionnel.
-  for(const lg of legsInfo){ if(lg.gap && lg.toLL){
-    try{ if(lg.fromLL){ const tr2=await computeRoute([lg.fromLL,lg.toLL],"TRANSIT"); if(tr2&&tr2.polyline){ lg.transit={poly:tr2.polyline,dur:tr2.duration||0,dist:tr2.distanceMeters||0}; } } }catch(e){}
-    try{ const av=await fetchAerialway(lg.toLL.lat,lg.toLL.lng); if(av) lg.cable=av; }catch(e){}
-    try{ if(lg.fromLL){ const w=await computeRoute([lg.fromLL,lg.toLL],"WALK"); if(w&&(w.distanceMeters||0)<=12000){ const l0=(w.legs&&w.legs[0])||{}; lg.hike={dist:l0.dist||w.distanceMeters||0,dur:l0.dur||w.duration||0,poly:l0.poly||w.polyline||""}; } } }catch(e){}
-  } }
-  if(!legsInfo||!legsInfo.length) return {entry:(c&&c.sig===sig)?c:null, allFailed:true};   /* v958-B1e-3b : forme uniforme {entry,allFailed} -- le commit par appelant est desormais separe du calcul partage (arch B1e-3b, correction ensureRoute inflight) */
-  const totDist=legsInfo.reduce((a,l)=>a+(l.dist||0),0), totDur=legsInfo.reduce((a,l)=>a+(l.dur||0),0);
-  const entry={sig,mode,mixed,fallbackWalk,hasGap,legsInfo,
-    legs:legsInfo.map(l=>({dist:l.dist,dur:l.dur,poly:l.poly})),
-    polyline:"", distanceMeters:totDist,duration:totDur};
-  const allFailed = legsInfo.length>0 && legsInfo.every(l=>l.gap); // tous les tronçons ont échoué → panne systémique (quota/réseau), pas un vrai « pas de route »
-  return {entry, allFailed};
-  })();
-  tr._routeP[pk]=job;
-  }
-  let jobResult;
-  try{ jobResult=await job; } finally{ if(tr._routeP[pk]===job) delete tr._routeP[pk]; }
-  const {entry, allFailed}=jobResult;
-  if(!allFailed){
-    const _guard=options && options.commitGuard;
-    if(!_guard || _dayMutateGen[_guard.genKey]===_guard.myGen){ tr._routes[day]=entry; saveState(); }   /* v958-B1e-3b : commitGuard PROPRE A CET APPELANT -- meme quand le calcul (job) est partage via l'anti-rafale, chaque appelant applique SA propre generation avant de committer (arch B1e-3b, correction ensureRoute inflight) */
-  } // on ne fige pas un échec total : la prochaine ouverture recalculera
-  return entry;
-}
 function showRouteSummary(route){ const el=document.getElementById("routeSummary"); if(!el) return; el.style.display="flex";
   const _li=route.legsInfo||[]; const _drive=_li.some(l=>l.mode==="DRIVE"||l.drivable), _gap=_li.some(l=>l.gap);
   const em=_drive?"🚗":(_gap?"🚆":(_li.some(l=>l.mode==="WALK")?"🥾":modeEmoji(route.mode)));
   el.innerHTML=`<span class="rs-em">${em}</span><span>${t("plan.travel")} · ${fmtDist(route.distanceMeters)} · ${fmtDur(route.duration)}</span>`; }
-function showLegDetail(next,leg,mode,conso,price,cur,fuel){ const loc=LOCALE[lang()]||"fr-FR"; const unit=fuel==="elec"?"kWh":"L";
-  const km=(leg.dist||0)/1000; const showFuel=mode==="DRIVE"&&conso>0&&price>0; const litres=km*conso/100, cost=litres*price;
-  const rows=[[t("plan.legDist"),fmtDist(leg.dist)],[t("plan.duration"),fmtDur(leg.dur)]];
-  if(showFuel){ rows.push([t("plan.legConso"),conso.toLocaleString(loc,{maximumFractionDigits:1})+" "+unit+"/100 km"]);
-    rows.push([t("plan.legFuel"),litres.toLocaleString(loc,{minimumFractionDigits:1,maximumFractionDigits:1})+" "+unit]);
-    rows.push([t("plan.legPrice"),price.toLocaleString(loc,{minimumFractionDigits:2,maximumFractionDigits:2})+" "+curSym(cur)+"/"+unit]); }
-  const bodyH=rows.map(r=>`<div class="lr"><b>${escapeHtml(r[0])}</b><span>${escapeHtml(r[1])}</span></div>`).join("")
-    +(showFuel?`<div class="lr tot"><b>${escapeHtml(t("plan.legCost"))}</b><span>${escapeHtml(money(cost,cur))}</span></div>`:"");
-  const ov=document.createElement("div"); ov.className="confirm-ov show";
+function showLegDetail(next,leg,mode,conso,price,cur,fuel,fuelMeters){
+  const loc=LOCALE[lang()]||"fr-FR";
+  const unit=fuel==="elec"?"kWh":"L";
+  /* F1 Planning final : la distance AFFICHEE reste la distance totale du trajet ; litres et cout ne portent QUE sur la distance drivable (fuelMeters). Sans fuelMeters : distance totale (compatibilite). */
+  const _fm=Number(fuelMeters);
+  const fuelDist=(Number.isFinite(_fm)&&_fm>=0)?_fm:(Number(leg.dist)||0);
+  const fuelKm=fuelDist/1000;
+  const showFuel=mode==="DRIVE"&&conso>0&&price>0&&fuelDist>0;
+  const litres=fuelKm*conso/100, cost=litres*price;
+  const rows=[
+    [t("plan.legDist"),fmtDist(leg.dist)],
+    [t("plan.duration"),fmtDur(leg.dur)]
+  ];
+  if(showFuel){
+    rows.push([
+      t("plan.legConso"),
+      conso.toLocaleString(loc,{maximumFractionDigits:1})+" "+unit+"/100 km"
+    ]);
+    rows.push([
+      t("plan.legFuel"),
+      litres.toLocaleString(loc,{minimumFractionDigits:1,maximumFractionDigits:1})+" "+unit
+    ]);
+    rows.push([
+      t("plan.legPrice"),
+      price.toLocaleString(loc,{minimumFractionDigits:2,maximumFractionDigits:2})+" "+curSym(cur)+"/"+unit
+    ]);
+  }
+  const bodyH=rows.map(r=>
+    `<div class="lr"><b>${escapeHtml(r[0])}</b><span>${escapeHtml(r[1])}</span></div>`
+  ).join("")
+  +(showFuel
+    ?`<div class="lr tot"><b>${escapeHtml(t("plan.legCost"))}</b><span>${escapeHtml(money(cost,cur))}</span></div>`
+    :"");
+  const ov=document.createElement("div");
+  ov.className="confirm-ov show";
   ov.innerHTML=`<div class="confirm-card"><div class="cf-msg">${modeEmoji(mode)} ${escapeHtml(t("plan.legTrip",{p:next||"—"}))}</div><div class="leg-dl">${bodyH}</div><div class="cf-actions"><button class="cf-cancel" id="lgX">OK</button></div></div>`;
-  document.body.appendChild(ov); const close=()=>ov.remove();
-  ov.querySelector("#lgX").onclick=close; ov.onclick=e=>{ if(e.target===ov) close(); }; }
-function injectLegs(pts,legs,mode){ if(!legs||!legs.length) return; const body=document.getElementById("planBody"); if(!body) return;
-  body.querySelectorAll(".pl-leg").forEach(e=>e.remove());
-  const tr=currentTrip(); const veh=(tr&&tr.veh)||{}; const fd=fuelDefault(veh.fuel);
-  const conso=parseFloat(String(veh.conso||"").replace(",","."))||fd.conso; const price=parseFloat(String(veh.price||"").replace(",","."))||fuelPrice(tr.dest&&tr.dest.cc,veh.fuel);
-  const cur=(tr&&tr.currency)||"EUR"; const showFuel=mode==="DRIVE"&&usesCar(tr)&&conso>0&&price>0;
-  for(let i=0;i<legs.length&&i<pts.length-1;i++){ const row=body.querySelector('.pl-item[data-id="'+pts[i].id+'"]'); if(!row) continue;
-    const next=(pts[i+1]&&pts[i+1].title)||""; const leg=legs[i];
-    let txt=`${modeEmoji(mode)} ${fmtDur(leg.dur)} · ${fmtDist(leg.dist)}`;
-    if(showFuel){ const cost=((leg.dist||0)/1000)*conso/100*price; txt+=` · ~${money(cost,cur)}`; }
-    const div=document.createElement("div"); div.className="pl-leg";
-    div.innerHTML=`<span class="pl-legbtn" role="button">${txt} <em class="pl-legmore">ⓘ</em></span>`;
-    div.querySelector(".pl-legbtn").onclick=()=>showLegDetail(next,leg,mode,conso,price,cur,veh.fuel);
-    row.insertAdjacentElement("afterend",div); } }
+  document.body.appendChild(ov);
+  const close=()=>ov.remove();
+  ov.querySelector("#lgX").onclick=close;
+  ov.onclick=e=>{ if(e.target===ov) close(); };
+}
 
 /* ===================== ÉTAPE 5 : BUDGET ===================== */
 const BUDCATS=[
@@ -15646,9 +16196,11 @@ const _estInflight=new Map(); const _estLatest=new Map();
 function _writeEstCache(tr, est, sig){ _estCache[tr.id]={total:Math.round(est.total||0),byCat:est.byCat||{},regional:!!est.regional,routeIncomplete:!!est.routeIncomplete,routeUnavailable:Array.isArray(est.routeUnavailable)?[...est.routeUnavailable]:[],sig:sig,at:Date.now()}; return _estCache[tr.id]; }
 function _runEstimate(tr, sig){ const id=tr.id||"?"; const key=id+"|"+sig;   /* barriere unique : UNE seule Promise RAW partagee par tripId|sig (couvre le retry 30s) */
   if(_estInflight.has(key)) return _estInflight.get(key);
+  const fuelGenAtStart=_fuelGen[id]||0;   /* F1-A : capturee AVANT le premier await, comme _estLatest.set() pour l'anti-stale structurel */
   const run=(async()=>{ let est=null; try{ est=await estimateBudget(tr); }catch(_e){ return null; }
     const current=(_estLatest.get(id)===sig) && (_estSignature(tr)===sig);   /* anti-stale sur le RESULTAT : un est obsolete ne sort JAMAIS du helper */
-    if(!current) return null;   /* stale -> pas de _estCache, pas de tr.budget, pas de rerender issu de ce resultat */
+    const fuelCurrent=(_fuelGen[id]||0)===fuelGenAtStart;   /* F1-A : deuxieme barriere, independante -- le prix carburant automatique n'entre jamais dans _estSignature() */
+    if(!current || !fuelCurrent) return null;   /* stale (structurel OU carburant) -> pas de _estCache, pas de tr.budget, pas de rerender issu de ce resultat */
     _writeEstCache(tr, est, sig);
     const _writes=(est&&est._routeSnapWrites)||{}; const _hasWrites=Object.keys(_writes).length>0;
     const _newMap=(est&&est._dayRouteMap)||{}; const _mapChanged=JSON.stringify(tr._budgetDayRoute||{})!==JSON.stringify(_newMap);
@@ -15657,14 +16209,25 @@ function _runEstimate(tr, sig){ const id=tr.id||"?"; const key=id+"|"+sig;   /* 
     if(_hasWrites || _mapChanged){ try{ saveState(); }catch(_e){} }   /* v958-A P1 : un seul saveState (snapshots + mapping) */
     try{ const _ct=currentTrip(); if(_ct && _ct.id===(tr.id||"?") && typeof planState==="object" && planState.dayIndex!=null){ _paintDayCosts(tr, planState.dayIndex, _routeUIToken, tr.id); } }catch(_e){}   /* v958-A : le Budget a fige snapshot+mapping -> notifie le daycard (lecteur pur) de re-lire */
     return est; })();
-  _estInflight.set(key, run); run.then(()=>{ if(_estInflight.get(key)===run) _estInflight.delete(key); }, ()=>{ if(_estInflight.get(key)===run) _estInflight.delete(key); });
+  _estInflight.set(key, run);
+  run.then(
+    (result)=>{ if(_estInflight.get(key)===run) _estInflight.delete(key);   /* liberation NORMALE de l'inflight d'abord */
+      if(result===null && (_fuelGen[id]||0)!==fuelGenAtStart){   /* F1-A : CE run precis a ete rejete specifiquement pour peremption carburant -> reprise bornee APRES liberation, jamais depuis l'interieur de la Promise elle-meme */
+        const freshSig=_estSignature(tr); _estLatest.set(id, freshSig);
+        _runEstimate(tr, freshSig).then(()=>{   /* audit v1035 : la reprise DOIT rejoindre le meme chemin consommateur que renderBudget() (budgetAuto/catBudgets/saveState/re-render) -- on n'attend PAS ce resultat pour l'utiliser directement (on ne duplique aucune logique), on rejoue renderBudget() lui-meme qui relit _estCache desormais frais et applique exactement sa propre logique existante ; son propre appel a ensureBudgetEstimate() sera alors un cache-hit immediat (aucun reseau route/carburant supplementaire) */
+          try{ const _ct=currentTrip(); if(_ct && _ct.id===id) renderBudget(); }catch(_e){}
+        }); } },
+    ()=>{ if(_estInflight.get(key)===run) _estInflight.delete(key); }
+  );
   return run; }
 async function ensureBudgetEstimate(tr){ if(!tr) return null; const id=tr.id||"?"; const sig=_estSignature(tr); _estLatest.set(id, sig);   /* sig courante enregistree DES l entree, avant tout cache-hit */
+  try{ ensureFuelPriceFresh(tr); }catch(_e){}   /* audit v1034 P1-1 : point d'integration reel, non attendu -- ne bloque jamais le cache-hit ; commit ulterieur invalide _estCache si besoin (P1-2) */
   const ec=_estCache[tr.id];
   if(ec && ec.sig===sig && !ec.routeIncomplete) return ec;   /* cache complet valide -> reutilise, aucun reseau (pas de TTL) */
   if(ec && ec.sig===sig && ec.routeIncomplete && (Date.now()-(ec.at||0)<=30000)) return ec;   /* cache incomplet <30s -> reutilise */
   return await _runEstimate(tr, sig); }
 async function ensureBudgetEstimateRaw(tr){ if(!tr) return null; const id=tr.id||"?"; const sig=_estSignature(tr); _estLatest.set(id, sig);
+  try{ ensureFuelPriceFresh(tr); }catch(_e){}   /* audit v1034 P1-1 : meme point d'integration que ensureBudgetEstimate() */
   return await _runEstimate(tr, sig); }   /* objet est COMPLET, promesse partagee si deja en vol ; null si stale */
 function renderBudget(){ const body=document.getElementById("budgetBody"); if(!body) return; const tr=currentTrip();
   if(!tr){ body.innerHTML=`<div class="empty" style="padding:30px 18px"><p>${t("bud.noTrip")}</p></div>`; return; }
@@ -15892,6 +16455,53 @@ function _mealCost(p,tr){ if(!p) return null; const cur=(tr&&tr.currency)||"EUR"
   if(p.priceRange && p.priceRange.cur===cur){ const lo=p.priceRange.lo||0, hi=p.priceRange.hi||lo; const m=hi>0?(lo+hi)/2:lo; if(m>0) return Math.round(m); }
   if(p.price && PRICE_MEAL[p.price]) return Math.round(PRICE_MEAL[p.price]*_fxr);
   return null; }
+function _dayFuelBreakdown(tr, day, pts, legs, conso, v, fd){
+  /* Correctif audit v1039 : helper PUR commun, consomme par _perDayFuelCost() (Budget) ET _paintDayCosts() (Planning) --
+     UNE SEULE logique d'attribution, jamais deux implementations divergentes.
+     Attribution SEGMENT PAR SEGMENT a partir de l'ordre canonique deja disponible (pts[k+1] = arrivee du segment legs[k]) :
+     - avant le segment dont l'arrivee est de type "transfer" -> prix DE L'ETAPE QUITTEE (fromLeg, "A")
+     - le segment DONT L'ARRIVEE EST "transfer" (A->B) -> interLeg, prix fromLeg ("A") -- le carburant consomme
+       pendant le trajet est suppose provenir de la zone quittee tant qu'aucune simulation de ravitaillement (F2)
+       n'existe reellement
+     - apres ce segment -> prix DE LA NOUVELLE ETAPE (toLeg, "B")
+     Sans transfert ce jour-la (routeTransitionForDay() renvoie null), fromLeg===toLeg===legOfDay(tr,day) : un seul
+     prix s'applique alors a tout le jour, exactement comme avant ce correctif (aucune regression sur ce cas). */
+  const out={localCost:0, interLegCost:0, totalCost:0, localMeters:0, interLegMeters:0};
+  if(!pts || pts.length<2 || !Array.isArray(legs) || legs.length!==(pts.length-1)) return out;
+  const trans=(typeof routeTransitionForDay==="function")?routeTransitionForDay(tr,day):null;
+  const legNow=(typeof legOfDay==="function")?legOfDay(tr,day):null;
+  const hasTransferPoint=pts.some(p=>p&&p.type==="transfer");   /* correctif : routeTransitionForDay() est structurel (base sur dayFrom/dayTo) et peut etre non-null MEME sans item _trans encore ajoute au plan -- ne scinder A/B que si un point de transfert EXISTE REELLEMENT dans les points de ce jour, sinon comportement identique a avant (un seul prix, legOfDay) */
+  const legA=(trans&&hasTransferPoint)?trans.fromLeg:legNow, legB=(trans&&hasTransferPoint)?trans.toLeg:legNow;
+  const dstA=(legA&&legA.dest&&legA.dest.name)?legA.dest:(tr.dest||{});
+  const dstB=(legB&&legB.dest&&legB.dest.name)?legB.dest:(tr.dest||{});
+  const _manualPrice=v.priceManual ? parseFloat(String(v.price||"").replace(",",".")) : NaN;   /* override manuel uniforme -- inchange */
+  const priceA=(_manualPrice>0?_manualPrice:0)||fuelPriceResolved(tr, dstA.cc, v.fuel, dstA.lat, dstA.lng)||fd.price;
+  const priceB=(_manualPrice>0?_manualPrice:0)||fuelPriceResolved(tr, dstB.cc, v.fuel, dstB.lat, dstB.lng)||fd.price;
+  let crossed=false;
+  for(let k=0;k<legs.length;k++){ const lg=legs[k]; const arrival=pts[k+1]; if(!lg||!Number.isFinite(lg.distanceMeters)) return {localCost:0,interLegCost:0,totalCost:0,localMeters:0,interLegMeters:0};
+    if(arrival && arrival.type==="transfer"){ out.interLegMeters+=lg.distanceMeters; if(priceA>0) out.interLegCost+=(lg.distanceMeters/1000)*conso/100*priceA; crossed=true; }
+    else if(!crossed){ out.localMeters+=lg.distanceMeters; if(priceA>0) out.localCost+=(lg.distanceMeters/1000)*conso/100*priceA; }
+    else { out.localMeters+=lg.distanceMeters; if(priceB>0) out.localCost+=(lg.distanceMeters/1000)*conso/100*priceB; } }
+  out.totalCost=out.localCost+out.interLegCost;
+  return out; }
+function _perDayFuelCost(tr, routeKm, snapWrites, conso, v, fd){
+  /* F1-B : reconstruit le cout local+interLeg JOUR PAR JOUR via le helper partage _dayFuelBreakdown() (attribution
+     segmentaire A/transfert/B), jamais un seul prix pour toute la journee. Meters reconstruits a partir des DONNEES
+     DEJA PRODUITES par computeBudgetRouteMeters() (INCHANGEE) : routeKm.dayRouteMap[i].sig -> snapWrites[sig]||
+     tr._routeSnap[sig] -> .legs[]. Aucun appel reseau supplementaire, aucune modification de computeBudgetRouteMeters(). */
+  const out={local:0, interLeg:0};
+  if(!(usesCar(tr) && travelMode(tr)==="DRIVE")) return out;
+  const unavail=routeKm.unavailableDays||[]; const days=tripDays(tr);
+  for(let i=0;i<days.length;i++){
+    if(unavail.includes(i)) continue;   /* jour non calculable -> jamais un cout/km invente (B9) */
+    const ref=routeKm.dayRouteMap&&routeKm.dayRouteMap[i]; if(!ref) continue;
+    const snap=(snapWrites&&snapWrites[ref.sig]) || (tr._routeSnap&&tr._routeSnap[ref.sig]); if(!snap||!Array.isArray(snap.legs)) continue;
+    const pts=buildBudgetDayRoutePoints(tr, i); if(!pts||pts.length<2||snap.legs.length!==(pts.length-1)) continue;
+    const bd=_dayFuelBreakdown(tr, i, pts, snap.legs, conso, v, fd);
+    out.local += bd.localCost;
+    out.interLeg += bd.interLegCost;
+  }
+  return out; }
 async function estimateBudget(tr){
   const days=tripDays(tr).length, nights=Math.max(0,days-1), trav=tr.travelers||2; const rooms=Math.max(1,Math.min(trav, tr.rooms!=null?tr.rooms:Math.ceil(trav/2)));
   const byCat={lodging:0,food:0,activities:0,transport:0,reserve:0}; const srcMap={};
@@ -15925,8 +16535,8 @@ async function estimateBudget(tr){
   const seen=new Set(); actList.forEach(p=>{ if(seen.has(p.id))return; seen.add(p.id); const k=placeBudCat(p); byCat[k]=(byCat[k]||0)+actCost(p)*trav*fg*_fx; srcMap[k]="places"; });
   const v=tr.veh||{}, fd=fuelDefault(v.fuel);
   const conso=parseFloat(String(v.conso||"").replace(",","."))||fd.conso;
-  const homePrice=parseFloat(String(v.price||"").replace(",","."))||fuelPrice(tr.depart&&tr.depart.cc,v.fuel)||fd.price;
-  const localPrice=parseFloat(String(v.price||"").replace(",","."))||fuelPrice(tr.dest&&tr.dest.cc,v.fuel)||fd.price;
+  const _manualPrice=v.priceManual ? parseFloat(String(v.price||"").replace(",",".")) : NaN;   /* F1-B : un prix auto-rempli (applyCountryFuel) avec priceManual=false ne doit JAMAIS masquer fuelPriceResolved() */
+  const homePrice=(_manualPrice>0?_manualPrice:0)||fuelPriceResolved(tr, tr.depart&&tr.depart.cc, v.fuel, tr.depart&&tr.depart.lat, tr.depart&&tr.depart.lng)||fd.price;
   const _snapWrites={}; const routeKm=await computeBudgetRouteMeters(tr, _snapWrites);   /* v958-A : snapshots STAGES ; BUDGET 2B : km canoniques (2A figé), source unique des postes voiture */
   const hubR=await computeBudgetHubRoute(tr, _snapWrites);
   const arrR=await computeBudgetArrHubRoute(tr, _snapWrites);
@@ -15942,9 +16552,7 @@ async function estimateBudget(tr){
   } else if(tr.transport==="car"&&tr.depart&&tr.depart.lat!=null){
     td.drive=(routeKm.mainTripMeters/1000)*conso/100*homePrice;   /* mainTripMeters = home->firstBase + lastBase->home (aucun ×2) */
   }
-  if(usesCar(tr)){ td.local=(routeKm.localMeters/1000)*conso/100*localPrice; }   /* localMeters canoniques (fin du haversine ×1.3) */
-  /* Trajets entre étapes : distances Google canoniques (interLegMeters, 2A) — plus de haversine. */
-  if(usesCar(tr)){ td.interLeg=(routeKm.interLegMeters/1000)*conso/100*localPrice; }   /* interLegMeters canoniques (transferts comptés une fois, fin du haversine ×1.3) */
+  if(usesCar(tr)){ const _pd=_perDayFuelCost(tr, routeKm, _snapWrites, conso, v, fd); td.local=_pd.local; td.interLeg=_pd.interLeg; }   /* F1-B : prix reel de l'ETAPE DU JOUR (legOfDay), jamais tr.dest global (normalizeLegs() le reduit a la 1re etape) -- meters reconstruits a l'identique de computeBudgetRouteMeters() (INCHANGEE), meme regle exacte arrival.type==="transfer" */
   byCat.transport=td.ticket+td.toHub+td.fromHub+td.local+td.drive+td.interLeg; if(byCat.transport>0) srcMap.transport="places";
   ["food","activities","shopping","groceries","nightlife","health","souvenirs","misc"].forEach(k=>{ if(byCat[k]) byCat[k]*=MARKUP; });
   const _sub=Object.keys(byCat).reduce((a,k)=>a+(k!=="reserve"?(byCat[k]||0):0),0);
@@ -19170,10 +19778,11 @@ function mvScore(im){ try{
   let score=Math.max(0,Math.min(100, Math.round(Math.min(100, sharp/3) - (dark?35:0))));
   return {score, blur, dark, sharp:Math.round(sharp), mean:Math.round(mean)};
 }catch(e){ return {score:60,blur:false,dark:false}; } }
-async function mvStats(tr){ const pts=souvPoints(tr); let km=0,sec=0;
-  try{ const legs=await souvLegs(tr,pts); legs.forEach(l=>{ km+=(+l.dist||0); sec+=(+String(l.dur||0).replace("s","")||0); }); }catch(e){}
+async function mvStats(tr){ const pts=souvPoints(tr);
+  const snap=await assembleSouvenirRouteData(tr);
+  const ok=snap.complete && snap.allRoutesAvailable;
   return { photos:(tr.memories||[]).length, videos:0, places:pts.length, days:tripDays(tr).length,
-           km:Math.round(km/1000), durTxt:_fmtDur(sec), story:!!tr.souvStory }; }
+           km:ok?Math.round(snap.totalDistanceMeters/1000):null, durTxt:ok?_fmtDur(snap.totalDurationSeconds):null, story:!!tr.souvStory }; }
 /* AUTO = sélection sobre (le "moins mais mieux" d'Apple Photos). Les effets voyants
    restent accessibles en choisissant explicitement une famille. */
 const MV_AUTO=["dissolve","fade","pushIn","dolly","panLeft","panRight","parallax","slowReveal","iris","whiteFade","traveling","softReveal"];   /* Auto / « Toutes » : sélection variée et soignée */
@@ -19726,13 +20335,7 @@ function _smk2(k){ const D={
 }; const x=(D[lang()]||D.fr)[k]||D.fr[k]||k; return String(x).replace("{a}",(S.settings.agentName||"").trim()||"Fid\u00e8le"); }
 function _fmtKm(m){ m=+m||0; return m>=1000?((m/1000).toFixed(m<10000?1:0)+" km"):(Math.round(m)+" m"); }
 function _fmtDur(sec){ sec=+String(sec||0).replace("s","")||0; const mn=Math.round(sec/60); if(mn<60) return mn+" min"; const h=Math.floor(mn/60), r=mn%60; return h+" h"+(r?" "+String(r).padStart(2,"0"):""); }
-async function souvLegs(tr,pts){ const byDay={}; pts.forEach((pp,i)=>{ (byDay[pp.day]=byDay[pp.day]||[]).push(Object.assign({},pp,{_i:i})); });
-  const out=[]; for(const d of Object.keys(byDay).sort((a,b)=>(+a)-(+b))){ const arr=byDay[d]; if(arr.length<2) continue;
-    try{ const r=await ensureRoute(tr,+d,arr.map(x=>({lat:x.lat,lng:x.lng,name:x.title,title:x.title})));
-      ((r&&r.legsInfo)||[]).forEach((lg,i)=>{ if(!lg) return; const a=arr[i], b=arr[i+1]; if(!a||!b) return;
-        out.push({from:a._i,to:b._i,dist:+lg.dist||0,dur:lg.dur,mode:lg.mode||""}); });
-    }catch(e){}
-  } return out; }
+/* souvLegs() supprimee en v1030 -- plus aucun appelant (souvMapPdf()/mvStats() migres vers assembleSouvenirRouteData()/projectCanonicalLegs()) */
 async function souvStory(tr){ const pts=souvPoints(tr); if(!pts.length) return null;
   const payload={ voyage:tripTitle(tr), ville:tripCity(tr), langue:lang(),
     etapes:pts.map((pp,i)=>({ i, nom:pp.title||"", ville:pp.sub||pp.vicinity||"", jour:pp.day+1, heure:pp.time||"", type:(pp.kind==="meal"?"repas":(pp.kind||"visite")), note:(pp.note||"") })) };
