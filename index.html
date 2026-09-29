@@ -3933,6 +3933,196 @@ body.dragging-on{-webkit-user-select:none;user-select:none}
     scroll-behavior:auto!important;
   }
 }
+/* ============================================================
+   Planning V4 -- namespace canonique #view-plan.mv-plan-v4
+   Couche visuelle UNIQUEMENT (maquette validee 3 vues). Aucune logique.
+   Specificite (1,1,x) : l'emporte sur les anciennes regles de classe
+   Planning sans aucun !important. Remplace integralement le bloc V3.
+   ============================================================ */
+#view-plan.mv-plan-v4{--v4-navy:#0D2856;--v4-gold:#E9AE3D;--v4-green:#0EAE52;--v4-ink:#16233F;--v4-muted:#6E7A90;--v4-soft:#8A94A8;--v4-line:#E8ECF3;--v4-card:#fff;--v4-ctl:#fff;--v4-ctl-ink:#1B2A4A;padding:0}
+#view-plan.mv-plan-v4 #planBody{padding:12px 14px 18px}
+/* racine du plein ecran decale : .view.active{animation:fade ... both} laisse une transform residuelle sur la vue,
+   qui devient alors le bloc conteneur de tout position:fixed (carte plein ecran, fantome du glisser-deposer).
+   L animation d entree est conservee ; elle ne persiste simplement plus apres sa fin. */
+#view-plan.mv-plan-v4.active{animation-fill-mode:backwards}
+/* ---------- hero : couverture reelle (coverStyle) sous le header global ---------- */
+#view-plan.mv-plan-v4 .mvp-hero{position:relative;height:196px;margin:0;border-radius:0;overflow:hidden;background-color:#34466b;background-size:cover;background-position:center 42%}
+#view-plan.mv-plan-v4 .mvp-hero-shade{position:absolute;inset:0;pointer-events:none;background:linear-gradient(90deg,rgba(6,16,38,.50) 0%,rgba(6,16,38,.22) 50%,rgba(6,16,38,0) 78%),linear-gradient(180deg,rgba(6,16,38,.08) 0%,rgba(6,16,38,0) 38%,rgba(6,16,38,.18) 100%)}
+#view-plan.mv-plan-v4 .mvp-hero-content{position:absolute;inset:0;z-index:2;display:flex;flex-direction:column;justify-content:flex-start;padding:14px 16px 11px;box-sizing:border-box}
+#view-plan.mv-plan-v4 .mvp-hero-content h1{margin:0;font-family:var(--font-serif);font-size:33px;font-weight:800;line-height:1;letter-spacing:-.2px;color:#fff;text-shadow:0 2px 14px rgba(6,16,38,.38)}
+#view-plan.mv-plan-v4 .mvp-hero-sub{margin:5px 0 0;font:500 14px/1.2 "Inter",sans-serif;color:rgba(255,255,255,.95);text-shadow:0 1px 8px rgba(6,16,38,.45)}
+#view-plan.mv-plan-v4 .mvp-hero-context{display:flex;align-items:center;gap:6px;margin:7px 0 0;font:600 13px/1.2 "Inter",sans-serif;color:#fff;text-shadow:0 1px 8px rgba(6,16,38,.5);min-width:0}
+#view-plan.mv-plan-v4 .mvp-hero-context span{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#view-plan.mv-plan-v4 .mvp-hero-context svg{width:14px;height:14px;flex:0 0 auto;fill:var(--v4-gold);stroke:var(--v4-gold);stroke-width:1.4}
+#view-plan.mv-plan-v4 .mvp-hero-context svg circle{fill:#fff;stroke:none}
+/* jours : TOUJOURS une seule rangee horizontale (enfants directs de #planDays) ; defilement si > 3 jours */
+#view-plan.mv-plan-v4 .mvp-days{display:flex;flex-direction:row;flex-wrap:nowrap;gap:9px;margin-top:auto;overflow-x:auto;overflow-y:hidden;scrollbar-width:none;-webkit-overflow-scrolling:touch;padding:2px 0}
+#view-plan.mv-plan-v4 .mvp-days::-webkit-scrollbar{display:none}
+#view-plan.mv-plan-v4 .mvp-day-chip{flex:1 0 calc((100% - 18px) / 3);min-width:0;height:54px;box-sizing:border-box;border-radius:14px;border:1.5px solid transparent;background:rgba(255,255,255,.95);color:var(--v4-navy);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:0;padding:0;cursor:pointer;box-shadow:0 4px 12px rgba(6,16,38,.16);font-family:"Inter",sans-serif}
+#view-plan.mv-plan-v4 .mvp-day-chip.on{background:var(--v4-navy);border-color:var(--v4-gold);color:#fff;box-shadow:0 6px 16px rgba(13,40,86,.32)}
+#view-plan.mv-plan-v4 .mvp-dc-w{font-size:11px;font-weight:600;line-height:1.15;opacity:.78;text-transform:capitalize}
+#view-plan.mv-plan-v4 .mvp-dc-n{font-size:20px;font-weight:800;line-height:1.05}
+#view-plan.mv-plan-v4 .mvp-dc-m{font-size:10.5px;font-weight:600;line-height:1.15;opacity:.78;text-transform:lowercase}
+#view-plan.mv-plan-v4 .mvp-day-chip:focus-visible{outline:2px solid var(--v4-gold);outline-offset:2px}
+/* ---------- barre d'actions : Itineraire / Agenda / Arrive / *** ---------- */
+#view-plan.mv-plan-v4 .mvp-actbar{margin:0}
+#view-plan.mv-plan-v4 .mvp-act-cells{display:flex;align-items:stretch;gap:8px}
+#view-plan.mv-plan-v4 .mvp-act-cells>.plan-itin-wrap{position:relative;flex:1 1 auto;min-width:0;display:flex}
+#view-plan.mv-plan-v4 .mvp-act-cells>.plan-more-wrap{position:relative;flex:0 0 44px;display:flex}
+#view-plan.mv-plan-v4 .mvp-act-cells>.mvp-acell{flex:1 1 auto;width:auto}
+#view-plan.mv-plan-v4 .mvp-acell{width:100%;min-width:0;height:44px;min-height:44px;box-sizing:border-box;margin:0;padding:0 7px;border-radius:13px;border:1px solid var(--v4-line);background:var(--v4-ctl);color:var(--v4-ink);box-shadow:0 1px 3px rgba(13,40,86,.05);display:flex;align-items:center;justify-content:center;gap:6px;font:700 13px/1 "Inter",sans-serif;cursor:pointer}
+#view-plan.mv-plan-v4 .mvp-acell .aci{width:16px;height:16px;flex:0 0 auto;fill:none;stroke:currentColor;stroke-width:1.9;stroke-linecap:round;stroke-linejoin:round}
+#view-plan.mv-plan-v4 .mvp-acell#navDayItin .aci{fill:currentColor;stroke:none}
+#view-plan.mv-plan-v4 .mvp-acell .al{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#view-plan.mv-plan-v4 .mvp-acell .acv{width:11px;height:11px;flex:0 0 auto;fill:none;stroke:currentColor;stroke-width:2.6;stroke-linecap:round;stroke-linejoin:round}
+#view-plan.mv-plan-v4 .mvp-acell.arrive{background:var(--v4-green);border-color:var(--v4-green);color:#fff;box-shadow:0 4px 12px rgba(14,174,82,.30)}
+#view-plan.mv-plan-v4 .mvp-acell.more{padding:0}
+#view-plan.mv-plan-v4 .mvp-acell.more .more-dots{font-size:0;display:flex;gap:3.5px}
+#view-plan.mv-plan-v4 .mvp-acell.more .more-dots::before,#view-plan.mv-plan-v4 .mvp-acell.more .more-dots::after,#view-plan.mv-plan-v4 .mvp-acell.more .more-dots i{content:"";display:block;width:4px;height:4px;border-radius:50%;background:var(--v4-ink)}
+#view-plan.mv-plan-v4 .plan-itin-menu,#view-plan.mv-plan-v4 .plan-more-menu{position:absolute;top:calc(100% + 6px);z-index:40;min-width:196px;padding:6px;border-radius:14px;background:var(--v4-card);border:1px solid var(--v4-line);box-shadow:0 14px 34px rgba(13,40,86,.18);display:flex;flex-direction:column;gap:2px}
+#view-plan.mv-plan-v4 .plan-itin-menu{left:0}
+#view-plan.mv-plan-v4 .plan-more-menu{right:0}
+#view-plan.mv-plan-v4 .plan-more-item{display:flex;align-items:center;gap:9px;width:100%;min-height:44px;padding:0 12px;border:0;border-radius:10px;background:transparent;color:var(--v4-ink);font:600 14px "Inter",sans-serif;text-align:left;cursor:pointer}
+#view-plan.mv-plan-v4 .plan-more-item:active{background:#F1F4F9}
+/* ---------- bandeau A savoir (ticker Fidele existant) ---------- */
+#view-plan.mv-plan-v4 #fideleAlert{margin:10px 0 0}
+#view-plan.mv-plan-v4 #fideleAlert:empty{display:none}
+#view-plan.mv-plan-v4 .fidele-ticker{display:flex;align-items:center;gap:0;height:46px;min-height:46px;box-sizing:border-box;padding:0 7px 0 12px;border:0;border-radius:14px;background:var(--v4-navy);box-shadow:0 6px 16px rgba(13,40,86,.18);color:#fff;overflow:hidden}
+#view-plan.mv-plan-v4 .fidele-ticker .ft-label{flex:0 0 auto;display:flex;align-items:center;gap:7px;padding-right:11px;margin-right:11px;border-right:1px solid rgba(255,255,255,.24);font:800 13.5px/1 "Inter",sans-serif;color:#fff;white-space:nowrap}
+#view-plan.mv-plan-v4 .fidele-ticker .ft-viewport{flex:1 1 auto;min-width:0;overflow:hidden;cursor:pointer}
+#view-plan.mv-plan-v4 .fidele-ticker .ft-track{font:500 12.5px/46px "Inter",sans-serif;color:rgba(255,255,255,.90);white-space:nowrap}
+#view-plan.mv-plan-v4 .fidele-ticker .ft-track b{color:#fff;font-weight:700}
+#view-plan.mv-plan-v4 .fidele-ticker .ft-viewport:not(.scrolling):not(.expanded) .ft-track{overflow:hidden;text-overflow:ellipsis}
+#view-plan.mv-plan-v4 .fidele-ticker:has(.ft-viewport.expanded){height:auto;min-height:46px;align-items:flex-start;padding-top:12px;padding-bottom:12px}
+#view-plan.mv-plan-v4 .fidele-ticker .ft-viewport.expanded .ft-track{white-space:normal;line-height:1.4}
+#view-plan.mv-plan-v4 .fidele-ticker .ft-close{flex:0 0 auto;width:28px;height:28px;margin-left:8px;border:0;border-radius:9px;background:rgba(255,255,255,.13);color:#fff;font-size:12px;line-height:1;display:flex;align-items:center;justify-content:center;cursor:pointer;padding:0}
+/* ---------- carte journee (UNE seule carte blanche) ---------- */
+#view-plan.mv-plan-v4 .mvp-day-card{margin:12px 0 0;padding:13px 12px 8px;border-radius:21px;background:var(--v4-card);box-shadow:0 1px 3px rgba(13,40,86,.05),0 10px 28px rgba(13,40,86,.06)}
+#view-plan.mv-plan-v4 .mvp-day-head{display:flex;align-items:flex-start;justify-content:space-between;gap:8px;margin:0 2px}
+#view-plan.mv-plan-v4 .mvp-day-left{min-width:0;flex:1 1 auto}
+#view-plan.mv-plan-v4 .mvp-day-title{font-family:var(--font-serif);font-size:clamp(17px,5.1vw,20px);font-weight:800;line-height:1.15;color:var(--v4-ink);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#view-plan.mv-plan-v4 .mvp-wx{display:flex;align-items:center;gap:6px;min-height:18px;margin-top:6px;font:600 13px/1.2 "Inter",sans-serif;color:var(--v4-muted)}
+#view-plan.mv-plan-v4 .mvp-wx svg{width:19px;height:19px;flex:0 0 auto}
+#view-plan.mv-plan-v4 .mvp-wx .wx-cond{color:var(--v4-muted);font-weight:500}
+#view-plan.mv-plan-v4 .plan-rhythm-wrap{position:relative;flex:0 0 auto}
+#view-plan.mv-plan-v4 .mvp-rhythm-btn{height:34px;box-sizing:border-box;padding:0 11px 0 12px;border:0;border-radius:999px;background:#EAEEF5;color:#1B2A4A;display:flex;align-items:center;gap:6px;font:700 12px/1 "Inter",sans-serif;white-space:nowrap;cursor:pointer}
+#view-plan.mv-plan-v4 .mvp-rhythm-btn .pr-ic{display:none}
+#view-plan.mv-plan-v4 .mvp-rhythm-btn .pr-car{width:12px;height:12px;fill:none;stroke:currentColor;stroke-width:2.6;stroke-linecap:round;stroke-linejoin:round}
+#view-plan.mv-plan-v4 .plan-rhythm-menu{position:absolute;top:calc(100% + 6px);right:0;z-index:40;min-width:196px;padding:6px;border-radius:14px;background:var(--v4-card);border:1px solid var(--v4-line);box-shadow:0 14px 34px rgba(13,40,86,.18)}
+#view-plan.mv-plan-v4 .plan-rhythm-item{display:flex;align-items:center;gap:10px;width:100%;min-height:44px;padding:0 12px;border:0;border-radius:10px;background:transparent;color:var(--v4-ink);font:600 14px "Inter",sans-serif;cursor:pointer}
+#view-plan.mv-plan-v4 .plan-rhythm-item[aria-checked="true"]{background:#EEF2FA;color:var(--v4-navy)}
+#view-plan.mv-plan-v4 .plan-rhythm-item .pr-check{margin-left:auto;color:var(--v4-navy);font-weight:800}
+/* ---------- grande carte ---------- */
+#view-plan.mv-plan-v4 .plan-map-premium{position:relative;margin:12px 0 0;border-radius:16px;overflow:hidden;box-shadow:none;background:#E6ECF2}
+#view-plan.mv-plan-v4 .plan-map-premium:not(.full){height:clamp(285px,73vw,300px)}
+html[lang="fr"] #view-plan.mv-plan-v4 .mvp-day-title{text-transform:capitalize}
+#view-plan.mv-plan-v4 .plan-map-premium .planmap{width:100%;height:100%;margin:0;border:0;border-radius:0}
+#view-plan.mv-plan-v4 .plan-map-premium .plan-trip-map{position:absolute;inset:0;border-radius:0;z-index:4}
+/* colonne droite : 4 commandes 44x44 alignees (12/64/116/168) */
+#view-plan.mv-plan-v4 .plan-map-premium .map-fab,
+#view-plan.mv-plan-v4 .plan-map-premium .map-satbtn,
+#view-plan.mv-plan-v4 .plan-map-premium .map-framebtn,
+#view-plan.mv-plan-v4 .plan-map-premium .map-posbtn{position:absolute;right:12px;left:auto;z-index:9;width:44px;height:44px;min-height:44px;box-sizing:border-box;margin:0;padding:0;border:0;border-radius:12px;background:var(--v4-ctl);color:var(--v4-ctl-ink);box-shadow:0 2px 8px rgba(13,40,86,.16);display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:0;line-height:0}
+#view-plan.mv-plan-v4 .plan-map-premium .map-fab{top:12px}
+#view-plan.mv-plan-v4 .plan-map-premium .map-satbtn{top:64px}
+#view-plan.mv-plan-v4 .plan-map-premium .map-framebtn{top:116px}
+#view-plan.mv-plan-v4 .plan-map-premium .map-posbtn{top:168px}
+#view-plan.mv-plan-v4 .plan-map-premium .mvp-ico{width:20px;height:20px;fill:none;stroke:currentColor;stroke-width:1.9;stroke-linecap:round;stroke-linejoin:round;pointer-events:none}
+/* calques : le bouton satellite (cree par le moteur carte) garde son libelle emoji pour l'etat ; seul un pictogramme calques est affiche */
+#view-plan.mv-plan-v4 .plan-map-premium .map-satbtn::before{content:"";width:20px;height:20px;background:currentColor;-webkit-mask:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='1.9' stroke-linejoin='round'%3E%3Cpath d='M12 3.5 21 8l-9 4.5L3 8z'/%3E%3Cpath d='m3 12 9 4.5 9-4.5'/%3E%3Cpath d='m3 16 9 4.5 9-4.5'/%3E%3C/svg%3E") center/20px 20px no-repeat;mask:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='1.9' stroke-linejoin='round'%3E%3Cpath d='M12 3.5 21 8l-9 4.5L3 8z'/%3E%3Cpath d='m3 12 9 4.5 9-4.5'/%3E%3Cpath d='m3 16 9 4.5 9-4.5'/%3E%3C/svg%3E") center/20px 20px no-repeat}
+/* bascule Vue sejour / Vue du jour : capsule 44px, haut gauche */
+#view-plan.mv-plan-v4 .plan-map-premium .map-tripbtn{position:absolute;top:12px;left:12px;z-index:9;height:44px;min-height:44px;max-width:calc(100% - 80px);box-sizing:border-box;margin:0;padding:0 15px 0 13px;border:0;border-radius:12px;background:var(--v4-ctl);color:var(--v4-ctl-ink);box-shadow:0 2px 8px rgba(13,40,86,.16);display:flex;align-items:center;gap:8px;font:700 13.5px/1 "Inter",sans-serif;white-space:nowrap;cursor:pointer}
+#view-plan.mv-plan-v4 .plan-map-premium .map-tripbtn span{overflow:hidden;text-overflow:ellipsis}
+#view-plan.mv-plan-v4 .plan-map-premium .map-tripbtn .mvp-ico{width:18px;height:18px}
+#view-plan.mv-plan-v4 .plan-map-premium[data-mapmode="trip"] .map-tripbtn{background:var(--v4-navy);color:#fff}
+/* commandes journee secondaires existantes : jamais sur les commandes principales */
+#view-plan.mv-plan-v4 .plan-map-premium .map-modebtn{position:absolute;top:64px;left:12px;right:auto;z-index:8;height:34px;padding:0 12px;border:0;border-radius:999px;background:var(--v4-ctl);color:var(--v4-ctl-ink);box-shadow:0 2px 8px rgba(13,40,86,.14);font:700 12px/1 "Inter",sans-serif}
+#view-plan.mv-plan-v4 .plan-map-premium .day-route-float{top:auto;bottom:30px;left:10px;max-width:calc(100% - 84px);min-height:0;padding:4px 4px 4px 10px;gap:4px;border-radius:10px;box-shadow:0 2px 8px rgba(13,40,86,.12)}
+#view-plan.mv-plan-v4 .plan-map-premium .day-route-float .route-orig{font:600 11px/1.2 "Inter",sans-serif}
+#view-plan.mv-plan-v4 .plan-map-premium .day-route-float .route-gps{width:30px;min-width:30px;height:30px;min-height:30px;flex:0 0 30px;margin:0;border-radius:8px}
+#view-plan.mv-plan-v4 .plan-map-premium .day-route-float .route-gps::before{font-size:16px}
+#view-plan.mv-plan-v4 .plan-map-premium[data-mapmode="trip"] .map-modebtn,#view-plan.mv-plan-v4 .plan-map-premium[data-mapmode="trip"] .day-route-float{display:none}
+/* plein ecran : entre le header global et la barre du bas (toutes deux visibles) */
+#view-plan.mv-plan-v4 .plan-map-premium.full{position:fixed;left:0;right:0;top:var(--mvp-full-top,0px);bottom:var(--mvp-full-bot,0px);height:auto;margin:0;border-radius:0;z-index:900;overflow:hidden}
+#view-plan.mv-plan-v4 .plan-map-premium.full .map-tripbtn{top:14px;left:14px}
+#view-plan.mv-plan-v4 .plan-map-premium.full .map-fab{top:14px;right:14px}
+#view-plan.mv-plan-v4 .plan-map-premium.full .map-satbtn{top:70px;right:14px}
+#view-plan.mv-plan-v4 .plan-map-premium.full .map-framebtn{top:122px;right:14px}
+#view-plan.mv-plan-v4 .plan-map-premium.full .map-posbtn{top:174px;right:14px}
+/* ---------- statistiques ---------- */
+#view-plan.mv-plan-v4 .mvp-stats{display:flex;align-items:stretch;margin:12px 0 0;padding:4px 0 12px;border-bottom:1px solid #EEF1F6}
+#view-plan.mv-plan-v4 .mvp-stat{flex:1 1 0;min-width:0;display:flex;flex-direction:column;align-items:center;justify-content:flex-start;gap:3px;padding:0 3px;text-align:center;border-left:1px solid #EEF1F6}
+#view-plan.mv-plan-v4 .mvp-stat:first-child{border-left:0}
+#view-plan.mv-plan-v4 .mvp-stat-ic{height:20px;display:flex;align-items:center;justify-content:center}
+#view-plan.mv-plan-v4 .mvp-stat-ic svg{width:19px;height:19px}
+#view-plan.mv-plan-v4 .mvp-stat b{font:800 16.5px/1.15 "Inter",sans-serif;color:var(--v4-ink);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%}
+#view-plan.mv-plan-v4 .mvp-stat-lbl{font:500 10.5px/1.2 "Inter",sans-serif;color:var(--v4-soft)}
+#view-plan.mv-plan-v4 #dstTraffic{display:block;font:600 10px/1.1 "Inter",sans-serif;color:var(--v4-soft)}
+#view-plan.mv-plan-v4 #dstTraffic:empty{display:none}
+/* ---------- timeline : heure | rail+pastille | photo 64x56 | infos | poignee+coche ---------- */
+#view-plan.mv-plan-v4 .timeline{position:relative;margin:4px 0 0;display:flex;flex-direction:column}
+#view-plan.mv-plan-v4 .pl-item{position:relative;display:grid;grid-template-columns:40px 18px 64px minmax(0,1fr) 36px;grid-template-rows:auto auto;column-gap:0;align-items:center;min-height:70px;margin:0;padding:7px 0;border:0;border-radius:0;background:transparent;overflow:visible;cursor:pointer}
+#view-plan.mv-plan-v4 .pl-item::before{content:"";position:absolute;left:47.5px;top:0;bottom:0;width:3px;border-radius:2px;background:var(--catc,var(--v4-line))}
+#view-plan.mv-plan-v4 .timeline>.pl-item:first-child::before{top:50%}
+#view-plan.mv-plan-v4 .timeline>.pl-item:last-child::before{bottom:50%}
+#view-plan.mv-plan-v4 .timeline>.pl-item:only-child::before{display:none}
+#view-plan.mv-plan-v4 .pl-item::after{content:"";position:absolute;left:42px;top:50%;width:14px;height:14px;box-sizing:border-box;transform:translateY(-50%);border-radius:50%;background:var(--catc,var(--v4-gold));border:3px solid var(--v4-card);box-shadow:0 0 0 1px rgba(13,40,86,.06);z-index:2}
+#view-plan.mv-plan-v4 .pl-item.done::before,#view-plan.mv-plan-v4 .pl-item.done::after{background:#D7DDE7}
+#view-plan.mv-plan-v4 .pl-item.current{background:rgba(13,40,86,.03);border-radius:14px}
+#view-plan.mv-plan-v4 .pl-fill{left:122px;max-width:calc(100% - 158px);height:2px;top:auto;bottom:2px;border-radius:99px;opacity:.55}
+#view-plan.mv-plan-v4 .pl-time{grid-column:1;grid-row:1 / span 2;align-self:center;width:auto;flex:none;margin:0;font:700 12.5px/1 "Inter",sans-serif;color:var(--v4-ink);letter-spacing:0;font-variant-numeric:tabular-nums}
+#view-plan.mv-plan-v4 .pl-media{grid-column:3;grid-row:1 / span 2;align-self:center;position:relative;width:64px;height:56px;flex:none;border-radius:11px;overflow:hidden;background:#EEF1F6;box-shadow:0 2px 6px rgba(13,40,86,.12)}
+#view-plan.mv-plan-v4 .pl-media .pl-ic{width:100%;height:100%;border-radius:11px;display:flex;align-items:center;justify-content:center;font-size:24px}
+#view-plan.mv-plan-v4 .pl-media .pl-photo{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;border-radius:11px}
+#view-plan.mv-plan-v4 .pl-media.has-photo .pl-ic{visibility:hidden}
+#view-plan.mv-plan-v4 .pl-main{grid-column:4;grid-row:1 / span 2;align-self:center;min-width:0;flex:none;padding:0 6px 0 11px}
+#view-plan.mv-plan-v4 .pl-title{font:800 15px/1.2 "Inter",sans-serif;color:var(--v4-ink);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;display:block;-webkit-line-clamp:unset;letter-spacing:0}
+#view-plan.mv-plan-v4 .pl-item.done .pl-title{text-decoration:line-through;color:var(--v4-soft)}
+#view-plan.mv-plan-v4 .pl-sub{margin-top:2px;font:500 12px/1.25 "Inter",sans-serif;color:var(--v4-muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#view-plan.mv-plan-v4 .pl-dur{margin-top:4px;font:600 12px/1.25 "Inter",sans-serif;color:#5C6882;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#view-plan.mv-plan-v4 .pl-hours,#view-plan.mv-plan-v4 .pl-confirmed,#view-plan.mv-plan-v4 .pl-shift,#view-plan.mv-plan-v4 .pl-warn{margin-top:3px;font:500 11.5px/1.3 "Inter",sans-serif}
+#view-plan.mv-plan-v4 .pl-handle{grid-column:5;grid-row:1;align-self:end;justify-self:center;width:36px;height:24px;display:flex;align-items:center;justify-content:center;color:#B9C1CF;cursor:grab}
+#view-plan.mv-plan-v4 .pl-handle svg{width:17px;height:17px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round}
+#view-plan.mv-plan-v4 .pl-check{grid-column:5;grid-row:2;align-self:start;justify-self:center;width:36px;height:36px;margin:0;padding:0;border:0;background:transparent;display:flex;align-items:center;justify-content:center}
+#view-plan.mv-plan-v4 .pl-item:not(:has(.pl-handle)) .pl-check{grid-row:1 / span 2;align-self:center}
+#view-plan.mv-plan-v4 .pl-dot{width:23px;height:23px;box-sizing:border-box;border-radius:50%;border:2px solid #D3DAE5;background:var(--v4-card);font-size:12px}
+#view-plan.mv-plan-v4 .pl-check.done .pl-dot{background:var(--v4-green);border-color:var(--v4-green);color:#fff}
+/* trajet injecte entre deux etapes (injectPresentationLegs) : ligne fine alignee sur la colonne infos, rail continu */
+#view-plan.mv-plan-v4 .pl-leg{position:relative;display:flex;align-items:center;gap:6px;min-height:26px;margin:0;padding:0 0 0 133px;background:transparent;border:0}
+#view-plan.mv-plan-v4 .pl-leg::before{content:"";position:absolute;left:47.5px;top:0;bottom:0;width:3px;border-radius:0;background:var(--legc,var(--v4-line));opacity:1}
+#view-plan.mv-plan-v4 .pl-leg::after,#view-plan.mv-plan-v4 .pl-leg .pl-leg-arrow{display:none}
+#view-plan.mv-plan-v4 .pl-leg .pl-legbtn{display:flex;flex-wrap:nowrap;align-items:center;gap:6px;min-width:0;flex:1 1 auto;min-height:26px;padding:0;border:0;background:transparent;color:#5C6882;font:600 11.5px/1.2 "Inter",sans-serif;box-shadow:none;cursor:pointer;overflow:hidden}
+#view-plan.mv-plan-v4 .pl-leg .pl-legbtn span{background:transparent;padding:0;border:0;border-radius:0;white-space:nowrap}
+#view-plan.mv-plan-v4 .pl-leg .pl-legbtn .pl-leg-main{display:flex;flex-direction:row;flex-wrap:nowrap;gap:5px;align-items:center;flex:0 0 auto;min-width:auto}
+#view-plan.mv-plan-v4 .pl-leg .pl-legbtn .pl-leg-mode{font-size:12px;line-height:1;width:auto;height:auto;flex:0 0 auto}
+#view-plan.mv-plan-v4 .pl-leg .pl-legbtn .pl-leg-main>span{font-weight:600;color:#5C6882}
+#view-plan.mv-plan-v4 .pl-leg .pl-legbtn{flex-direction:row;height:26px}
+#view-plan.mv-plan-v4 .pl-leg .pl-legbtn .pl-leg-main b{font-weight:700;color:#4C5874}
+#view-plan.mv-plan-v4 .pl-leg .pl-legbtn .pl-leg-main>span::before{content:"\00b7\00a0";color:var(--v4-soft)}
+#view-plan.mv-plan-v4 .pl-leg .pl-legbtn .pl-leg-fuel{flex:1 1 auto;min-width:0;display:block;color:var(--v4-soft);font:500 11px/1.2 "Inter",sans-serif;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#view-plan.mv-plan-v4 .pl-leg .pl-legbtn .pl-legmore{flex:0 0 auto}
+#view-plan.mv-plan-v4 .pl-leg .pl-legbtn .pl-legmore{font-style:normal;color:#B9C1CF}
+#view-plan.mv-plan-v4 .pl-leg .pl-legmap{flex:0 0 auto;width:30px;height:26px;margin-left:auto;margin-right:3px;border:0;background:transparent;color:var(--v4-soft);display:flex;align-items:center;justify-content:center;padding:0}
+#view-plan.mv-plan-v4 .pl-leg .pl-legmap svg{width:14px;height:14px;fill:currentColor;stroke:none}
+/* elements secondaires existants (mode Details / etats) : sobres, dans la carte */
+#view-plan.mv-plan-v4 .dc-nudges:empty,#view-plan.mv-plan-v4 #dayAgentAdvice:empty{display:none}
+#view-plan.mv-plan-v4 .dc-nudges{margin:10px 0 0}
+#view-plan.mv-plan-v4 .day-sum{margin:10px 0 4px}
+@media(max-width:359px){
+  #view-plan.mv-plan-v4 .mvp-hero-content h1{font-size:29px}
+  #view-plan.mv-plan-v4 .mvp-dc-n{font-size:18px}
+  #view-plan.mv-plan-v4 .mvp-acell{font-size:12px;gap:5px;padding:0 5px}
+  #view-plan.mv-plan-v4 .mvp-rhythm-btn{padding:0 10px;font-size:11.5px}
+  #view-plan.mv-plan-v4 .pl-item{grid-template-columns:36px 18px 56px minmax(0,1fr) 34px}
+  #view-plan.mv-plan-v4 .pl-item::before,#view-plan.mv-plan-v4 .pl-leg::before{left:43.5px}
+  #view-plan.mv-plan-v4 .pl-item::after{left:38px}
+  #view-plan.mv-plan-v4 .pl-media{width:56px;height:50px}
+  #view-plan.mv-plan-v4 .pl-leg{padding-left:121px}
+}
+/* theme sombre : memes proportions, surfaces sombres */
+[data-theme="dark"] #view-plan.mv-plan-v4{--v4-ink:#E8ECF4;--v4-muted:#A3ADC0;--v4-soft:#8C97AB;--v4-line:rgba(255,255,255,.10);--v4-card:#151C2B;--v4-ctl:#1C2436;--v4-ctl-ink:#E8ECF4}
+[data-theme="dark"] #view-plan.mv-plan-v4 .mvp-rhythm-btn{background:#232C40;color:#E8ECF4}
+[data-theme="dark"] #view-plan.mv-plan-v4 .mvp-stats,[data-theme="dark"] #view-plan.mv-plan-v4 .mvp-stat{border-color:rgba(255,255,255,.08)}
 </style>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
@@ -4029,19 +4219,16 @@ body.dragging-on{-webkit-user-select:none;user-select:none}
       <div id="exploreResults"></div>
     </section>
     <!-- PLANNING -->
-    <section class="view" id="view-plan">
-      <div class="page-head">
-        <div><h1 class="page-title" data-i18n="nav.plan">Planning</h1><p class="page-sub" data-i18n="plan.subtitle">Organisez vos journées</p><p class="plan-ctx" id="planCtx" style="display:none;font-size:12px;opacity:.62;margin:2px 0 0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis"></p></div>
-      </div>
-      <div id="planDays"></div>
-      <div class="plan-acts">
-        <div class="plan-rhythm-wrap">
-          <button class="ov-btn rhythm" id="planRhythm" type="button" aria-haspopup="true" aria-expanded="false"><span class="pr-ic" id="planRhythmIc">〰️</span><span id="planRhythmLbl" data-i18n="plan.intNormal">Normal</span><svg class="pr-car" viewBox="0 0 24 24" width="11" height="11"><path d="M6 9l6 6 6-6"/></svg></button>
-          <div class="plan-rhythm-menu" id="planRhythmMenu" hidden role="menu"></div>
+    <section class="view mv-plan-v4" id="view-plan">
+      <section class="mvp-hero" id="planHero">
+        <div class="mvp-hero-shade"></div>
+        <div class="mvp-hero-content">
+          <h1 data-i18n="nav.plan">Planning</h1>
+          <div class="mvp-hero-sub" data-i18n="plan.subtitle">Ton assistant de journée</div>
+          <div class="mvp-hero-context" id="planHeroContext"></div>
+          <div class="mvp-days" id="planDays"></div>
         </div>
-        <button class="ov-btn optimize" id="planOptimize" type="button" hidden><span class="po-star" aria-hidden="true">✨</span><span data-i18n="plan.optimizeShort">Optimiser</span></button>
-        <button class="ov-btn add" id="planAdd" type="button"><svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg><span data-i18n="plan.add">Ajouter</span></button>
-      </div>
+      </section>
       <div id="planBody"></div>
     </section>
     <!-- BUDGET -->
@@ -4327,7 +4514,7 @@ const DEFAULT_S={ version:"0.2.0", settings:{ lang:"fr", theme:"system", units:"
 /* Clé Maps JS partagée (restreinte au domaine GitHub Pages). Repli : clé perso de l'utilisateur si fournie. */
 const SHARED_MAP_KEY="AIzaSyCt5iVx8nPr1V067A3daE0X1YA568XJNbU";
 function mapKey(){ return (S.settings.mapKey||"").trim() || SHARED_MAP_KEY; }
-const BUILD="0.6.142 · vPlanningPremium planning-map-redesign";
+const BUILD="0.6.143 · vPlanningV3 reconstruction-visuelle-complete";
 let _idb=null; const _migrationReady=migrateLegacy(); let S=loadState();
 function normalizeTrip(tr){ if(!tr||typeof tr!=="object") return tr;
   if(Object.prototype.hasOwnProperty.call(tr,"_routes")) delete tr._routes;   /* v1033 : purge du cache legacy tr._routes deja persiste -- passage memoire seul, jamais de saveState() ici, jamais de reseau, jamais de conversion/copie du contenu */
@@ -10231,16 +10418,33 @@ function openLegPicker(itemId,tripId){
   try{ document.addEventListener("keydown",onKey); }catch(_e){}
   ov.appendChild(card); document.body.appendChild(ov);
 }
+/* Planning V4 : pictogrammes UI distincts (couche visuelle uniquement, aucune logique) */
+const _MVP_ICO={
+  full:'<svg class="mvp-ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 9V5a1 1 0 0 1 1-1h4M20 9V5a1 1 0 0 0-1-1h-4M4 15v4a1 1 0 0 0 1 1h4M20 15v4a1 1 0 0 1-1 1h-4"/></svg>',
+  close:'<svg class="mvp-ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"/></svg>',
+  frame:'<svg class="mvp-ico" viewBox="0 0 24 24" aria-hidden="true"><rect x="3.5" y="3.5" width="17" height="17" rx="3.5" stroke-dasharray="2.6 2.4"/><path d="M8.2 15.6c1.6-3.6 5.4-1.6 7.6-6.8"/><circle cx="8.2" cy="15.6" r="1.5" fill="currentColor" stroke="none"/><circle cx="15.8" cy="8.8" r="1.5" fill="currentColor" stroke="none"/></svg>',
+  pos:'<svg class="mvp-ico" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="6.2"/><circle cx="12" cy="12" r="2.1" fill="currentColor" stroke="none"/><path d="M12 2.5v3.2M12 18.3v3.2M2.5 12h3.2M18.3 12h3.2"/></svg>',
+  map:'<svg class="mvp-ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 4 3.5 6.2v13.3L9 17.3l6 2.4 5.5-2.2V4.2L15 6.4 9 4z"/><path d="M9 4v13.3M15 6.4v13.3"/></svg>',
+  back:'<svg class="mvp-ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M15 5.5 8.5 12l6.5 6.5"/></svg>',
+  chev:'<svg class="acv" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg>',
+  stPin:'<svg viewBox="0 0 24 24" aria-hidden="true"><path fill="#E9AE3D" d="M12 2.5c-3.9 0-7 3-7 6.9 0 5 7 12.1 7 12.1s7-7.1 7-12.1c0-3.9-3.1-6.9-7-6.9z"/><circle cx="12" cy="9.4" r="2.6" fill="#fff"/></svg>',
+  stRoad:'<svg viewBox="0 0 24 24" fill="none" stroke="#E9AE3D" stroke-width="1.9" stroke-linecap="round" aria-hidden="true"><path d="M7.5 21 10.5 3M16.5 21 13.5 3"/><path d="M12 6.5v2M12 11.5v2M12 16.5v2"/></svg>',
+  stCar:'<svg viewBox="0 0 24 24" aria-hidden="true"><path fill="#E0473C" d="M5 11l1.5-4.2A2 2 0 0 1 8.4 5.5h7.2a2 2 0 0 1 1.9 1.3L19 11l1.4.6a2 2 0 0 1 1.2 1.9V17a1 1 0 0 1-1 1h-1.2a1 1 0 0 1-1-1v-.7H5.6v.7a1 1 0 0 1-1 1H3.4a1 1 0 0 1-1-1v-3.5a2 2 0 0 1 1.2-1.9z"/><circle cx="7.2" cy="14.4" r="1.3" fill="#fff"/><circle cx="16.8" cy="14.4" r="1.3" fill="#fff"/></svg>',
+  stClock:'<svg viewBox="0 0 24 24" fill="none" stroke="#E9AE3D" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="8.2"/><path d="M12 7.8v4.6l3 1.8"/></svg>'
+};
+function _mvpTripBtnInner(trip){ return trip?`${_MVP_ICO.back}<span>${escapeHtml(t("plan.dayView"))}</span>`:`${_MVP_ICO.map}<span>${escapeHtml(t("plan.tripView"))}</span>`; }
 function renderPlan(){
   invalidateDayMap();
   { const _oldTm=document.getElementById("planTripMap"); if(_oldTm&&_oldTm._ovRenderer) invalidateOverviewEl(_oldTm); }   /* correction audit independant P1-K (P2) : jamais de renderer overview orphelin avant que body.innerHTML ne retire son conteneur du document */
   try{ if(!_storeHydrating && _ensureLegIds(currentTrip())>0) saveState(); }catch(_e){}   /* #4 : migration persistée par un seul saveState — jamais pendant l'hydratation (garde _ensureLegIds ET saveState) */
   const body=document.getElementById("planBody"); if(!body) return; const tr=currentTrip(); document.body.classList.remove("map-locked");
   syncPlanActions(tr);
+  { const _hero=document.getElementById("planHero"); if(_hero) _hero.setAttribute("style", coverStyle(tr)); }   /* correction reconstruction V3 (section B) : reutilise coverStyle(tr) existant, aucun nouvel appel Google */
   try{ if(!_storeHydrating && typeof magotScanAllNotifs==="function"){ magotScanAllNotifs(); updateBellBadge(); } }catch(e){}   /* B3.1-b : rescan de tous les voyages au rendu du Planning */
   if(!tr){ { const _pd0=document.getElementById("planDays"); if(_pd0) _pd0.innerHTML=""; } body.innerHTML=`<div class="empty" style="padding:34px 18px"><span class="medallion"><svg viewBox="0 0 24 24"><rect x="5" y="7.5" width="14" height="12.5" rx="2.4"/><path d="M9 7.5V5.5A1.5 1.5 0 0 1 10.5 4h3A1.5 1.5 0 0 1 15 5.5v2M5 12.5h14"/></svg></span><p>${t("plan.noTrip")}</p><button class="btn gold" id="planCreate" style="margin-top:14px">${t("home.create")}</button></div>`; const c=body.querySelector("#planCreate"); if(c) c.onclick=()=>openCreate(); return; }
   const days=tripDays(tr); if(!_planInited){ _planInited=true; planState.dayIndex=planTodayIndex(days); } if(planState.dayIndex>=days.length) planState.dayIndex=0; const d=days[planState.dayIndex]; const ro=isPlanDayReadOnly(tr, planState.dayIndex);
-  const sel=`<div class="day-sel">${days.map(dd=>`<button class="day-chip ${dd.i===planState.dayIndex?'on':''}" data-day="${dd.i}" aria-current="${dd.i===planState.dayIndex?'date':'false'}"><span class="dc-w">${dayWk(dd)}</span><span class="dc-n">${dayNum(dd)}</span></button>`).join("")}</div>`;
+  const _dayMo=(dd)=>dd.date?new Intl.DateTimeFormat(LOCALE[lang()]||'fr-FR',{month:'short'}).format(dd.date):"";   /* correction V3 : mois abrege, meme convention Intl que dayWk/dayNum (fonctions metier inchangees) */
+  const sel=days.map(dd=>`<button class="mvp-day-chip ${dd.i===planState.dayIndex?'on':''}" data-day="${dd.i}" aria-current="${dd.i===planState.dayIndex?'date':'false'}"><span class="mvp-dc-w">${dayWk(dd)}</span><span class="mvp-dc-n">${dayNum(dd)}</span><span class="mvp-dc-m">${escapeHtml(_dayMo(dd))}</span></button>`).join("");   /* V4 : chips enfants DIRECTS de #planDays (.mvp-days = rangee flex) -- l'ancien wrapper .mvp-days-row sans layout empilait les jours */
   const dateLabel=d.date?cap(new Intl.DateTimeFormat(LOCALE[lang()]||'fr-FR',{weekday:'long',day:'numeric',month:'long'}).format(d.date)):(t("plan.day")+" "+(d.i+1));
   const items=orderDayScheduled(tr,d.i,{readOnly:ro});
   const hasPlanned=(tr.plan||[]).some(x=>x&&!x._trans);
@@ -10283,19 +10487,20 @@ function renderPlan(){
   const rhythmCur=RHYTHMS.find(([k])=>k===intensity)||RHYTHMS[1];
   const hasMeal=items.some(x=>x.kind==="meal");
   const _hasRouteCandidate=items.some(it=>it && (it.lat!=null || it._trans));   /* v958-B1d-5 : route canonique >=2 points, pas "au moins deux visites locales" */
-  const statsHtml=items.length?`<div class="day-stats"><div class="dstat"><svg class="dst-svg" viewBox="0 0 24 24"><path d="M12 21s-7-6.2-7-11a7 7 0 0 1 14 0c0 4.8-7 11-7 11z"/><circle cx="12" cy="10" r="2.4"/></svg><div><b>${stops.length} ${t(stops.length<=1?"plan.step":"plan.steps")}</b><span>${t("plan.visitsTime")}</span></div></div><div class="dstat"><svg class="dst-svg" viewBox="0 0 24 24"><path d="M6 19a3 3 0 0 1 0-6h8a3 3 0 0 0 0-6H6"/><circle cx="6" cy="19" r="1.5"/><circle cx="18" cy="7" r="1.5"/></svg><div><b class="rc-dist">…</b><span>${t("plan.travel")}</span></div></div>${_hasRouteCandidate?`<div class="dstat"><span class="dst-em">${modeEmoji(travelMode(tr))}</span><div><b><span class="rc-dur">…</span><span id="dstTraffic"></span></b><span>${t("plan.travelTime")}</span></div></div>`:""}<div class="dstat"><svg class="dst-svg" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.5"/><path d="M12 7.5V12l3 2"/></svg><div><b>${endT||"—"}</b><span>${t("plan.end")}</span></div></div></div>`:"";
+  const _stTravelIc=(travelMode(tr)==="DRIVE")?_MVP_ICO.stCar:`<span style="font-size:17px;line-height:1">${modeEmoji(travelMode(tr))}</span>`;
+  const statsHtml=items.length?`<div class="mvp-stats"><div class="mvp-stat"><span class="mvp-stat-ic">${_MVP_ICO.stPin}</span><b>${stops.length} ${t(stops.length<=1?"plan.step":"plan.steps")}</b><span class="mvp-stat-lbl">${t("plan.visitsTime")}</span></div><div class="mvp-stat"><span class="mvp-stat-ic">${_MVP_ICO.stRoad}</span><b class="rc-dist">…</b><span class="mvp-stat-lbl">${t("plan.travel")}</span></div>${_hasRouteCandidate?`<div class="mvp-stat"><span class="mvp-stat-ic">${_stTravelIc}</span><b><span class="rc-dur">…</span></b>${_planDetailed?`<span id="dstTraffic"></span>`:""}<span class="mvp-stat-lbl">${t("plan.travelTime")}</span></div>`:""}<div class="mvp-stat"><span class="mvp-stat-ic">${_MVP_ICO.stClock}</span><b>${endT||"—"}</b><span class="mvp-stat-lbl">${t("plan.end")}</span></div></div>`:"";   /* V4 : stats format maquette ; #dstTraffic garde son id et reste reserve au mode Details (aucun appel trafic supplementaire) */
   const hasNavRoute=(()=>{ try{ return routeCanNavigate(buildDayRoutePoints(tr,d.i,{})); }catch(_e){ return false; } })();   /* P2 : « Y aller » dispo dès qu'une route canonique existe (même transfert sans visite) */
   const _modeMenuLabel=
     _planDetailed
       ? `▲ ${t("plan.simpleView")}`
       : `${t("plan.detailView")} ▾`;
   const actsHtml=items.length
-    ? `<div class="act-bar premium-actions">
-         <div class="act-cells">
+    ? `<div class="mvp-actbar">
+         <div class="mvp-act-cells">
            ${
              hasNavRoute
                ? `<div class="plan-itin-wrap">
-                    <button class="acell"
+                    <button class="mvp-acell"
                             id="navDayItin"
                             type="button"
                             aria-haspopup="true"
@@ -10304,10 +10509,10 @@ function renderPlan(){
                       <svg class="aci" viewBox="0 0 24 24">
                         <path d="M3 11l18-8-8 18-2-8z"/>
                       </svg>
-                      <span class="al">${t("plan.aNav")} ▾</span>
+                      <span class="al">${t("place.route")}</span>${_MVP_ICO.chev}
                     </button>
                     <div class="plan-itin-menu" id="navDayItinMenu" hidden>
-                      <button type="button" class="plan-more-item" id="navDay"> ${t("plan.aNav")} (Apple Plans)</button>
+                      <button type="button" class="plan-more-item" id="navDay">🍎 Apple Plans</button>
                       <button type="button" class="plan-more-item" id="navDayG">📍 Google Maps</button>
                     </div>
                   </div>`
@@ -10315,7 +10520,7 @@ function renderPlan(){
            }
            ${
              stops.length
-               ? `<button class="acell"
+               ? `<button class="mvp-acell"
                           id="calDay"
                           title="${escapeHtml(t("map.cal"))}">
                     <svg class="aci" viewBox="0 0 24 24">
@@ -10328,7 +10533,7 @@ function renderPlan(){
            }
            ${
              !ro&&stops.length
-               ? `<button class="acell arrive"
+               ? `<button class="mvp-acell arrive"
                           id="arriveDay"
                           title="${escapeHtml(t("gps.arrive"))}">
                     <svg class="aci" viewBox="0 0 24 24">
@@ -10340,16 +10545,26 @@ function renderPlan(){
                : ""
            }
            <div class="plan-more-wrap">
-             <button class="acell more"
+             <button class="mvp-acell more"
                      id="planMore"
                      type="button"
                      aria-label="Plus d'actions"
                      aria-expanded="false">
-               <span class="more-dots">•••</span>
+               <span class="more-dots"><i></i></span>
              </button>
              <div class="plan-more-menu"
                   id="planMoreMenu"
                   hidden>
+               ${
+                 !ro&&stops.length>=2
+                   ? `<button type="button" class="plan-more-item" id="planOptimize2">✨ ${t("plan.optimizeShort")}</button>`
+                   : ""
+               }
+               ${
+                 !ro
+                   ? `<button type="button" class="plan-more-item" id="planAdd">${t("plan.add")}</button>`
+                   : ""
+               }
                ${
                  !ro&&!hasMeal
                    ? `<button type="button"
@@ -10417,43 +10632,42 @@ function renderPlan(){
          <button class="map-tripbtn"
                  id="planTripToggle"
                  type="button">
-           ${_tripMode?`← ${escapeHtml(t("plan.dayView"))}`:`🗺 ${escapeHtml(t("plan.tripView"))}`}
+           ${_mvpTripBtnInner(_tripMode)}
          </button>
          <button class="map-fab"
                  id="mapFull"
                  type="button"
-                 title="${escapeHtml(t("plan.mapFull"))}">
-           ⛶
-         </button>
+                 title="${escapeHtml(t("plan.mapFull"))}"
+                 aria-label="${escapeHtml(t("plan.mapFull"))}">${_MVP_ICO.full}</button>
          <button class="map-posbtn"
                  id="planMapPos"
                  type="button"
                  aria-label="${escapeHtml(t("plan.myPosition"))}"
-                 title="${escapeHtml(t("plan.myPosition"))}">⌖</button>
+                 title="${escapeHtml(t("plan.myPosition"))}">${_MVP_ICO.pos}</button>
          <button class="map-framebtn"
                  id="planMapFrame"
                  type="button"
                  aria-label="${escapeHtml(t("plan.frameMap"))}"
-                 title="${escapeHtml(t("plan.frameMap"))}">⛶︎</button>
+                 title="${escapeHtml(t("plan.frameMap"))}">${_MVP_ICO.frame}</button>
        </div>`
     : routePanelHtml;
   body.innerHTML=
-    `<div id="fideleAlert"></div>
-     <div class="daycard premium-daycard">
-       <div class="dc-top">
-         <div class="dc-left">
-           <div class="dc-date">${escapeHtml(dateLabel)}</div>
-           <div class="dc-wx" id="dcWeather"></div>
+    `${actsHtml}
+     <div id="fideleAlert"></div>
+     <section class="mvp-day-card">
+       <div class="mvp-day-head">
+         <div class="mvp-day-left">
+           <div class="mvp-day-title">${escapeHtml(dateLabel)}</div>
+           <div class="mvp-wx" id="dcWeather"></div>
+         </div>
+         <div class="plan-rhythm-wrap">
+           <button class="mvp-rhythm-btn" id="planRhythm" type="button" aria-haspopup="true" aria-expanded="false"><span class="pr-ic" id="planRhythmIc">${rhythmCur[2]}</span><span id="planRhythmLbl">${t("plan.dayMode")}</span><svg class="pr-car" viewBox="0 0 24 24" width="11" height="11"><path d="M6 9l6 6 6-6"/></svg></button>
+           <div class="plan-rhythm-menu" id="planRhythmMenu" hidden role="menu"></div>
          </div>
        </div>
        ${transHtml}
-       ${actsHtml}
        ${premiumMapHtml}
-       ${
-         _planDetailed
-           ? statsHtml
-           : _simpleBar
-       }
+       ${statsHtml}
        ${
          !ro
            ? `<div class="dc-nudges"
@@ -10475,11 +10689,11 @@ function renderPlan(){
          ${tl}
        </div>
        ${sumHtml}
-     </div>`;
+     </section>`;
   { const _pd=document.getElementById("planDays"); if(_pd) _pd.querySelectorAll("[data-day]").forEach(b=>b.onclick=()=>{ planState.dayIndex=+b.dataset.day; renderPlan(); }); }
   { const de=body.querySelector("#dayEndInput"); if(de&&!ro) de.onchange=()=>{ tr.dayEnd=de.value||""; saveState(); renderPlan(); }; }
   { const rn=body.querySelector("#reschedNow"); if(rn) rn.onclick=optimizeDay; }
-  { const _pdc=document.getElementById("planDays"); const _ac=_pdc&&_pdc.querySelector(".day-chip.on"); if(_ac&&_ac.scrollIntoView){ try{ _ac.scrollIntoView({behavior:"smooth",block:"nearest",inline:"center"}); }catch(_e){} } }   /* P2-D : chip actif centré à l'entrée/au changement de jour (jamais dans le tick) */
+  { const _pdc=document.getElementById("planDays"); const _ac=_pdc&&_pdc.querySelector(".mvp-day-chip.on"); if(_ac&&_ac.scrollIntoView){ try{ _ac.scrollIntoView({behavior:"smooth",block:"nearest",inline:"center"}); }catch(_e){} } }   /* P2-D : chip actif centré à l'entrée/au changement de jour (jamais dans le tick) */
   { const fe=body.querySelector("#planFuExplore"); if(fe) fe.onclick=()=>switchTab("explore"); const fm=body.querySelector("#planFuManual"); if(fm) fm.onclick=()=>openPlanAdd(); }
   { const _tb=body.querySelector("#addTransBtn"); if(_tb) _tb.onclick=()=>addTransitionStep(d.i); }
   renderDayRoute(tr, d.i, ro, trafficCtx);   /* ROUTE UI : distance/durée réelles depuis resolveDayRoute(), trafic canonique branché en interne (v958-B1d-5) */
@@ -10509,7 +10723,7 @@ function renderPlan(){
           open?"true":"false"
         );
       };
-      menu.onclick=e=>e.stopPropagation();
+      menu.onclick=e=>{ e.stopPropagation(); if(e.target&&e.target.closest&&e.target.closest(".plan-more-item")){ menu.hidden=true; more.setAttribute("aria-expanded","false"); } };   /* V4 : le menu *** se referme une fois l'action choisie (restait ouvert derriere la feuille Ajouter) */
       if(!window.__planMoreBound){   /* fermeture au clic exterieur : un seul ecouteur pour toute la session */
         window.__planMoreBound=true;
         document.addEventListener("click",e=>{
@@ -10524,7 +10738,7 @@ function renderPlan(){
     }
   }
   body.querySelectorAll(".js-planmode").forEach(b=>b.onclick=()=>{ _planDetailed=!_planDetailed; try{localStorage.setItem("mv_plan_detailed",_planDetailed?"1":"0");}catch(e){} renderPlan(); });
-  { const mw=body.querySelector("#mapWrap"), mf=body.querySelector("#mapFull"); if(mf&&mw) mf.onclick=()=>{ const full=mw.classList.toggle("full"); mf.textContent=full?"✕":"⛶"; document.body.classList.toggle("map-locked",full);
+  { const mw=body.querySelector("#mapWrap"), mf=body.querySelector("#mapFull"); if(mf&&mw) mf.onclick=()=>{ const full=mw.classList.toggle("full"); mf.innerHTML=full?_MVP_ICO.close:_MVP_ICO.full; mf.setAttribute("aria-label",full?t("plan.close"):t("plan.mapFull")); if(full){ const _hb=document.querySelector("header.bar"), _tb=document.getElementById("tabs"); mw.style.setProperty("--mvp-full-top",(_hb?Math.max(0,Math.round(_hb.getBoundingClientRect().bottom)):0)+"px"); mw.style.setProperty("--mvp-full-bot",(_tb?Math.max(0,Math.round(window.innerHeight-_tb.getBoundingClientRect().top)):0)+"px"); } document.body.classList.toggle("map-locked",full);
     /* correction audit independant P1-L (3) : en Vue sejour, on ne touche plus AUCUN renderer journee (meme cache en
        arriere-plan) -- seul le renderer REELLEMENT visible est redimensionne. */
     if(_planMapMode==="trip"){
@@ -10543,7 +10757,7 @@ function renderPlan(){
   if(!ro) body.querySelectorAll(".pl-item").forEach(el=>el.onclick=()=>openPlanEdit(el.dataset.id));
   if(!ro){ body.querySelectorAll("[data-legpick]").forEach(b=>b.onclick=function(e){ e.preventDefault(); e.stopPropagation(); openLegPicker(b.dataset.legpick); }); }   /* FIX 4 : le bouton n'ouvre QUE le sélecteur, pas l'éditeur */  {   /* correction lot Planning premium : capsule de rythme unique (barre haute, hors #planBody) -- reutilise EXACTEMENT tr.intensity/tr.intensityAuto/saveState()/renderPlan() */
     const rb=document.getElementById("planRhythm"), rm=document.getElementById("planRhythmMenu"), ic=document.getElementById("planRhythmIc"), lbl=document.getElementById("planRhythmLbl");
-    if(rb){ rb.hidden=!hasPlanned; rb.style.display=hasPlanned?"":"none"; if(ic) ic.textContent=rhythmCur[2]; if(lbl){ lbl.removeAttribute("data-i18n"); lbl.textContent=t(rhythmCur[1]); } }
+    if(rb){ rb.hidden=!hasPlanned; rb.style.display=hasPlanned?"":"none"; if(ic) ic.textContent=rhythmCur[2]; if(lbl){ lbl.removeAttribute("data-i18n"); lbl.textContent=t("plan.dayMode"); } rb.setAttribute("aria-label",t("plan.dayMode")+" : "+t(rhythmCur[1])); }
     if(rm){ rm.innerHTML=rhythmMenuHtml; rm.querySelectorAll("[data-int]").forEach(b=>b.onclick=()=>{ if(ro) return; tr.intensity=b.dataset.int; tr.intensityAuto=false; saveState(); rm.hidden=true; if(rb) rb.setAttribute("aria-expanded","false"); renderPlan(); }); }
     if(rb&&rm&&!window.__planRhythmBound){
       window.__planRhythmBound=true;
@@ -10554,6 +10768,10 @@ function renderPlan(){
       });
       document.addEventListener("keydown",e=>{ if(e.key!=="Escape") return; const m=document.getElementById("planRhythmMenu"); const b=document.getElementById("planRhythm"); if(m&&!m.hidden){ m.hidden=true; if(b) b.setAttribute("aria-expanded","false"); } });
     }
+    /* correction reconstruction V3 : Ajouter/Optimiser vivent desormais dans le menu *** (deplaces de l'ancienne barre statique) --
+       rebrancages a CHAQUE renderPlan() (comme #planOptimize l'etait deja), sur les MEMES fonctions metier, jamais reimplementees. */
+    { const pa2=body.querySelector("#planAdd"); if(pa2) pa2.onclick=openPlanAdd; }
+    { const po2=body.querySelector("#planOptimize2"); if(po2) po2.onclick=optimizeDay; }
   }
   {   /* correction lot Planning premium : bouton Itineraire fusionne (Y aller + Google) -- reutilise EXACTEMENT launchDayMaps("apple")/launchDayMaps("google") */
     const ib=body.querySelector("#navDayItin"), im=body.querySelector("#navDayItinMenu");
@@ -10571,7 +10789,7 @@ function renderPlan(){
       _planDayContainerBeforeTrip=(om&&getComputedStyle(om).display!=="none")?"osmMap":"planMap";
       _planMapMode="trip"; tm.style.display="block"; if(pm) pm.style.display="none"; if(om) om.style.display="none";
       if(mw2) mw2.setAttribute("data-mapmode","trip");   /* correction audit independant P1-K (P2-7) : masque .map-modebtn/.day-route-float (commandes journee) en Vue sejour */
-      if(tt) tt.innerHTML="\u2190 "+t("plan.dayView");
+      if(tt) tt.innerHTML=_mvpTripBtnInner(true);
       renderOverviewMap(tr,tm,{defaultSatellite:_planOvSatOn}).catch(()=>{});   /* correction audit independant P1-L (2) : l'etat satellite sejour survit desormais a la (re)creation du renderer */
     };
     const _planExitTrip=()=>{
@@ -10587,7 +10805,7 @@ function renderPlan(){
       else { if(pm) pm.style.display=""; if(om) om.style.display="none"; if(pm&&pm._mapRenderer){ try{ pm._mapRenderer.resize(); }catch(_e){} } }
       _planDayContainerBeforeTrip=_useOsm?"osmMap":"planMap";   /* garde l'etat memorise coherent avec la realite pour la prochaine entree en Vue sejour */
       if(mw2) mw2.removeAttribute("data-mapmode");
-      if(tt) tt.innerHTML="\ud83d\uddfa "+t("plan.tripView");
+      if(tt) tt.innerHTML=_mvpTripBtnInner(false);
     };
     if(tt) tt.onclick=()=>{ if(_planMapMode!=="trip") _planEnterTrip(); else _planExitTrip(); };
     /* correction audit independant P1-K (P1-1) : si renderPlan() est rappele (changement de jour/rythme/horaire/...) alors que la
@@ -10595,7 +10813,7 @@ function renderPlan(){
        pas seulement au clic du bouton. Le mode courant n'est jamais reinitialise par un renderPlan(). */
     if(_planMapMode==="trip"){
       const tm=document.getElementById("planTripMap"), pm=document.getElementById("planMap"), om=document.getElementById("osmMap");
-      if(tm){ tm.style.display="block"; if(pm) pm.style.display="none"; if(om) om.style.display="none"; if(mw2) mw2.setAttribute("data-mapmode","trip"); if(tt) tt.innerHTML="\u2190 "+t("plan.dayView"); renderOverviewMap(tr,tm,{defaultSatellite:_planOvSatOn}).catch(()=>{}); }   /* correction audit independant P1-L (2) */
+      if(tm){ tm.style.display="block"; if(pm) pm.style.display="none"; if(om) om.style.display="none"; if(mw2) mw2.setAttribute("data-mapmode","trip"); if(tt) tt.innerHTML=_mvpTripBtnInner(true); renderOverviewMap(tr,tm,{defaultSatellite:_planOvSatOn}).catch(()=>{}); }   /* correction audit independant P1-L (2) */
     }
   }
   {   /* correction lot Planning premium : bouton "cadrer" -- agit UNIQUEMENT sur la camera, jamais un nouveau calcul de route.
@@ -11063,11 +11281,8 @@ function orderDayScheduled(tr,day,opts){
   out.forEach((it,k)=>it.ord=k);
   return out;
 }
-function syncPlanActions(tr){ const ctx=document.getElementById("planCtx"); if(ctx){ if(tr){ const nm=(tr.name&&tr.name.trim())?tr.name.trim():((tr.dest&&tr.dest.name)||""); const loc=LOCALE[lang()]||"fr-FR"; let dt=""; if(tr.dateStart&&tr.dateEnd){ try{ const sd=new Date(tr.dateStart+"T00:00:00"), ed=new Date(tr.dateEnd+"T00:00:00"); dt=new Intl.DateTimeFormat(loc,{day:"numeric"}).format(sd)+"\u2013"+new Intl.DateTimeFormat(loc,{day:"numeric",month:"short"}).format(ed); }catch(_e){} } ctx.textContent=[nm,dt].filter(Boolean).join(" \u00b7 "); ctx.style.display=ctx.textContent?"":"none"; } else { ctx.textContent=""; ctx.style.display="none"; } }
-  const acts=document.querySelector(".plan-acts"); if(!acts) return; const add=document.getElementById("planAdd");
-  const hasPlanned=!!(tr && (tr.plan||[]).some(x=>x&&!x._trans));
-  if(!tr || !hasPlanned){ acts.style.display="none"; return; }
-  acts.style.display=""; const ro=isPlanDayReadOnly(tr, planState.dayIndex); if(add) add.style.display=ro?"none":""; }
+function syncPlanActions(tr){   /* correction V3 : le contexte s'affiche desormais dans le hero (#planHeroContext) ; Ajouter/Optimiser/rythme sont geres directement par le nouveau template de #planBody, plus de barre .plan-acts statique */
+  const ctx=document.getElementById("planHeroContext"); if(ctx){ if(tr){ const nm=(tr.name&&tr.name.trim())?tr.name.trim():((tr.dest&&tr.dest.name)||""); const dt=fmtRange(tr.dateStart,tr.dateEnd); ctx.innerHTML=`<svg viewBox="0 0 24 24" width="13" height="13"><path d="M12 21s-7-6.2-7-11a7 7 0 0 1 14 0c0 4.8-7 11-7 11z"/><circle cx="12" cy="10" r="2.4"/></svg><span>${escapeHtml([nm,dt].filter(Boolean).join(" \u00b7 "))}</span>`; ctx.style.display=nm?"":"none"; } else { ctx.innerHTML=""; ctx.style.display="none"; } } }
 function _dayItemsOrdered(tr,day){ if(isPlanDayReadOnly(tr,day)){ try{ return orderDayScheduled(tr,day,{readOnly:true}); }catch(_e){ return (tr.plan||[]).filter(x=>x.day===day).slice(); } } try{ orderDayScheduled(tr,day); }catch(_e){} return (tr.plan||[]).filter(x=>x.day===day).sort((a,b)=>((a.ord!=null?a.ord:0)-(b.ord!=null?b.ord:0))||(a.time||"").localeCompare(b.time||"")); }   /* #6 : même ordre (ord) que le planning, pour la nav et l'export */
 const _routeUILive={};   /* origine live par tripId|day — TRANSIENT en mémoire de session (jamais persistée ni synchronisée) */
 let _routeUIToken=0;   /* async-safe : garde anti-stale sur l'affichage route */
@@ -11559,11 +11774,24 @@ function openNotifs(){
   { const _b=document.getElementById("notifBackdrop"); if(_b) _b.onclick=closeNotifs; }
   try{ updateBellBadge(); }catch(e){} }
 try{ setInterval(_refreshHomeWx,300000); document.addEventListener("visibilitychange",()=>{ if(!document.hidden) _refreshHomeWx(); }); }catch(e){}   /* contrôle toutes les 5 min si l'accueil est actif + au retour de l'app (TTL 5 min sur ce chemin) */
+const _WX_COND={
+  fr:["Ensoleillé","Dégagé","Plutôt ensoleillé","Partiellement nuageux","Couvert","Brouillard","Bruine","Pluie","Neige","Averses","Averses de neige","Orage"],
+  en:["Sunny","Clear","Mostly sunny","Partly cloudy","Overcast","Fog","Drizzle","Rain","Snow","Showers","Snow showers","Thunderstorm"],
+  es:["Soleado","Despejado","Mayormente soleado","Parcialmente nublado","Cubierto","Niebla","Llovizna","Lluvia","Nieve","Chubascos","Chubascos de nieve","Tormenta"],
+  it:["Soleggiato","Sereno","Prevalentemente soleggiato","Parzialmente nuvoloso","Coperto","Nebbia","Pioviggine","Pioggia","Neve","Rovesci","Rovesci di neve","Temporale"],
+  de:["Sonnig","Klar","Überwiegend sonnig","Teilweise bewölkt","Bedeckt","Nebel","Nieselregen","Regen","Schnee","Schauer","Schneeschauer","Gewitter"]
+};
+function wxCondLabel(code,isDay){   /* Planning V4 : libelle de condition affiche a cote de la temperature (lecture pure du code WMO) */
+  const c=Number(code); if(!Number.isFinite(c)) return "";
+  const L=_WX_COND[lang()]||_WX_COND.fr;
+  const k=c===0?(isDay===false?1:0):c===1?2:c===2?3:c===3?4:(c===45||c===48)?5:(c>=51&&c<=57)?6:(c>=61&&c<=67)?7:(c>=71&&c<=77)?8:(c>=80&&c<=82)?9:(c===85||c===86)?10:(c>=95)?11:-1;
+  return k<0?"":L[k];
+}
 async function loadWeather(tr,date,day,maxAgeMs){ if(maxAgeMs==null) maxAgeMs=1800000; const dst=(day!=null?destForDay(tr,day):null)||tr.dest; if(!(dst&&dst.lat!=null)) return; const iso=localYMD(date); const cc=(dst.cc||""); const sig=(+dst.lat).toFixed(2)+","+(+dst.lng).toFixed(2);   /* P0 date locale + P1 signature coords (Paris≠Lyon≠Annecy) */
   const _isToday=(iso===localYMD(new Date())); const _mySeq=++_wxReqSeq;
   tr._wx=tr._wx||{}; const _pick=w=>(w.tempCur!=null?w.tempCur:(w.tempMax!=null?w.tempMax:w.temp));
   const set=w=>{ if(_mySeq!==_wxReqSeq) return;   /* P2: une requête plus récente a pris la main */
-    const el=document.getElementById("dcWeather"); if(el) el.innerHTML=`${wxIconSVG(w.code,wxIsDay(w,iso))} ${Math.round(_pick(w))}°C`;
+    const el=document.getElementById("dcWeather"); if(el){ const _wd=wxIsDay(w,iso), _wl=wxCondLabel(w.code,_wd); el.innerHTML=`${wxIconSVG(w.code,_wd)} <span>${Math.round(_pick(w))}°C</span>${_wl?`<span class="wx-cond">· ${escapeHtml(_wl)}</span>`:""}`; }
     const _hw=document.getElementById("hfCdWx"); if(_hw){ if(w.tempCur!=null) _hw.innerHTML=" \u00b7 "+wxIconSVG(w.code,wxIsDay(w,iso))+" "+Math.round(w.tempCur)+"\u00b0"; else _hw.innerHTML=""; }   /* P1: jamais un max présenté comme température actuelle */
     paintDayNudges(); };
   const _c=tr._wx[iso]; if(_c&&(_c.sig||"")===sig&&!(_isToday&&(_c.tempCur==null||_c.isDay==null||Date.now()-(_c.t||0)>maxAgeMs))){ set(_c); return; }   /* isDay==null -> ancien cache sans jour/nuit : on rafraîchit */   /* cache validé par coordonnées ; aujourd'hui rafraîchi si >30 min ou pas encore de temp actuelle */
@@ -12755,7 +12983,7 @@ function renderDayMapOnline(el,stops,tr,day,gen){
   const presentationPromise=getOrResolvePlanningPresentation(tr,day,_b3aOpts);
   const _b3aAiPlaces=(stops||[]).filter(x=>!x._trans).map(x=>({id:x.id,title:x.title||"",time:x.time||""}));   /* capture au debut du cycle, jamais relu apres les await (arch-r8/r9 Correctif 4) */
   const _b3aAiKey=_storeId+"|"+_storeEpoch+"|"+tr.id+"|"+day;
-  const _b3aAiGeneration=++_dayAIRequestSeq[_b3aAiKey];   /* bump AU DEBUT du cycle, meme si Fidele n'est jamais appelee (arch-r8 Correctif 3) */
+  const _b3aAiGeneration=(_dayAIRequestSeq[_b3aAiKey]=(_dayAIRequestSeq[_b3aAiKey]||0)+1);   /* bump AU DEBUT du cycle, meme si Fidele n'est jamais appelee (arch-r8 Correctif 3) -- V4 : ++ sur une cle absente donnait NaN, et NaN!==NaN jetait TOUTE reponse de Fidele (bandeau fige sur "Reflexion en cours") */
   let _b3aSecondaryCommitted=false;   /* consommateurs secondaires commis UNE SEULE FOIS, apres le premier dessin reussi, partage entre toutes les tentatives de provider (arch-r10 Correctif 2) */
 
   const providerOrder=["apple","google","maplibre"];
@@ -12931,7 +13159,7 @@ function renderDayMap(stops,tr,day){
     const _b3aOpts=planningPresentationOptions(tr,day);
     const _b3aAiPlaces=pts.filter(x=>!x._trans).map(x=>({id:x.id,title:x.title||"",time:x.time||""}));
     const _b3aAiKey=_storeId+"|"+_storeEpoch+"|"+tr.id+"|"+day;
-    const _b3aAiGeneration=++_dayAIRequestSeq[_b3aAiKey];
+    const _b3aAiGeneration=(_dayAIRequestSeq[_b3aAiKey]=(_dayAIRequestSeq[_b3aAiKey]||0)+1);   /* V4 : meme correctif NaN que ci-dessus */
     const dd=(tripDays(tr)[day]||{}).date;
     getOrResolvePlanningPresentation(tr,day,_b3aOpts).then(presentationRef=>{
       if(!valid()) return;
@@ -17050,7 +17278,7 @@ async function renderFideleAIFromPresentation(tr, day, presentation, aiPlaces, a
      et le texte reel de Fidele restent EXACTEMENT ce qu'ils etaient ; aucun texte invente, jamais duplique. */
   const card=(htmlInner, plain)=>{
     const label=escapeHtml(t("plan.toKnow"));
-    el.innerHTML=`<div class="fidele-ticker" id="fideleTicker"><span class="ft-label">💡 ${label}</span><div class="ft-viewport" id="ftViewport" role="note" tabindex="0"><div class="ft-track" id="ftTrack">${htmlInner}</div></div><button class="ft-close" aria-label="${escapeHtml(t("plan.close"))}">✕</button></div>`;
+    el.innerHTML=`<div class="fidele-ticker" id="fideleTicker"><span class="ft-label">💡 ${label}</span><div class="ft-viewport" id="ftViewport" role="note" tabindex="0"><div class="ft-track" id="ftTrack"><b>${escapeHtml(agentDisplayName())} :</b> ${htmlInner}</div></div><button class="ft-close" aria-label="${escapeHtml(t("plan.close"))}">✕</button></div>`;
     const b=el.querySelector(".ft-close"); if(b) b.onclick=()=>{ _fideleDismissed[key]=true; el.innerHTML=""; };
     _wireFideleTicker(el, plain);
   };
@@ -23289,7 +23517,7 @@ function init(){
   document.getElementById("restoClose").onclick=closeResto;
   document.getElementById("expFilterClose").onclick=closeExpFilter;
   { const ic=document.getElementById("inspClose"); if(ic) ic.onclick=closeInspiration; }
-  document.getElementById("planAdd").onclick=openPlanAdd;
+  /* correction reconstruction V3 : #planAdd n'est plus statique (deplace dans le menu ***, rebranche a chaque renderPlan(), voir etape 7) -- cet ancien branchement unique au chargement est retire, il plantait sur un element desormais absent au demarrage. */
   document.getElementById("planAddClose").onclick=closePlanAdd;
   document.getElementById("planEditClose").onclick=closePlanEdit;
   document.getElementById("expenseClose").onclick=closeExpense;
