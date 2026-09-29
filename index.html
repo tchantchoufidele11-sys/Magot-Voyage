@@ -4123,6 +4123,198 @@ html[lang="fr"] #view-plan.mv-plan-v4 .mvp-day-title{text-transform:capitalize}
 [data-theme="dark"] #view-plan.mv-plan-v4{--v4-ink:#E8ECF4;--v4-muted:#A3ADC0;--v4-soft:#8C97AB;--v4-line:rgba(255,255,255,.10);--v4-card:#151C2B;--v4-ctl:#1C2436;--v4-ctl-ink:#E8ECF4}
 [data-theme="dark"] #view-plan.mv-plan-v4 .mvp-rhythm-btn{background:#232C40;color:#E8ECF4}
 [data-theme="dark"] #view-plan.mv-plan-v4 .mvp-stats,[data-theme="dark"] #view-plan.mv-plan-v4 .mvp-stat{border-color:rgba(255,255,255,.08)}
+/* ============================================================
+   V4.1 -- recalage sur la maquette validee (mesures relevees, relatives au haut du hero, 390 px)
+   hero 0-196 | actions 205 | A savoir 254 | carte journee 304 | carte 368-589 | stats 599 | 1re photo 670
+   ============================================================ */
+body:has(#view-plan.active) #agentBubble{display:none}
+#view-plan.mv-plan-v4 #planBody{padding:9px 14px 18px}
+#view-plan.mv-plan-v4 .mvp-acell{height:44px;min-height:44px;gap:5px;padding:0 clamp(4px,1.5vw,7px);font-size:clamp(12px,3.35vw,13px)}
+#view-plan.mv-plan-v4 .mvp-act-cells{gap:clamp(6px,1.9vw,8px)}
+#view-plan.mv-plan-v4 .mvp-act-cells>.plan-more-wrap{flex:0 0 clamp(38px,10.5vw,44px)}
+#view-plan.mv-plan-v4 .mvp-acell .al{overflow:visible;text-overflow:clip}
+#view-plan.mv-plan-v4 #fideleAlert{margin:7px 0 0}
+#view-plan.mv-plan-v4 .fidele-ticker{height:44px;min-height:44px;padding:0 6px 0 12px}
+#view-plan.mv-plan-v4 .fidele-ticker .ft-track{line-height:44px}
+#view-plan.mv-plan-v4 .fidele-ticker .ft-more{flex:0 0 auto;width:28px;height:28px;margin-left:8px;padding:0;border:0;border-radius:9px;background:rgba(255,255,255,.13);color:#fff;display:flex;align-items:center;justify-content:center;cursor:pointer}
+#view-plan.mv-plan-v4 .fidele-ticker .ft-more svg{width:14px;height:14px;fill:none;stroke:currentColor;stroke-width:2.6;stroke-linecap:round;stroke-linejoin:round;transition:transform .2s}
+#view-plan.mv-plan-v4 .fidele-ticker .ft-more.open svg{transform:rotate(90deg)}
+#view-plan.mv-plan-v4 .mvp-day-card{margin:6px 0 0;padding:11px 12px 8px}
+#view-plan.mv-plan-v4 .mvp-day-head{flex-wrap:wrap;row-gap:6px}
+#view-plan.mv-plan-v4 .mvp-day-left{flex:0 1 auto;min-width:min-content}
+#view-plan.mv-plan-v4 .mvp-day-title{line-height:1.1;overflow:visible;text-overflow:clip}
+#view-plan.mv-plan-v4 .plan-rhythm-wrap{margin-left:auto}
+#view-plan.mv-plan-v4 .mvp-rhythm-btn{font-size:clamp(11.5px,3.1vw,12px);padding:0 clamp(9px,2.6vw,11px) 0 clamp(10px,3vw,12px)}
+#view-plan.mv-plan-v4 .mvp-wx{margin-top:5px}
+#view-plan.mv-plan-v4 .plan-map-premium{margin-top:8px}
+#view-plan.mv-plan-v4 .plan-map-premium:not(.full){height:clamp(220px,57vw,232px)}
+#view-plan.mv-plan-v4 .plan-map-premium .day-route-float[data-state="planned"]{display:none}
+#view-plan.mv-plan-v4 .mvp-stats{margin-top:10px;padding:2px 0 8px}
+#view-plan.mv-plan-v4 .mvp-stat{gap:2px}
+#view-plan.mv-plan-v4 .mvp-stat-ic{height:18px}
+#view-plan.mv-plan-v4 .mvp-stat-ic svg{width:18px;height:18px}
+#view-plan.mv-plan-v4 .mvp-stat b{font-size:16.5px;line-height:1.1}
+#view-plan.mv-plan-v4 .mvp-stat-lbl{line-height:1.15}
+#view-plan.mv-plan-v4 .timeline{margin-top:5px}
+#view-plan.mv-plan-v4 .pl-item{grid-template-columns:38px 14px 64px minmax(0,1fr) 34px;min-height:58px;padding:1px 0;row-gap:0}
+#view-plan.mv-plan-v4 .pl-item::before{left:43.5px}
+#view-plan.mv-plan-v4 .pl-item::after{left:38px}
+#view-plan.mv-plan-v4 .pl-fill{left:116px;max-width:calc(100% - 150px)}
+#view-plan.mv-plan-v4 .pl-main{padding:0 4px 0 9px}
+#view-plan.mv-plan-v4 .pl-title{font-size:14.5px}
+#view-plan.mv-plan-v4 .pl-sub{margin-top:1px;font-size:11.5px}
+#view-plan.mv-plan-v4 .pl-dur{margin-top:3px;font-size:11.5px;white-space:normal;overflow:visible;display:flex;flex-wrap:wrap;align-items:center;column-gap:0;row-gap:1px}
+#view-plan.mv-plan-v4 .pl-dur>span{white-space:nowrap}
+#view-plan.mv-plan-v4 .pl-dur .pl-d-sep{margin:0 5px;color:var(--v4-soft)}
+#view-plan.mv-plan-v4 .pl-dur .pl-d-mode{margin-right:3px;font-size:11px}
+#view-plan.mv-plan-v4 .pl-dur .pl-d-leg:empty{display:none}
+#view-plan.mv-plan-v4 .pl-handle{width:34px;height:22px}
+#view-plan.mv-plan-v4 .pl-check{width:34px;height:32px}
+/* vue normale : trajet integre a la ligne d'activite ; mode Details : lignes techniques completes, jamais tronquees */
+#view-plan.mv-plan-v4 .timeline:not(.is-detailed) .pl-leg{display:none}
+#view-plan.mv-plan-v4 .timeline.is-detailed .pl-d-leg{display:none}
+#view-plan.mv-plan-v4 .timeline.is-detailed .pl-leg{padding-left:125px;min-height:30px}
+#view-plan.mv-plan-v4 .timeline.is-detailed .pl-leg::before{left:43.5px}
+#view-plan.mv-plan-v4 .timeline.is-detailed .pl-leg .pl-legbtn{flex-wrap:wrap;height:auto;row-gap:1px;padding:3px 0}
+#view-plan.mv-plan-v4 .timeline.is-detailed .pl-leg .pl-legbtn .pl-leg-fuel{white-space:normal;overflow:visible;text-overflow:clip;flex:1 1 100%}
+/* V4.1 recalage fin (mesures) : bandeau 42, marges, libelles de stats sur une ligne, interlignes fixes (pas 58 px) */
+#view-plan.mv-plan-v4 #fideleAlert{margin:6px 0 0}
+#view-plan.mv-plan-v4 .fidele-ticker{height:42px;min-height:42px}
+#view-plan.mv-plan-v4 .fidele-ticker .ft-track{line-height:42px}
+#view-plan.mv-plan-v4 .mvp-stat{padding:0 1px}
+#view-plan.mv-plan-v4 .mvp-stat-lbl{font-size:10px;letter-spacing:-.1px;white-space:nowrap}
+#view-plan.mv-plan-v4 .pl-title{line-height:18px}
+#view-plan.mv-plan-v4 .pl-sub{line-height:15px}
+#view-plan.mv-plan-v4 .pl-dur{line-height:15px}
+#view-plan.mv-plan-v4 .pl-dur>span{line-height:15px}
+#view-plan.mv-plan-v4 .pl-dur .pl-d-mode{font-size:10px;line-height:1}
+/* ============ V4.2 -- CSS de la directive, applique tel quel ============ */
+#view-plan.mv-plan-v4 .mvp-days{
+  gap:7px;
+  justify-content:center;
+  padding:2px 0 4px;
+  scroll-snap-type:x proximity;
+}
+#view-plan.mv-plan-v4 .mvp-day-chip{
+  flex:0 0 min(29%,92px);
+  height:48px;
+  border-radius:12px;
+  scroll-snap-align:center;
+  box-shadow:0 3px 9px rgba(6,16,38,.14);
+}
+#view-plan.mv-plan-v4 .mvp-days.many{
+  justify-content:flex-start;
+}
+#view-plan.mv-plan-v4 .mvp-days.many .mvp-day-chip{
+  flex:0 0 64px;
+}
+#view-plan.mv-plan-v4 .mvp-dc-w{font-size:10px}
+#view-plan.mv-plan-v4 .mvp-dc-n{font-size:18px}
+#view-plan.mv-plan-v4 .mvp-dc-m{font-size:9.5px}
+#view-plan.mv-plan-v4 .mvp-act-cells{gap:9px}
+#view-plan.mv-plan-v4 .mvp-act-cells>
+.plan-more-wrap.plan-actions-wrap{
+  position:relative;
+  display:flex;
+  flex:1 1 auto;
+  min-width:0;
+}
+#view-plan.mv-plan-v4 .mvp-act-cells>.mvp-arrive-main{
+  flex:0 0 min(31%,112px);
+  width:auto;
+}
+#view-plan.mv-plan-v4 .plan-actions-trigger{
+  justify-content:flex-start;
+  padding:0 14px;
+  gap:9px;
+}
+#view-plan.mv-plan-v4 .mvp-actions-dots{
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+  justify-content:center;
+  gap:2px;
+  width:10px;
+  flex:0 0 10px;
+}
+#view-plan.mv-plan-v4 .mvp-actions-dots i{
+  display:block;
+  width:3px;
+  height:3px;
+  border-radius:50%;
+  background:currentColor;
+}
+#view-plan.mv-plan-v4 .plan-actions-trigger .al{
+  flex:1;
+  text-align:left;
+  overflow:hidden;
+  text-overflow:ellipsis;
+}
+#view-plan.mv-plan-v4 .plan-actions-menu{
+  left:0;
+  right:auto;
+  width:min(270px,calc(100vw - 42px));
+  min-width:0;
+  max-height:min(62vh,430px);
+  overflow:auto;
+}
+#view-plan.mv-plan-v4 .plan-actions-itin-wrap{
+  position:relative;
+  display:block;
+}
+#view-plan.mv-plan-v4 .plan-actions-submenu{
+  position:static;
+  min-width:0;
+  margin:2px 6px 5px;
+  padding:4px 0 4px 12px;
+  border:0;
+  border-left:2px solid #E8ECF3;
+  border-radius:0;
+  background:transparent;
+  box-shadow:none;
+}
+#view-plan.mv-plan-v4
+.plan-map-premium:not([data-mapmode="trip"]) .map-tripbtn{
+  display:none;
+}
+#view-plan.mv-plan-v4
+.plan-map-premium[data-mapmode="trip"] .map-tripbtn{
+  display:flex;
+}
+#view-plan.mv-plan-v4
+.plan-map-premium #dayRoutePanel.day-route-float[data-state="planned"],
+#view-plan.mv-plan-v4
+.plan-map-premium #dayRoutePanel.day-route-float[data-state="live"]{
+  display:none;
+}
+#view-plan.mv-plan-v4
+.plan-map-premium #dayRoutePanel.day-route-float[data-state="need"]{
+  bottom:8px;
+  left:8px;
+  max-width:calc(100% - 70px);
+  padding:5px 5px 5px 10px;
+}
+#view-plan.mv-plan-v4 .plan-map-premium:not(.full){
+  height:clamp(202px,52.5vw,210px);
+}
+#view-plan.mv-plan-v4 .plan-map-premium:not(.full) .map-fab{
+  top:8px;right:8px;
+}
+#view-plan.mv-plan-v4 .plan-map-premium:not(.full) .map-satbtn{
+  top:54px;right:8px;
+}
+#view-plan.mv-plan-v4 .plan-map-premium:not(.full) .map-framebtn{
+  top:100px;right:8px;
+}
+#view-plan.mv-plan-v4 .plan-map-premium:not(.full) .map-posbtn{
+  top:146px;right:8px;
+}
+@media(max-width:359px){
+  #view-plan.mv-plan-v4 .pl-item{grid-template-columns:34px 14px 56px minmax(0,1fr) 32px}
+  #view-plan.mv-plan-v4 .pl-item::before{left:39.5px}
+  #view-plan.mv-plan-v4 .pl-item::after{left:34px}
+}
+
 </style>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
@@ -4514,7 +4706,10 @@ const DEFAULT_S={ version:"0.2.0", settings:{ lang:"fr", theme:"system", units:"
 /* Clé Maps JS partagée (restreinte au domaine GitHub Pages). Repli : clé perso de l'utilisateur si fournie. */
 const SHARED_MAP_KEY="AIzaSyCt5iVx8nPr1V067A3daE0X1YA568XJNbU";
 function mapKey(){ return (S.settings.mapKey||"").trim() || SHARED_MAP_KEY; }
-const BUILD="0.6.143 · vPlanningV3 reconstruction-visuelle-complete";
+const BUILD="0.6.145 · vPlanningV4.2 actions-journee + puces-compactes";
+/* V4.1 lot A (P0 stockage) : CC_CUR deplacee ICI, avant le premier loadState() -- loadState>mergeState>normalizeTrip>normalizeLegs la lit ;
+   declaree plus bas, elle etait en zone morte temporelle (ReferenceError avalee par loadState -> S vide -> saveState() pouvait ecraser les voyages). Contenu inchange. */
+const CC_CUR={FR:"EUR",BE:"EUR",DE:"EUR",ES:"EUR",IT:"EUR",PT:"EUR",NL:"EUR",AT:"EUR",IE:"EUR",GR:"EUR",LU:"EUR",FI:"EUR",SK:"EUR",SI:"EUR",EE:"EUR",LV:"EUR",LT:"EUR",GB:"GBP",US:"USD",CA:"CAD",CH:"CHF",JP:"JPY",AU:"AUD",NZ:"NZD",MA:"MAD",TN:"TND",DZ:"DZD",EG:"EGP",SE:"SEK",NO:"NOK",DK:"DKK",PL:"PLN",CZ:"CZK",HU:"HUF",RO:"RON",MX:"MXN",BR:"BRL",AR:"ARS",CN:"CNY",TH:"THB",IN:"INR",ID:"IDR",VN:"VND",TR:"TRY",AE:"AED",ZA:"ZAR",SN:"XOF",CI:"XOF",CM:"XAF",GA:"XAF",CG:"XAF",TD:"XAF",CF:"XAF",GQ:"XAF",BJ:"XOF",BF:"XOF",ML:"XOF",NE:"XOF",TG:"XOF",GW:"XOF",NG:"NGN",GH:"GHS",KE:"KES",TZ:"TZS",UG:"UGX",RW:"RWF",ET:"ETB",MU:"MUR",MG:"MGA",AO:"AOA",MZ:"MZN",CD:"CDF",LY:"LYD",SA:"SAR",QA:"QAR",KW:"KWD",BH:"BHD",OM:"OMR",JO:"JOD",LB:"LBP",IL:"ILS",PK:"PKR",BD:"BDT",LK:"LKR",NP:"NPR",KR:"KRW",SG:"SGD",MY:"MYR",PH:"PHP",KH:"KHR",MM:"MMK",KZ:"KZT",GE:"GEL",AM:"AMD",AZ:"AZN",RU:"RUB",UA:"UAH",RS:"RSD",BG:"BGN",IS:"ISK",HR:"EUR",CY:"EUR",MT:"EUR",CL:"CLP",CO:"COP",PE:"PEN",UY:"UYU",BO:"BOB",EC:"USD",PA:"USD",CR:"CRC",GT:"GTQ",DO:"DOP",FJ:"FJD"};
 let _idb=null; const _migrationReady=migrateLegacy(); let S=loadState();
 function normalizeTrip(tr){ if(!tr||typeof tr!=="object") return tr;
   if(Object.prototype.hasOwnProperty.call(tr,"_routes")) delete tr._routes;   /* v1033 : purge du cache legacy tr._routes deja persiste -- passage memoire seul, jamais de saveState() ici, jamais de reseau, jamais de conversion/copie du contenu */
@@ -4859,6 +5054,10 @@ let currentTab="home";
 function switchTab(name){ currentTab=name;
   document.querySelectorAll(".view").forEach(v=>v.classList.toggle("active",v.id==="view-"+name));
   document.querySelectorAll("#tabs button").forEach(b=>b.classList.toggle("active",b.dataset.tab===name));
+  {
+    const _ab=document.getElementById("agentBubble");
+    if(_ab) _ab.style.display=(name==="plan")?"none":"";
+  }
   document.querySelector("main").scrollTop=0;
   if(name==="home") renderHome();
   if(name==="explore") renderExplore();
@@ -5302,7 +5501,6 @@ function escapeHtml(s){ return String(s==null?"":s).replace(/[&<>"']/g,c=>({"&":
 function hashStr(s){ let h=0; s=String(s); for(let i=0;i<s.length;i++){ h=(h*31+s.charCodeAt(i))>>>0; } return h; }
 const LOCALE={fr:"fr-FR",en:"en-GB",es:"es-ES",it:"it-IT",de:"de-DE"};
 const COVERS=["linear-gradient(135deg,#16335F,#2E6CA6)","linear-gradient(135deg,#0E6F5C,#37B58A)","linear-gradient(135deg,#6D3E9D,#B173CB)","linear-gradient(135deg,#9A5A1E,#E0A33E)","linear-gradient(135deg,#1F6F78,#46B6A4)","linear-gradient(135deg,#3A4C8C,#6E83D6)"];
-const CC_CUR={FR:"EUR",BE:"EUR",DE:"EUR",ES:"EUR",IT:"EUR",PT:"EUR",NL:"EUR",AT:"EUR",IE:"EUR",GR:"EUR",LU:"EUR",FI:"EUR",SK:"EUR",SI:"EUR",EE:"EUR",LV:"EUR",LT:"EUR",GB:"GBP",US:"USD",CA:"CAD",CH:"CHF",JP:"JPY",AU:"AUD",NZ:"NZD",MA:"MAD",TN:"TND",DZ:"DZD",EG:"EGP",SE:"SEK",NO:"NOK",DK:"DKK",PL:"PLN",CZ:"CZK",HU:"HUF",RO:"RON",MX:"MXN",BR:"BRL",AR:"ARS",CN:"CNY",TH:"THB",IN:"INR",ID:"IDR",VN:"VND",TR:"TRY",AE:"AED",ZA:"ZAR",SN:"XOF",CI:"XOF",CM:"XAF",GA:"XAF",CG:"XAF",TD:"XAF",CF:"XAF",GQ:"XAF",BJ:"XOF",BF:"XOF",ML:"XOF",NE:"XOF",TG:"XOF",GW:"XOF",NG:"NGN",GH:"GHS",KE:"KES",TZ:"TZS",UG:"UGX",RW:"RWF",ET:"ETB",MU:"MUR",MG:"MGA",AO:"AOA",MZ:"MZN",CD:"CDF",LY:"LYD",SA:"SAR",QA:"QAR",KW:"KWD",BH:"BHD",OM:"OMR",JO:"JOD",LB:"LBP",IL:"ILS",PK:"PKR",BD:"BDT",LK:"LKR",NP:"NPR",KR:"KRW",SG:"SGD",MY:"MYR",PH:"PHP",KH:"KHR",MM:"MMK",KZ:"KZT",GE:"GEL",AM:"AMD",AZ:"AZN",RU:"RUB",UA:"UAH",RS:"RSD",BG:"BGN",IS:"ISK",HR:"EUR",CY:"EUR",MT:"EUR",CL:"CLP",CO:"COP",PE:"PEN",UY:"UYU",BO:"BOB",EC:"USD",PA:"USD",CR:"CRC",GT:"GTQ",DO:"DOP",FJ:"FJD"};
 const CUR_SYM={EUR:"€",USD:"$",GBP:"£",CHF:"CHF",CAD:"CA$",JPY:"¥",AUD:"A$",NZD:"NZ$",MAD:"DH",TND:"DT",DZD:"DA",EGP:"E£",SEK:"kr",NOK:"kr",DKK:"kr",PLN:"zł",CZK:"Kč",HUF:"Ft",RON:"lei",MXN:"MX$",BRL:"R$",ARS:"$",CNY:"¥",THB:"฿",INR:"₹",IDR:"Rp",VND:"₫",TRY:"₺",AED:"AED",ZAR:"R",XOF:"CFA",XAF:"FCFA",NGN:"₦",GHS:"₵",KES:"KSh",KRW:"₩",SGD:"S$",MYR:"RM",PHP:"₱",ILS:"₪",RUB:"₽",SAR:"SAR",QAR:"QR",IDR:"Rp"};
 const CURRENCIES=["EUR","USD","GBP","CHF","CAD","JPY","AUD","MAD","TND","DZD","SEK","NOK","DKK","PLN","CZK","MXN","BRL","CNY","THB","INR","TRY","AED"];
 function curSym(c){ return CUR_SYM[c]||c; }
@@ -10294,7 +10492,7 @@ function planRow(it,sc,dd,ro,tr){ const startStr=sc?sc.startStr:(it.time||'');
   return `<div class="pl-item ${cls}" data-id="${it.id}" style="--catc:${col}">${fill}
     <div class="pl-time">${escapeHtml(startStr)}</div>
     ${mediaHtml}
-    <div class="pl-main"><div class="pl-title">${escapeHtml(it.title||'')}</div>${it.sub?`<div class="pl-sub">${escapeHtml(it.kind==="place"?gStr(it.sub,it.subLang):it.sub)}</div>`:''}${it._trans?`<div class="pl-dur">${it.transMin!=null?`≈ ${fmtMin(it.transMin)}${it.transKm!=null?` · ${fmtDist(it.transKm*1000)}`:''}`:(it.transPending?escapeHtml(t("plan.transPending")):escapeHtml(t("plan.transCalc")))}${(it.transMin!=null&&sc)?` · ${t("plan.arriveAt")} ${sc.endStr}`:''}</div>`:`<div class="pl-dur">≈ ${fmtMin(stepDur(it))}${sc?` · ${t("plan.endAt")} ${sc.endStr}`:''}</div>`}${hrsHtml}${it.arrived?`<div class="pl-confirmed">📍 ${t("plan.confirmed")}</div>`:""}${shift}${warn}${(it.legAssignmentRequired&&!ro)?`<button class="pl-legpick" data-legpick="${it.id}" style="margin-top:4px;font:600 12px system-ui;color:#b45309;background:#fef3c7;border:none;border-radius:8px;padding:4px 8px;cursor:pointer">⚑ ${escapeHtml(t("legs.assign"))}</button>`:""}</div>
+    <div class="pl-main"><div class="pl-title">${escapeHtml(it.title||'')}</div>${it.sub?`<div class="pl-sub">${escapeHtml(it.kind==="place"?gStr(it.sub,it.subLang):it.sub)}</div>`:''}${it._trans?`<div class="pl-dur">${it.transMin!=null?`≈ ${fmtMin(it.transMin)}${it.transKm!=null?` · ${fmtDist(it.transKm*1000)}`:''}`:(it.transPending?escapeHtml(t("plan.transPending")):escapeHtml(t("plan.transCalc")))}${(it.transMin!=null&&sc)?` · ${t("plan.arriveAt")} ${sc.endStr}`:''}</div>`:`<div class="pl-dur"><span class="pl-d-dur">${fmtMin(stepDur(it))}</span><span class="pl-d-leg"></span>${sc?`<span class="pl-d-end"><span class="pl-d-sep">·</span>${t("plan.endAt")} ${sc.endStr}</span>`:''}</div>`}${hrsHtml}${it.arrived?`<div class="pl-confirmed">📍 ${t("plan.confirmed")}</div>`:""}${shift}${warn}${(it.legAssignmentRequired&&!ro)?`<button class="pl-legpick" data-legpick="${it.id}" style="margin-top:4px;font:600 12px system-ui;color:#b45309;background:#fef3c7;border:none;border-radius:8px;padding:4px 8px;cursor:pointer">⚑ ${escapeHtml(t("legs.assign"))}</button>`:""}</div>
     ${ro?'':`<div class="pl-handle" title="↕" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M5 8h14M5 12h14M5 16h14"/></svg></div>`}
     ${ro?`<span class="pl-check ${shownDone?'done':''}" aria-hidden="true"><span class="pl-dot">${shownDone?'✓':(it.arrived?'📍':'')}</span></span>`:`<button class="pl-check ${shownDone?'done':''}${isPast?' locked':''}" data-check="${it.id}" aria-label="${escapeHtml(shownDone?t("plan.markUndone"):t("plan.markDone"))}"><span class="pl-dot">${shownDone?'✓':(it.arrived?'📍':'')}</span></button>`}</div>`; }
 const _dayMutateGen={};   /* v958-B1f-fix6 : generation partagee moveStep/reorderDay par tripId|day -- un appel devenu perime pendant son await ne finalise jamais apres un plus recent (r13/v1014 P2) */
@@ -10432,6 +10630,16 @@ const _MVP_ICO={
   stCar:'<svg viewBox="0 0 24 24" aria-hidden="true"><path fill="#E0473C" d="M5 11l1.5-4.2A2 2 0 0 1 8.4 5.5h7.2a2 2 0 0 1 1.9 1.3L19 11l1.4.6a2 2 0 0 1 1.2 1.9V17a1 1 0 0 1-1 1h-1.2a1 1 0 0 1-1-1v-.7H5.6v.7a1 1 0 0 1-1 1H3.4a1 1 0 0 1-1-1v-3.5a2 2 0 0 1 1.2-1.9z"/><circle cx="7.2" cy="14.4" r="1.3" fill="#fff"/><circle cx="16.8" cy="14.4" r="1.3" fill="#fff"/></svg>',
   stClock:'<svg viewBox="0 0 24 24" fill="none" stroke="#E9AE3D" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="8.2"/><path d="M12 7.8v4.6l3 1.8"/></svg>'
 };
+function _mvpLocDec(txt){ try{ const sep=(1.5).toLocaleString(LOCALE[lang()]||'fr-FR').charAt(1); return String(txt).replace(/(\d)\.(\d)/g,"$1"+sep+"$2"); }catch(_e){ return txt; } }   /* V4.1 : separateur decimal localise pour l'affichage compact (fmtDist inchange) */
+function _mvpDayActionsLabel(){
+  return ({
+    fr:"Actions de journée",
+    en:"Day actions",
+    es:"Acciones del día",
+    it:"Azioni del giorno",
+    de:"Tagesaktionen"
+  }[lang()]||"Actions de journée");
+}
 function _mvpTripBtnInner(trip){ return trip?`${_MVP_ICO.back}<span>${escapeHtml(t("plan.dayView"))}</span>`:`${_MVP_ICO.map}<span>${escapeHtml(t("plan.tripView"))}</span>`; }
 function renderPlan(){
   invalidateDayMap();
@@ -10487,8 +10695,9 @@ function renderPlan(){
   const rhythmCur=RHYTHMS.find(([k])=>k===intensity)||RHYTHMS[1];
   const hasMeal=items.some(x=>x.kind==="meal");
   const _hasRouteCandidate=items.some(it=>it && (it.lat!=null || it._trans));   /* v958-B1d-5 : route canonique >=2 points, pas "au moins deux visites locales" */
+  const _visitN=items.filter(x=>x&&x.lat!=null&&x.kind!=="meal"&&!x._trans).length;   /* V4.1 : compteur Visites = lieux visites (repas/transferts exclus) -- stops (route) inchange */
   const _stTravelIc=(travelMode(tr)==="DRIVE")?_MVP_ICO.stCar:`<span style="font-size:17px;line-height:1">${modeEmoji(travelMode(tr))}</span>`;
-  const statsHtml=items.length?`<div class="mvp-stats"><div class="mvp-stat"><span class="mvp-stat-ic">${_MVP_ICO.stPin}</span><b>${stops.length} ${t(stops.length<=1?"plan.step":"plan.steps")}</b><span class="mvp-stat-lbl">${t("plan.visitsTime")}</span></div><div class="mvp-stat"><span class="mvp-stat-ic">${_MVP_ICO.stRoad}</span><b class="rc-dist">…</b><span class="mvp-stat-lbl">${t("plan.travel")}</span></div>${_hasRouteCandidate?`<div class="mvp-stat"><span class="mvp-stat-ic">${_stTravelIc}</span><b><span class="rc-dur">…</span></b>${_planDetailed?`<span id="dstTraffic"></span>`:""}<span class="mvp-stat-lbl">${t("plan.travelTime")}</span></div>`:""}<div class="mvp-stat"><span class="mvp-stat-ic">${_MVP_ICO.stClock}</span><b>${endT||"—"}</b><span class="mvp-stat-lbl">${t("plan.end")}</span></div></div>`:"";   /* V4 : stats format maquette ; #dstTraffic garde son id et reste reserve au mode Details (aucun appel trafic supplementaire) */
+  const statsHtml=items.length?`<div class="mvp-stats"><div class="mvp-stat"><span class="mvp-stat-ic">${_MVP_ICO.stPin}</span><b>${_visitN} ${t(_visitN<=1?"plan.step":"plan.steps")}</b><span class="mvp-stat-lbl">${t("plan.visitsTime")}</span></div><div class="mvp-stat"><span class="mvp-stat-ic">${_MVP_ICO.stRoad}</span><b class="rc-dist">…</b><span class="mvp-stat-lbl">${t("plan.travel")}</span></div>${_hasRouteCandidate?`<div class="mvp-stat"><span class="mvp-stat-ic">${_stTravelIc}</span><b><span class="rc-dur">…</span></b>${_planDetailed?`<span id="dstTraffic"></span>`:""}<span class="mvp-stat-lbl">${t("plan.travelTime")}</span></div>`:""}<div class="mvp-stat"><span class="mvp-stat-ic">${_MVP_ICO.stClock}</span><b>${endT||"—"}</b><span class="mvp-stat-lbl">${t("plan.end")}</span></div></div>`:"";   /* V4 : stats format maquette ; #dstTraffic garde son id et reste reserve au mode Details (aucun appel trafic supplementaire) */
   const hasNavRoute=(()=>{ try{ return routeCanNavigate(buildDayRoutePoints(tr,d.i,{})); }catch(_e){ return false; } })();   /* P2 : « Y aller » dispo dès qu'une route canonique existe (même transfert sans visite) */
   const _modeMenuLabel=
     _planDetailed
@@ -10497,43 +10706,67 @@ function renderPlan(){
   const actsHtml=items.length
     ? `<div class="mvp-actbar">
          <div class="mvp-act-cells">
-           ${
-             hasNavRoute
-               ? `<div class="plan-itin-wrap">
-                    <button class="mvp-acell"
-                            id="navDayItin"
-                            type="button"
-                            aria-haspopup="true"
-                            aria-expanded="false"
-                            title="${escapeHtml(t("map.launch"))}">
-                      <svg class="aci" viewBox="0 0 24 24">
-                        <path d="M3 11l18-8-8 18-2-8z"/>
-                      </svg>
-                      <span class="al">${t("place.route")}</span>${_MVP_ICO.chev}
-                    </button>
-                    <div class="plan-itin-menu" id="navDayItinMenu" hidden>
-                      <button type="button" class="plan-more-item" id="navDay">🍎 Apple Plans</button>
-                      <button type="button" class="plan-more-item" id="navDayG">📍 Google Maps</button>
-                    </div>
-                  </div>`
-               : ""
-           }
-           ${
-             stops.length
-               ? `<button class="mvp-acell"
-                          id="calDay"
-                          title="${escapeHtml(t("map.cal"))}">
-                    <svg class="aci" viewBox="0 0 24 24">
-                      <rect x="3.5" y="5" width="17" height="15" rx="2.5"/>
-                      <path d="M3.5 9.5h17M8 3v4M16 3v4"/>
-                    </svg>
-                    <span class="al">${t("plan.aCal")}</span>
-                  </button>`
-               : ""
-           }
+           <div class="plan-more-wrap plan-actions-wrap">
+             <button class="mvp-acell plan-actions-trigger"
+                     id="planMore"
+                     type="button"
+                     aria-haspopup="true"
+                     aria-expanded="false">
+               <span class="mvp-actions-dots" aria-hidden="true"><i></i><i></i><i></i></span>
+               <span class="al">${escapeHtml(_mvpDayActionsLabel())}</span>${_MVP_ICO.chev}
+             </button>
+             <div class="plan-more-menu plan-actions-menu"
+                  id="planMoreMenu"
+                  role="menu"
+                  hidden>
+               ${
+                 hasNavRoute
+                   ? `<div class="plan-itin-wrap plan-actions-itin-wrap">
+                        <button type="button" class="plan-more-item" id="navDayItin" aria-haspopup="true" aria-expanded="false" title="${escapeHtml(t("map.launch"))}">🧭 ${t("place.route")} ›</button>
+                        <div class="plan-itin-menu plan-actions-submenu" id="navDayItinMenu" hidden>
+                          <button type="button" class="plan-more-item" id="navDay">🍎 Apple Plans</button>
+                          <button type="button" class="plan-more-item" id="navDayG">📍 Google Maps</button>
+                        </div>
+                      </div>`
+                   : ""
+               }
+               ${
+                 stops.length
+                   ? `<button type="button" class="plan-more-item" id="calDay" title="${escapeHtml(t("map.cal"))}">📅 ${t("plan.aCal")}</button>`
+                   : ""
+               }
+               ${
+                 (stops.length>0||_planMapMode==="trip")
+                   ? `<button type="button" class="plan-more-item" id="planTripMenu">🗺 ${escapeHtml(_planMapMode==="trip"?t("plan.dayView"):t("plan.tripView"))}</button>`
+                   : ""
+               }
+               ${
+                 !ro&&stops.length>=2
+                   ? `<button type="button" class="plan-more-item" id="planOptimize2">✨ ${t("plan.optimizeShort")}</button>`
+                   : ""
+               }
+               ${
+                 !ro
+                   ? `<button type="button" class="plan-more-item" id="planAdd">＋ ${t("plan.addStep")}</button>`
+                   : ""
+               }
+               ${
+                 (!ro&&stops.length)
+                   ? `<button type="button" class="plan-more-item" id="planUseMyPos">📍 ${t("route.useMyPosition")}</button>`
+                   : ""
+               }
+               ${
+                 !ro&&!hasMeal
+                   ? `<button type="button" class="plan-more-item" id="lunchDay">☕ ${t("plan.aPause")}</button>`
+                   : ""
+               }
+               <button type="button" class="plan-more-item js-planmode">${_modeMenuLabel}</button>
+               <button type="button" class="plan-more-item" id="toggleList">${planState.collapsed?t("plan.showList"):t("plan.hideList")}</button>
+             </div>
+           </div>
            ${
              !ro&&stops.length
-               ? `<button class="mvp-acell arrive"
+               ? `<button class="mvp-acell arrive mvp-arrive-main"
                           id="arriveDay"
                           title="${escapeHtml(t("gps.arrive"))}">
                     <svg class="aci" viewBox="0 0 24 24">
@@ -10544,51 +10777,6 @@ function renderPlan(){
                   </button>`
                : ""
            }
-           <div class="plan-more-wrap">
-             <button class="mvp-acell more"
-                     id="planMore"
-                     type="button"
-                     aria-label="Plus d'actions"
-                     aria-expanded="false">
-               <span class="more-dots"><i></i></span>
-             </button>
-             <div class="plan-more-menu"
-                  id="planMoreMenu"
-                  hidden>
-               ${
-                 !ro&&stops.length>=2
-                   ? `<button type="button" class="plan-more-item" id="planOptimize2">✨ ${t("plan.optimizeShort")}</button>`
-                   : ""
-               }
-               ${
-                 !ro
-                   ? `<button type="button" class="plan-more-item" id="planAdd">${t("plan.add")}</button>`
-                   : ""
-               }
-               ${
-                 !ro&&!hasMeal
-                   ? `<button type="button"
-                              class="plan-more-item"
-                              id="lunchDay">
-                        ☕ ${t("plan.aPause")}
-                      </button>`
-                   : ""
-               }
-               <button type="button"
-                       class="plan-more-item js-planmode">
-                 ${_modeMenuLabel}
-               </button>
-               <button type="button"
-                       class="plan-more-item"
-                       id="toggleList">
-                 ${
-                   planState.collapsed
-                     ? t("plan.showList")
-                     : t("plan.hideList")
-                 }
-               </button>
-             </div>
-           </div>
          </div>
        </div>`
     : "";
@@ -10612,7 +10800,13 @@ function renderPlan(){
   const _hasTrans=(tr.plan||[]).some(x=>x.day===d.i&&x._trans);
   const transHtml=(_trs&&!ro)?`<div style="display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;margin:12px 0 2px;padding:11px 13px;border:1px solid rgba(15,31,61,.15);border-radius:14px;background:rgba(15,31,61,.04)"><div style="font-size:14px;line-height:1.35;flex:1;min-width:180px">🧳 ${escapeHtml(t("plan.transBanner",{a:((_trs.from&&_trs.from.name)||"—"),b:((_trs.to&&_trs.to.name)||"—")}))}</div>${_hasTrans?`<div style="font-size:14px;color:#0E9F6E;font-weight:700">✓ ${escapeHtml(t("plan.transExists"))}</div>`:`<button class="btn navy" id="addTransBtn" style="flex:0 0 auto">${escapeHtml(t("plan.transAdd"))}</button>`}</div>`:"";
   const _simpleBar=(!_planDetailed&&items.length)?`<button class="day-simplebar js-planmode">${endT?`${t("plan.end")} ~${escapeHtml(endT)}`:t("plan.mapTitle")}${(stops.length>1)?` · <span class="rc-dist">…</span>`:""}${_showCost?` \u00b7 <span class="rc-simplecost">${_costInit}</span>`:""} <b>${t("plan.detailView")} ▾</b></button>`:"";
-  { const _pd=document.getElementById("planDays"); if(_pd) _pd.innerHTML=sel; }
+  { 
+    const _pd=document.getElementById("planDays"); 
+    if(_pd){ 
+      _pd.classList.toggle("many",days.length>3); 
+      _pd.innerHTML=sel; 
+    } 
+  }
   const routePanelHtml=
     `<div id="dayRoutePanel"
           class="day-route day-route-float"
@@ -10685,7 +10879,7 @@ function renderPlan(){
            : ""
        }
        ${lateBanner}
-       <div class="timeline ${planState.collapsed?'collapsed':''}">
+       <div class="timeline ${planState.collapsed?'collapsed':''}${_planDetailed?' is-detailed':''}">
          ${tl}
        </div>
        ${sumHtml}
@@ -10723,7 +10917,7 @@ function renderPlan(){
           open?"true":"false"
         );
       };
-      menu.onclick=e=>{ e.stopPropagation(); if(e.target&&e.target.closest&&e.target.closest(".plan-more-item")){ menu.hidden=true; more.setAttribute("aria-expanded","false"); } };   /* V4 : le menu *** se referme une fois l'action choisie (restait ouvert derriere la feuille Ajouter) */
+      menu.onclick=e=>{ e.stopPropagation(); if(e.target&&e.target.closest&&e.target.closest("#navDayItin")) return; if(e.target&&e.target.closest&&e.target.closest(".plan-more-item")){ menu.hidden=true; more.setAttribute("aria-expanded","false"); } };   /* V4.2 : Itineraire ouvre son sous-menu sans fermer le menu principal */   /* V4 : le menu *** se referme une fois l'action choisie (restait ouvert derriere la feuille Ajouter) */
       if(!window.__planMoreBound){   /* fermeture au clic exterieur : un seul ecouteur pour toute la session */
         window.__planMoreBound=true;
         document.addEventListener("click",e=>{
@@ -10772,10 +10966,18 @@ function renderPlan(){
        rebrancages a CHAQUE renderPlan() (comme #planOptimize l'etait deja), sur les MEMES fonctions metier, jamais reimplementees. */
     { const pa2=body.querySelector("#planAdd"); if(pa2) pa2.onclick=openPlanAdd; }
     { const po2=body.querySelector("#planOptimize2"); if(po2) po2.onclick=optimizeDay; }
+    { const pu=body.querySelector("#planUseMyPos"); if(pu) pu.onclick=()=>_routeUseMyPosition(tr.id, d.i); }
+    {
+      const ptm=body.querySelector("#planTripMenu");
+      if(ptm) ptm.onclick=()=>{
+        const b=document.getElementById("planTripToggle");
+        if(b) b.click();
+      };
+    }   /* V4.1 : action d'origine conservee (cartouche standard masque) */
   }
   {   /* correction lot Planning premium : bouton Itineraire fusionne (Y aller + Google) -- reutilise EXACTEMENT launchDayMaps("apple")/launchDayMaps("google") */
     const ib=body.querySelector("#navDayItin"), im=body.querySelector("#navDayItinMenu");
-    if(ib&&im){ ib.onclick=e=>{ e.preventDefault(); e.stopPropagation(); const open=im.hidden; im.hidden=!open; ib.setAttribute("aria-expanded",open?"true":"false"); }; im.onclick=e=>e.stopPropagation(); }
+    if(ib&&im){ ib.onclick=e=>{ e.preventDefault(); e.stopPropagation(); const open=im.hidden; im.hidden=!open; ib.setAttribute("aria-expanded",open?"true":"false"); }; }   /* V4.2 : le sous-menu (dans Actions de journee) laisse remonter Apple/Google jusqu'a planMoreMenu, qui referme le menu */
     const nv=body.querySelector("#navDay"); if(nv) nv.onclick=function(){ if(im) im.hidden=true; launchDayMaps("apple"); };
     const nvg=body.querySelector("#navDayG"); if(nvg) nvg.onclick=function(){ if(im) im.hidden=true; launchDayMaps("google"); };
     if(!window.__planItinBound){ window.__planItinBound=true; document.addEventListener("click",e=>{ const m=document.getElementById("navDayItinMenu"); const b=document.getElementById("navDayItin"); if(m&&!m.hidden&&!(e.target&&e.target.closest&&e.target.closest(".plan-itin-wrap"))){ m.hidden=true; if(b) b.setAttribute("aria-expanded","false"); } }); }
@@ -11342,11 +11544,11 @@ async function renderDayRoute(tr, day, ro, trafficCtx){ const tk=++_routeUIToken
   if(!pts || pts.length<2){
     const _hasDest = !ro && _dayHasRemainingRouteDestination(tr, day);   /* aucune coordonnée inventée */
     if(_hasDest && panel){   /* origine planifiée absente/inconnue mais une destination existe -> proposer « position actuelle -> destination » */
-      panel.style.display=""; panel.innerHTML='<div class="route-orig">'+escapeHtml(t("route.needOrigin"))+'</div><button type="button" id="routeGpsBtn" class="route-gps">'+escapeHtml(t("route.useMyPosition"))+'</button>';
+      panel.style.display=""; panel.dataset.state="need"; panel.innerHTML='<div class="route-orig">'+escapeHtml(t("route.needOrigin"))+'</div><button type="button" id="routeGpsBtn" class="route-gps">'+escapeHtml(t("route.useMyPosition"))+'</button>';
       const gb=panel.querySelector("#routeGpsBtn"); if(gb) gb.onclick=()=>_routeUseMyPosition((tr&&tr.id), day);
       setSlots("\u2014","\u2014"); return; }
     if(panel){ panel.style.display="none"; panel.innerHTML=""; } setSlots("\u2014","\u2014"); return; }   /* le carburant continue via _paintDayCosts */
-  if(panel){ panel.style.display=""; const og=pts[0];
+  if(panel){ panel.style.display=""; const og=pts[0]; panel.dataset.state=(og.type==="origin"&&og.source==="live")?"live":"planned";   /* V4.1 : l'etat standard (origine planifiee) n'encombre plus la carte */
     let origText; if(og.type==="origin"){ origText=(og.source==="live")?t("route.liveOrigin"):(t("route.plannedOrigin")+(og.label?(" \u00b7 "+og.label):"")); }
     else { origText=t("route.tripFrom")+(og.label?(" \u00b7 "+og.label):""); }   /* pas d'origine fiable -> jamais de faux « Départ prévu » */
     const gpsBtn=ro?"":('<button type="button" id="routeGpsBtn" class="route-gps">'+escapeHtml(t("route.useMyPosition"))+'</button>');
@@ -12843,7 +13045,23 @@ function createGoogleMapRenderer(el,base,isValid){
       try{ google.maps.event.clearInstanceListeners(map); }catch(e){}
       try{ info.close(); }catch(e){}
     }
-    map=new google.maps.Map(box,{center:(pts.length?{lat:pts[0].lat,lng:pts[0].lng}:(transferMapEndpoints(_tmMeta,_trs).arr||{lat:0,lng:0})),zoom:14,mapTypeId:"roadmap",mapTypeControl:false,streetViewControl:false,fullscreenControl:false,zoomControl:false,keyboardShortcuts:false,gestureHandling:"greedy"});
+    map=new google.maps.Map(box,{
+      center:(pts.length
+        ? {lat:pts[0].lat,lng:pts[0].lng}
+        : (transferMapEndpoints(_tmMeta,_trs).arr||{lat:0,lng:0})),
+      zoom:14,
+      mapTypeId:"roadmap",
+      disableDefaultUI:true,
+      mapTypeControl:false,
+      streetViewControl:false,
+      fullscreenControl:false,
+      zoomControl:false,
+      scaleControl:false,
+      rotateControl:false,
+      cameraControl:false,
+      keyboardShortcuts:false,
+      gestureHandling:"greedy"
+    });
     const bounds=new google.maps.LatLngBounds();
     if(start){ const sp={lat:start.lat,lng:start.lng}; const _mk=trackMarker(new google.maps.Marker({position:sp,map,optimized:false,zIndex:999,icon:lodgingIcon(),title:"🏨 "+start.name}));
       _mk.addListener("click",()=>openMapPlaceCard(_markerModelFromDM({lat:sp.lat,lng:sp.lng,kind:"lodging",title:start.name||"",emoji:"🏨",_src:{kind:"lodging",title:start.name||""}},base.tr)));
@@ -16917,6 +17135,7 @@ function injectPresentationLegs(presentation, mode, tr){
   const body=document.getElementById("planBody");
   if(!body) return;
   body.querySelectorAll(".pl-leg").forEach(e=>e.remove());
+  body.querySelectorAll(".pl-d-leg").forEach(e=>{ e.innerHTML=""; });   /* V4.1 : slot compact de la ligne d'activite, rempli ci-dessous a partir du MEME agg */
   if(!presentationDoneEnabled(presentation)) return;   /* garde partagee avec done -- reproduit if(!route.mixed) (arch-r9 Correctif 2) */
   const veh=(tr&&tr.veh)||{};
   const fd=fuelDefault(veh.fuel);
@@ -17042,6 +17261,7 @@ function injectPresentationLegs(presentation, mode, tr){
       e.stopPropagation();
       launchPlanningLegMaps(move,mode);
     };
+    { const _slot=row.querySelector(".pl-d-leg"); if(_slot) _slot.innerHTML=`<span class="pl-d-sep">·</span><span class="pl-d-mode">${modeEmoji(mode)}</span>${escapeHtml(_mvpLocDec(fmtDist(agg.dist)))}`; }   /* V4.1 : rendu compact (vue normale) -- donnees = agg deja calcule */
     row.insertAdjacentElement("afterend",div);
   });
 }
@@ -17278,9 +17498,9 @@ async function renderFideleAIFromPresentation(tr, day, presentation, aiPlaces, a
      et le texte reel de Fidele restent EXACTEMENT ce qu'ils etaient ; aucun texte invente, jamais duplique. */
   const card=(htmlInner, plain)=>{
     const label=escapeHtml(t("plan.toKnow"));
-    el.innerHTML=`<div class="fidele-ticker" id="fideleTicker"><span class="ft-label">💡 ${label}</span><div class="ft-viewport" id="ftViewport" role="note" tabindex="0"><div class="ft-track" id="ftTrack"><b>${escapeHtml(agentDisplayName())} :</b> ${htmlInner}</div></div><button class="ft-close" aria-label="${escapeHtml(t("plan.close"))}">✕</button></div>`;
-    const b=el.querySelector(".ft-close"); if(b) b.onclick=()=>{ _fideleDismissed[key]=true; el.innerHTML=""; };
-    _wireFideleTicker(el, plain);
+    el.innerHTML=`<div class="fidele-ticker" id="fideleTicker"><span class="ft-label">💡 ${label}</span><div class="ft-viewport" id="ftViewport" role="note" tabindex="0"><div class="ft-track" id="ftTrack"><b>${escapeHtml(agentDisplayName())} :</b> ${htmlInner}</div></div><button class="ft-more" type="button" aria-label="${label}" aria-expanded="false"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 6l6 6-6 6"/></svg></button></div>`;
+    _wireFideleTicker(el, (plain!=null&&plain!=="")?(agentDisplayName()+" : "+plain):plain);   /* V4.1 : le prefixe reste present une fois le texte deploye */
+    { const mb=el.querySelector(".ft-more"), vp=el.querySelector("#ftViewport"); if(mb&&vp) mb.onclick=e=>{ e.stopPropagation(); vp.onclick&&vp.onclick(); const ex=vp.classList.contains("expanded"); mb.setAttribute("aria-expanded",ex?"true":"false"); mb.classList.toggle("open",ex); }; }   /* V4.1 : chevron = deployer/replier, jamais une suppression definitive */
   };
   tr._aiText=tr._aiText||{}; const c=tr._aiText[day];
   if(c && c.sig===built.sig && c.text){ card(escapeAI(c.text),c.text); return; }
