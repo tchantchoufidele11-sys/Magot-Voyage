@@ -4586,6 +4586,33 @@ body:has(#view-plan.active) #agentBubble{display:none}
 #view-plan.mv-plan-v4 .day-sum .ds-fuel{margin-top:10px;padding-top:9px;border-top:1px solid #EEF1F6;font:600 12.5px/1.45 "Inter",sans-serif;color:var(--v4-ink)}
 #view-plan.mv-plan-v4 .day-sum .ds-fuel .rc-daycost{font-weight:800}
 #view-plan.mv-plan-v4 .day-sum .ds-fuel .ds-costs{display:block;color:var(--v4-muted);font-weight:500;font-size:11.5px}
+/* ============ V4.5 -- ticker par categorie, panneau en sections, menu, + Etape, capsule position, plein ecran Journee|Sejour ============ */
+#view-plan.mv-plan-v4 .fidele-ticker .ft-viewport{display:flex;align-items:center;gap:8px;flex:1 1 auto;min-width:0;overflow:hidden;cursor:pointer}
+#view-plan.mv-plan-v4 .fidele-ticker .ft-cat{flex:0 0 auto;display:inline-flex;align-items:center;height:22px;padding:0 8px;border-radius:999px;background:rgba(255,255,255,.13);color:#F3D36A;font:800 10px/1 "Inter",sans-serif;letter-spacing:.06em;text-transform:uppercase;white-space:nowrap}
+#view-plan.mv-plan-v4 .fidele-ticker .ft-textbox{flex:1 1 auto;min-width:0;overflow:hidden;white-space:nowrap}
+#view-plan.mv-plan-v4 .fidele-ticker .ft-track{display:inline-block;white-space:nowrap;font:500 12.5px/42px "Inter",sans-serif;color:rgba(255,255,255,.92);will-change:transform;animation:none}
+#view-plan.mv-plan-v4 .ft-panel{margin:6px 0 0;padding:2px 13px;border-radius:14px;background:var(--v4-card);border:1px solid var(--v4-line);box-shadow:0 10px 26px rgba(13,40,86,.12);max-height:min(46vh,340px);overflow:auto}
+#view-plan.mv-plan-v4 .ft-panel[hidden]{display:none}
+#view-plan.mv-plan-v4 .ftp-sec{padding:10px 0}
+#view-plan.mv-plan-v4 .ftp-sec+.ftp-sec{border-top:1px solid #EEF1F6}
+#view-plan.mv-plan-v4 .ftp-head{display:flex;align-items:center;gap:6px;font:800 10.5px/1 "Inter",sans-serif;letter-spacing:.07em;text-transform:uppercase;color:#8A94A8}
+#view-plan.mv-plan-v4 .ftp-ico{font-size:13px;letter-spacing:0}
+#view-plan.mv-plan-v4 .ftp-headline{margin-top:5px;font:800 13.5px/1.25 "Inter",sans-serif;color:var(--v4-ink)}
+#view-plan.mv-plan-v4 .ftp-text{margin-top:4px;font:500 13px/1.4 "Inter",sans-serif;color:#34425E;display:-webkit-box;-webkit-line-clamp:4;-webkit-box-orient:vertical;overflow:hidden}
+#view-plan.mv-plan-v4 .mvp-day-head{align-items:flex-start}
+#view-plan.mv-plan-v4 .mvp-add-step{flex:0 0 auto;margin-left:auto;height:34px;display:inline-flex;align-items:center;gap:5px;padding:0 12px 0 10px;border-radius:999px;border:1px solid var(--v4-line);background:var(--v4-ctl);color:var(--v4-ink);font:700 12.5px/1 "Inter",sans-serif;box-shadow:0 1px 3px rgba(13,40,86,.05);cursor:pointer;white-space:nowrap}
+#view-plan.mv-plan-v4 .mvp-add-step svg{width:15px;height:15px;fill:none;stroke:currentColor;stroke-width:2.4;stroke-linecap:round}
+#view-plan.mv-plan-v4 .mvp-add-step.is-disabled,#view-plan.mv-plan-v4 .mvp-add-step[disabled]{opacity:.5;box-shadow:none;cursor:default}
+#view-plan.mv-plan-v4 .plan-map-premium .map-tripbtn,#view-plan.mv-plan-v4 .plan-map-premium[data-mapmode] .map-tripbtn{display:none}   /* V4.5 : jamais sur la petite carte ; en plein ecran remplace par Journee|Sejour */
+#view-plan.mv-plan-v4 .plan-map-premium .mvp-fs-seg{display:none}
+#view-plan.mv-plan-v4 .plan-map-premium.full .mvp-fs-seg{display:flex;position:absolute;top:14px;left:14px;z-index:9;height:44px;box-sizing:border-box;padding:4px;gap:2px;border-radius:13px;background:var(--v4-ctl);box-shadow:0 2px 8px rgba(13,40,86,.16)}
+#view-plan.mv-plan-v4 .mvp-fs-seg button{height:36px;padding:0 14px;border:0;border-radius:10px;background:transparent;color:var(--v4-ink);font:700 13px/1 "Inter",sans-serif;cursor:pointer;white-space:nowrap}
+#view-plan.mv-plan-v4 .mvp-fs-seg button.on{background:var(--v4-navy);color:#fff}
+#view-plan.mv-plan-v4 .mvp-pos-capsule{position:absolute;top:8px;left:8px;z-index:9;display:flex;align-items:center;gap:8px;height:40px;box-sizing:border-box;padding:0 5px 0 12px;border-radius:12px;background:var(--v4-ctl);box-shadow:0 2px 8px rgba(13,40,86,.16);font:700 12.5px/1 "Inter",sans-serif;color:var(--v4-ink);white-space:nowrap;max-width:calc(100% - 72px)}
+#view-plan.mv-plan-v4 .mvp-pos-capsule[hidden]{display:none}
+#view-plan.mv-plan-v4 .mvp-pos-capsule button{height:30px;padding:0 11px;border:0;border-radius:9px;background:var(--v4-navy);color:#fff;font:700 12px/1 "Inter",sans-serif;cursor:pointer;white-space:nowrap}
+#view-plan.mv-plan-v4 .plan-map-premium.full .mvp-pos-capsule{top:70px;left:14px}
+#view-plan.mv-plan-v4 .plan-map-premium[data-mapmode="trip"] .mvp-pos-capsule{display:none}   /* "Partir d'ici" agit sur la route DU JOUR : jamais propose sur la carte du sejour */
 @media(max-width:374px){ #view-plan.mv-plan-v4 .mvp-day-card.is-simple .pl-leg{padding-left:156px} #view-plan.mv-plan-v4 .mvp-day-card.is-simple .pl-leg .pl-legbtn{gap:4px} }   /* <375 px : trajet aligne sur le bord de la photo pour ne jamais tronquer mode + distance + duree */
 @media(max-width:359px){
   #view-plan.mv-plan-v4 .pl-item{grid-template-columns:34px 14px 56px minmax(0,1fr) 32px}
@@ -4984,7 +5011,7 @@ const DEFAULT_S={ version:"0.2.0", settings:{ lang:"fr", theme:"system", units:"
 /* Clé Maps JS partagée (restreinte au domaine GitHub Pages). Repli : clé perso de l'utilisateur si fournie. */
 const SHARED_MAP_KEY="AIzaSyCt5iVx8nPr1V067A3daE0X1YA568XJNbU";
 function mapKey(){ return (S.settings.mapKey||"").trim() || SHARED_MAP_KEY; }
-const BUILD="0.6.147 · vPlanningV4.4 conseil-unique + chronologie + couts";
+const BUILD="0.6.148 · vPlanningV4.5 ticker-categories + actions + carte";
 /* V4.1 lot A (P0 stockage) : CC_CUR deplacee ICI, avant le premier loadState() -- loadState>mergeState>normalizeTrip>normalizeLegs la lit ;
    declaree plus bas, elle etait en zone morte temporelle (ReferenceError avalee par loadState -> S vide -> saveState() pouvait ecraser les voyages). Contenu inchange. */
 const CC_CUR={FR:"EUR",BE:"EUR",DE:"EUR",ES:"EUR",IT:"EUR",PT:"EUR",NL:"EUR",AT:"EUR",IE:"EUR",GR:"EUR",LU:"EUR",FI:"EUR",SK:"EUR",SI:"EUR",EE:"EUR",LV:"EUR",LT:"EUR",GB:"GBP",US:"USD",CA:"CAD",CH:"CHF",JP:"JPY",AU:"AUD",NZ:"NZD",MA:"MAD",TN:"TND",DZ:"DZD",EG:"EGP",SE:"SEK",NO:"NOK",DK:"DKK",PL:"PLN",CZ:"CZK",HU:"HUF",RO:"RON",MX:"MXN",BR:"BRL",AR:"ARS",CN:"CNY",TH:"THB",IN:"INR",ID:"IDR",VN:"VND",TR:"TRY",AE:"AED",ZA:"ZAR",SN:"XOF",CI:"XOF",CM:"XAF",GA:"XAF",CG:"XAF",TD:"XAF",CF:"XAF",GQ:"XAF",BJ:"XOF",BF:"XOF",ML:"XOF",NE:"XOF",TG:"XOF",GW:"XOF",NG:"NGN",GH:"GHS",KE:"KES",TZ:"TZS",UG:"UGX",RW:"RWF",ET:"ETB",MU:"MUR",MG:"MGA",AO:"AOA",MZ:"MZN",CD:"CDF",LY:"LYD",SA:"SAR",QA:"QAR",KW:"KWD",BH:"BHD",OM:"OMR",JO:"JOD",LB:"LBP",IL:"ILS",PK:"PKR",BD:"BDT",LK:"LKR",NP:"NPR",KR:"KRW",SG:"SGD",MY:"MYR",PH:"PHP",KH:"KHR",MM:"MMK",KZ:"KZT",GE:"GEL",AM:"AMD",AZ:"AZN",RU:"RUB",UA:"UAH",RS:"RSD",BG:"BGN",IS:"ISK",HR:"EUR",CY:"EUR",MT:"EUR",CL:"CLP",CO:"COP",PE:"PEN",UY:"UYU",BO:"BOB",EC:"USD",PA:"USD",CR:"CRC",GT:"GTQ",DO:"DOP",FJ:"FJD"};
@@ -10989,13 +11016,18 @@ const _MVP_MENU_ICO={   /* V4.3 : pictogrammes outline homogenes (remplacent les
   chev:'<path d="M9 6l6 6-6 6"/>'
 };
 function _mvpMenuIco(k,cls){ return '<svg class="plan-menu-ico'+(cls?' '+cls:'')+'" viewBox="0 0 24 24" aria-hidden="true">'+(_MVP_MENU_ICO[k]||'')+'</svg>'; }
-function _mvpTxt(k){   /* V4.4 : libelles courts d'interface (5 langues) */
+function _mvpTxt(k){   /* V4.4/V4.5 : libelles courts d'interface (5 langues) */
   const L={
-    fr:{actions:"Actions",mode:"Mode",now:"En cours",past:"Passée",done:"Terminée",knownCost:"Coût connu du jour",fuelPartial:"carburant incomplet"},
-    en:{actions:"Actions",mode:"Mode",now:"In progress",past:"Past",done:"Done",knownCost:"Known day cost",fuelPartial:"fuel incomplete"},
-    es:{actions:"Acciones",mode:"Modo",now:"En curso",past:"Pasada",done:"Hecha",knownCost:"Coste conocido del día",fuelPartial:"carburante incompleto"},
-    it:{actions:"Azioni",mode:"Modalità",now:"In corso",past:"Passata",done:"Fatta",knownCost:"Costo noto del giorno",fuelPartial:"carburante incompleto"},
-    de:{actions:"Aktionen",mode:"Modus",now:"Läuft",past:"Vorbei",done:"Erledigt",knownCost:"Bekannte Tageskosten",fuelPartial:"Kraftstoff unvollständig"}
+    fr:{actions:"Actions",mode:"Mode",now:"En cours",past:"Passée",done:"Terminée",knownCost:"Coût connu du jour",fuelPartial:"carburant incomplet",
+        detailed:"Affichage détaillé",compact:"Affichage compact",addPause:"Ajouter une pause",addStep:"Étape",catFidele:"Fidèle",catWeather:"Météo",catCrowd:"Affluence",catHours:"Horaires",catRoute:"Trajet",myPos:"Ma position",startHere:"Partir d’ici",fsDay:"Journée",fsTrip:"Séjour"},
+    en:{actions:"Actions",mode:"Mode",now:"In progress",past:"Past",done:"Done",knownCost:"Known day cost",fuelPartial:"fuel incomplete",
+        detailed:"Detailed view",compact:"Compact view",addPause:"Add a break",addStep:"Stop",catFidele:"Fidèle",catWeather:"Weather",catCrowd:"Crowds",catHours:"Hours",catRoute:"Route",myPos:"My location",startHere:"Start here",fsDay:"Day",fsTrip:"Trip"},
+    es:{actions:"Acciones",mode:"Modo",now:"En curso",past:"Pasada",done:"Hecha",knownCost:"Coste conocido del día",fuelPartial:"carburante incompleto",
+        detailed:"Vista detallada",compact:"Vista compacta",addPause:"Añadir una pausa",addStep:"Etapa",catFidele:"Fidèle",catWeather:"Tiempo",catCrowd:"Afluencia",catHours:"Horarios",catRoute:"Trayecto",myPos:"Mi ubicación",startHere:"Salir desde aquí",fsDay:"Día",fsTrip:"Viaje"},
+    it:{actions:"Azioni",mode:"Modalità",now:"In corso",past:"Passata",done:"Fatta",knownCost:"Costo noto del giorno",fuelPartial:"carburante incompleto",
+        detailed:"Vista dettagliata",compact:"Vista compatta",addPause:"Aggiungi una pausa",addStep:"Tappa",catFidele:"Fidèle",catWeather:"Meteo",catCrowd:"Affluenza",catHours:"Orari",catRoute:"Tragitto",myPos:"La mia posizione",startHere:"Parti da qui",fsDay:"Giorno",fsTrip:"Viaggio"},
+    de:{actions:"Aktionen",mode:"Modus",now:"Läuft",past:"Vorbei",done:"Erledigt",knownCost:"Bekannte Tageskosten",fuelPartial:"Kraftstoff unvollständig",
+        detailed:"Detailansicht",compact:"Kompaktansicht",addPause:"Pause hinzufügen",addStep:"Etappe",catFidele:"Fidèle",catWeather:"Wetter",catCrowd:"Andrang",catHours:"Öffnungszeiten",catRoute:"Strecke",myPos:"Mein Standort",startHere:"Von hier starten",fsDay:"Tag",fsTrip:"Reise"}
   };
   return ((L[lang()]||L.fr)[k])||L.fr[k]||"";
 }
@@ -11013,31 +11045,54 @@ function _mvpThemesOf(txt){ const out=new Set(); const s=String(txt||""); for(co
 function _mvpStripIco(txt){ return String(txt||"").replace(/^[\s\p{Extended_Pictographic}\uFE0F\u200D]+/u,"").trim(); }
 function _mvpWxTheme(w){ if(!w) return "weather"; const c=(w.codeDay!=null?w.codeDay:w.code), tp=(w.tempMax!=null?w.tempMax:w.temp); if(c>=95||(c>=51&&c<=67)||(c>=80&&c<=82)||(c>=71&&c<=77)||(c>=85&&c<=86)) return "weather"; if(tp>=32) return "heat"; return "weather"; }
 function _mvpWxClause(w){ if(!w) return ""; const tp=+(w.tempMax!=null?w.tempMax:w.temp); if(!Number.isFinite(tp)) return ""; const c=(w.codeDay!=null?w.codeDay:w.code); const cond=(typeof wxCondLabel==="function")?wxCondLabel(c,true):""; return Math.round(tp)+"°C"+(cond?" · "+cond:""); }
-function _mvpAdviceItems(st){
-  const items=[]; const fid=st.fidele||null; const f=(fid&&fid.text)?String(fid.text).trim():""; const fTh=_mvpThemesOf(f);
-  const nud=(st.nudges||[]).slice(); const wxN=nud.filter(n=>n.theme==="heat"||n.theme==="weather"||n.theme==="wxtiming"); const other=nud.filter(n=>!wxN.includes(n));
-  const clause=_mvpWxClause(st.wx); const heat=wxN.some(n=>n.theme==="heat"); let used=false;
-  if(fid&&fid.thinking) items.push({fidele:true,thinking:true,text:"🧭 "+t("agent.thinking")});
-  else if(f){ let first=f; if(clause&&fTh.has("hydration")){ first=clause+" — "+f; used=true; } items.push({fidele:true,text:first}); }   /* la meteo ne rejoint Fidele que si Fidele parle deja de chaleur/hydratation */
-  let wxTexts=wxN.filter(n=>!(n.theme==="heat"&&fTh.has("hydration"))).map(n=>n.text).filter(Boolean);   /* chaleur deja dite par Fidele : fusionnee, jamais repetee */
-  if(clause&&!used&&wxTexts.length){ wxTexts=wxTexts.map(x=>{ const y=x.replace(/^[^—()]*\(\s*-?\d+\s*°C?\s*\)\s*—\s*/,""); return y?y.charAt(0).toUpperCase()+y.slice(1):x; }); }   /* "Chaud (34°C) — ..." : la temperature est deja dans la mention meteo */
-  const _tpTxt=(st.wx&&Number.isFinite(+(st.wx.tempMax!=null?st.wx.tempMax:st.wx.temp)))?(Math.round(+(st.wx.tempMax!=null?st.wx.tempMax:st.wx.temp))+"°"):"";
-  const _saysTp=!!_tpTxt&&wxTexts.some(x=>x.includes(_tpTxt));   /* la temperature est deja dite par le conseil existant : pas de repetition */
-  if(wxTexts.length) items.push({text:((used||!clause||_saysTp)?"":clause+" — ")+wxTexts.join(" ")});
-  other.forEach(n=>{ const th=n.theme; if(th&&fTh.has(th)) return; items.push({text:n.text}); });   /* doublon evident (meme theme structure) : on garde celui de Fidele */
-  const seen=new Set(); return items.filter(it=>{ const k=String(it.text).toLowerCase().replace(/\s+/g," ").trim(); if(!k||seen.has(k)) return false; seen.add(k); return true; });
+function _mvpWxIcon(w){ if(!w) return "☀️"; const c=+(w.codeDay!=null?w.codeDay:w.code); if(c>=95) return "⛈️"; if((c>=71&&c<=77)||(c>=85&&c<=86)) return "🌨️"; if((c>=51&&c<=67)||(c>=80&&c<=82)) return "🌧️"; if(c===45||c===48) return "🌫️"; if(c===3) return "☁️"; if(c===1||c===2) return "⛅"; return "☀️"; }
+function _mvpAdviceItems(st){   /* V4.5 : une information par categorie {type,label,icon,head,text} -- jamais concatenees */
+  const out=[]; const fid=st.fidele||null; const f=(fid&&fid.text)?String(fid.text).trim():""; const fTh=_mvpThemesOf(f);
+  if(fid&&fid.thinking) out.push({type:"fidele",icon:"✦",label:_mvpTxt("catFidele"),text:"🧭 "+t("agent.thinking"),thinking:true});
+  else if(f) out.push({type:"fidele",icon:"✦",label:_mvpTxt("catFidele"),text:f,ai:true});
+  const nud=st.nudges||[]; const clause=_mvpWxClause(st.wx);
+  let wx=nud.filter(n=>n.theme==="heat"||n.theme==="weather"||n.theme==="wxtiming").filter(n=>!(n.theme==="heat"&&fTh.has("hydration"))).map(n=>n.text).filter(Boolean);   /* chaleur/hydratation deja dite par Fidele : jamais repetee */
+  if(clause) wx=wx.map(x=>{ const y=x.replace(/^[^—()]*\(\s*-?\d+\s*°C?\s*\)\s*—\s*/,""); return y?y.charAt(0).toUpperCase()+y.slice(1):x; });   /* temperature deja dans l'en-tete meteo */
+  if(wx.length) out.push({type:"weather",icon:_mvpWxIcon(st.wx),label:_mvpTxt("catWeather"),head:clause,text:wx.join(" ")});   /* meteo seule sans conseil : deja sous la date, pas de carte */
+  nud.filter(n=>n.theme==="crowd"&&!fTh.has("crowd")).forEach(n=>out.push({type:"crowd",icon:"👥",label:_mvpTxt("catCrowd"),text:n.text}));
+  nud.filter(n=>n.theme==="hours"&&!fTh.has("hours")).forEach(n=>out.push({type:"hours",icon:"🕒",label:_mvpTxt("catHours"),text:n.text}));
+  nud.filter(n=>n.theme==="walk").forEach(n=>out.push({type:"route",icon:"🚶",label:_mvpTxt("catRoute"),text:n.text}));
+  const seen=new Set(); return out.filter(it=>{ const k=(it.type+"|"+(it.head||"")+"|"+it.text).toLowerCase().replace(/\s+/g," ").trim(); if(seen.has(k)) return false; seen.add(k); return true; });
+}
+const _mvpTk={token:0,timer:null,anim:null};
+function _mvpTickerStop(){ _mvpTk.token++; clearTimeout(_mvpTk.timer); _mvpTk.timer=null; try{ if(_mvpTk.anim) _mvpTk.anim.cancel(); }catch(_e){} _mvpTk.anim=null; }
+function _mvpTickerRun(el, items){   /* V4.5 : UNE information a la fois ; defilement seulement si elle deborde ; pause ; suivante ; boucle */
+  _mvpTickerStop(); const tok=_mvpTk.token;
+  const reduced=!!(window.matchMedia&&window.matchMedia("(prefers-reduced-motion: reduce)").matches);
+  const box=el.querySelector(".fidele-ticker"), cat=el.querySelector("#ftCat"), tk=el.querySelector("#ftTrack"), tb=el.querySelector(".ft-textbox");
+  if(!box||!cat||!tk||!tb) return; let i=0;
+  const alive=()=>tok===_mvpTk.token&&el.isConnected;
+  const next=()=>{ if(!alive()) return; if(box.classList.contains("open")){ _mvpTk.timer=setTimeout(next,1200); return; } i=(i+1)%items.length; show(); };
+  const show=()=>{ if(!alive()) return; const it=items[i];
+    cat.textContent=it.icon+" "+it.label; box.dataset.cur=it.type; box.dataset.idx=String(i);
+    tk.textContent=[it.head,it.text].filter(Boolean).join(" — "); tk.style.transform="translateX(0)";
+    if(reduced) return;   /* prefers-reduced-motion : aucun mouvement ni rotation automatiques */
+    requestAnimationFrame(()=>{ if(!alive()) return; const over=tk.scrollWidth-tb.clientWidth;
+      if(over>2){ const dur=Math.max(2400,over/38*1000);
+        try{ _mvpTk.anim=tk.animate([{transform:"translateX(0)"},{transform:"translateX("+(-over)+"px)"}],{duration:dur,delay:1400,fill:"forwards",easing:"linear"});
+             _mvpTk.anim.onfinish=()=>{ if(!alive()) return; _mvpTk.timer=setTimeout(items.length>1?next:show,1600); }; }
+        catch(_e){ _mvpTk.timer=setTimeout(items.length>1?next:show,5200); } }
+      else if(items.length>1){ _mvpTk.timer=setTimeout(next,4200); } }); };
+  show();
 }
 function _mvpPaintAdvice(){
   const el=document.getElementById("fideleAlert"); if(!el) return;
   const tr=currentTrip(); const key=tr?(tr.id+"|"+planState.dayIndex):""; const st=(tr&&_mvpAdvice.key===key)?_mvpAdvice:null;
   const items=st?_mvpAdviceItems(st):[];
-  if(!items.length){ el.innerHTML=""; return; }   /* aucun conseil : aucun cadre vide */
-  const label=escapeHtml(t("plan.toKnow")); const who=escapeHtml(agentDisplayName());
-  const html=items.map(it=>(it.fidele?`<b>${who} :</b> `:"")+(it.fidele&&!it.thinking?escapeAI(it.text):escapeHtml(it.text))).join('<span class="ft-sep" aria-hidden="true">•</span>');
-  const plain=items.map(it=>(it.fidele?agentDisplayName()+" : ":"")+it.text).join("  •  ");
-  el.innerHTML=`<div class="fidele-ticker" id="fideleTicker" data-count="${items.length}"><span class="ft-label">💡 ${label}</span><div class="ft-viewport" id="ftViewport" role="note" tabindex="0"><div class="ft-track" id="ftTrack">${html}</div></div><button class="ft-more" type="button" aria-label="${label}" aria-expanded="false"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 6l6 6-6 6"/></svg></button></div>`;
-  _wireFideleTicker(el, plain);
-  { const mb=el.querySelector(".ft-more"), vp=el.querySelector("#ftViewport"); if(mb&&vp) mb.onclick=e=>{ e.stopPropagation(); vp.onclick&&vp.onclick(); const ex=vp.classList.contains("expanded"); mb.setAttribute("aria-expanded",ex?"true":"false"); mb.classList.toggle("open",ex); }; }
+  if(!items.length){ _mvpTickerStop(); el.innerHTML=""; return; }   /* aucun conseil : aucun cadre vide */
+  const wasOpen=!!el.querySelector(".fidele-ticker.open");
+  const label=escapeHtml(t("plan.toKnow"));
+  const secs=items.map(it=>`<div class="ftp-sec" data-ft-type="${it.type}"><div class="ftp-head"><span class="ftp-ico" aria-hidden="true">${it.icon}</span><span class="ftp-lbl">${escapeHtml(it.label)}</span></div>${it.head?`<div class="ftp-headline">${escapeHtml(it.head)}</div>`:""}<div class="ftp-text">${(it.ai?escapeAI(it.text):escapeHtml(it.text))}</div></div>`).join("");
+  el.innerHTML=`<div class="fidele-ticker${wasOpen?" open":""}" id="fideleTicker" data-count="${items.length}"><span class="ft-label">💡 ${label}</span><div class="ft-viewport" id="ftViewport" role="button" tabindex="0" aria-controls="ftPanel" aria-expanded="${wasOpen?"true":"false"}"><span class="ft-cat" id="ftCat"></span><span class="ft-textbox"><span class="ft-track" id="ftTrack"></span></span></div><button class="ft-more${wasOpen?" open":""}" type="button" aria-controls="ftPanel" aria-label="${label}" aria-expanded="${wasOpen?"true":"false"}"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 6l6 6-6 6"/></svg></button></div><div class="ft-panel" id="ftPanel" role="region" aria-label="${label}"${wasOpen?"":" hidden"}>${secs}</div>`;
+  const box=el.querySelector(".fidele-ticker"), vp=el.querySelector("#ftViewport"), mb=el.querySelector(".ft-more"), pn=el.querySelector("#ftPanel");
+  const toggle=e=>{ if(e) e.stopPropagation(); const open=!box.classList.contains("open"); box.classList.toggle("open",open); mb.classList.toggle("open",open); pn.hidden=!open; vp.setAttribute("aria-expanded",open?"true":"false"); mb.setAttribute("aria-expanded",open?"true":"false"); };
+  vp.onclick=toggle; mb.onclick=toggle; vp.onkeydown=e=>{ if(e.key==="Enter"||e.key===" "){ e.preventDefault(); toggle(e); } };
+  _mvpTickerRun(el, items);
 }
 function _mvpAdviceSet(tr,day,patch){
   if(!tr) return; const cur=currentTrip(); if(!cur||cur.id!==tr.id||planState.dayIndex!==day) return;   /* jamais un conseil d'un autre voyage/jour */
@@ -11058,6 +11113,7 @@ function _mvpPaintKnownDayCost(){   /* V4.4 : repli d'affichage quand le Budget 
   document.querySelectorAll(".rc-daycost-lbl").forEach(e=>{ e.textContent=_mvpTxt("knownCost"); });
   document.querySelectorAll(".rc-fuel").forEach(e=>{ e.textContent="~"+money(sum,tr.currency)+(missing?" ("+_mvpTxt("fuelPartial")+")":""); });
 }
+function _mvpSyncFsSeg(){ document.querySelectorAll("#planFsSeg [data-v]").forEach(b=>{ const on=(b.dataset.v==="trip")===(_planMapMode==="trip"); b.classList.toggle("on",on); b.setAttribute("aria-selected",on?"true":"false"); }); }
 function _mvpDayActionsLabel(){
   return ({
     fr:"Actions de journée",
@@ -11171,24 +11227,7 @@ function renderPlan(){
                    : ""
                }
                ${
-                 ((stops.length>0||_planMapMode==="trip")||(!ro&&stops.length))
-                   ? `<div class="plan-menu-section">
-                        <div class="plan-menu-head">${_mvpMenuGroupLabel("map")}</div>
-                        ${
-                          (stops.length>0||_planMapMode==="trip")
-                            ? `<button type="button" class="plan-more-item" id="planTripMenu">${_mvpMenuIco("trip")}<span>${escapeHtml(_planMapMode==="trip"?t("plan.dayView"):t("plan.tripView"))}</span></button>`
-                            : ""
-                        }
-                        ${
-                          (!ro&&stops.length)
-                            ? `<button type="button" class="plan-more-item" id="planUseMyPos">${_mvpMenuIco("pos")}<span>${t("route.useMyPosition")}</span></button>`
-                            : ""
-                        }
-                      </div>`
-                   : ""
-               }
-               ${
-                 !ro
+                 (!ro&&(stops.length>=2||!hasMeal))
                    ? `<div class="plan-menu-section">
                         <div class="plan-menu-head">${_mvpMenuGroupLabel("org")}</div>
                         ${
@@ -11196,10 +11235,9 @@ function renderPlan(){
                             ? `<button type="button" class="plan-more-item" id="planOptimize2">${_mvpMenuIco("opt")}<span>${t("plan.optimizeShort")}</span></button>`
                             : ""
                         }
-                        <button type="button" class="plan-more-item" id="planAdd">${_mvpMenuIco("add")}<span>${t("plan.addStep")}</span></button>
                         ${
                           !hasMeal
-                            ? `<button type="button" class="plan-more-item" id="lunchDay">${_mvpMenuIco("pause")}<span>${t("plan.aPause")}</span></button>`
+                            ? `<button type="button" class="plan-more-item" id="lunchDay">${_mvpMenuIco("pause")}<span>${escapeHtml(_mvpTxt("addPause"))}</span></button>`
                             : ""
                         }
                       </div>`
@@ -11207,7 +11245,7 @@ function renderPlan(){
                }
                <div class="plan-menu-section">
                  <div class="plan-menu-head">${_mvpMenuGroupLabel("view")}</div>
-                 <button type="button" class="plan-more-item js-planmode">${_mvpMenuIco("det")}<span>${_planDetailed?t("plan.simpleView"):t("plan.detailView")}</span></button>
+                 <button type="button" class="plan-more-item js-planmode">${_mvpMenuIco("det")}<span>${escapeHtml(_planDetailed?_mvpTxt("compact"):_mvpTxt("detailed"))}</span></button>
                  <button type="button" class="plan-more-item" id="toggleList">${_mvpMenuIco("list")}<span>${planState.collapsed?t("plan.showList"):t("plan.hideList")}</span></button>
                </div>
              </div>
@@ -11290,6 +11328,8 @@ function renderPlan(){
                  type="button"
                  aria-label="${escapeHtml(t("plan.myPosition"))}"
                  title="${escapeHtml(t("plan.myPosition"))}">${_MVP_ICO.pos}</button>
+         <div class="mvp-pos-capsule" id="planPosCapsule" hidden><span class="mvp-pos-lbl">📍 ${escapeHtml(_mvpTxt("myPos"))}</span><button type="button" id="planStartHere">${escapeHtml(_mvpTxt("startHere"))}</button></div>
+         <div class="mvp-fs-seg" id="planFsSeg" role="tablist" aria-label="${escapeHtml(t("plan.mapFull"))}"><button type="button" role="tab" data-v="day">${escapeHtml(_mvpTxt("fsDay"))}</button><button type="button" role="tab" data-v="trip">${escapeHtml(_mvpTxt("fsTrip"))}</button></div>
          <button class="map-framebtn"
                  id="planMapFrame"
                  type="button"
@@ -11322,6 +11362,7 @@ function renderPlan(){
            <div class="mvp-day-title">${escapeHtml(dateLabel)}</div>
            <div class="mvp-wx" id="dcWeather"></div>
          </div>
+         <button type="button" class="mvp-add-step${ro?" is-disabled":""}" id="planAddStep"${ro?' disabled aria-disabled="true"':""} aria-label="${escapeHtml(t("plan.addStep"))}"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg><span>${escapeHtml(_mvpTxt("addStep"))}</span></button>
        </div>
        ${transHtml}
        ${
@@ -11405,7 +11446,8 @@ function renderPlan(){
     }
   }
   body.querySelectorAll(".js-planmode").forEach(b=>b.onclick=()=>{ _planDetailed=!_planDetailed; try{localStorage.setItem("mv_plan_detailed",_planDetailed?"1":"0");}catch(e){} renderPlan(); });
-  { const mw=body.querySelector("#mapWrap"), mf=body.querySelector("#mapFull"); if(mf&&mw) mf.onclick=()=>{ const full=mw.classList.toggle("full"); mf.innerHTML=full?_MVP_ICO.close:_MVP_ICO.full; mf.setAttribute("aria-label",full?t("plan.close"):t("plan.mapFull")); if(full){ const _hb=document.querySelector("header.bar"), _tb=document.getElementById("tabs"); mw.style.setProperty("--mvp-full-top",(_hb?Math.max(0,Math.round(_hb.getBoundingClientRect().bottom)):0)+"px"); mw.style.setProperty("--mvp-full-bot",(_tb?Math.max(0,Math.round(window.innerHeight-_tb.getBoundingClientRect().top)):0)+"px"); } document.body.classList.toggle("map-locked",full);
+  { const mw=body.querySelector("#mapWrap"), mf=body.querySelector("#mapFull"); if(mf&&mw) mf.onclick=()=>{ if(mw.classList.contains("full")&&_planMapMode==="trip"){ const _tt=document.getElementById("planTripToggle"); if(_tt) _tt.click(); }   /* V4.5 : carte integree toujours en Vue jour */
+ const full=mw.classList.toggle("full"); _mvpSyncFsSeg(); mf.innerHTML=full?_MVP_ICO.close:_MVP_ICO.full; mf.setAttribute("aria-label",full?t("plan.close"):t("plan.mapFull")); if(full){ const _hb=document.querySelector("header.bar"), _tb=document.getElementById("tabs"); mw.style.setProperty("--mvp-full-top",(_hb?Math.max(0,Math.round(_hb.getBoundingClientRect().bottom)):0)+"px"); mw.style.setProperty("--mvp-full-bot",(_tb?Math.max(0,Math.round(window.innerHeight-_tb.getBoundingClientRect().top)):0)+"px"); } document.body.classList.toggle("map-locked",full);
     /* correction audit independant P1-L (3) : en Vue sejour, on ne touche plus AUCUN renderer journee (meme cache en
        arriere-plan) -- seul le renderer REELLEMENT visible est redimensionne. */
     if(_planMapMode==="trip"){
@@ -11438,22 +11480,10 @@ function renderPlan(){
     /* correction reconstruction V3 : Ajouter/Optimiser vivent desormais dans le menu *** (deplaces de l'ancienne barre statique) --
        rebrancages a CHAQUE renderPlan() (comme #planOptimize l'etait deja), sur les MEMES fonctions metier, jamais reimplementees. */
     { const pa2=body.querySelector("#planAdd"); if(pa2) pa2.onclick=openPlanAdd; }
+    { const as=body.querySelector("#planAddStep"); if(as&&!as.disabled) as.onclick=openPlanAdd; }   /* V4.5 : "+ Etape" = meme fonction que l'ancien item de menu */
+    { const sh=body.querySelector("#planStartHere"); if(sh) sh.onclick=()=>{ const cap=document.getElementById("planPosCapsule"); if(cap) cap.hidden=true; _routeUseMyPosition(tr.id, d.i); }; }
+    { const seg=body.querySelector("#planFsSeg"); if(seg) seg.querySelectorAll("[data-v]").forEach(b=>{ b.onclick=()=>{ const want=b.dataset.v, cur=(_planMapMode==="trip")?"trip":"day"; if(want!==cur){ const tt=document.getElementById("planTripToggle"); if(tt) tt.click(); } requestAnimationFrame(_mvpSyncFsSeg); }; }); }   /* V4.5 : Journee|Sejour = mecanisme sejour EXISTANT (#planTripToggle) */
     { const po2=body.querySelector("#planOptimize2"); if(po2) po2.onclick=optimizeDay; }
-    { const pu=body.querySelector("#planUseMyPos"); if(pu) pu.onclick=()=>_routeUseMyPosition(tr.id, d.i); }
-    {
-      const ptm=body.querySelector("#planTripMenu");
-
-      if(ptm){
-        ptm.onclick=()=>{
-          _planSetMapCollapsed(false);
-
-          requestAnimationFrame(()=>{
-            const b=document.getElementById("planTripToggle");
-            if(b) b.click();
-          });
-        };
-      }
-    }
     {
       const b=body.querySelector("#planMapCollapse");
 
@@ -11535,6 +11565,7 @@ function renderPlan(){
         const r=_planActiveMapRenderer();
         if(r&&typeof r.centerOn==="function"){ try{ r.centerOn(pos.lat,pos.lng); }catch(_e){} }
         else toast(t("plan.posUnsupported"));
+        if(!ro&&stops.length){ const cap=document.getElementById("planPosCapsule"); if(cap) cap.hidden=false; }   /* V4.5 : proposer "Partir d'ici" ; la route ne change qu'au clic explicite */
       });
     };
   }
