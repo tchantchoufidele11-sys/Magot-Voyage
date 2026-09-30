@@ -4556,6 +4556,36 @@ body:has(#view-plan.active) #agentBubble{display:none}
 #view-plan.mv-plan-v4 .mvp-day-card.is-simple .pl-leg{padding-right:4px}   /* le bouton carte du trajet occupe la colonne droite (poignee/coche) : texte trajet jamais tronque */
 #view-plan.mv-plan-v4 .mvp-day-card.is-simple .pl-leg .pl-legbtn{font-size:11.5px}
 #view-plan.mv-plan-v4 .mvp-day-card.is-simple .pl-leg .pl-legmap{flex:0 0 28px;margin:0 0 0 auto}
+/* ============ V4.4 -- barre Actions/Mode/Arrive, conseil unique, chronologie, carburant visible, cout du jour ============ */
+#view-plan.mv-plan-v4 .mvp-act-cells{gap:8px}
+#view-plan.mv-plan-v4 .mvp-act-cells>.plan-more-wrap.plan-actions-wrap{flex:1 1 37%;min-width:0}
+#view-plan.mv-plan-v4 .mvp-act-cells>.plan-rhythm-wrap.mvp-bar-rhythm{position:relative;display:flex;flex:1 1 29%;min-width:0;margin:0}
+#view-plan.mv-plan-v4 .mvp-act-cells>.mvp-arrive-main{flex:1 1 30%;min-width:0;width:auto}
+#view-plan.mv-plan-v4 .plan-actions-trigger{justify-content:center;padding:0 10px;gap:7px}
+#view-plan.mv-plan-v4 .plan-actions-trigger .al{flex:0 1 auto;overflow:visible;text-overflow:clip}
+#view-plan.mv-plan-v4 .mvp-bar-rhythm .mvp-rhythm-btn{width:100%;height:44px;min-height:44px;padding:0 10px;border-radius:13px;border:1px solid var(--v4-line);background:var(--v4-ctl);color:var(--v4-ink);box-shadow:0 1px 3px rgba(13,40,86,.05);justify-content:center;gap:6px;font:700 13px/1 "Inter",sans-serif}
+#view-plan.mv-plan-v4 .mvp-bar-rhythm .mvp-rhythm-btn .al{overflow:visible;white-space:nowrap}
+#view-plan.mv-plan-v4 .mvp-bar-rhythm .plan-rhythm-menu{top:calc(100% + 6px);right:auto;left:50%;transform:translateX(-50%)}
+#view-plan.mv-plan-v4 .mvp-acell.arrive.is-disabled,#view-plan.mv-plan-v4 .mvp-acell.arrive[disabled]{opacity:.55;background:#D9DFE8;border-color:#D9DFE8;color:#748096;box-shadow:none;cursor:default}
+#view-plan.mv-plan-v4 #dayNudges{display:none}
+#view-plan.mv-plan-v4 .fidele-ticker .ft-sep{display:inline-block;margin:0 10px;color:var(--v4-gold);font-weight:800}
+#view-plan.mv-plan-v4 .mvp-state-badge{display:inline-flex;align-items:center;height:18px;padding:0 7px;margin:0 0 4px;border-radius:999px;font:800 9.5px/1 "Inter",sans-serif;letter-spacing:.06em;text-transform:uppercase;white-space:nowrap}
+#view-plan.mv-plan-v4 .mvp-state-badge.st-now{background:var(--v4-navy);color:#fff}
+#view-plan.mv-plan-v4 .mvp-state-badge.st-past{background:#EEF1F6;color:#6E7A90}
+#view-plan.mv-plan-v4 .mvp-state-badge.st-done{background:#E3F5EA;color:#0E8A45}
+#view-plan.mv-plan-v4 .pl-item.current{background:rgba(13,40,86,.055);border-radius:14px;box-shadow:inset 0 0 0 1.5px rgba(13,40,86,.16)}
+#view-plan.mv-plan-v4 .pl-item.current::after{left:52px;width:18px;height:18px;border-width:3px;box-shadow:0 0 0 4px rgba(13,40,86,.14)}
+#view-plan.mv-plan-v4 .pl-item.past::before,#view-plan.mv-plan-v4 .pl-item.done::before{background:#D7DDE7}
+#view-plan.mv-plan-v4 .pl-item.past::after,#view-plan.mv-plan-v4 .pl-item.done::after{background:#C5CDD9}
+#view-plan.mv-plan-v4 .pl-item.past .pl-media,#view-plan.mv-plan-v4 .pl-item.done .pl-media{opacity:.72;filter:saturate(.7)}
+#view-plan.mv-plan-v4 .pl-item.past .pl-title{color:#6E7A90}
+#view-plan.mv-plan-v4 .pl-item.past+.pl-leg::before,#view-plan.mv-plan-v4 .pl-item.done+.pl-leg::before{background:#D7DDE7}
+#view-plan.mv-plan-v4 .mvp-day-card.is-simple .pl-leg-fuel{display:inline;flex:0 0 auto;white-space:nowrap;color:#5C6882;font-weight:600}
+#view-plan.mv-plan-v4 .mvp-day-card.is-simple .pl-leg .pl-legbtn{flex-wrap:wrap;height:auto;min-height:30px;white-space:normal;row-gap:0;padding:4px 0}
+#view-plan.mv-plan-v4 .mvp-day-card.is-simple .pl-leg .pl-legbtn>span{white-space:nowrap}
+#view-plan.mv-plan-v4 .day-sum .ds-fuel{margin-top:10px;padding-top:9px;border-top:1px solid #EEF1F6;font:600 12.5px/1.45 "Inter",sans-serif;color:var(--v4-ink)}
+#view-plan.mv-plan-v4 .day-sum .ds-fuel .rc-daycost{font-weight:800}
+#view-plan.mv-plan-v4 .day-sum .ds-fuel .ds-costs{display:block;color:var(--v4-muted);font-weight:500;font-size:11.5px}
 @media(max-width:374px){ #view-plan.mv-plan-v4 .mvp-day-card.is-simple .pl-leg{padding-left:156px} #view-plan.mv-plan-v4 .mvp-day-card.is-simple .pl-leg .pl-legbtn{gap:4px} }   /* <375 px : trajet aligne sur le bord de la photo pour ne jamais tronquer mode + distance + duree */
 @media(max-width:359px){
   #view-plan.mv-plan-v4 .pl-item{grid-template-columns:34px 14px 56px minmax(0,1fr) 32px}
@@ -4954,7 +4984,7 @@ const DEFAULT_S={ version:"0.2.0", settings:{ lang:"fr", theme:"system", units:"
 /* Clé Maps JS partagée (restreinte au domaine GitHub Pages). Repli : clé perso de l'utilisateur si fournie. */
 const SHARED_MAP_KEY="AIzaSyCt5iVx8nPr1V067A3daE0X1YA568XJNbU";
 function mapKey(){ return (S.settings.mapKey||"").trim() || SHARED_MAP_KEY; }
-const BUILD="0.6.146 · vPlanningV4.3 carte-pliable + menu-hierarchise";
+const BUILD="0.6.147 · vPlanningV4.4 conseil-unique + chronologie + couts";
 /* V4.1 lot A (P0 stockage) : CC_CUR deplacee ICI, avant le premier loadState() -- loadState>mergeState>normalizeTrip>normalizeLegs la lit ;
    declaree plus bas, elle etait en zone morte temporelle (ReferenceError avalee par loadState -> S vide -> saveState() pouvait ecraser les voyages). Contenu inchange. */
 const CC_CUR={FR:"EUR",BE:"EUR",DE:"EUR",ES:"EUR",IT:"EUR",PT:"EUR",NL:"EUR",AT:"EUR",IE:"EUR",GR:"EUR",LU:"EUR",FI:"EUR",SK:"EUR",SI:"EUR",EE:"EUR",LV:"EUR",LT:"EUR",GB:"GBP",US:"USD",CA:"CAD",CH:"CHF",JP:"JPY",AU:"AUD",NZ:"NZD",MA:"MAD",TN:"TND",DZ:"DZD",EG:"EGP",SE:"SEK",NO:"NOK",DK:"DKK",PL:"PLN",CZ:"CZK",HU:"HUF",RO:"RON",MX:"MXN",BR:"BRL",AR:"ARS",CN:"CNY",TH:"THB",IN:"INR",ID:"IDR",VN:"VND",TR:"TRY",AE:"AED",ZA:"ZAR",SN:"XOF",CI:"XOF",CM:"XAF",GA:"XAF",CG:"XAF",TD:"XAF",CF:"XAF",GQ:"XAF",BJ:"XOF",BF:"XOF",ML:"XOF",NE:"XOF",TG:"XOF",GW:"XOF",NG:"NGN",GH:"GHS",KE:"KES",TZ:"TZS",UG:"UGX",RW:"RWF",ET:"ETB",MU:"MUR",MG:"MGA",AO:"AOA",MZ:"MZN",CD:"CDF",LY:"LYD",SA:"SAR",QA:"QAR",KW:"KWD",BH:"BHD",OM:"OMR",JO:"JOD",LB:"LBP",IL:"ILS",PK:"PKR",BD:"BDT",LK:"LKR",NP:"NPR",KR:"KRW",SG:"SGD",MY:"MYR",PH:"PHP",KH:"KHR",MM:"MMK",KZ:"KZT",GE:"GEL",AM:"AMD",AZ:"AZN",RU:"RUB",UA:"UAH",RS:"RSD",BG:"BGN",IS:"ISK",HR:"EUR",CY:"EUR",MT:"EUR",CL:"CLP",CO:"COP",PE:"PEN",UY:"UYU",BO:"BOB",EC:"USD",PA:"USD",CR:"CRC",GT:"GTQ",DO:"DOP",FJ:"FJD"};
@@ -6387,8 +6417,8 @@ async function _paintDayCosts(tr, day, tk, tid){   /* coûts dépendant du traje
       fuel=(bd.totalCost>0)?bd.totalCost:null;
     } else { fuel=_dayFuelCost(tr, _bMeters, day); }   /* repli defensif : structure inattendue -> ancien calcul scalaire, jamais un plantage */
   }
-  if(fuel==null){ setF("\u2014"); setD("\u2014"); setS("\u2014"); return; }   /* route attendue mais échec -> jamais l\u2019ancien coût comme actuel */
-  setF(money(fuel,tr.currency)); const tot=fuel+mealC; const m=money(tot,tr.currency); setD(m); setS(m); }
+  if(fuel==null){ setF("\u2014"); setD("\u2014"); setS("\u2014"); _mvpPaintKnownDayCost(); return; }   /* V4.4 : pas de snapshot Budget -> cout CONNU des trajets deja calcules (explicitement partiel), jamais un faux total */   /* route attendue mais échec -> jamais l\u2019ancien coût comme actuel */
+  setF(money(fuel,tr.currency)); const tot=fuel+mealC; const m=money(tot,tr.currency); setD(m); setS(m); document.querySelectorAll(".rc-daycost").forEach(e=>{ e.dataset.src="budget"; }); document.querySelectorAll(".rc-daycost-lbl").forEach(e=>{ e.textContent=t("plan.dayCost"); }); }   /* V4.4 : Budget = source de verite quand son snapshot existe */
 const FUEL_BY_CC={FR:{essence:1.85,diesel:1.75,gpl:0.95,elec:0.25},DE:{essence:1.80,diesel:1.70,gpl:1.05,elec:0.40},ES:{essence:1.55,diesel:1.45,gpl:0.95,elec:0.30},IT:{essence:1.85,diesel:1.75,gpl:0.75,elec:0.40},PT:{essence:1.75,diesel:1.60,gpl:0.85,elec:0.30},NL:{essence:2.05,diesel:1.75,gpl:0.95,elec:0.40},BE:{essence:1.70,diesel:1.80,gpl:0.95,elec:0.40},AT:{essence:1.55,diesel:1.55,gpl:0.95,elec:0.35},IE:{essence:1.75,diesel:1.70,gpl:0.95,elec:0.35},GR:{essence:1.80,diesel:1.65,gpl:0.95,elec:0.30},LU:{essence:1.55,diesel:1.45,gpl:0.75,elec:0.30},FI:{essence:1.90,diesel:1.75,gpl:0.95,elec:0.20},CH:{essence:1.80,diesel:1.95,gpl:1.10,elec:0.30},GB:{essence:1.45,diesel:1.55,gpl:0.85,elec:0.30},US:{essence:0.95,diesel:1.05,gpl:0.70,elec:0.16},CA:{essence:1.55,diesel:1.75,gpl:0.95,elec:0.15},JP:{essence:175,diesel:155,gpl:110,elec:30},AU:{essence:1.95,diesel:1.95,gpl:1.10,elec:0.30},MA:{essence:14.5,diesel:13.5,gpl:8,elec:1.5},TN:{essence:2.5,diesel:2.1,gpl:1.6,elec:0.3},DZ:{essence:45,diesel:29,gpl:9,elec:4},MX:{essence:24,diesel:25,gpl:12,elec:3},BR:{essence:6.0,diesel:6.2,gpl:3.8,elec:1.0},CN:{essence:7.8,diesel:7.2,gpl:4.5,elec:1.0},TH:{essence:38,diesel:33,gpl:16,elec:4},IN:{essence:100,diesel:90,gpl:55,elec:9},TR:{essence:43,diesel:43,gpl:22,elec:2.5},AE:{essence:2.9,diesel:3.0,gpl:2.0,elec:0.3},SE:{essence:18,diesel:20,gpl:11,elec:3},NO:{essence:22,diesel:21,gpl:13,elec:3},DK:{essence:14,diesel:13,gpl:8,elec:3},PL:{essence:6.5,diesel:6.7,gpl:2.8,elec:0.8},CZ:{essence:38,diesel:37,gpl:16,elec:8},CM:{essence:840,diesel:828,gpl:500,elec:100},GA:{essence:715,diesel:655,gpl:500,elec:120},CG:{essence:715,diesel:865,gpl:500,elec:110},TD:{essence:840,diesel:828,gpl:500,elec:120},SN:{essence:990,diesel:755,gpl:600,elec:115},CI:{essence:875,diesel:715,gpl:600,elec:110},BJ:{essence:700,diesel:680,gpl:600,elec:110},BF:{essence:790,diesel:730,gpl:600,elec:120},ML:{essence:830,diesel:760,gpl:600,elec:120},NG:{essence:1000,diesel:1100,gpl:700,elec:70},GH:{essence:14,diesel:14,gpl:10,elec:1.5},KE:{essence:190,diesel:175,gpl:130,elec:25},ZA:{essence:24,diesel:22,gpl:18,elec:3},EG:{essence:15,diesel:13,gpl:8,elec:1.5},MU:{essence:75,diesel:62,gpl:40,elec:7},KR:{essence:1700,diesel:1550,gpl:1000,elec:300},SG:{essence:2.8,diesel:2.6,gpl:1.8,elec:0.4},MY:{essence:2.05,diesel:2.15,gpl:1.5,elec:0.5},PH:{essence:65,diesel:60,gpl:45,elec:11},SA:{essence:2.33,diesel:0.75,gpl:0.6,elec:0.18},IL:{essence:7.4,diesel:6.8,gpl:4,elec:0.55},RU:{essence:55,diesel:62,gpl:30,elec:5},ID:{essence:13000,diesel:13000,gpl:7000,elec:1500}};
 function fuelPrice(cc,fuel){
   /* F1-D section 6 : la France n'a plus JAMAIS de prix fixe ici -- uniquement STATION/NATIONAL via fuelPriceResolved()/fuelPriceRecordResolved(). */
@@ -10775,7 +10805,7 @@ function planRow(it,sc,dd,ro,tr){ const startStr=sc?sc.startStr:(it.time||'');
   const shownDone=it.done===true;   /* s3 : coche/barré uniquement si confirmé */
   const frac=isToday&&st!=null&&en!=null?(now>=en?1:(now<=st?0:(now-st)/Math.max(1,en-st))):(shownDone?1:0);
   const pct=Math.round(frac*100); const col=catColor(it); const fill=(pct>0)?`<div class="pl-fill" style="width:${pct}%;background:${col}"></div>`:'';
-  const cls=(shownDone?'done ':'')+(current?'current':'');
+  const cls=(shownDone?'done ':'')+(current?'current ':'')+((!shownDone&&!current&&(isPast||elapsed))?'past':'');   /* V4.4 : expose l'etat horaire deja calcule ; une etape passee NON cochee reste non terminee (it.done inchange) */
   const photo=planItemPhotoUrl(it,tr);
   const mediaHtml=`
   <div class="pl-media${photo?" has-photo":""}">
@@ -10959,6 +10989,75 @@ const _MVP_MENU_ICO={   /* V4.3 : pictogrammes outline homogenes (remplacent les
   chev:'<path d="M9 6l6 6-6 6"/>'
 };
 function _mvpMenuIco(k,cls){ return '<svg class="plan-menu-ico'+(cls?' '+cls:'')+'" viewBox="0 0 24 24" aria-hidden="true">'+(_MVP_MENU_ICO[k]||'')+'</svg>'; }
+function _mvpTxt(k){   /* V4.4 : libelles courts d'interface (5 langues) */
+  const L={
+    fr:{actions:"Actions",mode:"Mode",now:"En cours",past:"Passée",done:"Terminée",knownCost:"Coût connu du jour",fuelPartial:"carburant incomplet"},
+    en:{actions:"Actions",mode:"Mode",now:"In progress",past:"Past",done:"Done",knownCost:"Known day cost",fuelPartial:"fuel incomplete"},
+    es:{actions:"Acciones",mode:"Modo",now:"En curso",past:"Pasada",done:"Hecha",knownCost:"Coste conocido del día",fuelPartial:"carburante incompleto"},
+    it:{actions:"Azioni",mode:"Modalità",now:"In corso",past:"Passata",done:"Fatta",knownCost:"Costo noto del giorno",fuelPartial:"carburante incompleto"},
+    de:{actions:"Aktionen",mode:"Modus",now:"Läuft",past:"Vorbei",done:"Erledigt",knownCost:"Bekannte Tageskosten",fuelPartial:"Kraftstoff unvollständig"}
+  };
+  return ((L[lang()]||L.fr)[k])||L.fr[k]||"";
+}
+/* V4.4 -- UN SEUL "A savoir" : etat de conseils par voyage+jour, alimente par les DEUX sources existantes
+   (Fidele via renderFideleAIFromPresentation, conseils du jour via paintDayNudges). Aucun appel reseau, aucune donnee inventee. */
+const _mvpAdvice={key:"",fidele:null,nudges:[],wx:null};
+const _MVP_THEMES={
+  hydration:/\b(eau|hydrat\w*|chaleur|chaud\w*|canicule|water|heat|hot|agua|hidrat\w*|calor|acqua|idrat\w*|caldo|wasser|trink\w*|hitze|hei(ß|ss)\w*)/i,
+  booking:/(r[ée]serv\w*|billet\w*|ticket\w*|\bbook\w*|entrada\w*|reserv\w*|prenot\w*|bigliett\w*|buch\w*|eintritt\w*)/i,
+  hours:/(horaire\w*|ouvert\w*|fermet\w*|opening|hours|closes?\b|horario\w*|abiert\w*|orari\w*|apert\w*|chius\w*|öffnungs\w*|geöffnet|geschlossen)/i,
+  fatigue:/(\bpause\w*|fatigu\w*|repos\b|\brest\b|\bbreak\b|tired|descans\w*|cansa\w*|riposo|stanc\w*|\bruhe\w*|müde)/i,
+  crowd:/(foule|affluence|crowd\w*|busy|queue|multitud\w*|gentío|folla|affollat\w*|andrang|menschenmenge)/i
+};
+function _mvpThemesOf(txt){ const out=new Set(); const s=String(txt||""); for(const k in _MVP_THEMES){ if(_MVP_THEMES[k].test(s)) out.add(k); } return out; }
+function _mvpStripIco(txt){ return String(txt||"").replace(/^[\s\p{Extended_Pictographic}\uFE0F\u200D]+/u,"").trim(); }
+function _mvpWxTheme(w){ if(!w) return "weather"; const c=(w.codeDay!=null?w.codeDay:w.code), tp=(w.tempMax!=null?w.tempMax:w.temp); if(c>=95||(c>=51&&c<=67)||(c>=80&&c<=82)||(c>=71&&c<=77)||(c>=85&&c<=86)) return "weather"; if(tp>=32) return "heat"; return "weather"; }
+function _mvpWxClause(w){ if(!w) return ""; const tp=+(w.tempMax!=null?w.tempMax:w.temp); if(!Number.isFinite(tp)) return ""; const c=(w.codeDay!=null?w.codeDay:w.code); const cond=(typeof wxCondLabel==="function")?wxCondLabel(c,true):""; return Math.round(tp)+"°C"+(cond?" · "+cond:""); }
+function _mvpAdviceItems(st){
+  const items=[]; const fid=st.fidele||null; const f=(fid&&fid.text)?String(fid.text).trim():""; const fTh=_mvpThemesOf(f);
+  const nud=(st.nudges||[]).slice(); const wxN=nud.filter(n=>n.theme==="heat"||n.theme==="weather"||n.theme==="wxtiming"); const other=nud.filter(n=>!wxN.includes(n));
+  const clause=_mvpWxClause(st.wx); const heat=wxN.some(n=>n.theme==="heat"); let used=false;
+  if(fid&&fid.thinking) items.push({fidele:true,thinking:true,text:"🧭 "+t("agent.thinking")});
+  else if(f){ let first=f; if(clause&&fTh.has("hydration")){ first=clause+" — "+f; used=true; } items.push({fidele:true,text:first}); }   /* la meteo ne rejoint Fidele que si Fidele parle deja de chaleur/hydratation */
+  let wxTexts=wxN.filter(n=>!(n.theme==="heat"&&fTh.has("hydration"))).map(n=>n.text).filter(Boolean);   /* chaleur deja dite par Fidele : fusionnee, jamais repetee */
+  if(clause&&!used&&wxTexts.length){ wxTexts=wxTexts.map(x=>{ const y=x.replace(/^[^—()]*\(\s*-?\d+\s*°C?\s*\)\s*—\s*/,""); return y?y.charAt(0).toUpperCase()+y.slice(1):x; }); }   /* "Chaud (34°C) — ..." : la temperature est deja dans la mention meteo */
+  const _tpTxt=(st.wx&&Number.isFinite(+(st.wx.tempMax!=null?st.wx.tempMax:st.wx.temp)))?(Math.round(+(st.wx.tempMax!=null?st.wx.tempMax:st.wx.temp))+"°"):"";
+  const _saysTp=!!_tpTxt&&wxTexts.some(x=>x.includes(_tpTxt));   /* la temperature est deja dite par le conseil existant : pas de repetition */
+  if(wxTexts.length) items.push({text:((used||!clause||_saysTp)?"":clause+" — ")+wxTexts.join(" ")});
+  other.forEach(n=>{ const th=n.theme; if(th&&fTh.has(th)) return; items.push({text:n.text}); });   /* doublon evident (meme theme structure) : on garde celui de Fidele */
+  const seen=new Set(); return items.filter(it=>{ const k=String(it.text).toLowerCase().replace(/\s+/g," ").trim(); if(!k||seen.has(k)) return false; seen.add(k); return true; });
+}
+function _mvpPaintAdvice(){
+  const el=document.getElementById("fideleAlert"); if(!el) return;
+  const tr=currentTrip(); const key=tr?(tr.id+"|"+planState.dayIndex):""; const st=(tr&&_mvpAdvice.key===key)?_mvpAdvice:null;
+  const items=st?_mvpAdviceItems(st):[];
+  if(!items.length){ el.innerHTML=""; return; }   /* aucun conseil : aucun cadre vide */
+  const label=escapeHtml(t("plan.toKnow")); const who=escapeHtml(agentDisplayName());
+  const html=items.map(it=>(it.fidele?`<b>${who} :</b> `:"")+(it.fidele&&!it.thinking?escapeAI(it.text):escapeHtml(it.text))).join('<span class="ft-sep" aria-hidden="true">•</span>');
+  const plain=items.map(it=>(it.fidele?agentDisplayName()+" : ":"")+it.text).join("  •  ");
+  el.innerHTML=`<div class="fidele-ticker" id="fideleTicker" data-count="${items.length}"><span class="ft-label">💡 ${label}</span><div class="ft-viewport" id="ftViewport" role="note" tabindex="0"><div class="ft-track" id="ftTrack">${html}</div></div><button class="ft-more" type="button" aria-label="${label}" aria-expanded="false"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 6l6 6-6 6"/></svg></button></div>`;
+  _wireFideleTicker(el, plain);
+  { const mb=el.querySelector(".ft-more"), vp=el.querySelector("#ftViewport"); if(mb&&vp) mb.onclick=e=>{ e.stopPropagation(); vp.onclick&&vp.onclick(); const ex=vp.classList.contains("expanded"); mb.setAttribute("aria-expanded",ex?"true":"false"); mb.classList.toggle("open",ex); }; }
+}
+function _mvpAdviceSet(tr,day,patch){
+  if(!tr) return; const cur=currentTrip(); if(!cur||cur.id!==tr.id||planState.dayIndex!==day) return;   /* jamais un conseil d'un autre voyage/jour */
+  const key=tr.id+"|"+day; if(_mvpAdvice.key!==key){ _mvpAdvice.key=key; _mvpAdvice.fidele=null; _mvpAdvice.nudges=[]; _mvpAdvice.wx=null; }
+  Object.assign(_mvpAdvice,patch); _mvpPaintAdvice();
+}
+function _mvpDecorateChrono(root){   /* V4.4 : badge d'etat depuis les classes posees par planRow (done/current/past) -- aucune donnee modifiee */
+  (root||document).querySelectorAll(".timeline .pl-item").forEach(r=>{ const m=r.querySelector(".pl-main"); if(!m||m.querySelector(".mvp-state-badge")) return;
+    const k=r.classList.contains("current")?"now":(r.classList.contains("done")?"done":(r.classList.contains("past")?"past":"")); if(!k) return;
+    const b=document.createElement("span"); b.className="mvp-state-badge st-"+k; b.textContent=_mvpTxt(k); m.insertBefore(b,m.firstChild); });
+}
+function _mvpPaintKnownDayCost(){   /* V4.4 : repli d'affichage quand le Budget n'a pas encore de snapshot -- SOMME des couts deja calcules par injectPresentationLegs (dataset numerique), aucun recalcul */
+  const els=[...document.querySelectorAll(".rc-daycost")]; if(!els.length) return; if(els.some(e=>e.dataset.src==="budget")) return;
+  const legs=[...document.querySelectorAll(".timeline .pl-leg")]; const known=legs.filter(l=>l.dataset.fuelCost!=null&&l.dataset.fuelCost!==""&&Number.isFinite(+l.dataset.fuelCost));
+  const missing=legs.some(l=>l.dataset.fuelMissing==="1"); if(!known.length) return;
+  const tr=currentTrip(); if(!tr) return; const sum=known.reduce((a,l)=>a+(+l.dataset.fuelCost),0); const meal=(typeof _dayMealCost==="function")?(_dayMealCost(tr,planState.dayIndex)||0):0;
+  els.forEach(e=>{ e.textContent="~"+money(sum+meal,tr.currency); e.dataset.src="legs"; });
+  document.querySelectorAll(".rc-daycost-lbl").forEach(e=>{ e.textContent=_mvpTxt("knownCost"); });
+  document.querySelectorAll(".rc-fuel").forEach(e=>{ e.textContent="~"+money(sum,tr.currency)+(missing?" ("+_mvpTxt("fuelPartial")+")":""); });
+}
 function _mvpDayActionsLabel(){
   return ({
     fr:"Actions de journée",
@@ -11038,10 +11137,11 @@ function renderPlan(){
              <button class="mvp-acell plan-actions-trigger"
                      id="planMore"
                      type="button"
+                     aria-label="${escapeHtml(_mvpDayActionsLabel())}"
                      aria-haspopup="true"
                      aria-expanded="false">
                <span class="mvp-actions-dots" aria-hidden="true"><i></i><i></i><i></i></span>
-               <span class="al">${escapeHtml(_mvpDayActionsLabel())}</span>${_MVP_ICO.chev}
+               <span class="al">${escapeHtml(_mvpTxt("actions"))}</span>${_MVP_ICO.chev}
              </button>
              <div class="plan-more-menu plan-actions-menu"
                   id="planMoreMenu"
@@ -11112,10 +11212,14 @@ function renderPlan(){
                </div>
              </div>
            </div>
+           <div class="plan-rhythm-wrap mvp-bar-rhythm">
+             <button class="mvp-acell mvp-rhythm-btn" id="planRhythm" type="button" aria-haspopup="true" aria-expanded="false" aria-label="${escapeHtml(t("plan.dayMode"))}"><span class="pr-ic" id="planRhythmIc"></span><span class="al" id="planRhythmLbl">${escapeHtml(_mvpTxt("mode"))}</span><svg class="pr-car" viewBox="0 0 24 24" width="11" height="11"><path d="M6 9l6 6 6-6"/></svg></button>
+             <div class="plan-rhythm-menu" id="planRhythmMenu" hidden role="menu"></div>
+           </div>
            ${
-             !ro&&stops.length
-               ? `<button class="mvp-acell arrive mvp-arrive-main"
-                          id="arriveDay"
+             true
+               ? `<button class="mvp-acell arrive mvp-arrive-main${(ro||!stops.length)?" is-disabled":""}"
+                          id="arriveDay"${(ro||!stops.length)?' disabled aria-disabled="true"':""}
                           title="${escapeHtml(t("gps.arrive"))}">
                     <svg class="aci" viewBox="0 0 24 24">
                       <path d="M12 21s-7-6.2-7-11a7 7 0 0 1 14 0c0 4.8-7 11-7 11z"/>
@@ -11142,8 +11246,8 @@ function renderPlan(){
   const _showCost=(_mealC>0)||(_isDrive&&_hasRoute);
   const _costInit=(_isDrive&&_hasRoute)?"\u2026":((_mealC>0)?money(_mealC,tr.currency):"");   /* async si route DRIVE, sinon repas immédiat */
   const _fuelInit=(_isDrive&&_hasRoute)?"\u2026":(_isDrive?"\u2014":"");
-  const costHtml=_showCost?`<div class="ds-fuel">💶 ${t("plan.dayCost")} · <b class="rc-daycost">${_costInit}</b>${_isDrive?` <span class="ds-costs">⛽ <span class="rc-fuel">${_fuelInit}</span>${_mealC>0?" · ":""}`:` <span class="ds-costs">`}${_mealC>0?`🍽️ ${money(_mealC,tr.currency)}`:""} · ${t("plan.exclTickets")}</span></div>`:"";
-  const sumHtml=items.length?`<div class="day-sum ${over?'over':''}"><div class="ds-grid"><div class="ds-col"><span class="ds-k">${t("plan.start")}</span><b>${startT||"—"}</b><span class="ds-s">${t("plan.visitsTime")} · ${fmtMin(visitMin)}</span></div><div class="ds-col"><span class="ds-k">${t("plan.endWanted")}</span><div class="ds-want"><input type="time" id="dayEndInput" value="${escapeHtml(tr.dayEnd||'')}"${ro?" disabled":""}></div></div></div>${_planDetailed?costHtml:""}${anyShift?`<div class="ds-warn soft">↪ ${t("plan.conflict")}</div>`:""}${sched.some(x=>x.prov)?`<div class="ds-warn soft">⏳ ${t("plan.transCalc")}</div>`:""}${over?`<div class="ds-warn">⚠️ ${overEnd?t("plan.overEnd",{t:tr.dayEnd}):t("plan.overload")}</div>`:""}</div>`:"";
+  const costHtml=_showCost?`<div class="ds-fuel">💶 <span class="rc-daycost-lbl">${t("plan.dayCost")}</span> · <b class="rc-daycost">${_costInit}</b>${_isDrive?` <span class="ds-costs">⛽ <span class="rc-fuel">${_fuelInit}</span>${_mealC>0?" · ":""}`:` <span class="ds-costs">`}${_mealC>0?`🍽️ ${money(_mealC,tr.currency)}`:""} · ${t("plan.exclTickets")}</span></div>`:"";
+  const sumHtml=items.length?`<div class="day-sum ${over?'over':''}"><div class="ds-grid"><div class="ds-col"><span class="ds-k">${t("plan.start")}</span><b>${startT||"—"}</b><span class="ds-s">${t("plan.visitsTime")} · ${fmtMin(visitMin)}</span></div><div class="ds-col"><span class="ds-k">${t("plan.endWanted")}</span><div class="ds-want"><input type="time" id="dayEndInput" value="${escapeHtml(tr.dayEnd||'')}"${ro?" disabled":""}></div></div></div>${costHtml}${anyShift?`<div class="ds-warn soft">↪ ${t("plan.conflict")}</div>`:""}${sched.some(x=>x.prov)?`<div class="ds-warn soft">⏳ ${t("plan.transCalc")}</div>`:""}${over?`<div class="ds-warn">⚠️ ${overEnd?t("plan.overEnd",{t:tr.dayEnd}):t("plan.overload")}</div>`:""}</div>`:"";
   const _trs=(typeof legTransitions==="function")?legTransitions(tr).find(x=>x.day===d.i):null;
   const _hasTrans=(tr.plan||[]).some(x=>x.day===d.i&&x._trans);
   const transHtml=(_trs&&!ro)?`<div style="display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;margin:12px 0 2px;padding:11px 13px;border:1px solid rgba(15,31,61,.15);border-radius:14px;background:rgba(15,31,61,.04)"><div style="font-size:14px;line-height:1.35;flex:1;min-width:180px">🧳 ${escapeHtml(t("plan.transBanner",{a:((_trs.from&&_trs.from.name)||"—"),b:((_trs.to&&_trs.to.name)||"—")}))}</div>${_hasTrans?`<div style="font-size:14px;color:#0E9F6E;font-weight:700">✓ ${escapeHtml(t("plan.transExists"))}</div>`:`<button class="btn navy" id="addTransBtn" style="flex:0 0 auto">${escapeHtml(t("plan.transAdd"))}</button>`}</div>`:"";
@@ -11217,10 +11321,6 @@ function renderPlan(){
          <div class="mvp-day-left">
            <div class="mvp-day-title">${escapeHtml(dateLabel)}</div>
            <div class="mvp-wx" id="dcWeather"></div>
-         </div>
-         <div class="plan-rhythm-wrap">
-           <button class="mvp-rhythm-btn" id="planRhythm" type="button" aria-haspopup="true" aria-expanded="false"><span class="pr-ic" id="planRhythmIc">${rhythmCur[2]}</span><span id="planRhythmLbl">${t("plan.dayMode")}</span><svg class="pr-car" viewBox="0 0 24 24" width="11" height="11"><path d="M6 9l6 6 6-6"/></svg></button>
-           <div class="plan-rhythm-menu" id="planRhythmMenu" hidden role="menu"></div>
          </div>
        </div>
        ${transHtml}
@@ -11324,7 +11424,7 @@ function renderPlan(){
   if(!ro) body.querySelectorAll(".pl-item").forEach(el=>el.onclick=()=>openPlanEdit(el.dataset.id));
   if(!ro){ body.querySelectorAll("[data-legpick]").forEach(b=>b.onclick=function(e){ e.preventDefault(); e.stopPropagation(); openLegPicker(b.dataset.legpick); }); }   /* FIX 4 : le bouton n'ouvre QUE le sélecteur, pas l'éditeur */  {   /* correction lot Planning premium : capsule de rythme unique (barre haute, hors #planBody) -- reutilise EXACTEMENT tr.intensity/tr.intensityAuto/saveState()/renderPlan() */
     const rb=document.getElementById("planRhythm"), rm=document.getElementById("planRhythmMenu"), ic=document.getElementById("planRhythmIc"), lbl=document.getElementById("planRhythmLbl");
-    if(rb){ rb.hidden=!hasPlanned; rb.style.display=hasPlanned?"":"none"; if(ic) ic.textContent=rhythmCur[2]; if(lbl){ lbl.removeAttribute("data-i18n"); lbl.textContent=t("plan.dayMode"); } rb.setAttribute("aria-label",t("plan.dayMode")+" : "+t(rhythmCur[1])); }
+    if(rb){ rb.hidden=!hasPlanned; rb.style.display=hasPlanned?"":"none"; if(ic) ic.textContent=rhythmCur[2]; if(lbl){ lbl.removeAttribute("data-i18n"); lbl.textContent=_mvpTxt("mode"); } rb.setAttribute("aria-label",t("plan.dayMode")+" : "+t(rhythmCur[1])); }
     if(rm){ rm.innerHTML=rhythmMenuHtml; rm.querySelectorAll("[data-int]").forEach(b=>b.onclick=()=>{ if(ro) return; tr.intensity=b.dataset.int; tr.intensityAuto=false; saveState(); rm.hidden=true; if(rb) rb.setAttribute("aria-expanded","false"); renderPlan(); }); }
     if(rb&&rm&&!window.__planRhythmBound){
       window.__planRhythmBound=true;
@@ -11362,7 +11462,9 @@ function renderPlan(){
           _planSetMapCollapsed(!_planMapCollapsed);
         };
       }
-    }   /* V4.1 : action d'origine conservee (cartouche standard masque) */
+    }
+    _mvpDecorateChrono(body);   /* V4.4 : Terminee / Passee / En cours */
+    _mvpPaintAdvice();          /* V4.4 : conseil unique deja connu pour ce voyage+jour, sans attendre */   /* V4.1 : action d'origine conservee (cartouche standard masque) */
   }
   {   /* correction lot Planning premium : bouton Itineraire fusionne (Y aller + Google) -- reutilise EXACTEMENT launchDayMaps("apple")/launchDayMaps("google") */
     const ib=body.querySelector("#navDayItin"), im=body.querySelector("#navDayItinMenu");
@@ -12140,16 +12242,14 @@ function crowdAdvice(tr,iso){ try{
    de:`${escapeHtml(list)}${more}: sehr beliebt — zur Öffnung oder am späten Nachmittag, um Menschenmengen zu meiden${we?" (Wochenende: noch voller)":""}.`};
   return M[L]||M.en;
 }catch(e){ return ""; } }
-function paintDayNudges(){ if(!_dayCtx) return; const el=document.getElementById("dayNudges"); if(!el) return; const tr=_dayCtx.tr, iso=_dayCtx.iso, dayKm=_dayCtx.dayKm, mode=_dayCtx.mode; const rows=[];
-  if(mode==="DRIVE" && dayKm>0 && dayKm<=2.5) rows.push(`<div class="nudge"><b class="nudge-cat">${t("nudge.catTravel")}</b> 🚶 ${t("nudge.walk",{km:dayKm.toFixed(1)})}</div>`);
-  const w=(tr._wx&&iso)?tr._wx[iso]:null; const wn=wxNudgeText(w); if(wn) rows.push(`<div class="nudge"><b class="nudge-cat">${t("nudge.catWeather")}</b> ${wn}</div>`);
-  const wt=wxTimingAdvice(tr,iso); if(wt) rows.push(`<div class="nudge"><b class="nudge-cat">${t("nudge.catWeather")}</b> ${wt}</div>`);
-  const cw=crowdAdvice(tr,iso); if(cw) rows.push(`<div class="nudge"><b class="nudge-cat">${t("nudge.catCrowd")}</b> ${cw}</div>`);
-  if(!rows.length){ el.innerHTML=""; return; }
-  const n=rows.length, lbl=n+" "+t(n>1?"nudge.tipMany":"nudge.tipOne");
-  if(_nudgeOpen){ el.innerHTML=`<div class="nudge-box"><button class="nudge-toggle" data-a="close">💡 ${t("nudge.tips")} · ${lbl} ▴</button>${rows.join("")}</div>`; }
-  else { el.innerHTML=`<button class="nudge-pill" data-a="open">💡 ${t("nudge.tips")} · ${lbl} <span>▾</span></button>`; }
-  const tb=el.querySelector("[data-a]"); if(tb) tb.onclick=()=>{ _nudgeOpen=(tb.dataset.a==="open"); paintDayNudges(); };
+function paintDayNudges(){ if(!_dayCtx) return; const el=document.getElementById("dayNudges"); if(!el) return; const tr=_dayCtx.tr, iso=_dayCtx.iso, dayKm=_dayCtx.dayKm, mode=_dayCtx.mode; const items=[];
+  /* V4.4 : memes sources et memes regles qu'avant ; elles alimentent desormais le bandeau "A savoir" unique (plus de pastille "A savoir · N conseils") */
+  if(mode==="DRIVE" && dayKm>0 && dayKm<=2.5) items.push({theme:"walk",text:t("nudge.walk",{km:dayKm.toFixed(1)})});
+  const w=(tr._wx&&iso)?tr._wx[iso]:null; const wn=wxNudgeText(w); if(wn) items.push({theme:_mvpWxTheme(w),text:_mvpStripIco(wn)});
+  const wt=wxTimingAdvice(tr,iso); if(wt) items.push({theme:"wxtiming",text:_mvpStripIco(wt)});
+  const cw=crowdAdvice(tr,iso); if(cw) items.push({theme:"crowd",text:_mvpStripIco(cw)});
+  el.innerHTML="";
+  _mvpAdviceSet(tr, planState.dayIndex, {nudges:items, wx:w});
 }
 let _nudgeOpen=false;
 const _agentTrajetCache={};
@@ -17602,6 +17702,8 @@ function injectPresentationLegs(presentation, mode, tr){
       row.style.getPropertyValue("--catc")
       ||"var(--gold)";
     div.style.setProperty("--legc",legColor);
+    div.dataset.fuelCost=showFuel?String(cost):"";   /* V4.4 : valeur numerique DEJA calculee ci-dessus, exposee avant formatage (aucun recalcul ailleurs) */
+    div.dataset.fuelMissing=(mode==="DRIVE"&&usesCar(tr)&&driveMeters>0&&!showFuel)?"1":"";   /* trajet voiture sans prix/conso exploitable : jamais un faux 0 */
     const fuelHtml=showFuel
       ? `<span class="pl-leg-fuel">
            ⛽
@@ -17652,6 +17754,7 @@ function injectPresentationLegs(presentation, mode, tr){
     };
     { const _slot=row.querySelector(".pl-d-leg"); if(_slot) _slot.innerHTML=`<span class="pl-d-sep">·</span><span class="pl-d-mode">${modeEmoji(mode)}</span>${escapeHtml(_mvpLocDec(fmtDist(agg.dist)))}`; }   /* V4.1 : rendu compact (vue normale) -- donnees = agg deja calcule */
     row.insertAdjacentElement("afterend",div);
+    _mvpPaintKnownDayCost();
   });
 }
 
@@ -17878,22 +17981,20 @@ async function getOrResolvePlanningPresentation(tr, day, opts){
 const _dayAIRequestSeq = {};
 async function renderFideleAIFromPresentation(tr, day, presentation, aiPlaces, aiGeneration, iso){
   const el=document.getElementById("fideleAlert"); if(!el) return;
-  const key=(tr.id||"")+"_"+day+"_ai"; if(_fideleDismissed[key]){ el.innerHTML=""; return; }
+  const key=(tr.id||"")+"_"+day+"_ai"; if(_fideleDismissed[key]){ _mvpAdviceSet(tr,day,{fidele:null}); return; }
   const capturedStoreId=_storeId, capturedStoreEpoch=_storeEpoch, capturedTripId=tr.id;
   const aiKey=capturedStoreId+"|"+capturedStoreEpoch+"|"+capturedTripId+"|"+day;
   const built=buildDayAIFromPresentation(tr, day, presentation, aiPlaces, iso);
-  if(!built){ el.innerHTML=""; return; }
+  if(!built){ _mvpAdviceSet(tr,day,{fidele:null}); return; }
   /* correction lot Planning premium : SEUL le rendu change (bandeau horizontal en ticker) -- buildDayAIFromPresentation()
      et le texte reel de Fidele restent EXACTEMENT ce qu'ils etaient ; aucun texte invente, jamais duplique. */
-  const card=(htmlInner, plain)=>{
-    const label=escapeHtml(t("plan.toKnow"));
-    el.innerHTML=`<div class="fidele-ticker" id="fideleTicker"><span class="ft-label">💡 ${label}</span><div class="ft-viewport" id="ftViewport" role="note" tabindex="0"><div class="ft-track" id="ftTrack"><b>${escapeHtml(agentDisplayName())} :</b> ${htmlInner}</div></div><button class="ft-more" type="button" aria-label="${label}" aria-expanded="false"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 6l6 6-6 6"/></svg></button></div>`;
-    _wireFideleTicker(el, (plain!=null&&plain!=="")?(agentDisplayName()+" : "+plain):plain);   /* V4.1 : le prefixe reste present une fois le texte deploye */
-    { const mb=el.querySelector(".ft-more"), vp=el.querySelector("#ftViewport"); if(mb&&vp) mb.onclick=e=>{ e.stopPropagation(); vp.onclick&&vp.onclick(); const ex=vp.classList.contains("expanded"); mb.setAttribute("aria-expanded",ex?"true":"false"); mb.classList.toggle("open",ex); }; }   /* V4.1 : chevron = deployer/replier, jamais une suppression definitive */
+  const card=(htmlInner, plain, thinking)=>{   /* V4.4 : le texte reel de Fidele alimente le bandeau UNIQUE (compose avec les conseils du jour) */
+    _mvpAdviceSet(tr, day, {fidele: thinking?{thinking:true}:{text:plain}});
   };
+
   tr._aiText=tr._aiText||{}; const c=tr._aiText[day];
   if(c && c.sig===built.sig && c.text){ card(escapeAI(c.text),c.text); return; }
-  card("🧭 "+escapeHtml(t("agent.thinking")), t("agent.thinking"));
+  card("🧭 "+escapeHtml(t("agent.thinking")), t("agent.thinking"), true);
   let out=null;
   try{ out=await workerFetch("/agent/conseil-trajet",built.payload); }catch(e){ out=null; }
   /* revalidation complete AVANT toute ecriture cache/DOM (arch-r8 Correctif 3) */
@@ -17902,7 +18003,7 @@ async function renderFideleAIFromPresentation(tr, day, presentation, aiPlaces, a
     _storeId!==capturedStoreId || _storeEpoch!==capturedStoreEpoch || tr.id!==capturedTripId
   ) return;   /* une demande plus recente a deja pris le relais -- reponse jetee */
   if(out && out.text){ tr._aiText[day]={sig:built.sig,text:out.text}; saveState(); if(el.isConnected) card(escapeAI(out.text),out.text); }
-  else if(el.isConnected) el.innerHTML="";
+  else if(el.isConnected) _mvpAdviceSet(tr,day,{fidele:null});
 }
 /* correction lot Planning premium : anime le bandeau UNIQUEMENT si le texte deborde reellement (jamais si tout tient) ;
    vitesse approximativement constante (duree proportionnelle a la largeur) ; jamais de defilement si prefers-reduced-motion ;
