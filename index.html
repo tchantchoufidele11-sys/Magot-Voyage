@@ -1265,8 +1265,8 @@ a.btn{text-decoration:none}
 .fidele-ticker .ft-viewport.expanded{overflow:visible;white-space:normal;height:auto;padding:8px 0;align-self:stretch}
 .fidele-ticker .ft-track{display:inline-block;font:500 13px/1.4 "Inter",sans-serif;font-size:clamp(12.2px,3.2vw,13px);color:#e8eaf0;will-change:transform}
 .fidele-ticker .ft-viewport.expanded .ft-track{white-space:normal;display:block}
-.fidele-ticker .ft-viewport.scrolling .ft-track{transform:translateX(0);animation:fideleTick var(--ft-dur,18s) linear infinite}
-@keyframes fideleTick{0%{transform:translateX(0)}100%{transform:translateX(var(--ft-dist,-200px))}}
+.fidele-ticker .ft-viewport.scrolling .ft-track{animation:fideleTick var(--ft-dur,18s) linear infinite}
+@keyframes fideleTick{from{transform:translate3d(var(--ft-start,100%),0,0)}to{transform:translate3d(var(--ft-end,-100%),0,0)}}
 .fidele-ticker .ft-close{flex:0 0 auto;width:28px;height:28px;min-width:28px;border-radius:9px;border:1px solid rgba(201,162,39,.4);background:rgba(240,217,138,.14);color:#f0d98a;font-size:12px;display:flex;align-items:center;justify-content:center;cursor:pointer}
 @media(prefers-reduced-motion:reduce){
   .fidele-ticker .ft-viewport.scrolling .ft-track{animation:none!important;transform:none!important}
@@ -4613,6 +4613,31 @@ body:has(#view-plan.active) #agentBubble{display:none}
 #view-plan.mv-plan-v4 .mvp-pos-capsule button{height:30px;padding:0 11px;border:0;border-radius:9px;background:var(--v4-navy);color:#fff;font:700 12px/1 "Inter",sans-serif;cursor:pointer;white-space:nowrap}
 #view-plan.mv-plan-v4 .plan-map-premium.full .mvp-pos-capsule{top:70px;left:14px}
 #view-plan.mv-plan-v4 .plan-map-premium[data-mapmode="trip"] .mvp-pos-capsule{display:none}   /* "Partir d'ici" agit sur la route DU JOUR : jamais propose sur la carte du sejour */
+/* ============ V4.6 -- panneau "A savoir" complet, point utilisateur, indication de cadrage, bouton GPS explicite ============ */
+#view-plan.mv-plan-v4 .ftp-text{display:block;-webkit-line-clamp:unset;-webkit-box-orient:unset;overflow:visible;text-overflow:clip;white-space:normal;max-height:none}
+#view-plan.mv-plan-v4 .ft-panel{max-height:min(58vh,460px);overflow-y:auto;overscroll-behavior:contain}
+#view-plan .mvp-user-dot{width:16px;height:16px;box-sizing:border-box;border-radius:50%;background:#1A73E8;border:3px solid #fff;box-shadow:0 0 0 6px rgba(26,115,232,.22),0 1px 4px rgba(0,0,0,.3);transform:translate(-50%,-50%)}
+#view-plan .maplibregl-marker .mvp-user-dot{transform:none}
+#view-plan.mv-plan-v4 .mvp-map-hint{position:absolute;left:50%;bottom:14px;z-index:9;transform:translate(-50%,6px);padding:7px 12px;border-radius:999px;background:rgba(13,40,86,.9);color:#fff;font:700 12px/1 "Inter",sans-serif;white-space:nowrap;opacity:0;pointer-events:none;transition:opacity .18s ease,transform .18s ease}
+#view-plan.mv-plan-v4 .mvp-map-hint.show{opacity:1;transform:translate(-50%,0)}
+#view-plan.mv-plan-v4 .plan-map-premium .day-route-float .route-gps{width:auto;min-width:0;flex:0 0 auto;padding:0 10px;font:700 11.5px/30px "Inter",sans-serif;color:#fff;background:var(--v4-navy);border:0}
+#view-plan.mv-plan-v4 .plan-map-premium .day-route-float .route-gps::before{content:none;display:none}   /* V4.6 : plus jamais une cible ⌖ identique au bouton camera -- libelle explicite "Partir de ma position" */
+@media(prefers-reduced-motion:reduce){ #view-plan.mv-plan-v4 .mvp-map-hint{transition:none} }
+/* ============ V4.7 -- etapes masquables, archive lisible, ticker TV ============ */
+#view-plan.mv-plan-v4 .timeline.collapsed{display:none}
+#view-plan.mv-plan-v4 .fidele-ticker .ft-track{display:inline-flex;align-items:center;gap:0;height:42px;white-space:nowrap;animation:none;transform:none}
+#view-plan.mv-plan-v4 .fidele-ticker .ft-viewport.scrolling .ft-track{animation:fideleTick var(--ft-dur,18s) linear infinite}
+#view-plan.mv-plan-v4 .fidele-ticker .ft-seg{display:inline-flex;align-items:center;gap:7px;flex:0 0 auto}
+#view-plan.mv-plan-v4 .fidele-ticker .ft-txt{font:500 12.5px/1 "Inter",sans-serif;color:rgba(255,255,255,.92);white-space:nowrap}
+#view-plan.mv-plan-v4 .fidele-ticker .ft-sep{flex:0 0 auto;margin:0 12px}
+#view-plan.mv-plan-v4 .mvp-day-card.is-readonly .pl-media{filter:saturate(.72);opacity:.88}
+#view-plan.mv-plan-v4 .mvp-day-card.is-readonly .pl-sub,#view-plan.mv-plan-v4 .mvp-day-card.is-readonly .pl-dur,#view-plan.mv-plan-v4 .mvp-day-card.is-readonly .pl-leg .pl-legbtn{color:#7C879B}
+#view-plan.mv-plan-v4 .mvp-day-card.is-readonly .pl-handle{display:none}
+#view-plan.mv-plan-v4 .mvp-day-card.is-readonly .pl-check{pointer-events:none}
+#view-plan.mv-plan-v4 .mvp-day-card.is-readonly .pl-item{cursor:default}
+#view-plan.mv-plan-v4 .pl-ro{display:inline-flex;align-items:center;gap:6px;margin:10px 2px 2px;padding:5px 10px;border-radius:999px;background:#EEF1F6;color:#4C5874;font:700 11.5px/1.2 "Inter",sans-serif}
+#view-plan.mv-plan-v4 .mvp-bar-rhythm .mvp-rhythm-btn.is-disabled,#view-plan.mv-plan-v4 .mvp-bar-rhythm .mvp-rhythm-btn[disabled]{opacity:.55;box-shadow:none;cursor:default}
+@media(prefers-reduced-motion:reduce){ #view-plan.mv-plan-v4 .fidele-ticker .ft-viewport.scrolling .ft-track{animation:none} }
 @media(max-width:374px){ #view-plan.mv-plan-v4 .mvp-day-card.is-simple .pl-leg{padding-left:156px} #view-plan.mv-plan-v4 .mvp-day-card.is-simple .pl-leg .pl-legbtn{gap:4px} }   /* <375 px : trajet aligne sur le bord de la photo pour ne jamais tronquer mode + distance + duree */
 @media(max-width:359px){
   #view-plan.mv-plan-v4 .pl-item{grid-template-columns:34px 14px 56px minmax(0,1fr) 32px}
@@ -5011,7 +5036,7 @@ const DEFAULT_S={ version:"0.2.0", settings:{ lang:"fr", theme:"system", units:"
 /* Clé Maps JS partagée (restreinte au domaine GitHub Pages). Repli : clé perso de l'utilisateur si fournie. */
 const SHARED_MAP_KEY="AIzaSyCt5iVx8nPr1V067A3daE0X1YA568XJNbU";
 function mapKey(){ return (S.settings.mapKey||"").trim() || SHARED_MAP_KEY; }
-const BUILD="0.6.148 · vPlanningV4.5 ticker-categories + actions + carte";
+const BUILD="0.6.150 · vPlanningV4.7 etapes-masquables + archive + ticker-tv";
 /* V4.1 lot A (P0 stockage) : CC_CUR deplacee ICI, avant le premier loadState() -- loadState>mergeState>normalizeTrip>normalizeLegs la lit ;
    declaree plus bas, elle etait en zone morte temporelle (ReferenceError avalee par loadState -> S vide -> saveState() pouvait ecraser les voyages). Contenu inchange. */
 const CC_CUR={FR:"EUR",BE:"EUR",DE:"EUR",ES:"EUR",IT:"EUR",PT:"EUR",NL:"EUR",AT:"EUR",IE:"EUR",GR:"EUR",LU:"EUR",FI:"EUR",SK:"EUR",SI:"EUR",EE:"EUR",LV:"EUR",LT:"EUR",GB:"GBP",US:"USD",CA:"CAD",CH:"CHF",JP:"JPY",AU:"AUD",NZ:"NZD",MA:"MAD",TN:"TND",DZ:"DZD",EG:"EGP",SE:"SEK",NO:"NOK",DK:"DKK",PL:"PLN",CZ:"CZK",HU:"HUF",RO:"RON",MX:"MXN",BR:"BRL",AR:"ARS",CN:"CNY",TH:"THB",IN:"INR",ID:"IDR",VN:"VND",TR:"TRY",AE:"AED",ZA:"ZAR",SN:"XOF",CI:"XOF",CM:"XAF",GA:"XAF",CG:"XAF",TD:"XAF",CF:"XAF",GQ:"XAF",BJ:"XOF",BF:"XOF",ML:"XOF",NE:"XOF",TG:"XOF",GW:"XOF",NG:"NGN",GH:"GHS",KE:"KES",TZ:"TZS",UG:"UGX",RW:"RWF",ET:"ETB",MU:"MUR",MG:"MGA",AO:"AOA",MZ:"MZN",CD:"CDF",LY:"LYD",SA:"SAR",QA:"QAR",KW:"KWD",BH:"BHD",OM:"OMR",JO:"JOD",LB:"LBP",IL:"ILS",PK:"PKR",BD:"BDT",LK:"LKR",NP:"NPR",KR:"KRW",SG:"SGD",MY:"MYR",PH:"PHP",KH:"KHR",MM:"MMK",KZ:"KZT",GE:"GEL",AM:"AMD",AZ:"AZN",RU:"RUB",UA:"UAH",RS:"RSD",BG:"BGN",IS:"ISK",HR:"EUR",CY:"EUR",MT:"EUR",CL:"CLP",CO:"COP",PE:"PEN",UY:"UYU",BO:"BOB",EC:"USD",PA:"USD",CR:"CRC",GT:"GTQ",DO:"DOP",FJ:"FJD"};
@@ -11019,15 +11044,15 @@ function _mvpMenuIco(k,cls){ return '<svg class="plan-menu-ico'+(cls?' '+cls:'')
 function _mvpTxt(k){   /* V4.4/V4.5 : libelles courts d'interface (5 langues) */
   const L={
     fr:{actions:"Actions",mode:"Mode",now:"En cours",past:"Passée",done:"Terminée",knownCost:"Coût connu du jour",fuelPartial:"carburant incomplet",
-        detailed:"Affichage détaillé",compact:"Affichage compact",addPause:"Ajouter une pause",addStep:"Étape",catFidele:"Fidèle",catWeather:"Météo",catCrowd:"Affluence",catHours:"Horaires",catRoute:"Trajet",myPos:"Ma position",startHere:"Partir d’ici",fsDay:"Journée",fsTrip:"Séjour"},
+        detailed:"Affichage détaillé",compact:"Affichage compact",addPause:"Ajouter une pause",addStep:"Étape",catFidele:"Fidèle",catWeather:"Météo",catCrowd:"Affluence",catHours:"Horaires",catRoute:"Trajet",myPos:"Ma position",startHere:"Partir d’ici",fsDay:"Journée",fsTrip:"Séjour",frameToStep:"Cadrer l’étape en cours",frameToDay:"Voir toute la journée",hintStep:"Étape en cours",hintDay:"Vue de la journée",hideSteps:"Masquer les étapes",showSteps:"Afficher les étapes",pastDay:"Journée passée · lecture seule"},
     en:{actions:"Actions",mode:"Mode",now:"In progress",past:"Past",done:"Done",knownCost:"Known day cost",fuelPartial:"fuel incomplete",
-        detailed:"Detailed view",compact:"Compact view",addPause:"Add a break",addStep:"Stop",catFidele:"Fidèle",catWeather:"Weather",catCrowd:"Crowds",catHours:"Hours",catRoute:"Route",myPos:"My location",startHere:"Start here",fsDay:"Day",fsTrip:"Trip"},
+        detailed:"Detailed view",compact:"Compact view",addPause:"Add a break",addStep:"Stop",catFidele:"Fidèle",catWeather:"Weather",catCrowd:"Crowds",catHours:"Hours",catRoute:"Route",myPos:"My location",startHere:"Start here",fsDay:"Day",fsTrip:"Trip",frameToStep:"Frame the current stop",frameToDay:"Show the whole day",hintStep:"Current stop",hintDay:"Whole day",hideSteps:"Hide stops",showSteps:"Show stops",pastDay:"Past day · read-only"},
     es:{actions:"Acciones",mode:"Modo",now:"En curso",past:"Pasada",done:"Hecha",knownCost:"Coste conocido del día",fuelPartial:"carburante incompleto",
-        detailed:"Vista detallada",compact:"Vista compacta",addPause:"Añadir una pausa",addStep:"Etapa",catFidele:"Fidèle",catWeather:"Tiempo",catCrowd:"Afluencia",catHours:"Horarios",catRoute:"Trayecto",myPos:"Mi ubicación",startHere:"Salir desde aquí",fsDay:"Día",fsTrip:"Viaje"},
+        detailed:"Vista detallada",compact:"Vista compacta",addPause:"Añadir una pausa",addStep:"Etapa",catFidele:"Fidèle",catWeather:"Tiempo",catCrowd:"Afluencia",catHours:"Horarios",catRoute:"Trayecto",myPos:"Mi ubicación",startHere:"Salir desde aquí",fsDay:"Día",fsTrip:"Viaje",frameToStep:"Encuadrar la etapa actual",frameToDay:"Ver todo el día",hintStep:"Etapa actual",hintDay:"Vista del día",hideSteps:"Ocultar etapas",showSteps:"Mostrar etapas",pastDay:"Día pasado · solo lectura"},
     it:{actions:"Azioni",mode:"Modalità",now:"In corso",past:"Passata",done:"Fatta",knownCost:"Costo noto del giorno",fuelPartial:"carburante incompleto",
-        detailed:"Vista dettagliata",compact:"Vista compatta",addPause:"Aggiungi una pausa",addStep:"Tappa",catFidele:"Fidèle",catWeather:"Meteo",catCrowd:"Affluenza",catHours:"Orari",catRoute:"Tragitto",myPos:"La mia posizione",startHere:"Parti da qui",fsDay:"Giorno",fsTrip:"Viaggio"},
+        detailed:"Vista dettagliata",compact:"Vista compatta",addPause:"Aggiungi una pausa",addStep:"Tappa",catFidele:"Fidèle",catWeather:"Meteo",catCrowd:"Affluenza",catHours:"Orari",catRoute:"Tragitto",myPos:"La mia posizione",startHere:"Parti da qui",fsDay:"Giorno",fsTrip:"Viaggio",frameToStep:"Inquadra la tappa in corso",frameToDay:"Mostra tutta la giornata",hintStep:"Tappa in corso",hintDay:"Vista della giornata",hideSteps:"Nascondi tappe",showSteps:"Mostra tappe",pastDay:"Giorno passato · sola lettura"},
     de:{actions:"Aktionen",mode:"Modus",now:"Läuft",past:"Vorbei",done:"Erledigt",knownCost:"Bekannte Tageskosten",fuelPartial:"Kraftstoff unvollständig",
-        detailed:"Detailansicht",compact:"Kompaktansicht",addPause:"Pause hinzufügen",addStep:"Etappe",catFidele:"Fidèle",catWeather:"Wetter",catCrowd:"Andrang",catHours:"Öffnungszeiten",catRoute:"Strecke",myPos:"Mein Standort",startHere:"Von hier starten",fsDay:"Tag",fsTrip:"Reise"}
+        detailed:"Detailansicht",compact:"Kompaktansicht",addPause:"Pause hinzufügen",addStep:"Etappe",catFidele:"Fidèle",catWeather:"Wetter",catCrowd:"Andrang",catHours:"Öffnungszeiten",catRoute:"Strecke",myPos:"Mein Standort",startHere:"Von hier starten",fsDay:"Tag",fsTrip:"Reise",frameToStep:"Aktuelle Etappe zeigen",frameToDay:"Ganzen Tag zeigen",hintStep:"Aktuelle Etappe",hintDay:"Tagesansicht",hideSteps:"Etappen ausblenden",showSteps:"Etappen anzeigen",pastDay:"Vergangener Tag · nur lesen"}
   };
   return ((L[lang()]||L.fr)[k])||L.fr[k]||"";
 }
@@ -11046,7 +11071,8 @@ function _mvpStripIco(txt){ return String(txt||"").replace(/^[\s\p{Extended_Pict
 function _mvpWxTheme(w){ if(!w) return "weather"; const c=(w.codeDay!=null?w.codeDay:w.code), tp=(w.tempMax!=null?w.tempMax:w.temp); if(c>=95||(c>=51&&c<=67)||(c>=80&&c<=82)||(c>=71&&c<=77)||(c>=85&&c<=86)) return "weather"; if(tp>=32) return "heat"; return "weather"; }
 function _mvpWxClause(w){ if(!w) return ""; const tp=+(w.tempMax!=null?w.tempMax:w.temp); if(!Number.isFinite(tp)) return ""; const c=(w.codeDay!=null?w.codeDay:w.code); const cond=(typeof wxCondLabel==="function")?wxCondLabel(c,true):""; return Math.round(tp)+"°C"+(cond?" · "+cond:""); }
 function _mvpWxIcon(w){ if(!w) return "☀️"; const c=+(w.codeDay!=null?w.codeDay:w.code); if(c>=95) return "⛈️"; if((c>=71&&c<=77)||(c>=85&&c<=86)) return "🌨️"; if((c>=51&&c<=67)||(c>=80&&c<=82)) return "🌧️"; if(c===45||c===48) return "🌫️"; if(c===3) return "☁️"; if(c===1||c===2) return "⛅"; return "☀️"; }
-function _mvpAdviceItems(st){   /* V4.5 : une information par categorie {type,label,icon,head,text} -- jamais concatenees */
+function _mvpFirstSentence(txt){ const s=String(txt||"").trim(); const m=s.match(/^[\s\S]*?[.!?…](?=\s|$)/); return (m&&m[0].trim().length<s.length)?m[0].trim():s; }   /* V4.6 : premiere phrase COMPLETE (jamais un rognage avec "...") */
+function _mvpAdviceItems(st){   /* V4.5/V4.6 : une information par categorie {type,label,icon,head,shortText,fullText} -- jamais concatenees */
   const out=[]; const fid=st.fidele||null; const f=(fid&&fid.text)?String(fid.text).trim():""; const fTh=_mvpThemesOf(f);
   if(fid&&fid.thinking) out.push({type:"fidele",icon:"✦",label:_mvpTxt("catFidele"),text:"🧭 "+t("agent.thinking"),thinking:true});
   else if(f) out.push({type:"fidele",icon:"✦",label:_mvpTxt("catFidele"),text:f,ai:true});
@@ -11057,28 +11083,25 @@ function _mvpAdviceItems(st){   /* V4.5 : une information par categorie {type,la
   nud.filter(n=>n.theme==="crowd"&&!fTh.has("crowd")).forEach(n=>out.push({type:"crowd",icon:"👥",label:_mvpTxt("catCrowd"),text:n.text}));
   nud.filter(n=>n.theme==="hours"&&!fTh.has("hours")).forEach(n=>out.push({type:"hours",icon:"🕒",label:_mvpTxt("catHours"),text:n.text}));
   nud.filter(n=>n.theme==="walk").forEach(n=>out.push({type:"route",icon:"🚶",label:_mvpTxt("catRoute"),text:n.text}));
+  out.forEach(it=>{ it.fullText=it.text; it.shortText=it.thinking?it.text:_mvpFirstSentence(it.text); });   /* ticker = shortText ; panneau = fullText integral */
   const seen=new Set(); return out.filter(it=>{ const k=(it.type+"|"+(it.head||"")+"|"+it.text).toLowerCase().replace(/\s+/g," ").trim(); if(seen.has(k)) return false; seen.add(k); return true; });
 }
 const _mvpTk={token:0,timer:null,anim:null};
 function _mvpTickerStop(){ _mvpTk.token++; clearTimeout(_mvpTk.timer); _mvpTk.timer=null; try{ if(_mvpTk.anim) _mvpTk.anim.cancel(); }catch(_e){} _mvpTk.anim=null; }
-function _mvpTickerRun(el, items){   /* V4.5 : UNE information a la fois ; defilement seulement si elle deborde ; pause ; suivante ; boucle */
+function _mvpTickerRun(el){   /* V4.7 : bandeau TV -- toute la sequence (Fidele • Meteo • Affluence ...) entre HORS CHAMP a droite et sort ENTIEREMENT a gauche,
+     vitesse constante 34 px/s, boucle infinie (les deux extremites sont hors champ : aucun saut visible). Mesures reelles APRES layout. */
   _mvpTickerStop(); const tok=_mvpTk.token;
+  const box=el.querySelector(".fidele-ticker"), vp=el.querySelector("#ftViewport"), tk=el.querySelector("#ftTrack"), tb=el.querySelector(".ft-textbox");
+  if(!box||!vp||!tk||!tb) return;
+  vp.classList.remove("scrolling"); tk.style.animation="none"; tk.style.transform="";   /* aucune transform heritee d'une ancienne piste */
   const reduced=!!(window.matchMedia&&window.matchMedia("(prefers-reduced-motion: reduce)").matches);
-  const box=el.querySelector(".fidele-ticker"), cat=el.querySelector("#ftCat"), tk=el.querySelector("#ftTrack"), tb=el.querySelector(".ft-textbox");
-  if(!box||!cat||!tk||!tb) return; let i=0;
-  const alive=()=>tok===_mvpTk.token&&el.isConnected;
-  const next=()=>{ if(!alive()) return; if(box.classList.contains("open")){ _mvpTk.timer=setTimeout(next,1200); return; } i=(i+1)%items.length; show(); };
-  const show=()=>{ if(!alive()) return; const it=items[i];
-    cat.textContent=it.icon+" "+it.label; box.dataset.cur=it.type; box.dataset.idx=String(i);
-    tk.textContent=[it.head,it.text].filter(Boolean).join(" — "); tk.style.transform="translateX(0)";
-    if(reduced) return;   /* prefers-reduced-motion : aucun mouvement ni rotation automatiques */
-    requestAnimationFrame(()=>{ if(!alive()) return; const over=tk.scrollWidth-tb.clientWidth;
-      if(over>2){ const dur=Math.max(2400,over/38*1000);
-        try{ _mvpTk.anim=tk.animate([{transform:"translateX(0)"},{transform:"translateX("+(-over)+"px)"}],{duration:dur,delay:1400,fill:"forwards",easing:"linear"});
-             _mvpTk.anim.onfinish=()=>{ if(!alive()) return; _mvpTk.timer=setTimeout(items.length>1?next:show,1600); }; }
-        catch(_e){ _mvpTk.timer=setTimeout(items.length>1?next:show,5200); } }
-      else if(items.length>1){ _mvpTk.timer=setTimeout(next,4200); } }); };
-  show();
+  if(reduced||box.classList.contains("open")) return;
+  requestAnimationFrame(()=>requestAnimationFrame(()=>{
+    if(tok!==_mvpTk.token||!el.isConnected||box.classList.contains("open")) return;
+    const W=tb.clientWidth, T=tk.scrollWidth; if(!(W>0)||T<=W+1) return;   /* tient dans la zone : lisible statiquement */
+    const dist=W+T, dur=Math.max(6,dist/34);
+    tk.style.setProperty("--ft-start",W+"px"); tk.style.setProperty("--ft-end",(-T)+"px"); tk.style.setProperty("--ft-dur",dur.toFixed(2)+"s");
+    tk.style.animation=""; vp.classList.add("scrolling"); box.dataset.dist=String(Math.round(dist)); }));
 }
 function _mvpPaintAdvice(){
   const el=document.getElementById("fideleAlert"); if(!el) return;
@@ -11087,12 +11110,16 @@ function _mvpPaintAdvice(){
   if(!items.length){ _mvpTickerStop(); el.innerHTML=""; return; }   /* aucun conseil : aucun cadre vide */
   const wasOpen=!!el.querySelector(".fidele-ticker.open");
   const label=escapeHtml(t("plan.toKnow"));
-  const secs=items.map(it=>`<div class="ftp-sec" data-ft-type="${it.type}"><div class="ftp-head"><span class="ftp-ico" aria-hidden="true">${it.icon}</span><span class="ftp-lbl">${escapeHtml(it.label)}</span></div>${it.head?`<div class="ftp-headline">${escapeHtml(it.head)}</div>`:""}<div class="ftp-text">${(it.ai?escapeAI(it.text):escapeHtml(it.text))}</div></div>`).join("");
-  el.innerHTML=`<div class="fidele-ticker${wasOpen?" open":""}" id="fideleTicker" data-count="${items.length}"><span class="ft-label">💡 ${label}</span><div class="ft-viewport" id="ftViewport" role="button" tabindex="0" aria-controls="ftPanel" aria-expanded="${wasOpen?"true":"false"}"><span class="ft-cat" id="ftCat"></span><span class="ft-textbox"><span class="ft-track" id="ftTrack"></span></span></div><button class="ft-more${wasOpen?" open":""}" type="button" aria-controls="ftPanel" aria-label="${label}" aria-expanded="${wasOpen?"true":"false"}"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 6l6 6-6 6"/></svg></button></div><div class="ft-panel" id="ftPanel" role="region" aria-label="${label}"${wasOpen?"":" hidden"}>${secs}</div>`;
+  const band=items.map(it=>`<span class="ft-seg" data-type="${it.type}"><span class="ft-cat">${it.icon} ${escapeHtml(it.label)}</span><span class="ft-txt">${escapeHtml([it.head,it.shortText].filter(Boolean).join(" — "))}</span></span>`).join('<span class="ft-sep" aria-hidden="true">•</span>');   /* V4.7 : une seule bande continue */
+  const secs=items.map(it=>`<div class="ftp-sec" data-ft-type="${it.type}"><div class="ftp-head"><span class="ftp-ico" aria-hidden="true">${it.icon}</span><span class="ftp-lbl">${escapeHtml(it.label)}</span></div>${it.head?`<div class="ftp-headline">${escapeHtml(it.head)}</div>`:""}<div class="ftp-text">${(it.ai?escapeAI(it.fullText):escapeHtml(it.fullText))}</div></div>`).join("");
+  el.innerHTML=`<div class="fidele-ticker${wasOpen?" open":""}" id="fideleTicker" data-count="${items.length}"><span class="ft-label">💡 ${label}</span><div class="ft-viewport" id="ftViewport" role="button" tabindex="0" aria-controls="ftPanel" aria-expanded="${wasOpen?"true":"false"}"><span class="ft-textbox"><span class="ft-track" id="ftTrack">${band}</span></span></div><button class="ft-more${wasOpen?" open":""}" type="button" aria-controls="ftPanel" aria-label="${label}" aria-expanded="${wasOpen?"true":"false"}"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 6l6 6-6 6"/></svg></button></div><div class="ft-panel" id="ftPanel" role="region" aria-label="${label}"${wasOpen?"":" hidden"}>${secs}</div>`;
   const box=el.querySelector(".fidele-ticker"), vp=el.querySelector("#ftViewport"), mb=el.querySelector(".ft-more"), pn=el.querySelector("#ftPanel");
-  const toggle=e=>{ if(e) e.stopPropagation(); const open=!box.classList.contains("open"); box.classList.toggle("open",open); mb.classList.toggle("open",open); pn.hidden=!open; vp.setAttribute("aria-expanded",open?"true":"false"); mb.setAttribute("aria-expanded",open?"true":"false"); };
+  const trk=el.querySelector("#ftTrack");
+  const toggle=e=>{ if(e) e.stopPropagation(); const open=!box.classList.contains("open"); box.classList.toggle("open",open); mb.classList.toggle("open",open); pn.hidden=!open; vp.setAttribute("aria-expanded",open?"true":"false"); mb.setAttribute("aria-expanded",open?"true":"false");
+    if(open){ _mvpTickerStop(); vp.classList.remove("scrolling"); if(trk){ trk.style.animation="none"; trk.style.transform="none"; } }   /* deplie : arret immediat */
+    else _mvpTickerRun(el); };   /* replie : nouveau cycle depuis la droite */
   vp.onclick=toggle; mb.onclick=toggle; vp.onkeydown=e=>{ if(e.key==="Enter"||e.key===" "){ e.preventDefault(); toggle(e); } };
-  _mvpTickerRun(el, items);
+  _mvpTickerRun(el);
 }
 function _mvpAdviceSet(tr,day,patch){
   if(!tr) return; const cur=currentTrip(); if(!cur||cur.id!==tr.id||planState.dayIndex!==day) return;   /* jamais un conseil d'un autre voyage/jour */
@@ -11113,6 +11140,19 @@ function _mvpPaintKnownDayCost(){   /* V4.4 : repli d'affichage quand le Budget 
   document.querySelectorAll(".rc-daycost-lbl").forEach(e=>{ e.textContent=_mvpTxt("knownCost"); });
   document.querySelectorAll(".rc-fuel").forEach(e=>{ e.textContent="~"+money(sum,tr.currency)+(missing?" ("+_mvpTxt("fuelPartial")+")":""); });
 }
+const _mvpFrame={key:"",state:""};
+function _mvpStepSegment(tr,day){   /* V4.6 : segment utile MAINTENANT, a partir des donnees deja calculees (timeline + points de route existants), aucun appel reseau */
+  const rows=[...document.querySelectorAll(".timeline .pl-item")]; const byId=id=>(tr.plan||[]).find(x=>x.id===id);
+  const seq=rows.map(r=>({el:r,it:byId(r.dataset.id)})).filter(x=>x.it&&x.it.lat!=null&&x.it.lng!=null); if(!seq.length) return null;
+  let k=seq.findIndex(x=>x.el.classList.contains("current"));
+  if(k<0) k=seq.findIndex(x=>!x.el.classList.contains("past")&&!x.el.classList.contains("done"));
+  if(k<0) k=seq.length-1;
+  const b={lat:+seq[k].it.lat,lng:+seq[k].it.lng}; let a=null;
+  if(k>0) a={lat:+seq[k-1].it.lat,lng:+seq[k-1].it.lng};
+  else { try{ const pts=buildDayRoutePoints(tr,day,_routeUILiveOpt(tr,day)); const o=pts&&pts[0]; if(o&&o.type==="origin"&&o.lat!=null) a={lat:+o.lat,lng:+o.lng}; }catch(_e){} }
+  return {a:a||b,b,target:seq[k].it.id};
+}
+function _mvpMapHint(txt){ const h=document.getElementById("planMapHint"); if(!h) return; h.textContent=txt; h.classList.add("show"); clearTimeout(h._t); h._t=setTimeout(()=>{ h.classList.remove("show"); },1300); }
 function _mvpSyncFsSeg(){ document.querySelectorAll("#planFsSeg [data-v]").forEach(b=>{ const on=(b.dataset.v==="trip")===(_planMapMode==="trip"); b.classList.toggle("on",on); b.setAttribute("aria-selected",on?"true":"false"); }); }
 function _mvpDayActionsLabel(){
   return ({
@@ -11245,13 +11285,12 @@ function renderPlan(){
                }
                <div class="plan-menu-section">
                  <div class="plan-menu-head">${_mvpMenuGroupLabel("view")}</div>
-                 <button type="button" class="plan-more-item js-planmode">${_mvpMenuIco("det")}<span>${escapeHtml(_planDetailed?_mvpTxt("compact"):_mvpTxt("detailed"))}</span></button>
-                 <button type="button" class="plan-more-item" id="toggleList">${_mvpMenuIco("list")}<span>${planState.collapsed?t("plan.showList"):t("plan.hideList")}</span></button>
+                 <button type="button" class="plan-more-item" id="toggleList">${_mvpMenuIco("list")}<span>${escapeHtml(planState.collapsed?_mvpTxt("showSteps"):_mvpTxt("hideSteps"))}</span></button>
                </div>
              </div>
            </div>
            <div class="plan-rhythm-wrap mvp-bar-rhythm">
-             <button class="mvp-acell mvp-rhythm-btn" id="planRhythm" type="button" aria-haspopup="true" aria-expanded="false" aria-label="${escapeHtml(t("plan.dayMode"))}"><span class="pr-ic" id="planRhythmIc"></span><span class="al" id="planRhythmLbl">${escapeHtml(_mvpTxt("mode"))}</span><svg class="pr-car" viewBox="0 0 24 24" width="11" height="11"><path d="M6 9l6 6 6-6"/></svg></button>
+             <button class="mvp-acell mvp-rhythm-btn${ro?" is-disabled":""}" id="planRhythm" type="button" aria-haspopup="true" aria-expanded="false" aria-label="${escapeHtml(t("plan.dayMode"))}"${ro?' disabled aria-disabled="true"':""}><span class="pr-ic" id="planRhythmIc"></span><span class="al" id="planRhythmLbl">${escapeHtml(_mvpTxt("mode"))}</span><svg class="pr-car" viewBox="0 0 24 24" width="11" height="11"><path d="M6 9l6 6 6-6"/></svg></button>
              <div class="plan-rhythm-menu" id="planRhythmMenu" hidden role="menu"></div>
            </div>
            ${
@@ -11329,6 +11368,7 @@ function renderPlan(){
                  aria-label="${escapeHtml(t("plan.myPosition"))}"
                  title="${escapeHtml(t("plan.myPosition"))}">${_MVP_ICO.pos}</button>
          <div class="mvp-pos-capsule" id="planPosCapsule" hidden><span class="mvp-pos-lbl">📍 ${escapeHtml(_mvpTxt("myPos"))}</span><button type="button" id="planStartHere">${escapeHtml(_mvpTxt("startHere"))}</button></div>
+         <div class="mvp-map-hint" id="planMapHint" aria-live="polite"></div>
          <div class="mvp-fs-seg" id="planFsSeg" role="tablist" aria-label="${escapeHtml(t("plan.mapFull"))}"><button type="button" role="tab" data-v="day">${escapeHtml(_mvpTxt("fsDay"))}</button><button type="button" role="tab" data-v="trip">${escapeHtml(_mvpTxt("fsTrip"))}</button></div>
          <button class="map-framebtn"
                  id="planMapFrame"
@@ -11356,7 +11396,7 @@ function renderPlan(){
   body.innerHTML=
     `${actsHtml}
      <div id="fideleAlert"></div>
-     <section class="mvp-day-card ${_planDetailed?"is-detailed":"is-simple"}">
+     <section class="mvp-day-card ${_planDetailed?"is-detailed":"is-simple"}${ro?" is-readonly":""}">
        <div class="mvp-day-head">
          <div class="mvp-day-left">
            <div class="mvp-day-title">${escapeHtml(dateLabel)}</div>
@@ -11389,7 +11429,7 @@ function renderPlan(){
        }
        ${
          ro
-           ? `<div class="pl-ro">🔒 ${t("plan.readonly")}</div>`
+           ? `<div class="pl-ro">🔒 ${escapeHtml(tripFinished(tr)?t("plan.readonly"):_mvpTxt("pastDay"))}</div>`
            : ""
        }
        ${lateBanner}
@@ -11549,9 +11589,17 @@ function renderPlan(){
       /* correction audit independant P2-6 : les 3 moteurs overview exposent REELLEMENT fitBounds() (verifie dans leurs
          fabriques createXOverviewRenderer) -- jamais de renderOverviewMap() pour un simple cadrage camera. */
       const r=_planActiveMapRenderer(); if(!r) return;
-      if(_planMapMode==="trip"){ try{ r.fitBounds(); }catch(_e){} }
-      else { try{ r.fitBounds("all"); }catch(_e){} }
+      if(_planMapMode==="trip"){ try{ r.fitBounds(); }catch(_e){} return; }   /* Sejour : cadrage du voyage, inchange (responsabilite distincte du selecteur Journee|Sejour) */
+      const k=tr.id+"|"+d.i; if(_mvpFrame.key!==k){ _mvpFrame.key=k; _mvpFrame.state=""; }
+      const next=(_mvpFrame.state==="step")?"day":"step";   /* V4.6 : exactement deux etats, en alternance */
+      if(next==="step"){ const seg=_mvpStepSegment(tr,d.i);
+        if(seg){ if(typeof r.fitSegment==="function"){ try{ r.fitSegment(seg.a,seg.b); }catch(_e){} } else if(typeof r.centerOn==="function"){ try{ r.centerOn(seg.b.lat,seg.b.lng); }catch(_e){} } } }
+      else { try{ r.fitBounds("route"); }catch(_e){} }   /* Journee : toutes les etapes + toute la route (Apple/MapLibre : union route+etapes ; Google : mode route) */
+      _mvpFrame.state=next; fb.dataset.state=next;
+      fb.setAttribute("aria-label",next==="step"?_mvpTxt("frameToDay"):_mvpTxt("frameToStep")); fb.setAttribute("title",fb.getAttribute("aria-label"));
+      _mvpMapHint(next==="step"?_mvpTxt("hintStep"):_mvpTxt("hintDay"));
     };
+    if(fb){ _mvpFrame.key=tr.id+"|"+d.i; _mvpFrame.state=""; fb.dataset.state=""; fb.setAttribute("aria-label",_mvpTxt("frameToStep")); fb.setAttribute("title",fb.getAttribute("aria-label")); }   /* V4.6 : chaque rendu recree le renderer a sa vue par defaut -> le cycle repart sur "Etape" */
   }
   {   /* correction lot Planning premium : bouton "ma position" -- centre la camera SEULEMENT, ne modifie jamais tr.depart/tr.dest/
         l'origine de route/le planning (interdiction explicite du cahier). Geolocalisation : meme schema navigator.geolocation
@@ -11563,7 +11611,8 @@ function renderPlan(){
         /* correction audit independant P1-5 : centerOn() existe desormais sur les 6 moteurs (jour+sejour, Apple/Google/MapLibre) ;
            routage vers le renderer REELLEMENT visible via _planActiveMapRenderer(), jamais un rejet systematique en Vue sejour. */
         const r=_planActiveMapRenderer();
-        if(r&&typeof r.centerOn==="function"){ try{ r.centerOn(pos.lat,pos.lng); }catch(_e){} }
+        if(r&&typeof r.centerOnUser==="function"){ try{ r.centerOnUser(pos.lat,pos.lng); }catch(_e){} }   /* V4.6 : vue quartier + point utilisateur (camera SEULE) */
+        else if(r&&typeof r.centerOn==="function"){ try{ r.centerOn(pos.lat,pos.lng); }catch(_e){} }
         else toast(t("plan.posUnsupported"));
         if(!ro&&stops.length){ const cap=document.getElementById("planPosCapsule"); if(cap) cap.hidden=false; }   /* V4.5 : proposer "Partir d'ici" ; la route ne change qu'au clic explicite */
       });
@@ -13367,6 +13416,10 @@ function createAppleMapRenderer(el,base,isValid){
       resize(){ try{ applyBounds(currentMode==="route"?bboxUnion(routeBB,localBB):localBB); }catch(e){} },
       fitBounds(kind){ applyBounds((kind==="route"||kind==="all")?bboxUnion(routeBB,localBB):localBB); },
       centerOn(lat,lng){ try{ if(disposedA) return; map.center=new mapkit.Coordinate(lat,lng); }catch(e){} },   /* correction audit independant P1-K : camera seule, jamais tr.depart/tr.dest/route */
+      centerOnUser(lat,lng){ try{ if(disposedA) return; const c=new mapkit.Coordinate(lat,lng);   /* V4.6 : camera seule -- region ~1,3 km (vue quartier) + point utilisateur distinct de l'origine de trajet */
+        if(!this._userAnn){ this._userAnn=new mapkit.Annotation(c,()=>{ const d=document.createElement("div"); d.className="mvp-user-dot"; return d; },{calloutEnabled:false,displayPriority:1000}); map.addAnnotation(this._userAnn); } else this._userAnn.coordinate=c;
+        map.setRegionAnimated(new mapkit.CoordinateRegion(c,new mapkit.CoordinateSpan(0.012,0.012)),true); }catch(e){} },
+      fitSegment(a,b){ if(disposedA||!a||!b) return; applyBounds({minLat:Math.min(a.lat,b.lat),maxLat:Math.max(a.lat,b.lat),minLng:Math.min(a.lng,b.lng),maxLng:Math.max(a.lng,b.lng)}); },   /* V4.6 : cadrage camera de 2 points deja connus, meme applyBounds que fitBounds */
       setViewMode(mode){ currentMode=(mode==="route")?"route":"local"; this.fitBounds(currentMode); },
       setSatellite(enabled){   /* v958-v984 : mapType ne touche jamais annotations/overlays -- rien a reconstruire */
         return Promise.resolve().then(()=>{
@@ -13436,6 +13489,10 @@ function createMapLibreOnlineRenderer(el,base,isValid){
         resize(){ try{ map.resize(); }catch(e){} applyBounds(currentMode==="route"?bboxUnion(routeBB,localBB):localBB); },
         fitBounds(kind){ applyBounds((kind==="route"||kind==="all")?bboxUnion(routeBB,localBB):localBB); },
         centerOn(lat,lng){ try{ if(disposed) return; map.easeTo({center:[lng,lat],duration:300}); }catch(e){} },   /* correction audit independant P1-K : camera seule */
+        centerOnUser(lat,lng){ try{ if(disposed) return;   /* V4.6 : camera seule -- zoom 15.5 (vue quartier) + point utilisateur distinct */
+          if(!this._userMk){ const el=document.createElement("div"); el.className="mvp-user-dot"; this._userMk=new maplibregl.Marker({element:el}).setLngLat([lng,lat]).addTo(map); uiMarkers.push(this._userMk); } else this._userMk.setLngLat([lng,lat]);
+          map.easeTo({center:[lng,lat],zoom:15.5,duration:450}); }catch(e){} },
+        fitSegment(a,b){ if(disposed||!a||!b) return; applyBounds({minLat:Math.min(a.lat,b.lat),maxLat:Math.max(a.lat,b.lat),minLng:Math.min(a.lng,b.lng),maxLng:Math.max(a.lng,b.lng)}); },   /* V4.6 : cadrage camera de 2 points deja connus */
         setViewMode(mode){ currentMode=(mode==="route")?"route":"local"; this.fitBounds(currentMode); },
         setSatellite(enabled){   /* v958-v984 : setStyle() efface sources/calques (traces+transfert) -- rejoue via setRoute()+drawTransferLine() une fois le style utilisable ; les marqueurs DOM survivent d\'eux-memes */
           if(disposed) return Promise.reject(new Error("day_renderer_destroyed"));
@@ -13610,6 +13667,11 @@ function createGoogleMapRenderer(el,base,isValid){
       resize(){ google.maps.event.trigger(map,"resize"); applyMode(currentMode); },
       fitBounds(kind){ applyMode(kind==="route"?"route":"local"); },
       centerOn(lat,lng){ try{ if(googleResources.destroyed) return; map.panTo({lat,lng}); }catch(e){} },   /* correction audit independant P1-K : camera seule */
+      centerOnUser(lat,lng){ try{ if(googleResources.destroyed) return; const p={lat,lng};   /* V4.6 : camera seule -- zoom 16 (vue quartier) + point bleu distinct */
+        if(!this._userMk) this._userMk=trackMarker(new google.maps.Marker({position:p,map,optimized:false,zIndex:1000,clickable:false,icon:{path:google.maps.SymbolPath.CIRCLE,scale:8,fillColor:"#1A73E8",fillOpacity:1,strokeColor:"#ffffff",strokeWeight:3}}));
+        else this._userMk.setPosition(p);
+        map.panTo(p); map.setZoom(16); }catch(e){} },
+      fitSegment(a,b){ try{ if(googleResources.destroyed||!a||!b) return; const bb=new google.maps.LatLngBounds(); bb.extend({lat:a.lat,lng:a.lng}); bb.extend({lat:b.lat,lng:b.lng}); map.fitBounds(bb,{top:74,right:54,bottom:52,left:54}); }catch(e){} },   /* V4.6 : cadrage camera de 2 points deja connus */
       setViewMode(mode2){ applyMode(mode2==="route"?"route":"local"); },
       setSatellite(enabled){   /* v958-v984 : mapTypeId ne touche jamais les marqueurs/polylignes -- rien a reconstruire */
         return Promise.resolve().then(()=>{
