@@ -4309,6 +4309,254 @@ body:has(#view-plan.active) #agentBubble{display:none}
 #view-plan.mv-plan-v4 .plan-map-premium:not(.full) .map-posbtn{
   top:146px;right:8px;
 }
+/* ============ V4.3 -- menu hierarchise, carte pliable, activites agrandies (CSS de la directive) ============ */
+#view-plan.mv-plan-v4 .plan-actions-menu{
+  width:min(286px,calc(100vw - 40px));
+  max-height:min(68vh,520px);
+  padding:7px;
+  overflow-y:auto;
+  overscroll-behavior:contain;
+}
+#view-plan.mv-plan-v4 .plan-menu-section{
+  padding:5px 0;
+}
+#view-plan.mv-plan-v4 .plan-menu-section+
+.plan-menu-section{
+  border-top:1px solid #E8ECF3;
+  margin-top:4px;
+  padding-top:9px;
+}
+#view-plan.mv-plan-v4 .plan-menu-head{
+  padding:3px 11px 6px;
+  font:800 10px/1.2 "Inter",sans-serif;
+  letter-spacing:.075em;
+  text-transform:uppercase;
+  color:#8A94A8;
+}
+#view-plan.mv-plan-v4 .plan-more-item{
+  min-height:43px;
+  padding:0 11px;
+  border-radius:10px;
+  gap:10px;
+  font-size:14px;
+  font-weight:650;
+}
+#view-plan.mv-plan-v4 .plan-menu-ico{
+  width:19px;
+  height:19px;
+  flex:0 0 19px;
+  fill:none;
+  stroke:currentColor;
+  stroke-width:1.8;
+  stroke-linecap:round;
+  stroke-linejoin:round;
+}
+#view-plan.mv-plan-v4
+.plan-actions-submenu{
+  margin:2px 5px 6px 31px;
+  padding:3px 0 3px 8px;
+  border-left:2px solid #E5EAF2;
+}
+#view-plan.mv-plan-v4
+.plan-actions-submenu .plan-more-item{
+  min-height:39px;
+  font-size:13px;
+}
+/* complements V4.3 : libelle extensible, chevron du sous-menu Itineraire (pivote a l'ouverture) */
+#view-plan.mv-plan-v4 .plan-more-item>span{flex:1 1 auto;min-width:0}
+#view-plan.mv-plan-v4 .plan-menu-chev{width:15px;height:15px;flex:0 0 15px;color:#8A94A8;transition:transform .2s ease}
+#view-plan.mv-plan-v4 #navDayItin[aria-expanded="true"] .plan-menu-chev{transform:rotate(90deg)}
+#view-plan.mv-plan-v4 .mvp-map-toggle{
+  width:100%;
+  height:40px;
+  margin:10px 0 0;
+  padding:0 13px;
+  border:1px solid #E5EAF2;
+  border-radius:12px;
+  background:#F6F8FB;
+  color:#172543;
+  display:flex;
+  align-items:center;
+  gap:9px;
+  font:700 13px/1 "Inter",sans-serif;
+  cursor:pointer;
+}
+#view-plan.mv-plan-v4 .mvp-map-toggle .mvp-ico{
+  width:18px;
+  height:18px;
+}
+#view-plan.mv-plan-v4 .mvp-map-toggle-label{
+  flex:1;
+  text-align:left;
+}
+#view-plan.mv-plan-v4 .mvp-map-toggle-chev{
+  width:15px;
+  height:15px;
+  fill:none;
+  stroke:currentColor;
+  stroke-width:2.2;
+  transition:transform .22s ease;
+}
+#view-plan.mv-plan-v4
+.mvp-map-toggle.open .mvp-map-toggle-chev{
+  transform:rotate(180deg);
+}
+#view-plan.mv-plan-v4 .mvp-map-stage{
+  max-height:230px;
+  opacity:1;
+  margin-top:9px;
+  overflow:hidden;
+  transition:
+    max-height .28s ease,
+    opacity .2s ease,
+    margin .28s ease;
+}
+#view-plan.mv-plan-v4
+.mvp-map-stage .plan-map-premium{
+  margin:0;
+}
+#view-plan.mv-plan-v4
+.mvp-map-stage.collapsed{
+  max-height:0;
+  opacity:0;
+  margin-top:0;
+  pointer-events:none;
+}
+@media(prefers-reduced-motion:reduce){
+  #view-plan.mv-plan-v4 .mvp-map-stage,
+  #view-plan.mv-plan-v4 .mvp-map-toggle-chev{
+    transition:none;
+  }
+}
+#view-plan.mv-plan-v4 .plan-map-premium:not(.full){
+  height:clamp(200px,52vw,210px);
+}
+#view-plan.mv-plan-v4 .pl-item{
+  display:grid;
+  grid-template-columns:
+    52px
+    18px
+    90px
+    minmax(0,1fr)
+    36px;
+
+  grid-template-rows:auto auto;
+  min-height:96px;
+  padding:10px 0;
+  margin:0;
+  align-items:center;
+}
+#view-plan.mv-plan-v4 .pl-item::before{
+  left:59.5px;
+  top:0;
+  bottom:0;
+  width:3px;
+}
+#view-plan.mv-plan-v4 .pl-item::after{
+  left:54px;
+  width:14px;
+  height:14px;
+}
+#view-plan.mv-plan-v4 .pl-time{
+  grid-column:1;
+  font-size:13px;
+  padding-right:4px;
+}
+#view-plan.mv-plan-v4 .pl-media{
+  grid-column:3;
+  width:90px;
+  height:74px;
+  border-radius:13px;
+  box-shadow:0 3px 10px rgba(13,40,86,.12);
+}
+#view-plan.mv-plan-v4 .pl-media .pl-photo{
+  width:90px;
+  height:74px;
+  border-radius:13px;
+  object-fit:cover;
+}
+#view-plan.mv-plan-v4 .pl-main{
+  grid-column:4;
+  min-width:0;
+  padding:0 7px 0 12px;
+}
+#view-plan.mv-plan-v4 .pl-title{
+  font-size:15.5px;
+  line-height:1.2;
+  font-weight:800;
+}
+#view-plan.mv-plan-v4 .pl-sub{
+  margin-top:3px;
+  font-size:12.5px;
+  line-height:1.25;
+}
+#view-plan.mv-plan-v4 .pl-dur{
+  margin-top:5px;
+  font-size:12.5px;
+  line-height:1.25;
+  white-space:normal;
+}
+#view-plan.mv-plan-v4 .pl-hours{
+  margin-top:5px;
+  font-size:11.5px;
+  line-height:1.25;
+  white-space:nowrap;
+  overflow:hidden;
+  text-overflow:ellipsis;
+}
+#view-plan.mv-plan-v4 .pl-handle{
+  grid-column:5;
+  width:34px;
+}
+#view-plan.mv-plan-v4 .pl-check{
+  grid-column:5;
+  width:34px;
+  height:34px;
+}
+#view-plan.mv-plan-v4
+.mvp-day-card.is-simple .pl-leg{
+  min-height:30px;
+  margin:0;
+  padding:0 38px 0 172px;
+}
+#view-plan.mv-plan-v4
+.mvp-day-card.is-simple .pl-leg .pl-legbtn{
+  min-height:30px;
+  height:30px;
+  gap:5px;
+  overflow:hidden;
+  white-space:nowrap;
+}
+#view-plan.mv-plan-v4
+.mvp-day-card.is-simple .pl-leg-fuel{
+  display:none;
+}
+#view-plan.mv-plan-v4
+.mvp-day-card.is-simple .pl-legmore{
+  display:none;
+}
+#view-plan.mv-plan-v4
+.mvp-day-card.is-simple .pl-legmap{
+  width:28px;
+  height:28px;
+}
+/* complements V4.3 (necessaires pour que D/E produisent l'effet demande, sans changer la logique) :
+   - la regle V4.1 ".timeline:not(.is-detailed) .pl-leg{display:none}" rendait E inerte : la ligne trajet revient en vue normale,
+     et la distance integree (.pl-d-leg) est masquee pour eviter le doublon ;
+   - rail des lignes trajet aligne sur celui des activites (59,5 px), trajet Details aligne sur la colonne infos (172 px) ;
+   - titres autorises a passer a la ligne (colonne infos ~123 px a 390 px) : aucun titre coupe ;
+   - barre de progression existante (.pl-fill) sous la colonne infos. */
+#view-plan.mv-plan-v4 .mvp-day-card.is-simple .timeline .pl-leg{display:flex}
+#view-plan.mv-plan-v4 .mvp-day-card .pl-dur .pl-d-leg{display:none}
+#view-plan.mv-plan-v4 .timeline .pl-leg::before{left:59.5px}
+#view-plan.mv-plan-v4 .timeline.is-detailed .pl-leg{padding-left:172px}
+#view-plan.mv-plan-v4 .timeline.is-detailed .pl-leg::before{left:59.5px}
+#view-plan.mv-plan-v4 .pl-title{white-space:normal;overflow:visible;text-overflow:clip;overflow-wrap:anywhere}
+#view-plan.mv-plan-v4 .pl-fill{left:160px;max-width:calc(100% - 196px)}
+#view-plan.mv-plan-v4 .mvp-day-card.is-simple .pl-leg{padding-right:4px}   /* le bouton carte du trajet occupe la colonne droite (poignee/coche) : texte trajet jamais tronque */
+#view-plan.mv-plan-v4 .mvp-day-card.is-simple .pl-leg .pl-legbtn{font-size:11.5px}
+#view-plan.mv-plan-v4 .mvp-day-card.is-simple .pl-leg .pl-legmap{flex:0 0 28px;margin:0 0 0 auto}
+@media(max-width:374px){ #view-plan.mv-plan-v4 .mvp-day-card.is-simple .pl-leg{padding-left:156px} #view-plan.mv-plan-v4 .mvp-day-card.is-simple .pl-leg .pl-legbtn{gap:4px} }   /* <375 px : trajet aligne sur le bord de la photo pour ne jamais tronquer mode + distance + duree */
 @media(max-width:359px){
   #view-plan.mv-plan-v4 .pl-item{grid-template-columns:34px 14px 56px minmax(0,1fr) 32px}
   #view-plan.mv-plan-v4 .pl-item::before{left:39.5px}
@@ -4706,7 +4954,7 @@ const DEFAULT_S={ version:"0.2.0", settings:{ lang:"fr", theme:"system", units:"
 /* Clé Maps JS partagée (restreinte au domaine GitHub Pages). Repli : clé perso de l'utilisateur si fournie. */
 const SHARED_MAP_KEY="AIzaSyCt5iVx8nPr1V067A3daE0X1YA568XJNbU";
 function mapKey(){ return (S.settings.mapKey||"").trim() || SHARED_MAP_KEY; }
-const BUILD="0.6.145 · vPlanningV4.2 actions-journee + puces-compactes";
+const BUILD="0.6.146 · vPlanningV4.3 carte-pliable + menu-hierarchise";
 /* V4.1 lot A (P0 stockage) : CC_CUR deplacee ICI, avant le premier loadState() -- loadState>mergeState>normalizeTrip>normalizeLegs la lit ;
    declaree plus bas, elle etait en zone morte temporelle (ReferenceError avalee par loadState -> S vide -> saveState() pouvait ecraser les voyages). Contenu inchange. */
 const CC_CUR={FR:"EUR",BE:"EUR",DE:"EUR",ES:"EUR",IT:"EUR",PT:"EUR",NL:"EUR",AT:"EUR",IE:"EUR",GR:"EUR",LU:"EUR",FI:"EUR",SK:"EUR",SI:"EUR",EE:"EUR",LV:"EUR",LT:"EUR",GB:"GBP",US:"USD",CA:"CAD",CH:"CHF",JP:"JPY",AU:"AUD",NZ:"NZD",MA:"MAD",TN:"TND",DZ:"DZD",EG:"EGP",SE:"SEK",NO:"NOK",DK:"DKK",PL:"PLN",CZ:"CZK",HU:"HUF",RO:"RON",MX:"MXN",BR:"BRL",AR:"ARS",CN:"CNY",TH:"THB",IN:"INR",ID:"IDR",VN:"VND",TR:"TRY",AE:"AED",ZA:"ZAR",SN:"XOF",CI:"XOF",CM:"XAF",GA:"XAF",CG:"XAF",TD:"XAF",CF:"XAF",GQ:"XAF",BJ:"XOF",BF:"XOF",ML:"XOF",NE:"XOF",TG:"XOF",GW:"XOF",NG:"NGN",GH:"GHS",KE:"KES",TZ:"TZS",UG:"UGX",RW:"RWF",ET:"ETB",MU:"MUR",MG:"MGA",AO:"AOA",MZ:"MZN",CD:"CDF",LY:"LYD",SA:"SAR",QA:"QAR",KW:"KWD",BH:"BHD",OM:"OMR",JO:"JOD",LB:"LBP",IL:"ILS",PK:"PKR",BD:"BDT",LK:"LKR",NP:"NPR",KR:"KRW",SG:"SGD",MY:"MYR",PH:"PHP",KH:"KHR",MM:"MMK",KZ:"KZT",GE:"GEL",AM:"AMD",AZ:"AZN",RU:"RUB",UA:"UAH",RS:"RSD",BG:"BGN",IS:"ISK",HR:"EUR",CY:"EUR",MT:"EUR",CL:"CLP",CO:"COP",PE:"PEN",UY:"UYU",BO:"BOB",EC:"USD",PA:"USD",CR:"CRC",GT:"GTQ",DO:"DOP",FJ:"FJD"};
@@ -9750,6 +9998,62 @@ function removePlaceFromTrip(p,after){ const trip=currentTrip(); if(!trip) retur
 /* ===================== ÉTAPE 4 : PLANNING + CARTE ===================== */
 let planState={dayIndex:0}; let _planInited=false;
 let _planMapMode="day";   /* correction lot Planning premium : etat d'affichage Vue jour/Vue sejour, jamais lu ni ecrit par la logique metier (Route/Presentation/Budget) */
+let _planMapCollapsed=(()=>{
+  try{
+    const v=localStorage.getItem("mv_plan_map_collapsed");
+    return v==null ? true : v==="1";
+  }catch(_e){
+    return true;
+  }
+})();   /* V4.3 : etat UI local uniquement (jamais dans le voyage / Supabase) ; carte repliee par defaut */
+function _planMapToggleText(collapsed){
+  const L={
+    fr:{show:"Afficher la carte",hide:"Masquer la carte"},
+    en:{show:"Show map",hide:"Hide map"},
+    es:{show:"Mostrar mapa",hide:"Ocultar mapa"},
+    it:{show:"Mostra mappa",hide:"Nascondi mappa"},
+    de:{show:"Karte anzeigen",hide:"Karte ausblenden"}
+  };
+  const x=L[lang()]||L.fr;
+  return collapsed?x.show:x.hide;
+}
+function _planSetMapCollapsed(collapsed,persist=true){
+  _planMapCollapsed=!!collapsed;
+  if(persist){
+    try{
+      localStorage.setItem(
+        "mv_plan_map_collapsed",
+        _planMapCollapsed?"1":"0"
+      );
+    }catch(_e){}
+  }
+  const stage=document.getElementById("planMapStage");
+  const btn=document.getElementById("planMapCollapse");
+  if(stage){
+    stage.classList.toggle("collapsed",_planMapCollapsed);
+  }
+  if(btn){
+    btn.setAttribute(
+      "aria-expanded",
+      _planMapCollapsed?"false":"true"
+    );
+    const lbl=btn.querySelector(".mvp-map-toggle-label");
+    if(lbl){
+      lbl.textContent=_planMapToggleText(_planMapCollapsed);
+    }
+    btn.classList.toggle("open",!_planMapCollapsed);
+  }
+  if(!_planMapCollapsed){
+    requestAnimationFrame(()=>{
+      requestAnimationFrame(()=>{
+        try{
+          const r=_planActiveMapRenderer();
+          if(r&&r.resize) r.resize();
+        }catch(_e){}
+      });
+    });
+  }
+}
 let _planDayContainerBeforeTrip="planMap";
 let _planOvSatOn=false;   /* correction audit independant P1-K (P1-3) : etat satellite PROPRE a la Vue sejour, independant de celui de la carte journee (le bouton est unique mais les deux renderers ont chacun leur etat) */   /* correction audit independant P1-K : quel conteneur JOUR etait visible (planMap ou osmMap) avant de basculer en Vue sejour -- restaure EXACTEMENT celui-la au retour, jamais suppose */
 function _planActiveMapRenderer(){   /* correction audit independant P1-K : routage unique vers le renderer REELLEMENT VISIBLE -- satellite/plein ecran/cadrer/position ne doivent jamais agir sur un renderer cache */
@@ -10631,6 +10935,30 @@ const _MVP_ICO={
   stClock:'<svg viewBox="0 0 24 24" fill="none" stroke="#E9AE3D" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="8.2"/><path d="M12 7.8v4.6l3 1.8"/></svg>'
 };
 function _mvpLocDec(txt){ try{ const sep=(1.5).toLocaleString(LOCALE[lang()]||'fr-FR').charAt(1); return String(txt).replace(/(\d)\.(\d)/g,"$1"+sep+"$2"); }catch(_e){ return txt; } }   /* V4.1 : separateur decimal localise pour l'affichage compact (fmtDist inchange) */
+function _mvpMenuGroupLabel(key){
+  const L={
+    fr:{nav:"Navigation",map:"Carte",org:"Organiser",view:"Affichage"},
+    en:{nav:"Navigation",map:"Map",org:"Organize",view:"Display"},
+    es:{nav:"Navegación",map:"Mapa",org:"Organizar",view:"Visualización"},
+    it:{nav:"Navigazione",map:"Mappa",org:"Organizza",view:"Visualizzazione"},
+    de:{nav:"Navigation",map:"Karte",org:"Organisieren",view:"Anzeige"}
+  };
+  return (L[lang()]||L.fr)[key]||"";
+}
+const _MVP_MENU_ICO={   /* V4.3 : pictogrammes outline homogenes (remplacent les emojis du menu) */
+  nav:'<path d="M3 11l18-8-8 18-2-8z"/>',
+  ext:'<path d="M14 4h6v6"/><path d="M20 4l-9 9"/><path d="M18 14v5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1h5"/>',
+  cal:'<rect x="3.5" y="5" width="17" height="15" rx="2.5"/><path d="M3.5 9.5h17M8 3v4M16 3v4"/>',
+  trip:'<path d="M9 4 3.5 6.2v13.3L9 17.3l6 2.4 5.5-2.2V4.2L15 6.4 9 4z"/><path d="M9 4v13.3M15 6.4v13.3"/>',
+  pos:'<circle cx="12" cy="12" r="6.2"/><circle cx="12" cy="12" r="2"/><path d="M12 2.5v3.2M12 18.3v3.2M2.5 12h3.2M18.3 12h3.2"/>',
+  opt:'<path d="M4 20 14.5 9.5"/><path d="M15.5 3.5l1 2.3 2.3 1-2.3 1-1 2.3-1-2.3-2.3-1 2.3-1z"/><path d="M19.5 12.5l.5 1.2 1.2.5-1.2.5-.5 1.2-.5-1.2-1.2-.5 1.2-.5z"/>',
+  add:'<circle cx="12" cy="12" r="8.5"/><path d="M12 8v8M8 12h8"/>',
+  pause:'<path d="M5 9h11v5a5 5 0 0 1-5 5h-1a5 5 0 0 1-5-5z"/><path d="M16 11h1.5a2.5 2.5 0 0 1 0 5H16"/><path d="M9 4v2M12.5 3.5v2.5"/>',
+  det:'<path d="M4 7h10M18 7h2M4 17h4M12 17h8"/><circle cx="16" cy="7" r="2"/><circle cx="10" cy="17" r="2"/>',
+  list:'<path d="M9 6h11M9 12h11M9 18h11"/><path d="M4.5 6h.01M4.5 12h.01M4.5 18h.01"/>',
+  chev:'<path d="M9 6l6 6-6 6"/>'
+};
+function _mvpMenuIco(k,cls){ return '<svg class="plan-menu-ico'+(cls?' '+cls:'')+'" viewBox="0 0 24 24" aria-hidden="true">'+(_MVP_MENU_ICO[k]||'')+'</svg>'; }
 function _mvpDayActionsLabel(){
   return ({
     fr:"Actions de journée",
@@ -10720,48 +11048,68 @@ function renderPlan(){
                   role="menu"
                   hidden>
                ${
-                 hasNavRoute
-                   ? `<div class="plan-itin-wrap plan-actions-itin-wrap">
-                        <button type="button" class="plan-more-item" id="navDayItin" aria-haspopup="true" aria-expanded="false" title="${escapeHtml(t("map.launch"))}">🧭 ${t("place.route")} ›</button>
-                        <div class="plan-itin-menu plan-actions-submenu" id="navDayItinMenu" hidden>
-                          <button type="button" class="plan-more-item" id="navDay">🍎 Apple Plans</button>
-                          <button type="button" class="plan-more-item" id="navDayG">📍 Google Maps</button>
-                        </div>
+                 (hasNavRoute||stops.length)
+                   ? `<div class="plan-menu-section">
+                        <div class="plan-menu-head">${_mvpMenuGroupLabel("nav")}</div>
+                        ${
+                          hasNavRoute
+                            ? `<div class="plan-itin-wrap plan-actions-itin-wrap">
+                                 <button type="button" class="plan-more-item" id="navDayItin" aria-haspopup="true" aria-expanded="false" title="${escapeHtml(t("map.launch"))}">${_mvpMenuIco("nav")}<span>${t("place.route")}</span>${_mvpMenuIco("chev","plan-menu-chev")}</button>
+                                 <div class="plan-itin-menu plan-actions-submenu" id="navDayItinMenu" hidden>
+                                   <button type="button" class="plan-more-item" id="navDay">${_mvpMenuIco("ext")}<span>Apple Plans</span></button>
+                                   <button type="button" class="plan-more-item" id="navDayG">${_mvpMenuIco("ext")}<span>Google Maps</span></button>
+                                 </div>
+                               </div>`
+                            : ""
+                        }
+                        ${
+                          stops.length
+                            ? `<button type="button" class="plan-more-item" id="calDay" title="${escapeHtml(t("map.cal"))}">${_mvpMenuIco("cal")}<span>${t("plan.aCal")}</span></button>`
+                            : ""
+                        }
                       </div>`
                    : ""
                }
                ${
-                 stops.length
-                   ? `<button type="button" class="plan-more-item" id="calDay" title="${escapeHtml(t("map.cal"))}">📅 ${t("plan.aCal")}</button>`
-                   : ""
-               }
-               ${
-                 (stops.length>0||_planMapMode==="trip")
-                   ? `<button type="button" class="plan-more-item" id="planTripMenu">🗺 ${escapeHtml(_planMapMode==="trip"?t("plan.dayView"):t("plan.tripView"))}</button>`
-                   : ""
-               }
-               ${
-                 !ro&&stops.length>=2
-                   ? `<button type="button" class="plan-more-item" id="planOptimize2">✨ ${t("plan.optimizeShort")}</button>`
+                 ((stops.length>0||_planMapMode==="trip")||(!ro&&stops.length))
+                   ? `<div class="plan-menu-section">
+                        <div class="plan-menu-head">${_mvpMenuGroupLabel("map")}</div>
+                        ${
+                          (stops.length>0||_planMapMode==="trip")
+                            ? `<button type="button" class="plan-more-item" id="planTripMenu">${_mvpMenuIco("trip")}<span>${escapeHtml(_planMapMode==="trip"?t("plan.dayView"):t("plan.tripView"))}</span></button>`
+                            : ""
+                        }
+                        ${
+                          (!ro&&stops.length)
+                            ? `<button type="button" class="plan-more-item" id="planUseMyPos">${_mvpMenuIco("pos")}<span>${t("route.useMyPosition")}</span></button>`
+                            : ""
+                        }
+                      </div>`
                    : ""
                }
                ${
                  !ro
-                   ? `<button type="button" class="plan-more-item" id="planAdd">＋ ${t("plan.addStep")}</button>`
+                   ? `<div class="plan-menu-section">
+                        <div class="plan-menu-head">${_mvpMenuGroupLabel("org")}</div>
+                        ${
+                          stops.length>=2
+                            ? `<button type="button" class="plan-more-item" id="planOptimize2">${_mvpMenuIco("opt")}<span>${t("plan.optimizeShort")}</span></button>`
+                            : ""
+                        }
+                        <button type="button" class="plan-more-item" id="planAdd">${_mvpMenuIco("add")}<span>${t("plan.addStep")}</span></button>
+                        ${
+                          !hasMeal
+                            ? `<button type="button" class="plan-more-item" id="lunchDay">${_mvpMenuIco("pause")}<span>${t("plan.aPause")}</span></button>`
+                            : ""
+                        }
+                      </div>`
                    : ""
                }
-               ${
-                 (!ro&&stops.length)
-                   ? `<button type="button" class="plan-more-item" id="planUseMyPos">📍 ${t("route.useMyPosition")}</button>`
-                   : ""
-               }
-               ${
-                 !ro&&!hasMeal
-                   ? `<button type="button" class="plan-more-item" id="lunchDay">☕ ${t("plan.aPause")}</button>`
-                   : ""
-               }
-               <button type="button" class="plan-more-item js-planmode">${_modeMenuLabel}</button>
-               <button type="button" class="plan-more-item" id="toggleList">${planState.collapsed?t("plan.showList"):t("plan.hideList")}</button>
+               <div class="plan-menu-section">
+                 <div class="plan-menu-head">${_mvpMenuGroupLabel("view")}</div>
+                 <button type="button" class="plan-more-item js-planmode">${_mvpMenuIco("det")}<span>${_planDetailed?t("plan.simpleView"):t("plan.detailView")}</span></button>
+                 <button type="button" class="plan-more-item" id="toggleList">${_mvpMenuIco("list")}<span>${planState.collapsed?t("plan.showList"):t("plan.hideList")}</span></button>
+               </div>
              </div>
            </div>
            ${
@@ -10845,10 +11193,26 @@ function renderPlan(){
                  title="${escapeHtml(t("plan.frameMap"))}">${_MVP_ICO.frame}</button>
        </div>`
     : routePanelHtml;
+  const mapCollapseHtml=`
+  <button
+    type="button"
+    class="mvp-map-toggle ${_planMapCollapsed?"":"open"}"
+    id="planMapCollapse"
+    aria-expanded="${_planMapCollapsed?"false":"true"}">
+      ${_MVP_ICO.map}
+      <span class="mvp-map-toggle-label">
+        ${escapeHtml(_planMapToggleText(_planMapCollapsed))}
+      </span>
+      <svg class="mvp-map-toggle-chev"
+           viewBox="0 0 24 24"
+           aria-hidden="true">
+        <path d="M6 9l6 6 6-6"/>
+      </svg>
+  </button>`;
   body.innerHTML=
     `${actsHtml}
      <div id="fideleAlert"></div>
-     <section class="mvp-day-card">
+     <section class="mvp-day-card ${_planDetailed?"is-detailed":"is-simple"}">
        <div class="mvp-day-head">
          <div class="mvp-day-left">
            <div class="mvp-day-title">${escapeHtml(dateLabel)}</div>
@@ -10860,7 +11224,16 @@ function renderPlan(){
          </div>
        </div>
        ${transHtml}
-       ${premiumMapHtml}
+       ${
+         _showPremiumMap
+           ? `${mapCollapseHtml}
+       <div
+         class="mvp-map-stage ${_planMapCollapsed?"collapsed":""}"
+         id="planMapStage">
+           ${premiumMapHtml}
+       </div>`
+           : premiumMapHtml
+       }
        ${statsHtml}
        ${
          !ro
@@ -10969,10 +11342,26 @@ function renderPlan(){
     { const pu=body.querySelector("#planUseMyPos"); if(pu) pu.onclick=()=>_routeUseMyPosition(tr.id, d.i); }
     {
       const ptm=body.querySelector("#planTripMenu");
-      if(ptm) ptm.onclick=()=>{
-        const b=document.getElementById("planTripToggle");
-        if(b) b.click();
-      };
+
+      if(ptm){
+        ptm.onclick=()=>{
+          _planSetMapCollapsed(false);
+
+          requestAnimationFrame(()=>{
+            const b=document.getElementById("planTripToggle");
+            if(b) b.click();
+          });
+        };
+      }
+    }
+    {
+      const b=body.querySelector("#planMapCollapse");
+
+      if(b){
+        b.onclick=()=>{
+          _planSetMapCollapsed(!_planMapCollapsed);
+        };
+      }
     }   /* V4.1 : action d'origine conservee (cartouche standard masque) */
   }
   {   /* correction lot Planning premium : bouton Itineraire fusionne (Y aller + Google) -- reutilise EXACTEMENT launchDayMaps("apple")/launchDayMaps("google") */
