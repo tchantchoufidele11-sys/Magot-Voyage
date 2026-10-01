@@ -4638,6 +4638,43 @@ body:has(#view-plan.active) #agentBubble{display:none}
 #view-plan.mv-plan-v4 .pl-ro{display:inline-flex;align-items:center;gap:6px;margin:10px 2px 2px;padding:5px 10px;border-radius:999px;background:#EEF1F6;color:#4C5874;font:700 11.5px/1.2 "Inter",sans-serif}
 #view-plan.mv-plan-v4 .mvp-bar-rhythm .mvp-rhythm-btn.is-disabled,#view-plan.mv-plan-v4 .mvp-bar-rhythm .mvp-rhythm-btn[disabled]{opacity:.55;box-shadow:none;cursor:default}
 @media(prefers-reduced-motion:reduce){ #view-plan.mv-plan-v4 .fidele-ticker .ft-viewport.scrolling .ft-track{animation:none} }
+
+/* V4.8-D : fiche d'etape -- lieu connu d'abord, options secondaires repliees */
+#planEditBody .pe-head{margin:2px 0 14px}
+#planEditBody .pe-name{font:800 19px/1.25 var(--font-serif,Georgia,serif);color:var(--ink,#16233F)}
+#planEditBody .pe-meta{margin-top:4px;font:600 12.5px/1.3 "Inter",sans-serif;color:var(--muted,#6E7A90)}
+#planEditBody .pe-dursrc{margin-top:6px;font:600 11.5px/1.3 "Inter",sans-serif;color:var(--muted,#6E7A90)}
+#planEditBody .pe-dursrc[data-src="user"]{color:var(--gold,#B8872B)}
+#planEditBody .pe-more{margin:4px 0 14px;border-top:1px solid var(--line,#E8ECF3);padding-top:10px}
+#planEditBody .pe-more summary{cursor:pointer;font:700 13px/1 "Inter",sans-serif;color:var(--ink,#16233F);list-style:none;padding:6px 0}
+#planEditBody .pe-more summary::-webkit-details-marker{display:none}
+#planEditBody .pe-act{display:block;margin:8px 0 4px;padding:6px 0}
+#planEditBody [hidden]{display:none}
+/* V4.8-A : provenance du prix carburant (creation / modification du voyage) */
+.veh-price-src{margin:-2px 0 8px;font:600 11.5px/1.3 "Inter",sans-serif;color:var(--muted,#6E7A90)}
+.veh-price-src:empty{display:none}
+.veh-price-src[data-kind="manual"]{color:var(--gold,#B8872B)}
+
+/* ============ V4.8-B -- carburant visible : montant par liaison, liaison de depart, "Cout des trajets" ============ */
+#view-plan.mv-plan-v4 .mvp-day-card.is-simple .pl-leg .pl-leg-qty{display:none}
+#view-plan.mv-plan-v4 .mvp-day-card.is-simple .pl-leg .pl-leg-fuel{display:inline;color:#36425E;font-weight:700}
+#view-plan.mv-plan-v4 .mvp-day-card.is-simple .pl-leg .pl-leg-main>span::before{content:"\00b7\00a0"}
+#view-plan.mv-plan-v4 .pl-leg .pl-leg-fuel::before{content:"\00b7\00a0";color:var(--v4-soft);font-weight:500}
+#view-plan.mv-plan-v4 .pl-leg .pl-leg-from{font:800 10px/1 "Inter",sans-serif;letter-spacing:.06em;text-transform:uppercase;color:var(--v4-soft);margin-right:3px}
+#view-plan.mv-plan-v4 .pl-leg .pl-leg-main>.pl-leg-from::before{content:none}
+#view-plan.mv-plan-v4 .mvp-day-card .pl-leg.pl-leg-origin .pl-legbtn{flex-wrap:wrap}
+#view-plan.mv-plan-v4 .mvp-day-card .pl-leg.pl-leg-origin .pl-legbtn>.pl-leg-main{display:flex;flex-wrap:wrap;align-items:baseline;flex:1 1 calc(100% - 24px);min-width:0;white-space:normal}   /* V4.8 : specificite (1,6,0) > regle V4.4 (1,5,1) ".pl-legbtn>span{nowrap}" -- largeur BORNEE, rien n'est rogne */
+#view-plan.mv-plan-v4 .mvp-day-card .pl-leg.pl-leg-origin .pl-legbtn>.pl-leg-main>*{white-space:nowrap}
+#view-plan.mv-plan-v4 .mvp-day-card .pl-leg.pl-leg-origin .pl-legbtn>.pl-leg-main>.pl-leg-from{flex:0 0 100%;margin:0 0 2px}
+#view-plan.mv-plan-v4 .day-sum .ds-tripfuel{font:700 13px/1.4 "Inter",sans-serif}
+#view-plan.mv-plan-v4 .day-sum .ds-tripfuel .rc-tripfuel{font-weight:800}
+#view-plan.mv-plan-v4 .day-sum .ds-tripfuel .rc-tripfuel[data-state="partial"],#view-plan.mv-plan-v4 .day-sum .ds-tripfuel .rc-tripfuel[data-state="na"]{color:#B8872B}
+#view-plan.mv-plan-v4 .day-sum .ds-tripfuel .rc-trip-note{color:var(--v4-muted);font-weight:500}
+/* ============ V4.8-C -- bandeau TV : categorie fixe | texte defilant (un passage par categorie) ============ */
+#view-plan.mv-plan-v4 .fidele-ticker .ft-catzone{flex:0 0 auto;display:flex;align-items:center;padding-right:10px;margin-right:10px;border-right:1px solid rgba(255,255,255,.24)}
+#view-plan.mv-plan-v4 .fidele-ticker .ft-catzone .ft-cat{margin:0}
+#view-plan.mv-plan-v4 .fidele-ticker .ft-track{display:inline-block;height:42px;line-height:42px;white-space:nowrap;font:500 12.5px/42px "Inter",sans-serif;color:rgba(255,255,255,.92)}
+#view-plan.mv-plan-v4 .fidele-ticker .ft-label{display:none}
 @media(max-width:374px){ #view-plan.mv-plan-v4 .mvp-day-card.is-simple .pl-leg{padding-left:156px} #view-plan.mv-plan-v4 .mvp-day-card.is-simple .pl-leg .pl-legbtn{gap:4px} }   /* <375 px : trajet aligne sur le bord de la photo pour ne jamais tronquer mode + distance + duree */
 @media(max-width:359px){
   #view-plan.mv-plan-v4 .pl-item{grid-template-columns:34px 14px 56px minmax(0,1fr) 32px}
@@ -5036,7 +5073,7 @@ const DEFAULT_S={ version:"0.2.0", settings:{ lang:"fr", theme:"system", units:"
 /* Clé Maps JS partagée (restreinte au domaine GitHub Pages). Repli : clé perso de l'utilisateur si fournie. */
 const SHARED_MAP_KEY="AIzaSyCt5iVx8nPr1V067A3daE0X1YA568XJNbU";
 function mapKey(){ return (S.settings.mapKey||"").trim() || SHARED_MAP_KEY; }
-const BUILD="0.6.150 · vPlanningV4.7 etapes-masquables + archive + ticker-tv";
+const BUILD="0.6.153 · vPlanningV4.8 prix-auto + carburant + ticker-tv";
 /* V4.1 lot A (P0 stockage) : CC_CUR deplacee ICI, avant le premier loadState() -- loadState>mergeState>normalizeTrip>normalizeLegs la lit ;
    declaree plus bas, elle etait en zone morte temporelle (ReferenceError avalee par loadState -> S vide -> saveState() pouvait ecraser les voyages). Contenu inchange. */
 const CC_CUR={FR:"EUR",BE:"EUR",DE:"EUR",ES:"EUR",IT:"EUR",PT:"EUR",NL:"EUR",AT:"EUR",IE:"EUR",GR:"EUR",LU:"EUR",FI:"EUR",SK:"EUR",SI:"EUR",EE:"EUR",LV:"EUR",LT:"EUR",GB:"GBP",US:"USD",CA:"CAD",CH:"CHF",JP:"JPY",AU:"AUD",NZ:"NZD",MA:"MAD",TN:"TND",DZ:"DZD",EG:"EGP",SE:"SEK",NO:"NOK",DK:"DKK",PL:"PLN",CZ:"CZK",HU:"HUF",RO:"RON",MX:"MXN",BR:"BRL",AR:"ARS",CN:"CNY",TH:"THB",IN:"INR",ID:"IDR",VN:"VND",TR:"TRY",AE:"AED",ZA:"ZAR",SN:"XOF",CI:"XOF",CM:"XAF",GA:"XAF",CG:"XAF",TD:"XAF",CF:"XAF",GQ:"XAF",BJ:"XOF",BF:"XOF",ML:"XOF",NE:"XOF",TG:"XOF",GW:"XOF",NG:"NGN",GH:"GHS",KE:"KES",TZ:"TZS",UG:"UGX",RW:"RWF",ET:"ETB",MU:"MUR",MG:"MGA",AO:"AOA",MZ:"MZN",CD:"CDF",LY:"LYD",SA:"SAR",QA:"QAR",KW:"KWD",BH:"BHD",OM:"OMR",JO:"JOD",LB:"LBP",IL:"ILS",PK:"PKR",BD:"BDT",LK:"LKR",NP:"NPR",KR:"KRW",SG:"SGD",MY:"MYR",PH:"PHP",KH:"KHR",MM:"MMK",KZ:"KZT",GE:"GEL",AM:"AMD",AZ:"AZN",RU:"RUB",UA:"UAH",RS:"RSD",BG:"BGN",IS:"ISK",HR:"EUR",CY:"EUR",MT:"EUR",CL:"CLP",CO:"COP",PE:"PEN",UY:"UYU",BO:"BOB",EC:"USD",PA:"USD",CR:"CRC",GT:"GTQ",DO:"DOP",FJ:"FJD"};
@@ -6841,8 +6878,8 @@ function renderVehPanel(){ const wrap=document.getElementById("cVehPanel"); if(!
     const subRow=(fam==="essence")?`<div class="chips fuel-sub" id="cFuelSub">${["sp95","e10","sp98","e85"].map(f=>`<button type="button" class="chip sm ${subCode===f?'on':''}" data-fuelsub="${f}">${t("fuel."+f)}</button>`).join("")}</div>`:"";
     return `<div class="fld"><label>${t("veh.fuel")}</label><div class="chips" id="cFuel">${["essence","diesel","gpl","elec"].map(f=>`<button type="button" class="chip ${fam===f?'on':''}" data-fuelfam="${f}">${t("fuel."+f)}</button>`).join("")}</div>${subRow}</div>
       ${_vehOpen?`<div class="veh-row"><div class="fld"><label>${t("veh.conso")} (${u}/100)</label><input id="cConso" type="number" inputmode="decimal" placeholder="${fuelDefault(v.fuel).conso}" value="${v.conso||''}"></div>
-      <div class="fld"><label>${t("veh.price")} (${curSym(draft.currency)}/${u})</label><input id="cPrice" type="number" inputmode="decimal" placeholder="${(()=>{ const _ph=fuelPrice(draft.country&&draft.country.cc,v.fuel); return _ph!=null?_ph:''; })()}" value="${v.priceManual?(v.price||''):''}"></div></div>`
-      : `<div class="veh-auto">${escapeHtml(t("veh.autoNote",{fuel:t("fuel."+(v.fuel||'essence'))}))}</div><button type="button" class="linkbtn" id="cVehMore">${t("veh.custom")}</button>`}`; };
+      <div class="fld"><label>${t("veh.price")} (${curSym(draft.currency)}/${u})</label><input id="cPrice" type="number" inputmode="decimal" placeholder="${(()=>{ const _ph=fuelPrice(draft.country&&draft.country.cc,v.fuel); return _ph!=null?_ph:''; })()}" value="${v.priceManual?(v.price||''):''}"></div></div><div class="veh-price-src" id="cPriceSrc"></div>`
+      : `<div class="veh-price-src" id="cPriceSrc"></div><div class="veh-auto">${escapeHtml(t("veh.autoNote",{fuel:t("fuel."+(v.fuel||'essence'))}))}</div><button type="button" class="linkbtn" id="cVehMore">${t("veh.custom")}</button>`}`; };
   if(tp==="car"){ h+=_fuelBlock(); }
   if(tp==="plane"||tp==="boat"){ const isP=tp==="plane";
     h+=`<div class="fld"><label>${t(isP?"hub.depAir":"hub.depPort")}</label><select id="cDepHub" class="csel"><option value="">${t(draft.depart?"hub.searching":"hub.needDep")}</option></select></div>`;
@@ -6876,6 +6913,7 @@ function renderVehPanel(){ const wrap=document.getElementById("cVehPanel"); if(!
   });
   { const cc=wrap.querySelector("#cConso"), pp=wrap.querySelector("#cPrice");
     if(cc) cc.addEventListener("input",()=>{ draft.veh=draft.veh||{}; draft.veh.conso=cc.value; computeVehEstimate(); });
+    if(pp) pp.addEventListener("blur",()=>{ if(!(draft.veh&&draft.veh.priceManual)) computeVehEstimate(); });   /* V4.8-A : champ vide quitte -> le prix automatique resolu est reaffiche */
     if(pp) pp.addEventListener("input",()=>{
       draft.veh=draft.veh||{};
       draft.veh.price=pp.value;
@@ -6884,6 +6922,7 @@ function renderVehPanel(){ const wrap=document.getElementById("cVehPanel"); if(!
       );
       draft.veh.priceManual=
         Number.isFinite(n)&&n>0;   /* vider le champ / 0 / valeur invalide => automatique (F1 redevient actif) */
+      { const _s=document.getElementById("cPriceSrc"); if(_s&&!draft.veh.priceManual){ _s.textContent=""; _s.dataset.kind=""; } }   /* V4.8-A : jamais "Votre prix" affiche alors que le mode est redevenu automatique */
       computeVehEstimate();
     }); }
   computeVehEstimate();
@@ -7084,6 +7123,18 @@ function computeHubEstimate(est,vehSeq){
     est.innerHTML=html;
   },300);
 }
+function _mvpPaintVehPrice(price,loc,v){   /* V4.8-A : affichage du prix REELLEMENT utilise par l'estimation ; jamais draft.veh.priceManual/price */
+  const pp=document.getElementById("cPrice"), src=document.getElementById("cPriceSrc"); v=v||{};
+  const manual=!!v.priceManual&&parseFloat(String(v.price||"").replace(",","."))>0;
+  const has=Number.isFinite(price)&&price>0; const shown=has?String(+(+price).toFixed(3)):"";
+  let txt="";
+  if(manual) txt=_mvpTxt("pvManual");
+  else if(has){ const f=v.fuel||"essence"; const CC=String((loc&&loc.cc)||"").toUpperCase();
+    const rec=(CC==="FR"&&f!=="elec")?fuelPriceRecordResolved(_vehFuelSnapHolder,CC,f,loc.lat,loc.lng):null;   /* meme lecteur que l'estimation : la provenance n'est jamais devinee */
+    txt=_mvpTxt(rec&&rec.scope==="STATION"?"pvStation":(rec&&rec.scope==="NATIONAL"?"pvNational":"pvCountry")); }
+  if(pp&&!manual){ pp.placeholder=shown; if(document.activeElement!==pp) pp.value=shown; }   /* aucun prix decoratif : sans prix resolu, ni valeur ni indice numerique (l'ancien indice montrait le prix du pays de DESTINATION) */
+  if(src){ src.textContent=txt; src.dataset.kind=manual?"manual":(has?"auto":""); }
+}
 function computeVehEstimate(){
   const est=document.getElementById("cEst");
   if(!est) return;
@@ -7137,6 +7188,7 @@ function computeVehEstimate(){
         mySeq!==_vehEstimateSeq
         ||!document.getElementById("cEst")
       ) return;
+      _mvpPaintVehPrice(price,fuelLoc,v);   /* V4.8-A : le nombre affiche dans #cPrice EST celui de l'estimation ci-dessous */
       const isE=(v.fuel||"essence")==="elec";
       const kmAR=r.km*2;
       const qty=kmAR*conso/100;
@@ -8577,9 +8629,8 @@ function exAddPlace(p){ const tr=currentTrip(); if(!tr||!p) return;
   addPlaceToTrip(p);   // trip.places (idempotent ; toast "ajouté" si nouveau)
   if(_exAddDay!=null){ tr.plan=tr.plan||[];
     if(!tr.plan.some(s=>s.day===_exAddDay && s.placeId===p.id)){
-      const isResto=/restaurant|caf[eé]|\bbar\b|food|bakery|bistro|brasserie|meal/i.test(((p.primaryType||"")+" "+((p.types||[]).join(" "))).toLowerCase());
-      const kind=isResto?"meal":"place";
-      const _dd=durFromTypes(p.types); const _du=(_dd!=null?_dd:(kind==="meal"?(MEAL_DUR.lunch||60):(KIND_DUR.place||90)));
+      const kind=planKindFromPlace(p);   /* V4.8-D : fonction centrale (remplace l'ancienne regex restaurant/cafe/bar -> repas) */
+      const _dd=durFromTypes(p.types); const _du=(_dd!=null?_dd:(kind==="meal"?(MEAL_DUR.lunch||60):(KIND_DUR[kind]||KIND_DUR.place||90)));
       const _pid2=uid(); const _at=_planAddTime(tr,_exAddDay,null);
       _planPush(tr,{id:_pid2,day:_exAddDay,time:_at.time,notBefore:_at.notBefore,title:p.name,sub:p.primaryType||"",subLang:(p.lang0||lang()),kind:kind,placeId:p.id,ptype:p.primaryType||"",types:(p.types||[]).slice(0,6),lat:p.lat,lng:p.lng,price:p.price||"",hours:p.hours||[],dur:_du,done:false});
       saveState();
@@ -10163,6 +10214,27 @@ function planTodayIndex(days){ if(!days.length||!days[0].date) return 0; const n
   if(t0<days[0].date.getTime()) return 0; return days.length-1; }
 function planGotoToday(){ const tr=currentTrip(); if(!tr) return; planState.dayIndex=planTodayIndex(tripDays(tr)); }
 const PLANKINDS=["place","meal","cafe","culture","nature","hike","beach","sport","shopping","nightlife","relax","lodging","transport","custom"];
+function _planKindFromType(ty){   /* V4.8-D : correspondance type de lieu (Google) -> type d'etape Magot ; "place" si inconnu */
+  const x=String(ty||"").toLowerCase(); if(!x) return "place";
+  if(/^(lodging|hotel|motel|resort_hotel|hostel|bed_and_breakfast|guest_house|campground|inn)$/.test(x)) return "lodging";
+  if(x==="hiking_area") return "hike";
+  if(x==="beach") return "beach";
+  if(/^(cafe|coffee_shop|bakery|tea_house|cafeteria|dessert_shop|ice_cream_shop|pastry_shop)$/.test(x)) return "cafe";
+  if(/^(restaurant|meal_takeaway|meal_delivery|food_court|diner|steak_house|brunch_restaurant)$/.test(x)||/_restaurant$/.test(x)) return "meal";
+  if(/^(bar|night_club|pub|wine_bar|cocktail_bar|karaoke|beer_hall)$/.test(x)) return "nightlife";
+  if(/^(spa|wellness_center|sauna|massage|public_bath|hot_spring)$/.test(x)) return "relax";
+  if(/^(stadium|sports_complex|sports_club|gym|fitness_center|golf_course|ski_resort|arena|swimming_pool|athletic_field|sports_activity_location|sports_coaching)$/.test(x)) return "sport";
+  if(/^(shopping_mall|store|market|supermarket|department_store|flea_market|farmers_market|outlet_mall)$/.test(x)||/_store$/.test(x)) return "shopping";
+  if(/^(park|national_park|botanical_garden|garden|state_park|nature_reserve|natural_feature|wildlife_park|zoo|lake|mountain_peak|scenic_spot|wildlife_refuge)$/.test(x)) return "nature";
+  if(/^(museum|art_gallery|monument|library|church|place_of_worship|mosque|synagogue|hindu_temple|castle|palace|archaeological_site|event_venue|convention_center|auditorium|performing_arts_theater|opera_house|concert_hall|planetarium)$/.test(x)||/^historical_|^cultural_/.test(x)) return "culture";
+  return "place";
+}
+function planKindFromPlace(p){   /* V4.8-D : type principal d'abord, puis types[] dans l'ordre ; jamais d'invention */
+  if(!p) return "place";
+  for(const ty of [p.ptype,p.primaryType]){ const k=_planKindFromType(ty); if(k!=="place") return k; }   /* ptype = type brut Google ; primaryType = libelle localise (affichage) */
+  for(const ty of (p.types||[])){ const k=_planKindFromType(ty); if(k!=="place") return k; }
+  return "place";
+}
 function cap(s){ return s?s.charAt(0).toUpperCase()+s.slice(1):s; }
 /* ===================== LOT ROUTE CORE — sous-étape 1 : modèle canonique (additif, provider-agnostic ; Google actif) ===================== */
 function _rcCoord(v,min,max){ if(v===null||v===undefined) return null; if(typeof v==="string"&&!v.trim()) return null; const n=Number(v); return (Number.isFinite(n)&&n>=min&&n<=max)?n:null; }
@@ -11044,15 +11116,15 @@ function _mvpMenuIco(k,cls){ return '<svg class="plan-menu-ico'+(cls?' '+cls:'')
 function _mvpTxt(k){   /* V4.4/V4.5 : libelles courts d'interface (5 langues) */
   const L={
     fr:{actions:"Actions",mode:"Mode",now:"En cours",past:"Passée",done:"Terminée",knownCost:"Coût connu du jour",fuelPartial:"carburant incomplet",
-        detailed:"Affichage détaillé",compact:"Affichage compact",addPause:"Ajouter une pause",addStep:"Étape",catFidele:"Fidèle",catWeather:"Météo",catCrowd:"Affluence",catHours:"Horaires",catRoute:"Trajet",myPos:"Ma position",startHere:"Partir d’ici",fsDay:"Journée",fsTrip:"Séjour",frameToStep:"Cadrer l’étape en cours",frameToDay:"Voir toute la journée",hintStep:"Étape en cours",hintDay:"Vue de la journée",hideSteps:"Masquer les étapes",showSteps:"Afficher les étapes",pastDay:"Journée passée · lecture seule"},
+        detailed:"Affichage détaillé",compact:"Affichage compact",addPause:"Ajouter une pause",addStep:"Étape",catFidele:"Fidèle",catWeather:"Météo",catCrowd:"Affluence",catHours:"Horaires",catRoute:"Trajet",myPos:"Ma position",startHere:"Partir d’ici",fsDay:"Journée",fsTrip:"Séjour",frameToStep:"Cadrer l’étape en cours",frameToDay:"Voir toute la journée",hintStep:"Étape en cours",hintDay:"Vue de la journée",hideSteps:"Masquer les étapes",showSteps:"Afficher les étapes",pastDay:"Journée passée · lecture seule",pvStation:"Automatique · station proche du départ",pvNational:"Automatique · médiane nationale",pvCountry:"Automatique · estimation pays",pvManual:"Votre prix",tripFuel:"Coût des trajets",tripPartial:"partiel",tripNA:"Prix indisponible",tripKnown:"connus",legFrom:"Départ",peTime:"Horaire",peDur:"Durée prévue",peDay:"Jour",peMore:"Plus d’options",peRename:"Renommer",peKind:"Modifier le type",peSee:"Voir la fiche du lieu",peSave:"Enregistrer les modifications",peDel:"Supprimer l’étape",durUser:"Durée personnalisée",durEst:"Estimation Magot Voyage",durFit:"Ajustée pour tenir dans la journée",durSaved:"Durée enregistrée",editable:"modifiable"},
     en:{actions:"Actions",mode:"Mode",now:"In progress",past:"Past",done:"Done",knownCost:"Known day cost",fuelPartial:"fuel incomplete",
-        detailed:"Detailed view",compact:"Compact view",addPause:"Add a break",addStep:"Stop",catFidele:"Fidèle",catWeather:"Weather",catCrowd:"Crowds",catHours:"Hours",catRoute:"Route",myPos:"My location",startHere:"Start here",fsDay:"Day",fsTrip:"Trip",frameToStep:"Frame the current stop",frameToDay:"Show the whole day",hintStep:"Current stop",hintDay:"Whole day",hideSteps:"Hide stops",showSteps:"Show stops",pastDay:"Past day · read-only"},
+        detailed:"Detailed view",compact:"Compact view",addPause:"Add a break",addStep:"Stop",catFidele:"Fidèle",catWeather:"Weather",catCrowd:"Crowds",catHours:"Hours",catRoute:"Route",myPos:"My location",startHere:"Start here",fsDay:"Day",fsTrip:"Trip",frameToStep:"Frame the current stop",frameToDay:"Show the whole day",hintStep:"Current stop",hintDay:"Whole day",hideSteps:"Hide stops",showSteps:"Show stops",pastDay:"Past day · read-only",pvStation:"Automatic · station near the start",pvNational:"Automatic · national median",pvCountry:"Automatic · country estimate",pvManual:"Your price",tripFuel:"Driving cost",tripPartial:"partial",tripNA:"Price unavailable",tripKnown:"known",legFrom:"Start",peTime:"Time",peDur:"Planned duration",peDay:"Day",peMore:"More options",peRename:"Rename",peKind:"Change type",peSee:"View place details",peSave:"Save changes",peDel:"Delete stop",durUser:"Custom duration",durEst:"Magot Voyage estimate",durFit:"Adjusted to fit the day",durSaved:"Saved duration",editable:"editable"},
     es:{actions:"Acciones",mode:"Modo",now:"En curso",past:"Pasada",done:"Hecha",knownCost:"Coste conocido del día",fuelPartial:"carburante incompleto",
-        detailed:"Vista detallada",compact:"Vista compacta",addPause:"Añadir una pausa",addStep:"Etapa",catFidele:"Fidèle",catWeather:"Tiempo",catCrowd:"Afluencia",catHours:"Horarios",catRoute:"Trayecto",myPos:"Mi ubicación",startHere:"Salir desde aquí",fsDay:"Día",fsTrip:"Viaje",frameToStep:"Encuadrar la etapa actual",frameToDay:"Ver todo el día",hintStep:"Etapa actual",hintDay:"Vista del día",hideSteps:"Ocultar etapas",showSteps:"Mostrar etapas",pastDay:"Día pasado · solo lectura"},
+        detailed:"Vista detallada",compact:"Vista compacta",addPause:"Añadir una pausa",addStep:"Etapa",catFidele:"Fidèle",catWeather:"Tiempo",catCrowd:"Afluencia",catHours:"Horarios",catRoute:"Trayecto",myPos:"Mi ubicación",startHere:"Salir desde aquí",fsDay:"Día",fsTrip:"Viaje",frameToStep:"Encuadrar la etapa actual",frameToDay:"Ver todo el día",hintStep:"Etapa actual",hintDay:"Vista del día",hideSteps:"Ocultar etapas",showSteps:"Mostrar etapas",pastDay:"Día pasado · solo lectura",pvStation:"Automático · estación cerca de la salida",pvNational:"Automático · mediana nacional",pvCountry:"Automático · estimación del país",pvManual:"Tu precio",tripFuel:"Coste de los trayectos",tripPartial:"parcial",tripNA:"Precio no disponible",tripKnown:"conocidos",legFrom:"Salida",peTime:"Hora",peDur:"Duración prevista",peDay:"Día",peMore:"Más opciones",peRename:"Renombrar",peKind:"Cambiar el tipo",peSee:"Ver la ficha del lugar",peSave:"Guardar los cambios",peDel:"Eliminar la etapa",durUser:"Duración personalizada",durEst:"Estimación Magot Voyage",durFit:"Ajustada para caber en el día",durSaved:"Duración guardada",editable:"modificable"},
     it:{actions:"Azioni",mode:"Modalità",now:"In corso",past:"Passata",done:"Fatta",knownCost:"Costo noto del giorno",fuelPartial:"carburante incompleto",
-        detailed:"Vista dettagliata",compact:"Vista compatta",addPause:"Aggiungi una pausa",addStep:"Tappa",catFidele:"Fidèle",catWeather:"Meteo",catCrowd:"Affluenza",catHours:"Orari",catRoute:"Tragitto",myPos:"La mia posizione",startHere:"Parti da qui",fsDay:"Giorno",fsTrip:"Viaggio",frameToStep:"Inquadra la tappa in corso",frameToDay:"Mostra tutta la giornata",hintStep:"Tappa in corso",hintDay:"Vista della giornata",hideSteps:"Nascondi tappe",showSteps:"Mostra tappe",pastDay:"Giorno passato · sola lettura"},
+        detailed:"Vista dettagliata",compact:"Vista compatta",addPause:"Aggiungi una pausa",addStep:"Tappa",catFidele:"Fidèle",catWeather:"Meteo",catCrowd:"Affluenza",catHours:"Orari",catRoute:"Tragitto",myPos:"La mia posizione",startHere:"Parti da qui",fsDay:"Giorno",fsTrip:"Viaggio",frameToStep:"Inquadra la tappa in corso",frameToDay:"Mostra tutta la giornata",hintStep:"Tappa in corso",hintDay:"Vista della giornata",hideSteps:"Nascondi tappe",showSteps:"Mostra tappe",pastDay:"Giorno passato · sola lettura",pvStation:"Automatico · stazione vicino alla partenza",pvNational:"Automatico · mediana nazionale",pvCountry:"Automatico · stima del paese",pvManual:"Il tuo prezzo",tripFuel:"Costo dei tragitti",tripPartial:"parziale",tripNA:"Prezzo non disponibile",tripKnown:"noti",legFrom:"Partenza",peTime:"Orario",peDur:"Durata prevista",peDay:"Giorno",peMore:"Altre opzioni",peRename:"Rinomina",peKind:"Cambia tipo",peSee:"Vedi la scheda del luogo",peSave:"Salva le modifiche",peDel:"Elimina la tappa",durUser:"Durata personalizzata",durEst:"Stima Magot Voyage",durFit:"Adattata alla giornata",durSaved:"Durata salvata",editable:"modificabile"},
     de:{actions:"Aktionen",mode:"Modus",now:"Läuft",past:"Vorbei",done:"Erledigt",knownCost:"Bekannte Tageskosten",fuelPartial:"Kraftstoff unvollständig",
-        detailed:"Detailansicht",compact:"Kompaktansicht",addPause:"Pause hinzufügen",addStep:"Etappe",catFidele:"Fidèle",catWeather:"Wetter",catCrowd:"Andrang",catHours:"Öffnungszeiten",catRoute:"Strecke",myPos:"Mein Standort",startHere:"Von hier starten",fsDay:"Tag",fsTrip:"Reise",frameToStep:"Aktuelle Etappe zeigen",frameToDay:"Ganzen Tag zeigen",hintStep:"Aktuelle Etappe",hintDay:"Tagesansicht",hideSteps:"Etappen ausblenden",showSteps:"Etappen anzeigen",pastDay:"Vergangener Tag · nur lesen"}
+        detailed:"Detailansicht",compact:"Kompaktansicht",addPause:"Pause hinzufügen",addStep:"Etappe",catFidele:"Fidèle",catWeather:"Wetter",catCrowd:"Andrang",catHours:"Öffnungszeiten",catRoute:"Strecke",myPos:"Mein Standort",startHere:"Von hier starten",fsDay:"Tag",fsTrip:"Reise",frameToStep:"Aktuelle Etappe zeigen",frameToDay:"Ganzen Tag zeigen",hintStep:"Aktuelle Etappe",hintDay:"Tagesansicht",hideSteps:"Etappen ausblenden",showSteps:"Etappen anzeigen",pastDay:"Vergangener Tag · nur lesen",pvStation:"Automatisch · Tankstelle nahe dem Start",pvNational:"Automatisch · nationaler Median",pvCountry:"Automatisch · Länderschätzung",pvManual:"Dein Preis",tripFuel:"Fahrtkosten",tripPartial:"teilweise",tripNA:"Preis nicht verfügbar",tripKnown:"bekannt",legFrom:"Start",peTime:"Uhrzeit",peDur:"Geplante Dauer",peDay:"Tag",peMore:"Weitere Optionen",peRename:"Umbenennen",peKind:"Typ ändern",peSee:"Ortsdetails ansehen",peSave:"Änderungen speichern",peDel:"Etappe löschen",durUser:"Eigene Dauer",durEst:"Schätzung Magot Voyage",durFit:"An den Tag angepasst",durSaved:"Gespeicherte Dauer",editable:"änderbar"}
   };
   return ((L[lang()]||L.fr)[k])||L.fr[k]||"";
 }
@@ -11088,20 +11160,28 @@ function _mvpAdviceItems(st){   /* V4.5/V4.6 : une information par categorie {ty
 }
 const _mvpTk={token:0,timer:null,anim:null};
 function _mvpTickerStop(){ _mvpTk.token++; clearTimeout(_mvpTk.timer); _mvpTk.timer=null; try{ if(_mvpTk.anim) _mvpTk.anim.cancel(); }catch(_e){} _mvpTk.anim=null; }
-function _mvpTickerRun(el){   /* V4.7 : bandeau TV -- toute la sequence (Fidele • Meteo • Affluence ...) entre HORS CHAMP a droite et sort ENTIEREMENT a gauche,
-     vitesse constante 34 px/s, boucle infinie (les deux extremites sont hors champ : aucun saut visible). Mesures reelles APRES layout. */
+function _mvpTickerRun(el, items){   /* V4.8-C : bandeau TV a deux zones -- categorie FIXE a gauche, texte de CETTE categorie en defilement a droite.
+     Chaque passage : naissance completement hors champ a droite -> traversee -> sortie complete a gauche ; changement de categorie
+     UNIQUEMENT entre deux passages. Vitesse constante 34 px/s. Mesures reelles apres layout. */
   _mvpTickerStop(); const tok=_mvpTk.token;
-  const box=el.querySelector(".fidele-ticker"), vp=el.querySelector("#ftViewport"), tk=el.querySelector("#ftTrack"), tb=el.querySelector(".ft-textbox");
-  if(!box||!vp||!tk||!tb) return;
-  vp.classList.remove("scrolling"); tk.style.animation="none"; tk.style.transform="";   /* aucune transform heritee d'une ancienne piste */
+  const box=el.querySelector(".fidele-ticker"), cat=el.querySelector("#ftCat"), tk=el.querySelector("#ftTrack"), tb=el.querySelector(".ft-textbox");
+  if(!box||!cat||!tk||!tb) return; items=items||el._mvpItems||[]; if(!items.length) return;
   const reduced=!!(window.matchMedia&&window.matchMedia("(prefers-reduced-motion: reduce)").matches);
-  if(reduced||box.classList.contains("open")) return;
-  requestAnimationFrame(()=>requestAnimationFrame(()=>{
-    if(tok!==_mvpTk.token||!el.isConnected||box.classList.contains("open")) return;
-    const W=tb.clientWidth, T=tk.scrollWidth; if(!(W>0)||T<=W+1) return;   /* tient dans la zone : lisible statiquement */
-    const dist=W+T, dur=Math.max(6,dist/34);
-    tk.style.setProperty("--ft-start",W+"px"); tk.style.setProperty("--ft-end",(-T)+"px"); tk.style.setProperty("--ft-dur",dur.toFixed(2)+"s");
-    tk.style.animation=""; vp.classList.add("scrolling"); box.dataset.dist=String(Math.round(dist)); }));
+  const alive=()=>tok===_mvpTk.token&&el.isConnected&&!box.classList.contains("open");
+  let i=0;
+  const setItem=k=>{ const it=items[k]; cat.textContent=it.icon+" "+it.label; box.dataset.cur=it.type; box.dataset.idx=String(k); tk.textContent=[it.head,it.shortText].filter(Boolean).join(" — "); };
+  setItem(0); tk.style.transform="";
+  if(reduced||box.classList.contains("open")) return;   /* lisible statiquement */
+  const pass=()=>{ if(!alive()) return; try{ if(_mvpTk.anim) _mvpTk.anim.cancel(); }catch(_e){} _mvpTk.anim=null;   /* jamais d'animation terminee laissee attachee (fill:forwards) : une seule animation vivante */
+    setItem(i); tk.style.transform="translate3d(100000px,0,0)";   /* hors champ pendant la mesure */
+    requestAnimationFrame(()=>requestAnimationFrame(()=>{ if(!alive()) return;
+      const W=tb.clientWidth, T=tk.scrollWidth; if(!(W>0)) return; const dur=Math.max(4,(W+T)/34);
+      tk.style.transform="";
+      try{ _mvpTk.anim=tk.animate([{transform:"translate3d("+W+"px,0,0)"},{transform:"translate3d("+(-T)+"px,0,0)"}],{duration:dur*1000,iterations:1,easing:"linear",fill:"forwards"});
+           box.dataset.dist=String(Math.round(W+T));
+           _mvpTk.anim.onfinish=()=>{ if(!alive()) return; i=(i+1)%items.length; pass(); }; }   /* categorie suivante APRES la sortie complete */
+      catch(_e){ tk.style.transform=""; } })); };
+  pass();
 }
 function _mvpPaintAdvice(){
   const el=document.getElementById("fideleAlert"); if(!el) return;
@@ -11110,16 +11190,15 @@ function _mvpPaintAdvice(){
   if(!items.length){ _mvpTickerStop(); el.innerHTML=""; return; }   /* aucun conseil : aucun cadre vide */
   const wasOpen=!!el.querySelector(".fidele-ticker.open");
   const label=escapeHtml(t("plan.toKnow"));
-  const band=items.map(it=>`<span class="ft-seg" data-type="${it.type}"><span class="ft-cat">${it.icon} ${escapeHtml(it.label)}</span><span class="ft-txt">${escapeHtml([it.head,it.shortText].filter(Boolean).join(" — "))}</span></span>`).join('<span class="ft-sep" aria-hidden="true">•</span>');   /* V4.7 : une seule bande continue */
   const secs=items.map(it=>`<div class="ftp-sec" data-ft-type="${it.type}"><div class="ftp-head"><span class="ftp-ico" aria-hidden="true">${it.icon}</span><span class="ftp-lbl">${escapeHtml(it.label)}</span></div>${it.head?`<div class="ftp-headline">${escapeHtml(it.head)}</div>`:""}<div class="ftp-text">${(it.ai?escapeAI(it.fullText):escapeHtml(it.fullText))}</div></div>`).join("");
-  el.innerHTML=`<div class="fidele-ticker${wasOpen?" open":""}" id="fideleTicker" data-count="${items.length}"><span class="ft-label">💡 ${label}</span><div class="ft-viewport" id="ftViewport" role="button" tabindex="0" aria-controls="ftPanel" aria-expanded="${wasOpen?"true":"false"}"><span class="ft-textbox"><span class="ft-track" id="ftTrack">${band}</span></span></div><button class="ft-more${wasOpen?" open":""}" type="button" aria-controls="ftPanel" aria-label="${label}" aria-expanded="${wasOpen?"true":"false"}"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 6l6 6-6 6"/></svg></button></div><div class="ft-panel" id="ftPanel" role="region" aria-label="${label}"${wasOpen?"":" hidden"}>${secs}</div>`;
+  el.innerHTML=`<div class="fidele-ticker${wasOpen?" open":""}" id="fideleTicker" data-count="${items.length}"><span class="ft-catzone"><span class="ft-cat" id="ftCat"></span></span><div class="ft-viewport" id="ftViewport" role="button" tabindex="0" aria-label="${label}" aria-controls="ftPanel" aria-expanded="${wasOpen?"true":"false"}"><span class="ft-textbox"><span class="ft-track" id="ftTrack"></span></span></div><button class="ft-more${wasOpen?" open":""}" type="button" aria-controls="ftPanel" aria-label="${label}" aria-expanded="${wasOpen?"true":"false"}"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 6l6 6-6 6"/></svg></button></div><div class="ft-panel" id="ftPanel" role="region" aria-label="${label}"${wasOpen?"":" hidden"}>${secs}</div>`;
   const box=el.querySelector(".fidele-ticker"), vp=el.querySelector("#ftViewport"), mb=el.querySelector(".ft-more"), pn=el.querySelector("#ftPanel");
   const trk=el.querySelector("#ftTrack");
   const toggle=e=>{ if(e) e.stopPropagation(); const open=!box.classList.contains("open"); box.classList.toggle("open",open); mb.classList.toggle("open",open); pn.hidden=!open; vp.setAttribute("aria-expanded",open?"true":"false"); mb.setAttribute("aria-expanded",open?"true":"false");
     if(open){ _mvpTickerStop(); vp.classList.remove("scrolling"); if(trk){ trk.style.animation="none"; trk.style.transform="none"; } }   /* deplie : arret immediat */
-    else _mvpTickerRun(el); };   /* replie : nouveau cycle depuis la droite */
+    else _mvpTickerRun(el, items); };   /* replie : nouveau cycle depuis la droite */
   vp.onclick=toggle; mb.onclick=toggle; vp.onkeydown=e=>{ if(e.key==="Enter"||e.key===" "){ e.preventDefault(); toggle(e); } };
-  _mvpTickerRun(el);
+  el._mvpItems=items; _mvpTickerRun(el, items);
 }
 function _mvpAdviceSet(tr,day,patch){
   if(!tr) return; const cur=currentTrip(); if(!cur||cur.id!==tr.id||planState.dayIndex!==day) return;   /* jamais un conseil d'un autre voyage/jour */
@@ -11131,14 +11210,18 @@ function _mvpDecorateChrono(root){   /* V4.4 : badge d'etat depuis les classes p
     const k=r.classList.contains("current")?"now":(r.classList.contains("done")?"done":(r.classList.contains("past")?"past":"")); if(!k) return;
     const b=document.createElement("span"); b.className="mvp-state-badge st-"+k; b.textContent=_mvpTxt(k); m.insertBefore(b,m.firstChild); });
 }
-function _mvpPaintKnownDayCost(){   /* V4.4 : repli d'affichage quand le Budget n'a pas encore de snapshot -- SOMME des couts deja calcules par injectPresentationLegs (dataset numerique), aucun recalcul */
-  const els=[...document.querySelectorAll(".rc-daycost")]; if(!els.length) return; if(els.some(e=>e.dataset.src==="budget")) return;
-  const legs=[...document.querySelectorAll(".timeline .pl-leg")]; const known=legs.filter(l=>l.dataset.fuelCost!=null&&l.dataset.fuelCost!==""&&Number.isFinite(+l.dataset.fuelCost));
-  const missing=legs.some(l=>l.dataset.fuelMissing==="1"); if(!known.length) return;
-  const tr=currentTrip(); if(!tr) return; const sum=known.reduce((a,l)=>a+(+l.dataset.fuelCost),0); const meal=(typeof _dayMealCost==="function")?(_dayMealCost(tr,planState.dayIndex)||0):0;
-  els.forEach(e=>{ e.textContent="~"+money(sum+meal,tr.currency); e.dataset.src="legs"; });
-  document.querySelectorAll(".rc-daycost-lbl").forEach(e=>{ e.textContent=_mvpTxt("knownCost"); });
-  document.querySelectorAll(".rc-fuel").forEach(e=>{ e.textContent="~"+money(sum,tr.currency)+(missing?" ("+_mvpTxt("fuelPartial")+")":""); });
+function _mvpPaintKnownDayCost(){   /* V4.8-B : "Cout des trajets" = SOMME des liaisons affichees (origine -> 1re etape incluse), valeurs numeriques deja calculees par injectPresentationLegs ; jamais un faux total complet */
+  const el=document.querySelector(".rc-tripfuel"); if(!el) return; const note=document.querySelector(".rc-trip-note");
+  const tr=currentTrip(); if(!tr) return; const cur=tr.currency||"EUR";
+  const legs=[...document.querySelectorAll(".timeline .pl-leg")]; if(!legs.length) return;   /* liaisons pas encore connues : etat d'attente conserve */
+  const known=legs.filter(l=>l.dataset.fuelCost!=null&&l.dataset.fuelCost!==""&&Number.isFinite(+l.dataset.fuelCost));
+  const missing=legs.filter(l=>l.dataset.fuelMissing==="1");
+  const sum=known.reduce((a,l)=>a+(+l.dataset.fuelCost),0);
+  if(!known.length&&!missing.length){ el.textContent="\u2014"; el.dataset.state="none"; if(note) note.textContent=""; return; }
+  if(!missing.length){ el.textContent=money(sum,cur); el.dataset.state="complete"; if(note) note.textContent=""; }
+  else if(!known.length){ el.textContent=_mvpTxt("tripNA"); el.dataset.state="na"; if(note) note.textContent=""; }
+  else { el.textContent=_mvpTxt("tripPartial"); el.dataset.state="partial"; if(note) note.textContent=" · "+money(sum,cur)+" "+_mvpTxt("tripKnown"); }
+  el.dataset.sum=String(sum); el.dataset.legs=String(legs.length);
 }
 const _mvpFrame={key:"",state:""};
 function _mvpStepSegment(tr,day){   /* V4.6 : segment utile MAINTENANT, a partir des donnees deja calculees (timeline + points de route existants), aucun appel reseau */
@@ -11323,7 +11406,7 @@ function renderPlan(){
   const _showCost=(_mealC>0)||(_isDrive&&_hasRoute);
   const _costInit=(_isDrive&&_hasRoute)?"\u2026":((_mealC>0)?money(_mealC,tr.currency):"");   /* async si route DRIVE, sinon repas immédiat */
   const _fuelInit=(_isDrive&&_hasRoute)?"\u2026":(_isDrive?"\u2014":"");
-  const costHtml=_showCost?`<div class="ds-fuel">💶 <span class="rc-daycost-lbl">${t("plan.dayCost")}</span> · <b class="rc-daycost">${_costInit}</b>${_isDrive?` <span class="ds-costs">⛽ <span class="rc-fuel">${_fuelInit}</span>${_mealC>0?" · ":""}`:` <span class="ds-costs">`}${_mealC>0?`🍽️ ${money(_mealC,tr.currency)}`:""} · ${t("plan.exclTickets")}</span></div>`:"";
+  const costHtml=(_isDrive&&_hasRoute)?`<div class="ds-fuel ds-tripfuel">⛽ <span class="rc-trip-lbl">${escapeHtml(_mvpTxt("tripFuel"))}</span> · <b class="rc-tripfuel" data-state="pending">\u2026</b><span class="rc-trip-note"></span></div>`:"";   /* V4.8-B : carburant/energie des trajets UNIQUEMENT (repas, billets, visites : Budget) */
   const sumHtml=items.length?`<div class="day-sum ${over?'over':''}"><div class="ds-grid"><div class="ds-col"><span class="ds-k">${t("plan.start")}</span><b>${startT||"—"}</b><span class="ds-s">${t("plan.visitsTime")} · ${fmtMin(visitMin)}</span></div><div class="ds-col"><span class="ds-k">${t("plan.endWanted")}</span><div class="ds-want"><input type="time" id="dayEndInput" value="${escapeHtml(tr.dayEnd||'')}"${ro?" disabled":""}></div></div></div>${costHtml}${anyShift?`<div class="ds-warn soft">↪ ${t("plan.conflict")}</div>`:""}${sched.some(x=>x.prov)?`<div class="ds-warn soft">⏳ ${t("plan.transCalc")}</div>`:""}${over?`<div class="ds-warn">⚠️ ${overEnd?t("plan.overEnd",{t:tr.dayEnd}):t("plan.overload")}</div>`:""}</div>`:"";
   const _trs=(typeof legTransitions==="function")?legTransitions(tr).find(x=>x.day===d.i):null;
   const _hasTrans=(tr.plan||[]).some(x=>x.day===d.i&&x._trans);
@@ -11735,9 +11818,9 @@ async function smartDuration(tr,item){ try{ if(!item||!item.placeId||!navigator.
     if(isFinite(m)&&m>=15){ m=Math.min(600,Math.max(15,Math.round(m/5)*5));
       const cur=(currentTrip()||tr); const it2=(cur.plan||[]).find(x=>x.id===item.id); if(!it2||isPlanDayReadOnly(cur,it2.day)) return; tr._durAI[item.placeId]=m; it2.dur=m; saveState(); renderPlan(); } } }catch(e){} }
 function addPlanPlace(pid){ const tr=currentTrip(); if(!tr||isPlanDayReadOnly(tr,planState.dayIndex)) return; const p=(tr.places||[]).find(x=>x.id===pid); if(!p) return; tr.plan=tr.plan||[];
-  const day=planState.dayIndex; const dd=durFromTypes(p.types); const newDur=(dd!=null?dd:KIND_DUR.place);
+  const day=planState.dayIndex; const _kd=planKindFromPlace(p); const dd=durFromTypes(p.types); const newDur=(dd!=null?dd:(KIND_DUR[_kd]||KIND_DUR.place));   /* V4.8-D : TYPE_DUR puis KIND_DUR du type deduit */
   if(!dayHasRoom(tr,day,newDur)){ const cutoff=tr.dayEnd?tr.dayEnd:"20h"; toast(t("plan.dayFull",{t:cutoff})); return; }
-  const _at=_planAddTime(tr,planState.dayIndex,null); const _newId=uid(); _planPush(tr,{id:_newId,day:planState.dayIndex,time:_at.time,notBefore:_at.notBefore,title:p.name,sub:p.primaryType||"",subLang:(p.lang0||lang()),kind:"place",placeId:p.id,ptype:p.ptype||"",types:(p.types||[]).slice(0,6),lat:p.lat,lng:p.lng,hours:p.hours||[],dur:(dd!=null?dd:KIND_DUR.place),done:false});
+  const _at=_planAddTime(tr,planState.dayIndex,null); const _newId=uid(); _planPush(tr,{id:_newId,day:planState.dayIndex,time:_at.time,notBefore:_at.notBefore,title:p.name,sub:p.primaryType||"",subLang:(p.lang0||lang()),kind:_kd,placeId:p.id,ptype:p.ptype||"",types:(p.types||[]).slice(0,6),lat:p.lat,lng:p.lng,hours:p.hours||[],dur:newDur,done:false});
   ensureDayMeals(tr,day); autoOrderDay(tr,day);
   saveState(); closePlanAdd(); renderPlan();
   { const it=(tr.plan||[]).find(x=>x.id===_newId); if(it) smartDuration(tr,it); }
@@ -11770,22 +11853,48 @@ async function loadRestoOptions(mealId){ const tr=currentTrip(); const it=(tr.pl
 }
 function openPlanEdit(id){ const tr=currentTrip(); const it=(tr.plan||[]).find(x=>x.id===id); if(!it) return;
   document.getElementById("planEditHd").textContent=it.title||t("plan.editStep"); const body=document.getElementById("planEditBody");
-  body.innerHTML=`<div class="fld"><label>${t("plan.nameLabel")}</label><input id="peTitle" value="${escapeHtml(it.title||'')}"></div>
-    <div class="fld2"><div class="fld"><label>${t("plan.time")}</label><input id="peTime" type="time" value="${escapeHtml((it._trans && !it._timeUser)?'':(it.time||''))}"></div><div class="fld"><label>${t("plan.kind")}</label><select id="peKind">${PLANKINDS.map(k=>`<option value="${k}" ${it.kind===k?'selected':''}>${t("kind."+k)}</option>`).join("")}</select></div></div>
-    <div class="fld"><label>${t("plan.duration")}</label><div class="dur-step"><button type="button" class="dur-btn" id="peDurMinus" aria-label="moins">−</button><div class="dur-val" id="peDurVal">${fmtDurH(stepDur(it))}</div><button type="button" class="dur-btn" id="peDurPlus" aria-label="plus">+</button></div><input id="peDur" type="hidden" value="${stepDur(it)}"></div>
-    <div class="about" style="margin:-2px 0 10px">${t("plan.durHint")}</div>
+  const _known=!!it.placeId; const _place=_known?((tr.places||[]).find(x=>x.id===it.placeId)||null):null;
+  const _effKind=(!it._kindUser&&it.kind==="place"&&_known)?planKindFromPlace(it):it.kind;   /* V4.8-D : type deduit si l'utilisateur ne l'a jamais choisi */
+  const _subLbl=it.sub?(_known?gStr(it.sub,it.subLang):it.sub):"";
+  const _durInit=stepDur(it); const _ds=_mvpDurSource(tr,it); const _kindLbl=t("kind."+_effKind);
+  const _durSrcTxt=_ds==="user"?_mvpTxt("durUser"):(_ds==="fit"?_mvpTxt("durFit"):(_ds==="saved"?_mvpTxt("durSaved"):(_mvpTxt("durEst")+" · "+(_subLbl||_kindLbl))))+(_ds==="user"?"":" · "+_mvpTxt("editable"));
+  const _kindSel=`<select id="peKind">${PLANKINDS.map(k=>`<option value="${k}" ${_effKind===k?'selected':''}>${t("kind."+k)}</option>`).join("")}</select>`;
+  body.innerHTML=`${_known
+      ? `<div class="pe-head"><div class="pe-name" id="peName">${escapeHtml(it.title||'')}</div><div class="pe-meta" id="peMeta">${escapeHtml([_subLbl,_kindLbl].filter(Boolean).join(" · "))}</div></div>`
+      : `<div class="fld"><label>${t("plan.nameLabel")}</label><input id="peTitle" value="${escapeHtml(it.title||'')}"></div><div class="fld"><label>${t("plan.kind")}</label>${_kindSel}</div>`}
+    <div class="fld"><label>${escapeHtml(_mvpTxt("peTime"))}</label><input id="peTime" type="time" value="${escapeHtml((it._trans && !it._timeUser)?'':(it.time||''))}"></div>
+    <div class="fld"><label>${escapeHtml(_mvpTxt("peDur"))}</label><div class="dur-step"><button type="button" class="dur-btn" id="peDurMinus" aria-label="moins">−</button><div class="dur-val" id="peDurVal">≈ ${fmtDurH(_durInit)}</div><button type="button" class="dur-btn" id="peDurPlus" aria-label="plus">+</button></div><input id="peDur" type="hidden" value="${_durInit}"><div class="pe-dursrc" id="peDurSrc" data-src="${_ds}">${escapeHtml(_durSrcTxt)}</div></div>
     ${(it.kind==="meal"&&it.placeId)?`<button class="btn block" id="peRestoBtn" style="margin-bottom:8px">🍽️ ${t("plan.restoChange")}</button><div id="peResto"></div>`:''}
-    ${(tr.dateStart&&tripDays(tr).length>1)?`<div class="fld"><label>${t("plan.moveDay")}</label><select id="peDay">${tripDays(tr).map((d,i)=>`<option value="${i}"${i===it.day?' selected':''}>${escapeHtml(fmtDayLong(d.date))}</option>`).join("")}</select></div>`:''}
-    <button class="btn navy block" id="peSave">${t("create.save")}</button>
-    <button class="danger-btn" id="peDel">${t("common.delete")}</button><div style="height:18px"></div>`;
+    ${(tr.dateStart&&tripDays(tr).length>1)?`<div class="fld"><label>${escapeHtml(_mvpTxt("peDay"))}</label><select id="peDay">${tripDays(tr).map((d,i)=>`<option value="${i}"${i===it.day?' selected':''}>${escapeHtml(fmtDayLong(d.date))}</option>`).join("")}</select></div>`:''}
+    ${_known?`<details class="pe-more" id="peMore"><summary>${escapeHtml(_mvpTxt("peMore"))}</summary>
+        <button type="button" class="linkbtn pe-act" id="peRenameBtn">${escapeHtml(_mvpTxt("peRename"))}</button><div class="fld" id="peRenameBox" hidden><input id="peTitle" value="${escapeHtml(it.title||'')}"></div>
+        <button type="button" class="linkbtn pe-act" id="peKindBtn">${escapeHtml(_mvpTxt("peKind"))}</button><div class="fld" id="peKindBox" hidden>${_kindSel}</div>
+        ${_place?`<button type="button" class="linkbtn pe-act" id="peSeePlace">${escapeHtml(_mvpTxt("peSee"))}</button>`:''}
+      </details>`:''}
+    <button class="btn navy block" id="peSave">${escapeHtml(_mvpTxt("peSave"))}</button>
+    <button class="danger-btn" id="peDel">${escapeHtml(_mvpTxt("peDel"))}</button><div style="height:18px"></div>`;
+  let _durTouched=false, _kindTouched=false;   /* V4.8-D : seuls des gestes EXPLICITES marquent un choix utilisateur */
+  { const rb=body.querySelector("#peRenameBtn"), rbx=body.querySelector("#peRenameBox"); if(rb&&rbx) rb.onclick=()=>{ rbx.hidden=false; const i=rbx.querySelector("input"); if(i) i.focus(); }; }
+  { const kb=body.querySelector("#peKindBtn"), kbx=body.querySelector("#peKindBox"); if(kb&&kbx) kb.onclick=()=>{ kbx.hidden=false; }; }
+  { const ks=body.querySelector("#peKind"); if(ks) ks.addEventListener("change",()=>{ _kindTouched=true; }); }
+  { const sp=body.querySelector("#peSeePlace"); if(sp&&_place) sp.onclick=()=>{ closePlanEdit(); openPlace(_place); }; }   /* fiche lieu EXISTANTE, aucun ecran duplique */
   { const dInp=body.querySelector("#peDur"), dVal=body.querySelector("#peDurVal"); const setD=m=>{ m=Math.max(0,m); dInp.value=m; dVal.textContent=fmtDurH(m); };
-    body.querySelector("#peDurMinus").onclick=()=>setD((parseInt(dInp.value,10)||0)-15);
-    body.querySelector("#peDurPlus").onclick=()=>setD((parseInt(dInp.value,10)||0)+15); }
+    body.querySelector("#peDurMinus").onclick=()=>{ _durTouched=true; setD((parseInt(dInp.value,10)||0)-15); const sr=body.querySelector("#peDurSrc"); if(sr){ sr.textContent=_mvpTxt("durUser"); sr.dataset.src="user"; } };
+    body.querySelector("#peDurPlus").onclick=()=>{ _durTouched=true; setD((parseInt(dInp.value,10)||0)+15); const sr=body.querySelector("#peDurSrc"); if(sr){ sr.textContent=_mvpTxt("durUser"); sr.dataset.src="user"; } }; }
   { const rb=body.querySelector("#peRestoBtn"); if(rb) rb.onclick=()=>loadRestoOptions(id); }
   { const ds=body.querySelector("#peDay"); if(ds) ds.onchange=()=>{ const nd=+ds.value; if(nd===it.day) return; const _tr=currentTrip(); if(_tr&&(isPlanDayReadOnly(_tr,it.day)||isPlanDayReadOnly(_tr,nd))){ ds.value=String(it.day); toast(t("plan.dayLocked")); return; } it.day=nd; delete it._durFit; delete it._restoDone; saveState(); closePlanEdit(); planState.dayIndex=nd; renderPlan(); toast(t("plan.stepMoved")); }; }
-  body.querySelector("#peSave").onclick=()=>{ if(isPlanDayReadOnly(tr,it.day)){ toast(t("plan.dayLocked")); closePlanEdit(); return; } it.title=(body.querySelector("#peTitle").value||"").trim()||it.title; it.time=body.querySelector("#peTime").value; it.fixed=!!it.time; it._timeUser=!!it.time;   /* #4a : l'utilisateur a imposé (ou effacé) une heure */ it.kind=body.querySelector("#peKind").value; const dv=parseInt(body.querySelector("#peDur").value,10); it.dur=isNaN(dv)?stepDur(it):Math.max(0,dv); saveState(); closePlanEdit(); renderPlan(); };
+  body.querySelector("#peSave").onclick=()=>{ if(isPlanDayReadOnly(tr,it.day)){ toast(t("plan.dayLocked")); closePlanEdit(); return; } it.title=(body.querySelector("#peTitle").value||"").trim()||it.title; it.time=body.querySelector("#peTime").value; it.fixed=!!it.time; it._timeUser=!!it.time;   /* #4a : l'utilisateur a imposé (ou effacé) une heure */ { const _nk=body.querySelector("#peKind").value; if(_kindTouched||!_known){ if(_nk!==it.kind) it._kindUser=true; } it.kind=_nk; }   /* type deduit enregistre ; choix utilisateur marque _kindUser (plus jamais ecrase) */
+      const dv=parseInt(body.querySelector("#peDur").value,10); if(_durTouched&&!isNaN(dv)&&dv!==_durInit){ it.dur=Math.max(0,dv); it._durUser=true; delete it._durFit; } else if(isNaN(dv)){ it.dur=stepDur(it); }   /* duree : seule une modification explicite devient "personnalisee" */
+      saveState(); closePlanEdit(); renderPlan(); };
   body.querySelector("#peDel").onclick=()=>{ if(isPlanDayReadOnly(tr,it.day)){ toast(t("plan.dayLocked")); closePlanEdit(); return; } askConfirm(t("plan.deleteConfirm"),t("common.delete"),()=>{ if(isPlanDayReadOnly(tr,it.day)){ toast(t("plan.dayLocked")); closePlanEdit(); return; } tr.plan=(tr.plan||[]).filter(x=>x.id!==id); saveState(); closePlanEdit(); renderPlan(); }); };
   document.getElementById("planEditSheet").classList.add("show");
+}
+function _mvpDurSource(tr,it){   /* V4.8-D : provenance HONNETE de la duree affichee -- jamais "moyenne des visiteurs" */
+  if(!it) return "saved"; if(it._durFit!=null) return "fit"; if(it._durUser) return "user";
+  if(it.placeId&&tr&&tr._durAI&&tr._durAI[it.placeId]===it.dur) return "est";
+  const td=durFromTypes(it.types); if(td!=null&&td===it.dur) return "est";
+  if(KIND_DUR[it.kind]===it.dur||(it.kind==="meal"&&typeof MEAL_DUR==="object"&&Object.values(MEAL_DUR).includes(it.dur))) return "est";
+  return "saved";
 }
 function closePlanEdit(){ document.getElementById("planEditSheet").classList.remove("show"); }
 async function optimizeOrderG(stops,start,mode){ if(stops.length<2) return null;
@@ -17765,9 +17874,10 @@ function injectPresentationLegs(presentation, mode, tr){
       crossedTransfer=true;   /* le trajet A->B de transfert lui-meme n'est jamais injecte dans .pl-leg */
       return;
     }
-    if(!eligibleForInjectedLeg(move,tr)) return;
+    const _isOrigin=!!(move&&move.role==="main"&&move.fromRole==="origin"&&!move.notNeeded&&move.fromItemId==null&&move.toItemId!=null);   /* V4.8-B : liaison origine -> 1re etape, deja presente dans la presentation (aucun recalcul) */
+    if(!_isOrigin&&!eligibleForInjectedLeg(move,tr)) return;
     const row=body.querySelector(
-      '.pl-item[data-id="'+move.fromItemId+'"]'
+      '.pl-item[data-id="'+(_isOrigin?move.toItemId:move.fromItemId)+'"]'
     );
     if(!row) return;
     const agg=aggregateMoveForRow(move);
@@ -17790,7 +17900,8 @@ function injectPresentationLegs(presentation, mode, tr){
       cost=qty*price;
     }
     const div=document.createElement("div");
-    div.className="pl-leg";
+    div.className="pl-leg"+(_isOrigin?" pl-leg-origin":"");
+    div.dataset.legKind=_isOrigin?"origin":"main";
     const legColor=
       row.style.getPropertyValue("--catc")
       ||"var(--gold)";
@@ -17798,12 +17909,7 @@ function injectPresentationLegs(presentation, mode, tr){
     div.dataset.fuelCost=showFuel?String(cost):"";   /* V4.4 : valeur numerique DEJA calculee ci-dessus, exposee avant formatage (aucun recalcul ailleurs) */
     div.dataset.fuelMissing=(mode==="DRIVE"&&usesCar(tr)&&driveMeters>0&&!showFuel)?"1":"";   /* trajet voiture sans prix/conso exploitable : jamais un faux 0 */
     const fuelHtml=showFuel
-      ? `<span class="pl-leg-fuel">
-           ⛽
-           ${qty<10?qty.toFixed(1):Math.round(qty)}
-           ${unit}
-           · ~${money(cost,cur)}
-         </span>`
+      ? `<span class="pl-leg-fuel"><span class="pl-leg-qty">⛽ ${qty<10?qty.toFixed(1):Math.round(qty)} ${unit} ·</span> ≈ ${money(cost,cur)}</span>`   /* V4.8-B : la vue normale montre le montant ; la quantite reste en mode Details et au toucher */
       : "";
     div.innerHTML=`
       <div class="pl-leg-arrow" aria-hidden="true"></div>
@@ -17813,6 +17919,7 @@ function injectPresentationLegs(presentation, mode, tr){
           ${modeEmoji(mode)}
         </span>
         <span class="pl-leg-main">
+          ${_isOrigin?`<span class="pl-leg-from">${escapeHtml(_mvpTxt("legFrom"))}</span>`:""}
           <b>${fmtDist(agg.dist)}</b>
           <span>${fmtDur(agg.dur)}</span>
         </span>
@@ -17845,8 +17952,8 @@ function injectPresentationLegs(presentation, mode, tr){
       e.stopPropagation();
       launchPlanningLegMaps(move,mode);
     };
-    { const _slot=row.querySelector(".pl-d-leg"); if(_slot) _slot.innerHTML=`<span class="pl-d-sep">·</span><span class="pl-d-mode">${modeEmoji(mode)}</span>${escapeHtml(_mvpLocDec(fmtDist(agg.dist)))}`; }   /* V4.1 : rendu compact (vue normale) -- donnees = agg deja calcule */
-    row.insertAdjacentElement("afterend",div);
+    if(!_isOrigin){ const _slot=row.querySelector(".pl-d-leg"); if(_slot) _slot.innerHTML=`<span class="pl-d-sep">·</span><span class="pl-d-mode">${modeEmoji(mode)}</span>${escapeHtml(_mvpLocDec(fmtDist(agg.dist)))}`; }   /* V4.1 : rendu compact (vue normale) -- donnees = agg deja calcule */
+    row.insertAdjacentElement(_isOrigin?"beforebegin":"afterend",div);   /* V4.8-B : la liaison de depart precede la 1re activite */
     _mvpPaintKnownDayCost();
   });
 }
