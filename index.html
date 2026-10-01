@@ -5115,7 +5115,7 @@ const DEFAULT_S={ version:"0.2.0", settings:{ lang:"fr", theme:"system", units:"
 /* Clé Maps JS partagée (restreinte au domaine GitHub Pages). Repli : clé perso de l'utilisateur si fournie. */
 const SHARED_MAP_KEY="AIzaSyCt5iVx8nPr1V067A3daE0X1YA568XJNbU";
 function mapKey(){ return (S.settings.mapKey||"").trim() || SHARED_MAP_KEY; }
-const BUILD="0.6.157 · V4.8e-devise-carburant + villes";
+const BUILD="0.6.158 · V4.8f-cout-trajets-mixtes";
 /* V4.1 lot A (P0 stockage) : CC_CUR deplacee ICI, avant le premier loadState() -- loadState>mergeState>normalizeTrip>normalizeLegs la lit ;
    declaree plus bas, elle etait en zone morte temporelle (ReferenceError avalee par loadState -> S vide -> saveState() pouvait ecraser les voyages). Contenu inchange. */
 const CC_CUR={FR:"EUR",BE:"EUR",DE:"EUR",ES:"EUR",IT:"EUR",PT:"EUR",NL:"EUR",AT:"EUR",IE:"EUR",GR:"EUR",LU:"EUR",FI:"EUR",SK:"EUR",SI:"EUR",EE:"EUR",LV:"EUR",LT:"EUR",GB:"GBP",US:"USD",CA:"CAD",CH:"CHF",JP:"JPY",AU:"AUD",NZ:"NZD",MA:"MAD",TN:"TND",DZ:"DZD",EG:"EGP",SE:"SEK",NO:"NOK",DK:"DKK",PL:"PLN",CZ:"CZK",HU:"HUF",RO:"RON",MX:"MXN",BR:"BRL",AR:"ARS",CN:"CNY",TH:"THB",IN:"INR",ID:"IDR",VN:"VND",TR:"TRY",AE:"AED",ZA:"ZAR",SN:"XOF",CI:"XOF",CM:"XAF",GA:"XAF",CG:"XAF",TD:"XAF",CF:"XAF",GQ:"XAF",BJ:"XOF",BF:"XOF",ML:"XOF",NE:"XOF",TG:"XOF",GW:"XOF",NG:"NGN",GH:"GHS",KE:"KES",TZ:"TZS",UG:"UGX",RW:"RWF",ET:"ETB",MU:"MUR",MG:"MGA",AO:"AOA",MZ:"MZN",CD:"CDF",LY:"LYD",SA:"SAR",QA:"QAR",KW:"KWD",BH:"BHD",OM:"OMR",JO:"JOD",LB:"LBP",IL:"ILS",PK:"PKR",BD:"BDT",LK:"LKR",NP:"NPR",KR:"KRW",SG:"SGD",MY:"MYR",PH:"PHP",KH:"KHR",MM:"MMK",KZ:"KZT",GE:"GEL",AM:"AMD",AZ:"AZN",RU:"RUB",UA:"UAH",RS:"RSD",BG:"BGN",IS:"ISK",HR:"EUR",CY:"EUR",MT:"EUR",CL:"CLP",CO:"COP",PE:"PEN",UY:"UYU",BO:"BOB",EC:"USD",PA:"USD",CR:"CRC",GT:"GTQ",DO:"DOP",FJ:"FJD"};
@@ -14098,6 +14098,11 @@ function renderDayMapOnline(el,stops,tr,day,gen){
                 }).catch(()=>{});
               }
             }catch(_e){}
+          } else {   /* V4.8f : journee a trajets mixtes -- aucune liaison affichee (regle inchangee), mais le total reste calcule */
+            _mvpTripFuelFromPresentation(presentationRef, base.mode, tr);
+            try{ const _fp2=_fuelInflightForPlanning(tr);
+              if(_fp2) _fp2.then(()=>{ if(!stillCurrent()) return; if(el._mapRenderer!==handle) return; if(presentationRef&&presentationRef.meta&&presentationRef.meta.stale) return; _mvpTripFuelFromPresentation(presentationRef, base.mode, tr); }).catch(()=>{});
+            }catch(_e){}
           }
           renderFideleAIFromPresentation(tr,day,presentationRef,_b3aAiPlaces,_b3aAiGeneration,base.dd);
           _osmData={presentation:presentationRef,pts:base.pts,tr}; autoOfflineOSM(tr);
@@ -17902,12 +17907,9 @@ function launchPlanningLegMaps(move,mode){
     toast(t("route.unavailable"));
   }
 }
-function injectPresentationLegs(presentation, mode, tr){
-  const body=document.getElementById("planBody");
-  if(!body) return;
-  body.querySelectorAll(".pl-leg").forEach(e=>e.remove());
-  body.querySelectorAll(".pl-d-leg").forEach(e=>{ e.innerHTML=""; });   /* V4.1 : slot compact de la ligne d'activite, rempli ci-dessous a partir du MEME agg */
-  if(!presentationDoneEnabled(presentation)) return;   /* garde partagee avec done -- reproduit if(!route.mixed) (arch-r9 Correctif 2) */
+/* V4.8f : contexte prix d'une journee (jour, etapes A/B du transfert, consommation, prix, provenance, devise, taux).
+   Code deplace TEL QUEL depuis injectPresentationLegs : la liaison affichee et le total utilisent strictement le meme contexte. */
+function _legFuelCtx(presentation,tr){
   const veh=(tr&&tr.veh)||{};
   const fd=fuelDefault(veh.fuel);
   const conso=parseFloat(String(veh.conso||"").replace(",","."))||fd.conso;
@@ -17950,6 +17952,38 @@ function injectPresentationLegs(presentation, mode, tr){
   const cur=(tr&&tr.currency)||"EUR";
   const _pcA=fuelPriceCur(tr,dstA.cc,veh.fuel,dstA.lat,dstA.lng,veh,cur), _pcB=fuelPriceCur(tr,dstB.cc,veh.fuel,dstB.lat,dstB.lng,veh,cur);   /* V4.8e : devise de chaque prix */
   const _kA=_fuelFx(_pcA,cur), _kB=_fuelFx(_pcB,cur);
+  return {veh,fd,conso,day,priceA,priceB,provA,provB,cur,_pcA,_pcB,_kA,_kB};
+}
+/* V4.8f : "Cout des trajets" calcule depuis les TRAJETS de la journee (DayRoutePresentation), pas depuis les lignes affichees.
+   Une journee a trajets mixtes (voiture garee + marche, segment non routable) n'affiche pas de liaisons (regle presentationDoneEnabled,
+   inchangee) : le total doit pourtant etre connu. Meme selection de trajets et meme formule que les liaisons : seule la distance
+   reellement parcourue EN VOITURE (parts drivable) consomme du carburant. Jamais un faux total complet. */
+function _mvpTripFuelFromPresentation(presentation,mode,tr){ try{
+  const el=document.querySelector(".rc-tripfuel"); if(!el||!presentation||!tr) return; const note=document.querySelector(".rc-trip-note");
+  if(!(mode==="DRIVE"&&usesCar(tr))) return;
+  const c=_legFuelCtx(presentation,tr); let crossed=false, sum=0, known=0, missing=0;
+  (presentation.moves||[]).forEach(move=>{
+    if(!move) return;
+    if(move.role==="transfer"){ crossed=true; return; }
+    const isOrigin=!!(move.role==="main"&&move.fromRole==="origin"&&!move.notNeeded&&move.fromItemId==null&&move.toItemId!=null);
+    if(!isOrigin&&!eligibleForInjectedLeg(move,tr)) return;   /* meme selection que les liaisons */
+    const agg=aggregateMoveForRow(move); if(!agg) return; const dm=Number(agg.driveDist)||0; if(!(dm>0)) return;
+    const price=crossed?c.priceB:c.priceA, k=crossed?c._kB:c._kA;
+    if(c.conso>0&&price>0&&k!=null){ sum+=(dm/1000)*c.conso/100*price*k; known++; } else missing++;
+  });
+  if(!known&&!missing){ el.textContent="\u2014"; el.dataset.state="none"; if(note) note.textContent=""; }
+  else if(!missing){ el.textContent=money(sum,c.cur); el.dataset.state="complete"; if(note) note.textContent=""; }
+  else if(!known){ el.textContent=_mvpTxt("tripNA"); el.dataset.state="na"; if(note) note.textContent=""; }
+  else { el.textContent=_mvpTxt("tripPartial"); el.dataset.state="partial"; if(note) note.textContent=" \u00b7 "+money(sum,c.cur)+" "+_mvpTxt("tripKnown"); }
+  el.dataset.sum=String(sum); el.dataset.src="presentation";
+}catch(_e){} }
+function injectPresentationLegs(presentation, mode, tr){
+  const body=document.getElementById("planBody");
+  if(!body) return;
+  body.querySelectorAll(".pl-leg").forEach(e=>e.remove());
+  body.querySelectorAll(".pl-d-leg").forEach(e=>{ e.innerHTML=""; });   /* V4.1 : slot compact de la ligne d'activite, rempli ci-dessous a partir du MEME agg */
+  if(!presentationDoneEnabled(presentation)) return;   /* garde partagee avec done -- reproduit if(!route.mixed) (arch-r9 Correctif 2) */
+  const {veh,conso,priceA,priceB,provA,provB,cur,_pcA,_pcB,_kA,_kB}=_legFuelCtx(presentation,tr);   /* V4.8f : contexte prix PARTAGE avec le total "Cout des trajets" (une seule formule) */
   let crossedTransfer=false;
   (presentation.moves||[]).forEach(move=>{
     if(move&&move.role==="transfer"){
