@@ -5024,6 +5024,7 @@ function switchStore(newId){ newId=newId||"guest"; if(newId===_storeId) return;
   const _finish=(idb)=>{ if(epoch!==_storeEpoch || _storeId!==targetId) return;   /* résolution périmée : le switch courant libère son propre flag */
     if(idb && (idb._ts||0)>(S._ts||0)){ S=mergeState(idb); try{ localStorage.setItem(targetKey,JSON.stringify(S)); }catch(e){} }   /* arbitrage LS/IDB D'ABORD */
     _storeHydrating=false;                                                                 /* arbitrage terminé -> mutations autorisées */
+    try{ _scheduleCountryRepair(); }catch(_e){}   /* V4.8g : completer les codes pays manquants (changement d'espace) */
     try{ if(typeof magotReconcilePendingNotifs==="function") magotReconcilePendingNotifs(); if(typeof magotScanAllNotifs==="function") magotScanAllNotifs(); }catch(e){}   /* reconcile + scan APRÈS l'arbitrage */
     try{ renderHome(); }catch(e){} try{ updateBellBadge(); }catch(e){} };
   try{ idbGet(targetKey).then(_finish).catch(()=>_finish(null)); }catch(e){ _finish(null); }
@@ -5115,7 +5116,7 @@ const DEFAULT_S={ version:"0.2.0", settings:{ lang:"fr", theme:"system", units:"
 /* Clé Maps JS partagée (restreinte au domaine GitHub Pages). Repli : clé perso de l'utilisateur si fournie. */
 const SHARED_MAP_KEY="AIzaSyCt5iVx8nPr1V067A3daE0X1YA568XJNbU";
 function mapKey(){ return (S.settings.mapKey||"").trim() || SHARED_MAP_KEY; }
-const BUILD="0.6.158 · V4.8f-cout-trajets-mixtes";
+const BUILD="0.6.159 · V4.8g-pays-destination";
 /* V4.1 lot A (P0 stockage) : CC_CUR deplacee ICI, avant le premier loadState() -- loadState>mergeState>normalizeTrip>normalizeLegs la lit ;
    declaree plus bas, elle etait en zone morte temporelle (ReferenceError avalee par loadState -> S vide -> saveState() pouvait ecraser les voyages). Contenu inchange. */
 const CC_CUR={FR:"EUR",BE:"EUR",DE:"EUR",ES:"EUR",IT:"EUR",PT:"EUR",NL:"EUR",AT:"EUR",IE:"EUR",GR:"EUR",LU:"EUR",FI:"EUR",SK:"EUR",SI:"EUR",EE:"EUR",LV:"EUR",LT:"EUR",GB:"GBP",US:"USD",CA:"CAD",CH:"CHF",JP:"JPY",AU:"AUD",NZ:"NZD",MA:"MAD",TN:"TND",DZ:"DZD",EG:"EGP",SE:"SEK",NO:"NOK",DK:"DKK",PL:"PLN",CZ:"CZK",HU:"HUF",RO:"RON",MX:"MXN",BR:"BRL",AR:"ARS",CN:"CNY",TH:"THB",IN:"INR",ID:"IDR",VN:"VND",TR:"TRY",AE:"AED",ZA:"ZAR",SN:"XOF",CI:"XOF",CM:"XAF",GA:"XAF",CG:"XAF",TD:"XAF",CF:"XAF",GQ:"XAF",BJ:"XOF",BF:"XOF",ML:"XOF",NE:"XOF",TG:"XOF",GW:"XOF",NG:"NGN",GH:"GHS",KE:"KES",TZ:"TZS",UG:"UGX",RW:"RWF",ET:"ETB",MU:"MUR",MG:"MGA",AO:"AOA",MZ:"MZN",CD:"CDF",LY:"LYD",SA:"SAR",QA:"QAR",KW:"KWD",BH:"BHD",OM:"OMR",JO:"JOD",LB:"LBP",IL:"ILS",PK:"PKR",BD:"BDT",LK:"LKR",NP:"NPR",KR:"KRW",SG:"SGD",MY:"MYR",PH:"PHP",KH:"KHR",MM:"MMK",KZ:"KZT",GE:"GEL",AM:"AMD",AZ:"AZN",RU:"RUB",UA:"UAH",RS:"RSD",BG:"BGN",IS:"ISK",HR:"EUR",CY:"EUR",MT:"EUR",CL:"CLP",CO:"COP",PE:"PEN",UY:"UYU",BO:"BOB",EC:"USD",PA:"USD",CR:"CRC",GT:"GTQ",DO:"DOP",FJ:"FJD"};
@@ -5990,6 +5991,37 @@ function tripCard(tr){ const st=tripStatus(tr),pct=tripCompletion(tr);
     <div class="cfoot"><div class="trav"><svg viewBox="0 0 24 24"><circle cx="9" cy="8" r="3.2"/><path d="M3.5 19a5.5 5.5 0 0 1 11 0M15 7.5a3 3 0 0 1 0 6M20.5 19a5.2 5.2 0 0 0-3-4.7"/></svg>${t("trips.travelers",{n:tr.travelers||1})}</div>
     <div class="ring">${ringSvg(pct)}<span>${t("trips.completed")}</span></div></div></div>`; }
 
+/* ===== V4.8g -- CODE PAYS MANQUANT =====
+   Des voyages crees par phrase (et d'anciens chemins) ont une destination SANS code pays (cc:"") : aucun prix carburant
+   (table par pays), aucune devise locale -> "Prix indisponible" au Planning ET au Budget. On complete UNIQUEMENT les cc vides
+   d'apres les coordonnees (geocodage inverse Nominatim, 1 requete/s, resultat mis en cache) ; un cc deja renseigne n'est jamais modifie. */
+const _ccRevCache={};
+async function _reverseCountry(lat,lng){
+  lat=+lat; lng=+lng; if(!Number.isFinite(lat)||!Number.isFinite(lng)) return null;
+  const key=lat.toFixed(2)+","+lng.toFixed(2); if(Object.prototype.hasOwnProperty.call(_ccRevCache,key)) return _ccRevCache[key];
+  try{ const url="https://nominatim.openstreetmap.org/reverse?format=jsonv2&zoom=3&accept-language="+lang()+"&lat="+lat+"&lon="+lng;
+    const r=await fetch(url,{headers:{"Accept":"application/json"}}); if(!r.ok) return null; const j=await r.json(); const a=j&&j.address;
+    const cc=a&&a.country_code?String(a.country_code).toUpperCase():"";
+    const out=/^[A-Z]{2}$/.test(cc)?{cc,country:String((a&&a.country)||"")}:null; _ccRevCache[key]=out; return out;
+  }catch(_e){ return null; } }   /* echec reseau : rien n'est mis en cache, nouvel essai au prochain passage */
+let _ccRepairT=null, _ccRepairBusy=false;
+function _scheduleCountryRepair(delay){ clearTimeout(_ccRepairT); _ccRepairT=setTimeout(()=>{ repairMissingCountries().catch(()=>{}); }, delay==null?2500:delay); }
+async function repairMissingCountries(){
+  if(_ccRepairBusy||_storeHydrating||!(S&&Array.isArray(S.trips))) return; if(typeof navigator!=="undefined"&&navigator.onLine===false) return;
+  _ccRepairBusy=true; let changed=false;
+  try{
+    for(const tr of S.trips){
+      const pts=[tr&&tr.dest,tr&&tr.depart,...((tr&&tr.legs)||[]).map(l=>l&&l.dest)].filter(p=>p&&typeof p==="object"&&!p.cc&&Number.isFinite(+p.lat)&&Number.isFinite(+p.lng));
+      for(const p of pts){
+        const key=(+p.lat).toFixed(2)+","+(+p.lng).toFixed(2); const cached=Object.prototype.hasOwnProperty.call(_ccRevCache,key);
+        const x=await _reverseCountry(p.lat,p.lng);
+        if(x&&x.cc&&!p.cc){ p.cc=x.cc; if(!p.country) p.country=x.country; changed=true; if(tr) tr._ts=Date.now(); }
+        if(!cached) await new Promise(r=>setTimeout(r,1100));   /* politique d'usage Nominatim */
+      }
+    }
+  } finally { _ccRepairBusy=false; }
+  if(changed){ saveState(); try{ if(currentTab==="plan") renderPlan(); else if(currentTab==="budget") renderBudget(); else if(currentTab==="home") renderHome(); }catch(_e){} }
+}
 async function geocode(q,cc,allTypes){ try{
   const url="https://nominatim.openstreetmap.org/search?format=jsonv2&addressdetails=1&limit=6&accept-language="+lang()+(cc?("&countrycodes="+cc.toLowerCase()):"")+"&q="+encodeURIComponent(q);
   const r=await fetch(url,{headers:{"Accept":"application/json"}}); if(!r.ok) return []; const j=await r.json();
@@ -7323,7 +7355,8 @@ async function aiFillCreate(){
   const r=await workerFetch("/agent/creer",{phrase,aujourdhui:todayISO(),styles:STYLES,gouts:userTastes()});
   if(go){ go.disabled=false; go.textContent=lbl; }
   if(!r||r.error||!r.dest){ toast(t("create.aiNone")); return; }
-  draft.dest={name:r.dest.name,country:"",cc:"",lat:r.dest.lat,lng:r.dest.lng,bbox:r.dest.bbox||null};
+  draft.dest={name:r.dest.name,country:r.dest.country||"",cc:String(r.dest.cc||"").toUpperCase(),lat:r.dest.lat,lng:r.dest.lng,bbox:r.dest.bbox||null};   /* V4.8g : le pays renvoye par le Worker est conserve (il etait force a vide -> aucun prix carburant, aucune devise) */
+  if(!draft.dest.cc){ const _d=draft.dest; _reverseCountry(_d.lat,_d.lng).then(x=>{ if(x&&draft&&draft.dest===_d&&!_d.cc){ _d.cc=x.cc; if(!_d.country) _d.country=x.country; } }).catch(()=>{}); }   /* Worker ancien : completion par les coordonnees */
   draft.coverPhoto="";
   if(r.debut){ draft.dateStart=r.debut; draft.dateEnd=r.fin||""; }
   if(r.voyageurs) draft.travelers=r.voyageurs;
@@ -7595,6 +7628,7 @@ async function submitCreate(){
   }
   else { const tr=Object.assign({id:uid(),createdAt:Date.now(),_owner:((typeof currentUser!=="undefined"&&currentUser)?currentUser.id:null),places:[],days:[],expenses:[],budget:0,catBudgets:{},_tx:{}},base); { const _dl=draftLegsForTrip(); if(_dl) tr.legs=_dl; } normalizeLegs(tr); S.trips.unshift(tr); S.currentTripId=tr.id; saveState(); clearDraft(); closeCreate(); switchTab("home"); renderHome(); try{ openDetail(tr.id); }catch(e){}   /* 4a (retour GPT) : on ouvre le voyage avec une action évidente au lieu de revenir à l'accueil */
   toast(t((tr.dateStart&&tr.dateEnd)?"create.created":"create.savedDraft")); }
+  try{ _scheduleCountryRepair(1500); }catch(_e){}   /* V4.8g : voyage cree/modifie sans code pays -> complete */
 }
 
 function openTrips(){ renderTripsList(); document.getElementById("tripsSheet").classList.add("show"); }
@@ -25359,6 +25393,7 @@ async function boot(){
     else if(hadLS){ idbSet(activeStoreKey(),S); }
   }catch(e){ console.warn("boot",e); }
   _storeHydrating=false;   /* arbitrage boot terminé */
+  try{ _scheduleCountryRepair(); }catch(_e){}   /* V4.8g : completer les codes pays manquants (demarrage) */
   try{ if(typeof magotReconcilePendingNotifs==="function") magotReconcilePendingNotifs(); if(typeof magotScanAllNotifs==="function") magotScanAllNotifs(); updateBellBadge(); }catch(e){}   /* P1 : reconcile + scan APRÈS l'arbitrage LS/IDB */
   try{ newSessionIfNeeded(); }catch(e){}
   applyTheme(); init(); initNameScreen(); initAuth();
