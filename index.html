@@ -4687,6 +4687,9 @@ body:has(#view-plan.active) #agentBubble{display:none}
 #planEditBody .pe-actions #peSave{width:100%;max-width:100%;min-height:52px;border-radius:14px;font-weight:700}
 #planEditBody .pe-actions .danger-btn{width:100%;max-width:100%;margin:0;min-height:48px}
 @media(prefers-reduced-motion:reduce){ #planEditBody .pe-more .pe-chev{transition:none} }
+
+/* V4.8c : panneau de diagnostic carburant (visible uniquement avec ?fueldebug=1) */
+.fuel-dbg{margin:2px 0 12px;padding:10px 11px;border-radius:12px;background:var(--navy,#0D2856);color:#fff;font:500 10.5px/1.45 ui-monospace,Menlo,Consolas,monospace;white-space:pre-wrap;word-break:break-word;overflow-wrap:anywhere;max-width:100%}
 /* V4.8-A : provenance du prix carburant (creation / modification du voyage) */
 .veh-price-src{margin:-2px 0 8px;font:600 11.5px/1.3 "Inter",sans-serif;color:var(--muted,#6E7A90)}
 .veh-price-src:empty{display:none}
@@ -5110,7 +5113,7 @@ const DEFAULT_S={ version:"0.2.0", settings:{ lang:"fr", theme:"system", units:"
 /* Clé Maps JS partagée (restreinte au domaine GitHub Pages). Repli : clé perso de l'utilisateur si fournie. */
 const SHARED_MAP_KEY="AIzaSyCt5iVx8nPr1V067A3daE0X1YA568XJNbU";
 function mapKey(){ return (S.settings.mapKey||"").trim() || SHARED_MAP_KEY; }
-const BUILD="0.6.154 · V4.8b-fuel-planedit";
+const BUILD="0.6.155 · V4.8c-fuel-diag";
 /* V4.1 lot A (P0 stockage) : CC_CUR deplacee ICI, avant le premier loadState() -- loadState>mergeState>normalizeTrip>normalizeLegs la lit ;
    declaree plus bas, elle etait en zone morte temporelle (ReferenceError avalee par loadState -> S vide -> saveState() pouvait ecraser les voyages). Contenu inchange. */
 const CC_CUR={FR:"EUR",BE:"EUR",DE:"EUR",ES:"EUR",IT:"EUR",PT:"EUR",NL:"EUR",AT:"EUR",IE:"EUR",GR:"EUR",LU:"EUR",FI:"EUR",SK:"EUR",SI:"EUR",EE:"EUR",LV:"EUR",LT:"EUR",GB:"GBP",US:"USD",CA:"CAD",CH:"CHF",JP:"JPY",AU:"AUD",NZ:"NZD",MA:"MAD",TN:"TND",DZ:"DZD",EG:"EGP",SE:"SEK",NO:"NOK",DK:"DKK",PL:"PLN",CZ:"CZK",HU:"HUF",RO:"RON",MX:"MXN",BR:"BRL",AR:"ARS",CN:"CNY",TH:"THB",IN:"INR",ID:"IDR",VN:"VND",TR:"TRY",AE:"AED",ZA:"ZAR",SN:"XOF",CI:"XOF",CM:"XAF",GA:"XAF",CG:"XAF",TD:"XAF",CF:"XAF",GQ:"XAF",BJ:"XOF",BF:"XOF",ML:"XOF",NE:"XOF",TG:"XOF",GW:"XOF",NG:"NGN",GH:"GHS",KE:"KES",TZ:"TZS",UG:"UGX",RW:"RWF",ET:"ETB",MU:"MUR",MG:"MGA",AO:"AOA",MZ:"MZN",CD:"CDF",LY:"LYD",SA:"SAR",QA:"QAR",KW:"KWD",BH:"BHD",OM:"OMR",JO:"JOD",LB:"LBP",IL:"ILS",PK:"PKR",BD:"BDT",LK:"LKR",NP:"NPR",KR:"KRW",SG:"SGD",MY:"MYR",PH:"PHP",KH:"KHR",MM:"MMK",KZ:"KZT",GE:"GEL",AM:"AMD",AZ:"AZN",RU:"RUB",UA:"UAH",RS:"RSD",BG:"BGN",IS:"ISK",HR:"EUR",CY:"EUR",MT:"EUR",CL:"CLP",CO:"COP",PE:"PEN",UY:"UYU",BO:"BOB",EC:"USD",PA:"USD",CR:"CRC",GT:"GTQ",DO:"DOP",FJ:"FJD"};
@@ -7172,7 +7175,66 @@ function _mvpPaintVehPrice(price,loc,v){   /* V4.8-A : affichage du prix REELLEM
     txt=_mvpTxt(rec&&rec.scope==="STATION"?"pvStation":(rec&&rec.scope==="NATIONAL"?"pvNational":"pvCountry")); }
   if(pp&&!manual){ pp.placeholder=shown; if(document.activeElement!==pp) pp.value=shown; }   /* aucun prix decoratif : sans prix resolu, ni valeur ni indice numerique (l'ancien indice montrait le prix du pays de DESTINATION) */
   if(src){ src.textContent=txt; src.dataset.kind=manual?"manual":(has?"auto":""); }
+  if(_FUEL_DEBUG) _fuelDbgRender(loc,v,price);   /* V4.8c : diagnostic carburant, UNIQUEMENT avec ?fueldebug=1 */
 }
+/* ============ V4.8c -- DIAGNOSTIC CARBURANT (lecture seule) -- actif UNIQUEMENT si l'adresse contient ?fueldebug=1 ============
+   Observe ce que le Worker repond et ce que l'app en fait. Aucun calcul, aucune donnee, aucun cache modifie.
+   Hors mode diagnostic : aucune enveloppe installee, comportement strictement identique a V4.8b. */
+var _FUEL_DEBUG=(function(){ try{ return /[?&]fueldebug=1(&|$)/.test(String(location.search||"")); }catch(_e){ return false; } })();
+var _fuelDbgLog=[];
+if(_FUEL_DEBUG){
+  const _wf0=workerFetch;
+  workerFetch=async function(path,body,signal){ const at=Date.now(); let r; try{ r=await _wf0(path,body,signal); }catch(e){ r={error:"exception",detail:String(e&&e.message||e)}; }
+    if(path==="/fuel-price") _fuelDbgLog.push({ at, req:Object.assign({},body||{}), res:r, accepted:null });
+    return r; };
+  const _rf0=resolveFuelPriceRemote;
+  resolveFuelPriceRemote=async function(cc,fuel,lat,lng){ const r=await _rf0(cc,fuel,lat,lng); const e=_fuelDbgLog[_fuelDbgLog.length-1]; if(e&&e.accepted===null) e.accepted=!!r; return r; };
+}
+function _fuelDbgRender(loc,v,price){ try{
+  const host=document.getElementById("cPriceSrc"); if(!host) return;
+  let box=document.getElementById("cFuelDbg"); if(!box){ box=document.createElement("pre"); box.id="cFuelDbg"; box.className="fuel-dbg"; host.insertAdjacentElement("afterend",box); }
+  v=v||{}; const f=v.fuel||"essence", CC=String((loc&&loc.cc)||"").toUpperCase(), lat=loc&&loc.lat, lng=loc&&loc.lng, req=canonicalFuelCode(f), now=Date.now();
+  const n4=x=>Number.isFinite(+x)?(+x).toFixed(4):String(x);
+  const ageTxt=ms=>{ if(!Number.isFinite(ms)) return "date invalide"; const h=(now-ms)/3600000; return h<0?"DANS LE FUTUR ("+(-h).toFixed(1)+" h)":(h<48?h.toFixed(1)+" h":(h/24).toFixed(1)+" j"); };
+  const out=["DIAGNOSTIC CARBURANT · "+BUILD, "heure appareil : "+new Date(now).toISOString(),
+    "carburant choisi : "+f+"  ->  envoye au Worker : "+req,
+    "depart : "+(CC||"?")+"  "+n4(lat)+", "+n4(lng),
+    "devise du voyage : "+((typeof draft!=="undefined"&&draft&&draft.currency)||"?")+"  |  prix manuel : "+(v.priceManual?"oui ("+v.price+")":"non")];
+  const rows=_fuelDbgLog.filter(e=>e.req&&e.req.fuel===req);
+  if(!rows.length) out.push("","aucun appel /fuel-price pour ce carburant dans cette session","(hors France, electrique, cache recent ou echec < 60 s)");
+  rows.slice(-2).forEach(e=>{ const j=e.res||{}; out.push("","— appel "+new Date(e.at).toLocaleTimeString()+" · requete "+JSON.stringify(e.req));
+    if(j.error){ out.push("WORKER ERREUR : "+j.error+(j.status?" (HTTP "+j.status+")":"")+(j.detail?" — "+String(j.detail).slice(0,200):"")); }
+    else {
+      out.push("WORKER JSON : "+JSON.stringify(j).slice(0,700));
+      const k=[]; const chk=(ok,label)=>k.push((ok?"ok  ":"KO  ")+label);
+      chk(canonicalFuelCode(j.fuelType)===req,"carburant renvoye "+j.fuelType+" / demande "+req);
+      chk(Number.isFinite(j.price)&&j.price>0,"prix "+j.price);
+      chk(j.currency==="EUR"&&j.unit==="L","devise/unite "+j.currency+"/"+j.unit);
+      chk(String(j.country||"").toUpperCase()==="FR","pays "+j.country);
+      if(j.scope==="STATION"){
+        chk(j.priceKind==="DECLARED_PRICE","priceKind "+j.priceKind);
+        chk(j.source==="DGCCRF prix-carburants (data.economie.gouv.fr)","source "+j.source);
+        chk(!!j.sourceId,"sourceId "+j.sourceId);
+        const rt=Date.parse(j.reportedAt); chk(Number.isFinite(rt)&&rt<=now&&(now-rt)<=FUEL_STALE_ACCEPTABLE_MS,"releve station : "+j.reportedAt+" (age "+ageTxt(rt)+", max "+(FUEL_STALE_ACCEPTABLE_MS/3600000)+" h)");
+        let d=NaN; try{ d=haversineKm({lat,lng},{lat:+j.latitude,lng:+j.longitude}); }catch(_e){}
+        chk(Number.isFinite(d)&&d<=FUEL_STATION_MAX_RADIUS_KM,"station "+n4(j.latitude)+", "+n4(j.longitude)+" : "+(Number.isFinite(d)?d.toFixed(1)+" km":"distance ?")+" du depart (max "+FUEL_STATION_MAX_RADIUS_KM+" km)");
+      } else if(j.scope==="NATIONAL"){
+        chk(j.priceKind==="OBSERVED_MEDIAN"&&j.source==="DGCCRF"&&j.sourceId==="FR_MEDIAN_72H","national "+j.priceKind+" / "+j.source+" / "+j.sourceId);
+        const ct=Date.parse(j.computedAt), lt=Date.parse(j.latestObservedAt);
+        chk(Number.isFinite(ct)&&ct<=now,"calcule : "+j.computedAt+" (age "+ageTxt(ct)+")");
+        chk(Number.isFinite(lt)&&lt<=now&&lt<=ct,"derniere observation : "+j.latestObservedAt+" (age "+ageTxt(lt)+")");
+        chk(+j.sampleSize>0,"echantillon "+j.sampleSize);
+        chk(j.reportedAt==null,"pas de reportedAt sur un national");
+        chk(_fuelFreshnessOf({priceKind:j.priceKind,computedAt:j.computedAt,latestObservedAt:j.latestObservedAt})!=="EXPIRED","fraicheur nationale "+_fuelFreshnessOf({priceKind:j.priceKind,computedAt:j.computedAt,latestObservedAt:j.latestObservedAt}));
+      } else chk(false,"scope inconnu : "+j.scope);
+      out.push("controles (indicatifs) :"); k.forEach(x=>out.push("  "+x));
+    }
+    out.push("VALIDATION DE L'APP : "+(e.accepted===true?"ACCEPTE":(e.accepted===false?"REJETE":"en cours")));
+  });
+  let fin=null; try{ fin=fuelPriceRecordResolved(_vehFuelSnapHolder,CC,f,lat,lng); }catch(_e){}
+  out.push("","PRIX RETENU : "+(fin?fin.price+" ("+fin.scope+", "+fin.freshness+")":"aucun")+"  |  affiche : "+((Number.isFinite(price)&&price>0)?price:"vide"));
+  box.textContent=out.join("\n");
+}catch(_e){} }
 function computeVehEstimate(){
   const est=document.getElementById("cEst");
   if(!est) return;
