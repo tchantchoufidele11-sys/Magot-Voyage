@@ -4692,6 +4692,28 @@ body:has(#view-plan.active) #agentBubble{display:none}
 /* V4.8d : mention d'age d'un prix station, motif "aucune station" */
 .veh-price-src .pv-old{display:block;margin-top:3px;color:var(--gold,#B8872B);font-weight:700}
 .veh-price-src[data-kind="none"]{color:var(--danger,#E5484D)}
+
+/* V4.8h : origine du prix sous le total + detail des trajets */
+#view-plan.mv-plan-v4 .day-sum .ds-tripfuel.is-tappable{cursor:pointer;-webkit-tap-highlight-color:transparent}
+#view-plan.mv-plan-v4 .day-sum .ds-tripfuel .rc-trip-src{display:block;margin-top:3px;font:600 12px/1.35 "Inter",sans-serif;color:var(--v4-muted,#6E7A90);overflow-wrap:anywhere}
+.tfd-ov .leg-dl{max-height:56vh;overflow-y:auto}
+.tfd-ov .tfd-row{padding:9px 0;border-bottom:1px solid var(--line,#E8ECF3)}
+.tfd-ov .tfd-head{font:700 13.5px/1.3 "Inter",sans-serif;color:var(--ink,#16233F);overflow-wrap:anywhere}
+.tfd-ov .tfd-det{margin-top:3px;font:500 12.5px/1.4 "Inter",sans-serif;color:var(--ink-2,#36425E);overflow-wrap:anywhere}
+.tfd-ov .tfd-walk{margin-top:2px;font:500 12px/1.35 "Inter",sans-serif;color:var(--muted,#6E7A90)}
+.tfd-ov .tfd-note{margin:10px 2px 0;font:500 12px/1.4 "Inter",sans-serif;color:var(--muted,#6E7A90)}
+
+/* F2-A0 : provenance du prix -- station / officiel national / estimation de reference visuellement distincts */
+.veh-price-src[data-kind="official"]{color:var(--navy,#16233F);font-weight:700}
+.veh-price-src[data-kind="official"]::before{content:"\25C6\00a0";color:var(--gold,#B8872B)}
+.veh-price-src[data-kind="reference"]{color:#9A6B12;font-weight:700}
+.veh-price-src[data-kind="reference"]::before{content:"\25B3\00a0"}
+.veh-price-src[data-kind="auto"]::before,.veh-price-src[data-kind="old"]::before{content:"\25CF\00a0";color:#2E8B57}
+#view-plan.mv-plan-v4 .day-sum .ds-tripfuel .rc-trip-src[data-kind="official"]{color:var(--v4-navy,#16233F)}
+#view-plan.mv-plan-v4 .day-sum .ds-tripfuel .rc-trip-src[data-kind="official"]::before{content:"\25C6\00a0";color:var(--gold,#B8872B)}
+#view-plan.mv-plan-v4 .day-sum .ds-tripfuel .rc-trip-src[data-kind="reference"]{color:#9A6B12}
+#view-plan.mv-plan-v4 .day-sum .ds-tripfuel .rc-trip-src[data-kind="reference"]::before{content:"\25B3\00a0"}
+#view-plan.mv-plan-v4 .day-sum .ds-tripfuel .rc-trip-src[data-kind="station"]::before{content:"\25CF\00a0";color:#2E8B57}
 /* V4.8-A : provenance du prix carburant (creation / modification du voyage) */
 .veh-price-src{margin:-2px 0 8px;font:600 11.5px/1.3 "Inter",sans-serif;color:var(--muted,#6E7A90)}
 .veh-price-src:empty{display:none}
@@ -5116,7 +5138,7 @@ const DEFAULT_S={ version:"0.2.0", settings:{ lang:"fr", theme:"system", units:"
 /* Clé Maps JS partagée (restreinte au domaine GitHub Pages). Repli : clé perso de l'utilisateur si fournie. */
 const SHARED_MAP_KEY="AIzaSyCt5iVx8nPr1V067A3daE0X1YA568XJNbU";
 function mapKey(){ return (S.settings.mapKey||"").trim() || SHARED_MAP_KEY; }
-const BUILD="0.6.159 · V4.8g-pays-destination";
+const BUILD="0.6.163 · F2-A2-emirats-prix-officiel";
 /* V4.1 lot A (P0 stockage) : CC_CUR deplacee ICI, avant le premier loadState() -- loadState>mergeState>normalizeTrip>normalizeLegs la lit ;
    declaree plus bas, elle etait en zone morte temporelle (ReferenceError avalee par loadState -> S vide -> saveState() pouvait ecraser les voyages). Contenu inchange. */
 const CC_CUR={FR:"EUR",BE:"EUR",DE:"EUR",ES:"EUR",IT:"EUR",PT:"EUR",NL:"EUR",AT:"EUR",IE:"EUR",GR:"EUR",LU:"EUR",FI:"EUR",SK:"EUR",SI:"EUR",EE:"EUR",LV:"EUR",LT:"EUR",GB:"GBP",US:"USD",CA:"CAD",CH:"CHF",JP:"JPY",AU:"AUD",NZ:"NZD",MA:"MAD",TN:"TND",DZ:"DZD",EG:"EGP",SE:"SEK",NO:"NOK",DK:"DKK",PL:"PLN",CZ:"CZK",HU:"HUF",RO:"RON",MX:"MXN",BR:"BRL",AR:"ARS",CN:"CNY",TH:"THB",IN:"INR",ID:"IDR",VN:"VND",TR:"TRY",AE:"AED",ZA:"ZAR",SN:"XOF",CI:"XOF",CM:"XAF",GA:"XAF",CG:"XAF",TD:"XAF",CF:"XAF",GQ:"XAF",BJ:"XOF",BF:"XOF",ML:"XOF",NE:"XOF",TG:"XOF",GW:"XOF",NG:"NGN",GH:"GHS",KE:"KES",TZ:"TZS",UG:"UGX",RW:"RWF",ET:"ETB",MU:"MUR",MG:"MGA",AO:"AOA",MZ:"MZN",CD:"CDF",LY:"LYD",SA:"SAR",QA:"QAR",KW:"KWD",BH:"BHD",OM:"OMR",JO:"JOD",LB:"LBP",IL:"ILS",PK:"PKR",BD:"BDT",LK:"LKR",NP:"NPR",KR:"KRW",SG:"SGD",MY:"MYR",PH:"PHP",KH:"KHR",MM:"MMK",KZ:"KZT",GE:"GEL",AM:"AMD",AZ:"AZN",RU:"RUB",UA:"UAH",RS:"RSD",BG:"BGN",IS:"ISK",HR:"EUR",CY:"EUR",MT:"EUR",CL:"CLP",CO:"COP",PE:"PEN",UY:"UYU",BO:"BOB",EC:"USD",PA:"USD",CR:"CRC",GT:"GTQ",DO:"DOP",FJ:"FJD"};
@@ -6648,8 +6670,64 @@ function _fuelFreshnessOf(record){
     if(age<=3600*1000) return "FRESH";
     if(age<=72*3600*1000) return "STALE_ACCEPTABLE";
     return "EXPIRED"; }
+  if(record.priceKind==="OFFICIAL_MONTHLY_PRICE"){   /* F2-A0 : prix national mensuel -- valable sur SON mois uniquement */
+    const vf=String(record.validFrom||""), vt=String(record.validTo||""); if(!/^\d{4}-\d{2}-\d{2}$/.test(vf)||!/^\d{4}-\d{2}-\d{2}$/.test(vt)) return "EXPIRED";
+    const _p=fuelProviderFor(record.country), _off=(_p&&_p.national&&Number.isFinite(_p.national.tzOffsetMin))?_p.national.tzOffsetMin:0;
+    const today=new Date(Date.now()+_off*60000).toISOString().slice(0,10);   /* F2-A2 : jour courant du calendrier du PAYS (AE : Dubai), pas celui de l'appareil */
+    return (vf<=today&&today<=vt)?"FRESH":"EXPIRED"; }   /* valable sur sa periode publiee uniquement */
+  if(record.priceKind==="OFFICIAL_WEEKLY_CONSUMER_PRICE"){   /* F2-A0 : moyenne nationale hebdomadaire -- date du bulletin */
+    const t=Date.parse(record.observedAt); if(!Number.isFinite(t)) return "EXPIRED"; const age=Date.now()-t;
+    if(age<0) return "EXPIRED"; if(age<=FUEL_WOB_FRESH_MS) return "FRESH"; if(age<=FUEL_WOB_LKG_MS) return "STALE_ACCEPTABLE"; return "EXPIRED"; }
   /* correction audit independant P2 : fail-closed -- tant qu'un futur REGULATED_CEILING/DAILY_SNAPSHOT n'est pas reellement implemente avec sa propre regle de fraicheur, il n'est JAMAIS accepte par defaut */
   return "EXPIRED"; }
+/* ===== F2-A0 -- FOURNISSEURS OFFICIELS DE PRIX CARBURANT (architecture) =====
+   Hierarchie : P0 prix manuel > P1 station officielle > P2 prix/moyenne nationale officielle > P3 STATIC_REFERENCE (table Magot).
+   France : fournisseur DGCCRF existant, INCHANGE. UE (Weekly Oil Bulletin) et Emirats (prix national mensuel) : interfaces
+   declarees mais DESACTIVEES tant que leur parseur n'a pas ete ecrit et teste sur une vraie publication (lot F2-A1).
+   Un fournisseur desactive => aucun appel reseau, prix de reference etiquete comme tel. Aucun pays n'est jamais envoye vers
+   le fournisseur France. */
+const FUEL_EU_WOB_COUNTRIES=["AT","BE","BG","HR","CY","CZ","DK","EE","FI","FR","DE","GR","HU","IE","IT","LV","LT","LU","MT","NL","PL","PT","RO","SK","SI","ES","SE"];
+const FUEL_OFFICIAL_PROVIDERS={
+  FR:{ station:{ id:"FR_DGCCRF_STATION", enabled:true }, national:{ id:"FR_DGCCRF_MEDIAN", enabled:true } },
+  AE:{ national:{ id:"AE_MONTHLY_OFFICIAL", enabled:true, tzOffsetMin:240, priceKind:"OFFICIAL_MONTHLY_PRICE", currency:"AED", source:"UAE Fuel Price Committee",   /* F2-A2 : actif ; calendrier de Dubai (UTC+4, sans heure d'ete) */
+       fuels:{ sp95:"Special 95", sp98:"Super 98", diesel:"Diesel" } } }   /* e10, e85, gpl : absents de la source -> jamais substitues */
+};
+FUEL_EU_WOB_COUNTRIES.forEach(cc=>{ if(cc!=="FR") FUEL_OFFICIAL_PROVIDERS[cc]={ national:{ id:"EU_WOB", enabled:true, priceKind:"OFFICIAL_WEEKLY_CONSUMER_PRICE", currency:"EUR", source:"European Commission Weekly Oil Bulletin",
+  fuels:{ sp95:"Euro-super 95", diesel:"Automotive gas oil", gpl:"LPG motor fuel" } } }; });   /* F2-A1 (UE) : parseur reel teste sur la fixture officielle ; section "in EUR" -> devise EUR IMPOSEE ; GPL present dans la source */
+const FUEL_WOB_FRESH_MS=8*86400000, FUEL_WOB_LKG_MS=21*86400000;   /* bulletin hebdomadaire : frais <= 8 j, derniere valeur connue <= 21 j */
+function fuelProviderFor(cc){ return FUEL_OFFICIAL_PROVIDERS[String(cc||"").toUpperCase()]||null; }
+function fuelRemoteEnabled(cc,fuel){   /* un fournisseur ACTIF existe-t-il pour ce pays et CE carburant ? (France : tous carburants liquides, comme avant) */
+  const p=fuelProviderFor(cc); const f=canonicalFuelCode(fuel); if(!p||f==="elec") return false;
+  return ["station","national"].some(k=>p[k]&&p[k].enabled&&(!p[k].fuels||!!p[k].fuels[f])); }
+function fuelStaticReference(cc,fuel){   /* P3 : table Magot -- jamais un "prix automatique actuel" */
+  const CC=String(cc||"").toUpperCase(), p=fuelPrice(CC,fuel); if(!(p>0)) return null;
+  return { price:p, currency:String(CC_CUR[CC]||"EUR"), unit:canonicalFuelCode(fuel)==="elec"?"kWh":"L", fuel:canonicalFuelCode(fuel), country:CC, scope:"NATIONAL",
+    priceKind:"STATIC_REFERENCE", source:"Magot reference table", sourceId:"MAGOT_REF_"+CC, observedAt:null, computedAt:null, validFrom:null }; }
+function _fuelMonthKey(ms){ const d=new Date(ms); return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0"); }
+function _validateOfficialRecord(j,CC,reqFuel){   /* records nationaux officiels hors France : contrat commun, fail-closed */
+  try{
+    const prov=fuelProviderFor(CC), p=prov&&prov.national; if(!p||!p.priceKind) return null;
+    const fuel=canonicalFuelCode(j.fuel||j.fuelType); if(fuel!==reqFuel||!p.fuels||!p.fuels[fuel]) return null;   /* aucune substitution de carburant */
+    if(!(Number.isFinite(j.price)&&j.price>0)||j.unit!=="L") return null;
+    const cur=String(j.currency||"").toUpperCase(); if(p.currency?cur!==p.currency:!(cur==="EUR"||cur===String(CC_CUR[CC]||""))) return null;
+    if(!fxKnown(cur)) return null;
+    if(String(j.country||"").toUpperCase()!==CC||j.scope!=="NATIONAL"||j.priceKind!==p.priceKind||j.source!==p.source) return null;
+    const now=Date.now(), F=fuel.toUpperCase();
+    const obs=j.observedAt==null?null:Date.parse(j.observedAt), cmp=j.computedAt==null?null:Date.parse(j.computedAt), vf=j.validFrom==null?null:Date.parse(j.validFrom);
+    for(const t of (p.priceKind==="OFFICIAL_MONTHLY_PRICE"?[obs,cmp]:[obs,cmp,vf])) if(t!=null&&(!Number.isFinite(t)||t>now)) return null;   /* horodatage invalide ou futur : rejete (mensuel : validFrom = date de calendrier, controlee par la fraicheur) */
+    if(p.priceKind==="OFFICIAL_MONTHLY_PRICE"){   /* prix national mensuel : validFrom = 1er du mois publie, obligatoire */
+      const _vfs=String(j.validFrom||""); if(vf==null||!/^\d{4}-\d{2}-01$/.test(_vfs)) return null;   /* F2-A2 : dates de calendrier en texte (aucun fuseau de l'appareil) */
+      const _mk=_vfs.slice(0,7); if(String(j.sourceId||"")!=="AE_FPC_"+_mk+"_"+F) return null;
+      const _ym=_mk.split("-").map(Number); const _exp=_mk+"-"+String(new Date(Date.UTC(_ym[0],_ym[1],0)).getUTCDate()).padStart(2,"0");
+      if(String(j.validTo||"")!==_exp) return null; }   /* validTo = dernier jour du mois publie, ni plus ni moins */
+    else {   /* moyenne nationale hebdomadaire : date du bulletin obligatoire */
+      if(obs==null) return null; const d=new Date(obs).toISOString().slice(0,10);
+      if(String(j.sourceId||"")!=="EU_WOB_"+CC+"_"+F+"_"+d) return null; }
+    const rec={ price:j.price, currency:cur, unit:"L", fuel, fuelType:fuel, country:CC, scope:"NATIONAL", priceKind:p.priceKind, source:p.source, sourceId:String(j.sourceId),
+      observedAt:j.observedAt==null?null:String(j.observedAt), computedAt:j.computedAt==null?null:String(j.computedAt), validFrom:j.validFrom==null?null:String(j.validFrom), validTo:j.validTo==null?null:String(j.validTo), fetchedAt:now,
+      publisher:typeof j.publisher==="string"?j.publisher.slice(0,80):undefined, sourceUrl:(typeof j.sourceUrl==="string"&&/^https:\/\//.test(j.sourceUrl))?j.sourceUrl.slice(0,300):undefined };   /* F2-A2 : tracabilite de la publication */
+    return _fuelFreshnessOf(rec)==="EXPIRED"?null:rec;
+  }catch(_e){ return null; } }
 var _fuelLastErr={};   /* V4.8d : dernier motif de refus du Worker par pays|carburant (affichage seulement) */
 async function resolveFuelPriceRemote(cc,fuel,lat,lng){
   try{
@@ -6657,6 +6735,7 @@ async function resolveFuelPriceRemote(cc,fuel,lat,lng){
     const j=await workerFetch("/fuel-price",{cc,fuel:reqFuel,lat,lng});
     if(!j||j.error){ _fuelLastErr[cc+"|"+reqFuel]={ error:(j&&j.error)||"net", radiusKm:(j&&j.radiusKm)||null }; return null; }   /* V4.8d : motif conserve pour l'affichage uniquement */
     delete _fuelLastErr[cc+"|"+reqFuel];
+    if(String(cc||"").toUpperCase()!=="FR") return _validateOfficialRecord(j,String(cc||"").toUpperCase(),reqFuel);   /* F2-A0 : jamais le validateur DGCCRF pour un autre pays */
     if(canonicalFuelCode(j.fuelType)!==reqFuel) return null;   /* N5 -- F1-D section 5 : le Worker renvoie desormais le code CANONIQUE (ex. sp95) meme pour une requete "essence" */
     if(!(Number.isFinite(j.price)&&j.price>0)) return null;               /* N3 */
     if(j.currency!=="EUR"||j.unit!=="L") return null;                     /* garde-fou devise : aucune conversion FX dans F1 */
@@ -6745,7 +6824,7 @@ async function ensureFuelPriceFresh(tr){
   if(v.priceManual) return;   /* prix manuel actif : le calcul ne consommera jamais la resolution automatique (voir estimateBudget()/_dayFuelCost()) -- inutile de solliciter le reseau */
   const id=tr.id||"?"; const sig=_fuelResolveSignature(tr); const key=id+"|"+sig;
   if(_fuelResolveInflight[key]) return _fuelResolveInflight[key];
-  const positions=_fuelNeededPositions(tr).filter(p=>p.cc==="FR");   /* F1 France uniquement */
+  const positions=_fuelNeededPositions(tr).filter(p=>fuelRemoteEnabled(p.cc,v.fuel));   /* F2-A0 : tout pays dote d'un fournisseur ACTIF (aujourd'hui la France seule) -- jamais le fournisseur France pour un autre pays */
   if(!positions.length) return;
   const needsList=positions.filter(p=>{
     const rec=fuelPriceRecordResolved(tr,p.cc,v.fuel,p.lat,p.lng);
@@ -7069,7 +7148,7 @@ async function _creationFuelPrice(cc,fuel,lat,lng,v){
   /* F1 distant uniquement pour France + carburants liquides. */
   if(
     f==="elec"
-    ||CC!=="FR"
+    ||!fuelRemoteEnabled(CC,f)   /* F2-A0 (auparavant CC!=="FR") */
     ||lat==null
     ||lng==null
   ) return fallback;
@@ -7221,6 +7300,11 @@ function _fuelMoneyPair(amount,fromCur,toCur){   /* "1 788 € (≈ 1 172 860 FC
   if(fromCur===toCur) return a; const k=_fuelFx(fromCur,toCur); return k==null?a:(a+" (≈ "+money(amount*k,toCur)+")"); }
 function _vehFuelLoc(){ const dep=draft&&draft.depart, arr=draft&&draft.dest; return (dep&&dep.cc)?dep:arr; }
 function _vehPriceCur(loc,v){ return fuelPriceCur(_vehFuelSnapHolder,loc&&loc.cc,(v&&v.fuel)||"essence",loc&&loc.lat,loc&&loc.lng,v,draft&&draft.currency); }
+function _fuelOfficialLabel(rec){   /* F2-A0 : libelle d'un prix national officiel (date reelle de la publication, jamais inventee) */
+  if(!rec) return ""; const loc=LOCALE[lang()]||"fr-FR";
+  if(rec.priceKind==="OFFICIAL_MONTHLY_PRICE"){ const m=/^(\d{4})-(\d{2})-01$/.exec(String(rec.validFrom||"")); return m?_mvpTxt("pvOffPrice").replace("{m}",new Date(Date.UTC(+m[1],+m[2]-1,1)).toLocaleDateString(loc,{month:"long",year:"numeric",timeZone:"UTC"})):""; }   /* F2-A2 : mois du calendrier publie */
+  if(rec.priceKind==="OFFICIAL_WEEKLY_CONSUMER_PRICE"){ const t=Date.parse(rec.observedAt); return Number.isFinite(t)?_mvpTxt("pvOffAvg").replace("{d}",new Date(t).toLocaleDateString(loc,{day:"numeric",month:"short"})):""; }
+  return ""; }
 function _fuelOldNote(rec){   /* V4.8d : mention d'age pour un prix station > 72 h (meme texte au formulaire et au Planning) */
   if(!rec||rec.scope!=="STATION") return ""; const fr=rec.freshness||_fuelFreshnessOf(rec); if(fr!=="OLD") return "";
   const t0=Date.parse(rec.reportedAt); if(!Number.isFinite(t0)) return "";
@@ -7232,17 +7316,19 @@ function _mvpPaintVehPrice(price,loc,v){   /* V4.8-A : affichage du prix REELLEM
   const pp=document.getElementById("cPrice"), src=document.getElementById("cPriceSrc"); v=v||{};
   const manual=!!v.priceManual&&parseFloat(String(v.price||"").replace(",","."))>0;
   const has=Number.isFinite(price)&&price>0; const shown=has?String(+(+price).toFixed(3)):"";
-  let txt="", oldNote="", noneTxt="";
+  let txt="", oldNote="", noneTxt="", _pvKind="";
   if(manual) txt=_mvpTxt("pvManual");
   else if(has){ const f=v.fuel||"essence"; const CC=String((loc&&loc.cc)||"").toUpperCase();
-    const rec=(CC==="FR"&&f!=="elec")?fuelPriceRecordResolved(_vehFuelSnapHolder,CC,f,loc.lat,loc.lng):null;   /* meme lecteur que l'estimation : la provenance n'est jamais devinee */
+    const rec=(fuelRemoteEnabled(CC,f)&&f!=="elec")?fuelPriceRecordResolved(_vehFuelSnapHolder,CC,f,loc.lat,loc.lng):null;   /* meme lecteur que l'estimation : la provenance n'est jamais devinee (F2-A0 : tout fournisseur actif) */
     if(rec&&rec.scope==="STATION"){ let d=NaN; try{ d=haversineKm({lat:loc.lat,lng:loc.lng},{lat:+rec.latitude,lng:+rec.longitude}); }catch(_e){}
       txt=Number.isFinite(d)?_mvpTxt("pvStationAt").replace("{d}",(d<10?d.toFixed(1):String(Math.round(d))).replace(".",(LOCALE[lang()]||"fr-FR").startsWith("en")?".":",")):_mvpTxt("pvStation");   /* V4.8d : distance reelle de la station */
       oldNote=_fuelOldNote(rec); }
-    else txt=_mvpTxt(rec&&rec.scope==="NATIONAL"?"pvNational":"pvCountry"); }
+    else if(rec&&(rec.priceKind==="OFFICIAL_MONTHLY_PRICE"||rec.priceKind==="OFFICIAL_WEEKLY_CONSUMER_PRICE")){ txt=_fuelOfficialLabel(rec); _pvKind="official"; }
+    else if(rec&&rec.scope==="NATIONAL") txt=_mvpTxt("pvNational");
+    else { txt=_mvpTxt("pvRef"); _pvKind="reference"; } }   /* F2-A0 : table Magot = "estimation de reference", jamais "automatique" */
   else if(!manual){ const CC=String((loc&&loc.cc)||"").toUpperCase(); const le=_fuelLastErr[CC+"|"+canonicalFuelCode(v.fuel||"essence")]; if(le&&le.error==="aucune_station") noneTxt=_mvpTxt("pvNone").replace("{fuel}",_fuelLabel(v.fuel)).replace("{r}",le.radiusKm||FUEL_STATION_MAX_RADIUS_KM); }
   if(pp&&!manual){ pp.placeholder=shown; if(document.activeElement!==pp) pp.value=shown; }   /* aucun prix decoratif : sans prix resolu, ni valeur ni indice numerique (l'ancien indice montrait le prix du pays de DESTINATION) */
-  if(src){ src.textContent=noneTxt||txt; if(oldNote){ const o=document.createElement("span"); o.className="pv-old"; o.textContent=oldNote; src.appendChild(o); } src.dataset.kind=manual?"manual":(has?(oldNote?"old":"auto"):(noneTxt?"none":"")); }
+  if(src){ src.textContent=noneTxt||txt; if(oldNote){ const o=document.createElement("span"); o.className="pv-old"; o.textContent=oldNote; src.appendChild(o); } src.dataset.kind=manual?"manual":(has?(oldNote?"old":(_pvKind||"auto")):(noneTxt?"none":"")); }
 }
 
 function computeVehEstimate(){
@@ -11228,15 +11314,15 @@ function _mvpMenuIco(k,cls){ return '<svg class="plan-menu-ico'+(cls?' '+cls:'')
 function _mvpTxt(k){   /* V4.4/V4.5 : libelles courts d'interface (5 langues) */
   const L={
     fr:{actions:"Actions",mode:"Mode",now:"En cours",past:"Passée",done:"Terminée",knownCost:"Coût connu du jour",fuelPartial:"carburant incomplet",
-        detailed:"Affichage détaillé",compact:"Affichage compact",addPause:"Ajouter une pause",addStep:"Étape",catFidele:"Fidèle",catWeather:"Météo",catCrowd:"Affluence",catHours:"Horaires",catRoute:"Trajet",myPos:"Ma position",startHere:"Partir d’ici",fsDay:"Journée",fsTrip:"Séjour",frameToStep:"Cadrer l’étape en cours",frameToDay:"Voir toute la journée",hintStep:"Étape en cours",hintDay:"Vue de la journée",hideSteps:"Masquer les étapes",showSteps:"Afficher les étapes",pastDay:"Journée passée · lecture seule",pvStation:"Automatique · station proche du départ",pvNational:"Automatique · médiane nationale",pvCountry:"Automatique · estimation pays",pvManual:"Votre prix",pvStationAt:"Automatique · station à {d} km",pvOld:"⚠ Prix non mis à jour depuis {n} j (dernier relevé le {date})",pvNone:"Aucune station {fuel} à moins de {r} km",tripFuel:"Coût des trajets",tripPartial:"partiel",tripNA:"Prix indisponible",tripKnown:"connus",legFrom:"Départ",peTime:"Horaire",peDur:"Durée prévue",peDay:"Jour",peMore:"Plus d’options",peRename:"Renommer",peKind:"Modifier le type",peSee:"Voir la fiche du lieu",peSave:"Enregistrer les modifications",peDel:"Supprimer l’étape",durUser:"Durée personnalisée",durEst:"Estimation Magot Voyage",durFit:"Ajustée pour tenir dans la journée",durSaved:"Durée enregistrée",peHd:"Modifier l’étape",editable:"modifiable"},
+        detailed:"Affichage détaillé",compact:"Affichage compact",addPause:"Ajouter une pause",addStep:"Étape",catFidele:"Fidèle",catWeather:"Météo",catCrowd:"Affluence",catHours:"Horaires",catRoute:"Trajet",myPos:"Ma position",startHere:"Partir d’ici",fsDay:"Journée",fsTrip:"Séjour",frameToStep:"Cadrer l’étape en cours",frameToDay:"Voir toute la journée",hintStep:"Étape en cours",hintDay:"Vue de la journée",hideSteps:"Masquer les étapes",showSteps:"Afficher les étapes",pastDay:"Journée passée · lecture seule",pvStation:"Automatique · station proche du départ",pvNational:"Automatique · médiane nationale",pvCountry:"Automatique · estimation pays",pvManual:"Votre prix",pvRef:"Estimation de référence · donnée non actualisée",tfdSource:"Source",tfdPub:"publication {p} du {d}",pvOffPrice:"Officiel · prix national · {m}",pvOffAvg:"Officiel · prix national hebdomadaire · semaine du {d}",pvStationAt:"Officiel · station à {d} km",pvOld:"⚠ Prix non mis à jour depuis {n} j (dernier relevé le {date})",pvNone:"Aucune station {fuel} à moins de {r} km",tripFuel:"Coût des trajets",tripPartial:"partiel",tripNA:"Prix indisponible",tripKnown:"connus",legFrom:"Départ",peTime:"Horaire",peDur:"Durée prévue",peDay:"Jour",peMore:"Plus d’options",peRename:"Renommer",peKind:"Modifier le type",peSee:"Voir la fiche du lieu",peSave:"Enregistrer les modifications",peDel:"Supprimer l’étape",durUser:"Durée personnalisée",durEst:"Estimation Magot Voyage",durFit:"Ajustée pour tenir dans la journée",durSaved:"Durée enregistrée",peHd:"Modifier l’étape",tfdTitle:"Détail du coût des trajets",tfdMore:"Détail",tfdDrive:"{km} en voiture",tfdWalk:"dont {km} à pied, non compté",tfdMulti:"{n} sources de prix",tfdFuel:"Carburant",tfdConso:"Consommation",tfdPrice:"Prix utilisé",tfdTotal:"Total",srcCountry:"Estimation de référence · {country} · donnée non actualisée",srcCountryShort:"Estimation de référence · donnée non actualisée",srcStation:"Officiel · station à {d} km",srcNational:"Médiane nationale",srcManual:"Votre prix",tfdNoteWorld:"« Estimation de référence » : valeur fixe de la table Magot, non actualisée — ni un prix officiel, ni le prix d’une station.",editable:"modifiable"},
     en:{actions:"Actions",mode:"Mode",now:"In progress",past:"Past",done:"Done",knownCost:"Known day cost",fuelPartial:"fuel incomplete",
-        detailed:"Detailed view",compact:"Compact view",addPause:"Add a break",addStep:"Stop",catFidele:"Fidèle",catWeather:"Weather",catCrowd:"Crowds",catHours:"Hours",catRoute:"Route",myPos:"My location",startHere:"Start here",fsDay:"Day",fsTrip:"Trip",frameToStep:"Frame the current stop",frameToDay:"Show the whole day",hintStep:"Current stop",hintDay:"Whole day",hideSteps:"Hide stops",showSteps:"Show stops",pastDay:"Past day · read-only",pvStation:"Automatic · station near the start",pvNational:"Automatic · national median",pvCountry:"Automatic · country estimate",pvManual:"Your price",pvStationAt:"Automatic · station {d} km away",pvOld:"⚠ Price not updated for {n} days (last report {date})",pvNone:"No {fuel} station within {r} km",tripFuel:"Driving cost",tripPartial:"partial",tripNA:"Price unavailable",tripKnown:"known",legFrom:"Start",peTime:"Time",peDur:"Planned duration",peDay:"Day",peMore:"More options",peRename:"Rename",peKind:"Change type",peSee:"View place details",peSave:"Save changes",peDel:"Delete stop",durUser:"Custom duration",durEst:"Magot Voyage estimate",durFit:"Adjusted to fit the day",durSaved:"Saved duration",peHd:"Edit stop",editable:"editable"},
+        detailed:"Detailed view",compact:"Compact view",addPause:"Add a break",addStep:"Stop",catFidele:"Fidèle",catWeather:"Weather",catCrowd:"Crowds",catHours:"Hours",catRoute:"Route",myPos:"My location",startHere:"Start here",fsDay:"Day",fsTrip:"Trip",frameToStep:"Frame the current stop",frameToDay:"Show the whole day",hintStep:"Current stop",hintDay:"Whole day",hideSteps:"Hide stops",showSteps:"Show stops",pastDay:"Past day · read-only",pvStation:"Automatic · station near the start",pvNational:"Automatic · national median",pvCountry:"Automatic · country estimate",pvManual:"Your price",pvRef:"Reference estimate · not updated",tfdSource:"Source",tfdPub:"{p} publication of {d}",pvOffPrice:"Official · national price · {m}",pvOffAvg:"Official · weekly national price · week of {d}",pvStationAt:"Official · station {d} km away",pvOld:"⚠ Price not updated for {n} days (last report {date})",pvNone:"No {fuel} station within {r} km",tripFuel:"Driving cost",tripPartial:"partial",tripNA:"Price unavailable",tripKnown:"known",legFrom:"Start",peTime:"Time",peDur:"Planned duration",peDay:"Day",peMore:"More options",peRename:"Rename",peKind:"Change type",peSee:"View place details",peSave:"Save changes",peDel:"Delete stop",durUser:"Custom duration",durEst:"Magot Voyage estimate",durFit:"Adjusted to fit the day",durSaved:"Saved duration",peHd:"Edit stop",tfdTitle:"Driving cost breakdown",tfdMore:"Details",tfdDrive:"{km} by car",tfdWalk:"incl. {km} on foot, not counted",tfdMulti:"{n} price sources",tfdFuel:"Fuel",tfdConso:"Consumption",tfdPrice:"Price used",tfdTotal:"Total",srcCountry:"Reference estimate · {country} · not updated",srcCountryShort:"Reference estimate · not updated",srcStation:"Official · station {d} km away",srcNational:"National median",srcManual:"Your price",tfdNoteWorld:"“Reference estimate”: a fixed value from the Magot table, not updated — neither an official price nor a station price.",editable:"editable"},
     es:{actions:"Acciones",mode:"Modo",now:"En curso",past:"Pasada",done:"Hecha",knownCost:"Coste conocido del día",fuelPartial:"carburante incompleto",
-        detailed:"Vista detallada",compact:"Vista compacta",addPause:"Añadir una pausa",addStep:"Etapa",catFidele:"Fidèle",catWeather:"Tiempo",catCrowd:"Afluencia",catHours:"Horarios",catRoute:"Trayecto",myPos:"Mi ubicación",startHere:"Salir desde aquí",fsDay:"Día",fsTrip:"Viaje",frameToStep:"Encuadrar la etapa actual",frameToDay:"Ver todo el día",hintStep:"Etapa actual",hintDay:"Vista del día",hideSteps:"Ocultar etapas",showSteps:"Mostrar etapas",pastDay:"Día pasado · solo lectura",pvStation:"Automático · estación cerca de la salida",pvNational:"Automático · mediana nacional",pvCountry:"Automático · estimación del país",pvManual:"Tu precio",pvStationAt:"Automático · estación a {d} km",pvOld:"⚠ Precio no actualizado desde hace {n} días (último dato el {date})",pvNone:"Ninguna estación de {fuel} a menos de {r} km",tripFuel:"Coste de los trayectos",tripPartial:"parcial",tripNA:"Precio no disponible",tripKnown:"conocidos",legFrom:"Salida",peTime:"Hora",peDur:"Duración prevista",peDay:"Día",peMore:"Más opciones",peRename:"Renombrar",peKind:"Cambiar el tipo",peSee:"Ver la ficha del lugar",peSave:"Guardar los cambios",peDel:"Eliminar la etapa",durUser:"Duración personalizada",durEst:"Estimación Magot Voyage",durFit:"Ajustada para caber en el día",durSaved:"Duración guardada",peHd:"Editar la etapa",editable:"modificable"},
+        detailed:"Vista detallada",compact:"Vista compacta",addPause:"Añadir una pausa",addStep:"Etapa",catFidele:"Fidèle",catWeather:"Tiempo",catCrowd:"Afluencia",catHours:"Horarios",catRoute:"Trayecto",myPos:"Mi ubicación",startHere:"Salir desde aquí",fsDay:"Día",fsTrip:"Viaje",frameToStep:"Encuadrar la etapa actual",frameToDay:"Ver todo el día",hintStep:"Etapa actual",hintDay:"Vista del día",hideSteps:"Ocultar etapas",showSteps:"Mostrar etapas",pastDay:"Día pasado · solo lectura",pvStation:"Automático · estación cerca de la salida",pvNational:"Automático · mediana nacional",pvCountry:"Automático · estimación del país",pvManual:"Tu precio",pvRef:"Estimación de referencia · dato no actualizado",tfdSource:"Fuente",tfdPub:"publicación {p} del {d}",pvOffPrice:"Oficial · precio nacional · {m}",pvOffAvg:"Oficial · precio nacional semanal · semana del {d}",pvStationAt:"Oficial · estación a {d} km",pvOld:"⚠ Precio no actualizado desde hace {n} días (último dato el {date})",pvNone:"Ninguna estación de {fuel} a menos de {r} km",tripFuel:"Coste de los trayectos",tripPartial:"parcial",tripNA:"Precio no disponible",tripKnown:"conocidos",legFrom:"Salida",peTime:"Hora",peDur:"Duración prevista",peDay:"Día",peMore:"Más opciones",peRename:"Renombrar",peKind:"Cambiar el tipo",peSee:"Ver la ficha del lugar",peSave:"Guardar los cambios",peDel:"Eliminar la etapa",durUser:"Duración personalizada",durEst:"Estimación Magot Voyage",durFit:"Ajustada para caber en el día",durSaved:"Duración guardada",peHd:"Editar la etapa",tfdTitle:"Detalle del coste de los trayectos",tfdMore:"Detalle",tfdDrive:"{km} en coche",tfdWalk:"incl. {km} a pie, no contado",tfdMulti:"{n} fuentes de precio",tfdFuel:"Combustible",tfdConso:"Consumo",tfdPrice:"Precio usado",tfdTotal:"Total",srcCountry:"Estimación de referencia · {country} · dato no actualizado",srcCountryShort:"Estimación de referencia · dato no actualizado",srcStation:"Oficial · estación a {d} km",srcNational:"Mediana nacional",srcManual:"Tu precio",tfdNoteWorld:"«Estimación de referencia»: valor fijo de la tabla Magot, no actualizado; no es un precio oficial ni de estación.",editable:"modificable"},
     it:{actions:"Azioni",mode:"Modalità",now:"In corso",past:"Passata",done:"Fatta",knownCost:"Costo noto del giorno",fuelPartial:"carburante incompleto",
-        detailed:"Vista dettagliata",compact:"Vista compatta",addPause:"Aggiungi una pausa",addStep:"Tappa",catFidele:"Fidèle",catWeather:"Meteo",catCrowd:"Affluenza",catHours:"Orari",catRoute:"Tragitto",myPos:"La mia posizione",startHere:"Parti da qui",fsDay:"Giorno",fsTrip:"Viaggio",frameToStep:"Inquadra la tappa in corso",frameToDay:"Mostra tutta la giornata",hintStep:"Tappa in corso",hintDay:"Vista della giornata",hideSteps:"Nascondi tappe",showSteps:"Mostra tappe",pastDay:"Giorno passato · sola lettura",pvStation:"Automatico · stazione vicino alla partenza",pvNational:"Automatico · mediana nazionale",pvCountry:"Automatico · stima del paese",pvManual:"Il tuo prezzo",pvStationAt:"Automatico · stazione a {d} km",pvOld:"⚠ Prezzo non aggiornato da {n} giorni (ultimo rilievo il {date})",pvNone:"Nessuna stazione {fuel} entro {r} km",tripFuel:"Costo dei tragitti",tripPartial:"parziale",tripNA:"Prezzo non disponibile",tripKnown:"noti",legFrom:"Partenza",peTime:"Orario",peDur:"Durata prevista",peDay:"Giorno",peMore:"Altre opzioni",peRename:"Rinomina",peKind:"Cambia tipo",peSee:"Vedi la scheda del luogo",peSave:"Salva le modifiche",peDel:"Elimina la tappa",durUser:"Durata personalizzata",durEst:"Stima Magot Voyage",durFit:"Adattata alla giornata",durSaved:"Durata salvata",peHd:"Modifica la tappa",editable:"modificabile"},
+        detailed:"Vista dettagliata",compact:"Vista compatta",addPause:"Aggiungi una pausa",addStep:"Tappa",catFidele:"Fidèle",catWeather:"Meteo",catCrowd:"Affluenza",catHours:"Orari",catRoute:"Tragitto",myPos:"La mia posizione",startHere:"Parti da qui",fsDay:"Giorno",fsTrip:"Viaggio",frameToStep:"Inquadra la tappa in corso",frameToDay:"Mostra tutta la giornata",hintStep:"Tappa in corso",hintDay:"Vista della giornata",hideSteps:"Nascondi tappe",showSteps:"Mostra tappe",pastDay:"Giorno passato · sola lettura",pvStation:"Automatico · stazione vicino alla partenza",pvNational:"Automatico · mediana nazionale",pvCountry:"Automatico · stima del paese",pvManual:"Il tuo prezzo",pvRef:"Stima di riferimento · dato non aggiornato",tfdSource:"Fonte",tfdPub:"pubblicazione {p} del {d}",pvOffPrice:"Ufficiale · prezzo nazionale · {m}",pvOffAvg:"Ufficiale · prezzo nazionale settimanale · settimana del {d}",pvStationAt:"Ufficiale · stazione a {d} km",pvOld:"⚠ Prezzo non aggiornato da {n} giorni (ultimo rilievo il {date})",pvNone:"Nessuna stazione {fuel} entro {r} km",tripFuel:"Costo dei tragitti",tripPartial:"parziale",tripNA:"Prezzo non disponibile",tripKnown:"noti",legFrom:"Partenza",peTime:"Orario",peDur:"Durata prevista",peDay:"Giorno",peMore:"Altre opzioni",peRename:"Rinomina",peKind:"Cambia tipo",peSee:"Vedi la scheda del luogo",peSave:"Salva le modifiche",peDel:"Elimina la tappa",durUser:"Durata personalizzata",durEst:"Stima Magot Voyage",durFit:"Adattata alla giornata",durSaved:"Durata salvata",peHd:"Modifica la tappa",tfdTitle:"Dettaglio del costo dei tragitti",tfdMore:"Dettaglio",tfdDrive:"{km} in auto",tfdWalk:"di cui {km} a piedi, non contati",tfdMulti:"{n} fonti di prezzo",tfdFuel:"Carburante",tfdConso:"Consumo",tfdPrice:"Prezzo usato",tfdTotal:"Totale",srcCountry:"Stima di riferimento · {country} · dato non aggiornato",srcCountryShort:"Stima di riferimento · dato non aggiornato",srcStation:"Ufficiale · stazione a {d} km",srcNational:"Mediana nazionale",srcManual:"Il tuo prezzo",tfdNoteWorld:"«Stima di riferimento»: valore fisso della tabella Magot, non aggiornato; né un prezzo ufficiale né di stazione.",editable:"modificabile"},
     de:{actions:"Aktionen",mode:"Modus",now:"Läuft",past:"Vorbei",done:"Erledigt",knownCost:"Bekannte Tageskosten",fuelPartial:"Kraftstoff unvollständig",
-        detailed:"Detailansicht",compact:"Kompaktansicht",addPause:"Pause hinzufügen",addStep:"Etappe",catFidele:"Fidèle",catWeather:"Wetter",catCrowd:"Andrang",catHours:"Öffnungszeiten",catRoute:"Strecke",myPos:"Mein Standort",startHere:"Von hier starten",fsDay:"Tag",fsTrip:"Reise",frameToStep:"Aktuelle Etappe zeigen",frameToDay:"Ganzen Tag zeigen",hintStep:"Aktuelle Etappe",hintDay:"Tagesansicht",hideSteps:"Etappen ausblenden",showSteps:"Etappen anzeigen",pastDay:"Vergangener Tag · nur lesen",pvStation:"Automatisch · Tankstelle nahe dem Start",pvNational:"Automatisch · nationaler Median",pvCountry:"Automatisch · Länderschätzung",pvManual:"Dein Preis",pvStationAt:"Automatisch · Tankstelle in {d} km",pvOld:"⚠ Preis seit {n} Tagen nicht aktualisiert (letzte Meldung am {date})",pvNone:"Keine {fuel}-Tankstelle im Umkreis von {r} km",tripFuel:"Fahrtkosten",tripPartial:"teilweise",tripNA:"Preis nicht verfügbar",tripKnown:"bekannt",legFrom:"Start",peTime:"Uhrzeit",peDur:"Geplante Dauer",peDay:"Tag",peMore:"Weitere Optionen",peRename:"Umbenennen",peKind:"Typ ändern",peSee:"Ortsdetails ansehen",peSave:"Änderungen speichern",peDel:"Etappe löschen",durUser:"Eigene Dauer",durEst:"Schätzung Magot Voyage",durFit:"An den Tag angepasst",durSaved:"Gespeicherte Dauer",peHd:"Etappe bearbeiten",editable:"änderbar"}
+        detailed:"Detailansicht",compact:"Kompaktansicht",addPause:"Pause hinzufügen",addStep:"Etappe",catFidele:"Fidèle",catWeather:"Wetter",catCrowd:"Andrang",catHours:"Öffnungszeiten",catRoute:"Strecke",myPos:"Mein Standort",startHere:"Von hier starten",fsDay:"Tag",fsTrip:"Reise",frameToStep:"Aktuelle Etappe zeigen",frameToDay:"Ganzen Tag zeigen",hintStep:"Aktuelle Etappe",hintDay:"Tagesansicht",hideSteps:"Etappen ausblenden",showSteps:"Etappen anzeigen",pastDay:"Vergangener Tag · nur lesen",pvStation:"Automatisch · Tankstelle nahe dem Start",pvNational:"Automatisch · nationaler Median",pvCountry:"Automatisch · Länderschätzung",pvManual:"Dein Preis",pvRef:"Referenzschätzung · nicht aktualisiert",tfdSource:"Quelle",tfdPub:"{p}-Veröffentlichung vom {d}",pvOffPrice:"Offiziell · Landespreis · {m}",pvOffAvg:"Offiziell · wöchentlicher Landespreis · Woche vom {d}",pvStationAt:"Offiziell · Tankstelle in {d} km",pvOld:"⚠ Preis seit {n} Tagen nicht aktualisiert (letzte Meldung am {date})",pvNone:"Keine {fuel}-Tankstelle im Umkreis von {r} km",tripFuel:"Fahrtkosten",tripPartial:"teilweise",tripNA:"Preis nicht verfügbar",tripKnown:"bekannt",legFrom:"Start",peTime:"Uhrzeit",peDur:"Geplante Dauer",peDay:"Tag",peMore:"Weitere Optionen",peRename:"Umbenennen",peKind:"Typ ändern",peSee:"Ortsdetails ansehen",peSave:"Änderungen speichern",peDel:"Etappe löschen",durUser:"Eigene Dauer",durEst:"Schätzung Magot Voyage",durFit:"An den Tag angepasst",durSaved:"Gespeicherte Dauer",peHd:"Etappe bearbeiten",tfdTitle:"Aufschlüsselung der Fahrtkosten",tfdMore:"Details",tfdDrive:"{km} mit dem Auto",tfdWalk:"davon {km} zu Fuß, nicht gezählt",tfdMulti:"{n} Preisquellen",tfdFuel:"Kraftstoff",tfdConso:"Verbrauch",tfdPrice:"Verwendeter Preis",tfdTotal:"Gesamt",srcCountry:"Referenzschätzung · {country} · nicht aktualisiert",srcCountryShort:"Referenzschätzung · nicht aktualisiert",srcStation:"Offiziell · Tankstelle in {d} km",srcNational:"Nationaler Median",srcManual:"Dein Preis",tfdNoteWorld:"„Referenzschätzung“: fester Wert der Magot-Tabelle, nicht aktualisiert – weder offizieller Preis noch Tankstellenpreis.",editable:"änderbar"}
   };
   return ((L[lang()]||L.fr)[k])||L.fr[k]||"";
 }
@@ -11365,7 +11451,7 @@ function renderPlan(){
   try{ if(!_storeHydrating && _ensureLegIds(currentTrip())>0) saveState(); }catch(_e){}   /* #4 : migration persistée par un seul saveState — jamais pendant l'hydratation (garde _ensureLegIds ET saveState) */
   const body=document.getElementById("planBody"); if(!body) return; const tr=currentTrip(); document.body.classList.remove("map-locked");
   syncPlanActions(tr);
-  { const _hero=document.getElementById("planHero"); if(_hero) _hero.setAttribute("style", coverStyle(tr)); }   /* correction reconstruction V3 (section B) : reutilise coverStyle(tr) existant, aucun nouvel appel Google */
+  { const _hero=document.getElementById("planHero"); if(_hero) _hero.setAttribute("style", tr?coverStyle(tr):""); }   /* correction reconstruction V3 (section B) : reutilise coverStyle(tr) existant, aucun nouvel appel Google -- F2-A0 : aucun voyage actif (tous termines) -> plus de plantage avant l'ecran vide prevu plus bas */
   try{ if(!_storeHydrating && typeof magotScanAllNotifs==="function"){ magotScanAllNotifs(); updateBellBadge(); } }catch(e){}   /* B3.1-b : rescan de tous les voyages au rendu du Planning */
   if(!tr){ { const _pd0=document.getElementById("planDays"); if(_pd0) _pd0.innerHTML=""; } body.innerHTML=`<div class="empty" style="padding:34px 18px"><span class="medallion"><svg viewBox="0 0 24 24"><rect x="5" y="7.5" width="14" height="12.5" rx="2.4"/><path d="M9 7.5V5.5A1.5 1.5 0 0 1 10.5 4h3A1.5 1.5 0 0 1 15 5.5v2M5 12.5h14"/></svg></span><p>${t("plan.noTrip")}</p><button class="btn gold" id="planCreate" style="margin-top:14px">${t("home.create")}</button></div>`; const c=body.querySelector("#planCreate"); if(c) c.onclick=()=>openCreate(); return; }
   const days=tripDays(tr); if(!_planInited){ _planInited=true; planState.dayIndex=planTodayIndex(days); } if(planState.dayIndex>=days.length) planState.dayIndex=0; const d=days[planState.dayIndex]; const ro=isPlanDayReadOnly(tr, planState.dayIndex);
@@ -14107,6 +14193,7 @@ function renderDayMapOnline(el,stops,tr,day,gen){
           const simpleTopology=presentationDoneEnabled(presentationRef);
           if(simpleTopology){
             injectPresentationLegs(presentationRef, base.mode, tr);
+            _mvpTripFuelFromPresentation(presentationRef, base.mode, tr);   /* V4.8h : meme total (prouve egal en V4.8f) + detail et origine du prix */
             /* F1 Planning final :
                ensureFuelPriceFresh() est deja lance plus haut dans renderDayRoute() ; on s'accroche a SA promesse en vol (meme inflight).
                Sans requete F1 en vol (rien a rafraichir, prix manuel, electrique, hors France, deja resolue...) : AUCUN repeint inutile --
@@ -14129,6 +14216,7 @@ function renderDayMapOnline(el,stops,tr,day,gen){
                     base.mode,
                     tr
                   );
+                  _mvpTripFuelFromPresentation(presentationRef, base.mode, tr);   /* V4.8h */
                 }).catch(()=>{});
               }
             }catch(_e){}
@@ -17986,16 +18074,53 @@ function _legFuelCtx(presentation,tr){
   const cur=(tr&&tr.currency)||"EUR";
   const _pcA=fuelPriceCur(tr,dstA.cc,veh.fuel,dstA.lat,dstA.lng,veh,cur), _pcB=fuelPriceCur(tr,dstB.cc,veh.fuel,dstB.lat,dstB.lng,veh,cur);   /* V4.8e : devise de chaque prix */
   const _kA=_fuelFx(_pcA,cur), _kB=_fuelFx(_pcB,cur);
-  return {veh,fd,conso,day,priceA,priceB,provA,provB,cur,_pcA,_pcB,_kA,_kB};
+  return {veh,fd,conso,day,dstA,dstB,priceA,priceB,provA,provB,cur,_pcA,_pcB,_kA,_kB};
 }
 /* V4.8f : "Cout des trajets" calcule depuis les TRAJETS de la journee (DayRoutePresentation), pas depuis les lignes affichees.
    Une journee a trajets mixtes (voiture garee + marche, segment non routable) n'affiche pas de liaisons (regle presentationDoneEnabled,
    inchangee) : le total doit pourtant etre connu. Meme selection de trajets et meme formule que les liaisons : seule la distance
    reellement parcourue EN VOITURE (parts drivable) consomme du carburant. Jamais un faux total complet. */
+function _tripFuelSrc(prov,dst,price,pc,veh){   /* V4.8h : origine HONNETE du prix utilise (libelle + prix au litre dans sa devise) */
+  const loc=LOCALE[lang()]||"fr-FR", unit=(veh&&veh.fuel)==="elec"?"kWh":"L";
+  const pTxt=price.toLocaleString(loc,{minimumFractionDigits:2,maximumFractionDigits:3})+" "+curSym(pc)+"/"+unit;
+  let label;
+  if(prov&&prov.manual) label=_mvpTxt("srcManual");
+  else if(prov&&prov.scope==="STATION"){ let d=NaN; try{ d=haversineKm({lat:+dst.lat,lng:+dst.lng},{lat:+prov.latitude,lng:+prov.longitude}); }catch(_e){}
+    label=Number.isFinite(d)?_mvpTxt("srcStation").replace("{d}",(d<10?d.toFixed(1):String(Math.round(d))).replace(".",loc.startsWith("en")?".":",")):t("plan.legPriceStation"); const o=_fuelOldNote(prov); if(o) label+=" · "+o; }
+  else if(prov&&(prov.priceKind==="OFFICIAL_MONTHLY_PRICE"||prov.priceKind==="OFFICIAL_WEEKLY_CONSUMER_PRICE")) label=_fuelOfficialLabel(prov);   /* F2-A0 */
+  else if(prov&&prov.scope==="NATIONAL") label=_mvpTxt("srcNational");
+  else label=_mvpTxt("srcCountry").replace("{country}",(dst&&(dst.country||dst.cc))||"?");
+  let detail="";   /* F2-A2 : publication officielle datee (ex. "UAE Fuel Price Committee · publication WAM du 30 sept. 2026") */
+  if(prov&&prov.publisher&&prov.source&&/^\d{4}-\d{2}-\d{2}/.test(String(prov.observedAt||""))){ const sm=/\(([^)]+)\)/.exec(prov.publisher), o=String(prov.observedAt).slice(0,10).split("-").map(Number);
+    detail=prov.source+" · "+_mvpTxt("tfdPub").replace("{p}",sm?sm[1]:prov.publisher).replace("{d}",new Date(Date.UTC(o[0],o[1]-1,o[2])).toLocaleDateString(loc,{day:"numeric",month:"short",year:"numeric",timeZone:"UTC"})); }
+  const kind=(prov&&prov.manual)?"manual":(prov&&prov.scope==="STATION"?"station":(prov&&(prov.priceKind==="OFFICIAL_MONTHLY_PRICE"||prov.priceKind==="OFFICIAL_WEEKLY_CONSUMER_PRICE")?"official":(prov&&prov.scope==="NATIONAL"?"national":"reference")));
+  return { key:kind+"|"+label+"|"+pTxt, kind, label, pTxt, line:label+" · "+pTxt, detail };
+}
+function showTripFuelDetail(){   /* V4.8h : detail trajet par trajet du "Cout des trajets" (aucun recalcul : donnees du dernier calcul affiche) */
+  const D=window._mvpTripFuelDetail; if(!D||!D.rows||!D.rows.length) return;
+  const loc=LOCALE[lang()]||"fr-FR", unit=D.fuel==="elec"?"kWh":"L";
+  const km=m=>fmtDist(m), L1=x=>x.toLocaleString(loc,{minimumFractionDigits:1,maximumFractionDigits:1})+" "+unit;
+  const rowsH=D.rows.map(r=>{
+    const head=(r.origin?(_mvpTxt("legFrom")+" · "):"")+(r.from||"\u2014")+" \u2192 "+(r.to||"\u2014");
+    let det=_mvpTxt("tfdDrive").replace("{km}",km(r.driveM));
+    if(r.cost!=null){ const local=r.litres*r.price; det+=" · "+L1(r.litres)+" × "+r.src.pTxt+" = "+money(local,r.pc)+(String(r.pc).toUpperCase()!==String(D.cur).toUpperCase()?" ≈ "+money(r.cost,D.cur):""); }
+    else det+=" · "+_mvpTxt("tripNA");
+    const walk=r.walkM>=50?`<div class="tfd-walk">${escapeHtml(_mvpTxt("tfdWalk").replace("{km}",km(r.walkM)))}</div>`:"";
+    return `<div class="tfd-row"><div class="tfd-head">${escapeHtml(head)}</div><div class="tfd-det">${escapeHtml(det)}</div>${walk}</div>`; }).join("");
+  const fd=fuelDefault(D.fuel);
+  const meta=`<div class="lr"><b>${escapeHtml(_mvpTxt("tfdFuel"))}</b><span>${escapeHtml(_fuelLabel(D.fuel))}</span></div>`
+    +`<div class="lr"><b>${escapeHtml(_mvpTxt("tfdConso"))}</b><span>${escapeHtml((+D.conso).toLocaleString(loc,{maximumFractionDigits:1})+" "+unit+"/100 km")}</span></div>`
+    +D.srcs.map(x=>`<div class="lr"><b>${escapeHtml(_mvpTxt("tfdPrice"))}</b><span>${escapeHtml(x.line)}</span></div>`+(x.detail?`<div class="lr"><b>${escapeHtml(_mvpTxt("tfdSource"))}</b><span>${escapeHtml(x.detail)}</span></div>`:"")).join("");
+  const totTxt=D.missing&&D.known?(_mvpTxt("tripPartial")+" · "+money(D.sum,D.cur)+" "+_mvpTxt("tripKnown")):(D.known?money(D.sum,D.cur):_mvpTxt("tripNA"));
+  const note=D.srcs.some(x=>x.kind==="reference")?`<div class="tfd-note">${escapeHtml(_mvpTxt("tfdNoteWorld"))}</div>`:"";
+  const ov=document.createElement("div"); ov.className="confirm-ov show tfd-ov";
+  ov.innerHTML=`<div class="confirm-card"><div class="cf-msg">⛽ ${escapeHtml(_mvpTxt("tfdTitle"))}</div><div class="leg-dl">${rowsH}${meta}<div class="lr tot"><b>${escapeHtml(_mvpTxt("tfdTotal"))}</b><span>${escapeHtml(totTxt)}</span></div></div>${note}<div class="cf-actions"><button class="cf-cancel" id="tfdX">OK</button></div></div>`;
+  document.body.appendChild(ov); const close=()=>ov.remove(); ov.querySelector("#tfdX").onclick=close; ov.onclick=e=>{ if(e.target===ov) close(); };
+}
 function _mvpTripFuelFromPresentation(presentation,mode,tr){ try{
   const el=document.querySelector(".rc-tripfuel"); if(!el||!presentation||!tr) return; const note=document.querySelector(".rc-trip-note");
   if(!(mode==="DRIVE"&&usesCar(tr))) return;
-  const c=_legFuelCtx(presentation,tr); let crossed=false, sum=0, known=0, missing=0;
+  const c=_legFuelCtx(presentation,tr); let crossed=false, sum=0, known=0, missing=0; const rows=[], srcs=new Map();
   (presentation.moves||[]).forEach(move=>{
     if(!move) return;
     if(move.role==="transfer"){ crossed=true; return; }
@@ -18003,8 +18128,18 @@ function _mvpTripFuelFromPresentation(presentation,mode,tr){ try{
     if(!isOrigin&&!eligibleForInjectedLeg(move,tr)) return;   /* meme selection que les liaisons */
     const agg=aggregateMoveForRow(move); if(!agg) return; const dm=Number(agg.driveDist)||0; if(!(dm>0)) return;
     const price=crossed?c.priceB:c.priceA, k=crossed?c._kB:c._kA;
-    if(c.conso>0&&price>0&&k!=null){ sum+=(dm/1000)*c.conso/100*price*k; known++; } else missing++;
+    const ok=c.conso>0&&price>0&&k!=null; const cost=ok?(dm/1000)*c.conso/100*price*k:null;
+    if(ok){ sum+=cost; known++; } else missing++;
+    const prov=crossed?c.provB:c.provA, dst=crossed?c.dstB:c.dstA, pc=crossed?c._pcB:c._pcA;   /* V4.8h : tracabilite -- memes valeurs que le calcul */
+    const src=ok?_tripFuelSrc(prov,dst,price,pc,c.veh):null; if(src) srcs.set(src.key,src);
+    rows.push({ from:move.fromLabel||"", to:move.toLabel||"", origin:isOrigin, driveM:dm, walkM:Math.max(0,(Number(agg.dist)||0)-dm), litres:(dm/1000)*c.conso/100, price:ok?price:null, pc, cost, src });
   });
+  window._mvpTripFuelDetail={ rows, cur:c.cur, conso:c.conso, fuel:c.veh.fuel, sum, known, missing, srcs:[...srcs.values()] };
+  { const blk=el.closest(".ds-tripfuel"); let sl=blk&&blk.querySelector(".rc-trip-src");
+    if(blk&&!sl){ sl=document.createElement("span"); sl.className="rc-trip-src"; blk.appendChild(sl); }
+    const S1=[...srcs.values()];
+    if(sl){ sl.dataset.kind=S1.length===1?S1[0].kind:(S1.length>1?"mixed":""); sl.textContent=S1.length===1?(S1[0].line+" · "+_mvpTxt("tfdMore")+" \u203a"):(S1.length>1?(_mvpTxt("tfdMulti").replace("{n}",S1.length)+" · "+_mvpTxt("tfdMore")+" \u203a"):""); }
+    if(blk&&rows.length){ blk.classList.add("is-tappable"); blk.setAttribute("role","button"); blk.tabIndex=0; blk.onclick=showTripFuelDetail; blk.onkeydown=e=>{ if(e.key==="Enter"||e.key===" "){ e.preventDefault(); showTripFuelDetail(); } }; } }
   if(!known&&!missing){ el.textContent="\u2014"; el.dataset.state="none"; if(note) note.textContent=""; }
   else if(!missing){ el.textContent=money(sum,c.cur); el.dataset.state="complete"; if(note) note.textContent=""; }
   else if(!known){ el.textContent=_mvpTxt("tripNA"); el.dataset.state="na"; if(note) note.textContent=""; }
@@ -18517,8 +18652,9 @@ function showLegDetail(next,leg,mode,conso,price,cur,fuel,fuelMeters,prov,priceC
     if(prov.manual) return t("plan.legPriceManual");
     if(prov.scope==="STATION"&&prov.priceKind==="DECLARED_PRICE"){ const _o=_fuelOldNote(prov); return t("plan.legPriceStation")+(_o?" · "+_o:""); }   /* V4.8d : age signale */
     if(prov.scope==="NATIONAL"&&prov.priceKind==="OBSERVED_MEDIAN") return t("plan.legPriceNational");
+    if(prov.priceKind==="OFFICIAL_MONTHLY_PRICE"||prov.priceKind==="OFFICIAL_WEEKLY_CONSUMER_PRICE") return _fuelOfficialLabel(prov);   /* F2-A0 */
     return "";
-  })();
+  })()||((mode==="DRIVE"&&price>0)?_mvpTxt("srcCountryShort"):"");   /* V4.8h : prix de la table pays -> le dire (la ligne Source etait vide) */
   const rows=[
     [t("plan.legDist"),fmtDist(leg.dist)],
     [t("plan.duration"),fmtDur(leg.dur)]
