@@ -6615,34 +6615,83 @@ function _dayFuelCost(tr, meters, day){ if(!tr || !usesCar(tr) || travelMode(tr)
   const _k=_fuelFx(fuelPriceCur(tr,_dfd.cc,veh.fuel,_dfd.lat,_dfd.lng,veh,tr.currency),tr.currency); if(_k==null) return null;   /* V4.8e */
   return (meters/1000)*conso/100*price*_k; }
 function _dayMealCost(tr, day){ return (((tr&&tr.plan)||[]).filter(x=>x&&x.day===day&&x.kind==="meal")).reduce((a,it)=>a+(_mealCost(it,tr)||0),0); }
-async function _paintDayCosts(tr, day, tk, tid){   /* coûts dépendant du trajet -> peints par la route PLANIFIÉE validée (jamais un cache périmé, jamais le live) */
+/* ===== PLANNING-ROUTE1 P4 — projection financiere de la presentation composee =======================================
+   PURE : lit la presentation DEJA resolue, ne declenche aucune resolution, ne lit ni _routeSnap ni _budgetDayRoute.
+   Produit la forme attendue par _dayFuelBreakdown (INCHANGEE) : pts + legs, avec la bijection stricte
+   legs.length === pts.length-1 et legs[k] = deplacement pts[k] -> pts[k+1].
+   Chaque part porte ses propres fromPoint/toPoint : aucune extremite intermediaire n'est fabriquee. Si une extremite
+   manque, la projection echoue (null) et le cout devient "—" -- jamais 0 EUR, jamais l'ancien snapshot Budget.
+   Typage TERMINAL : pour un move role="transfer", seul le point d'arrivee de la DERNIERE part recoit type "transfer"
+   (et toItemId) -- la bascule de prix A->B intervient a l'achevement de la transition metier, pas au debut d'une
+   route multi-part. APPROACH/RETURN ne fabriquent JAMAIS de transfer : aucun pays traverse n'est infere (F2-D). */
+function _planCostProjection(presentation){
+  if(!presentation || !Array.isArray(presentation.moves)) return null;
+  const pts=[], legs=[];
+  const moves=presentation.moves.filter(m=>m && !m.notNeeded && Array.isArray(m.parts) && m.parts.length);
+  if(!moves.length) return null;
+  const p0=_rcPoint(moves[0].parts[0] && moves[0].parts[0].fromPoint) || _rcPoint(moves[0].fromPoint);
+  if(!p0) return null;   /* extremite de depart absente -> projection impossible, aucune invention */
+  pts.push({lat:p0.lat, lng:p0.lng, type:"origin", itemId:null});
+  let courant=p0;   /* point courant : la bijection doit etre GEOMETRIQUE, pas seulement numerique */
+  for(const m of moves){
+    const parts=m.parts;
+    for(let i=0;i<parts.length;i++){ const pa=parts[i];
+      const from=_rcPoint(pa && pa.fromPoint);
+      /* chaque part doit REELLEMENT partir du point courant (tolerance canonique _b1eSamePoint). Sinon la suite
+         pts/legs serait numeriquement coherente mais geographiquement fausse : rupture signalee, aucun raccord. */
+      if(!from || !_b1eSamePoint(from, courant)) return null;
+      const to=_rcPoint(pa && pa.toPoint);
+      if(!to) return null;   /* extremite de part absente -> bijection non demontrable */
+      if(!Number.isFinite(pa.distanceMeters) || !Number.isFinite(pa.durationSeconds)) return null;
+      const terminal=(i===parts.length-1);
+      pts.push({ lat:to.lat, lng:to.lng,
+        type:(terminal && m.role==="transfer") ? "transfer" : "stop",   /* TERMINAL ONLY */
+        itemId:terminal ? (m.toItemId||null) : null });                 /* idem pour l'identite metier */
+      legs.push({ distanceMeters:pa.distanceMeters, durationSeconds:pa.durationSeconds });
+      courant=to; } }
+  if(pts.length<2 || legs.length!==(pts.length-1)) return null;   /* invariant §3.2 : sinon "—" */
+  return {pts, legs}; }
+async function _paintDayCosts(tr, day, tk, tid, presentation){   /* P4 : couts peints depuis LA MEME presentation composee que distance/duree -- planifiee ou live, selon celle que renderDayRoute() a resolue */
   const setF=(x)=>document.querySelectorAll(".rc-fuel").forEach(e=>e.textContent=x);
   const setD=(x)=>document.querySelectorAll(".rc-daycost").forEach(e=>e.textContent=x);
   const setS=(x)=>document.querySelectorAll(".rc-simplecost").forEach(e=>e.textContent=x);
   const mealC=_dayMealCost(tr, day); const isDrive=usesCar(tr)&&travelMode(tr)==="DRIVE";
-  let hasRoute=false; try{ hasRoute=buildDayRoutePoints(tr,day,{}).length>=2; }catch(_e){}
-  if(!isDrive || !hasRoute){ setF(isDrive?"\u2014":""); const m=(mealC>0)?money(mealC,tr.currency):""; setD(m); setS(m); return; }   /* pas de route -> pas de carburant, total = repas (immédiat) */
+  /* P4 : la decision financiere ne depend QUE de la presentation composee. L'ancien buildDayRoutePoints() -- que P3
+     a cesse d'utiliser comme verite de la banniere -- n'arbitre plus rien ici : il ne doit ni autoriser ni interdire
+     le calcul. Le seul equivalent de "pas de route" est desormais une projection financiere impossible. */
+  if(!isDrive){ setF(""); const m=(mealC>0)?money(mealC,tr.currency):""; setD(m); setS(m); return; }   /* pas de voiture -> pas de carburant, total = repas */
   setF("\u2026"); setD("\u2026"); setS("\u2026");
-  /* v958-A : LECTEUR PUR. Aucun ensureBudgetEstimate/budgetRouteSegment/appel reseau ici. On lit uniquement le snapshot deja fige par le moteur Budget ; absent -> etat neutre. */
+  /* P4 : LECTEUR PUR -- la presentation composee est deja resolue par renderDayRoute() et passee en parametre.
+     Aucune resolution, aucun reseau, et plus aucune lecture de _routeSnap / _budgetDayRoute pour le cout Planning
+     (le Budget conserve les siens, intacts, pour sa propre comptabilite). */
   if(tk!==_routeUIToken) return; const cur=currentTrip(); if(!cur||cur.id!==tid||planState.dayIndex!==day) return;
-  const _bref=(tr._budgetDayRoute||{})[day]; const _bsnap=(_bref&&_bref.sig&&tr._routeSnap)?tr._routeSnap[_bref.sig]:null;
-  const _bMeters=(_bsnap && _bsnap.policyVersion===ROUTE_POLICY_VERSION && Number.isFinite(_bsnap.distanceMeters) && _bsnap.distanceMeters>0)?_bsnap.distanceMeters:null;
+  const _proj=_planCostProjection(presentation);
+  /* SPEC P4 §4 amende : `complete` porte une semantique plus large que la validite geometrique (enrichissement,
+     qualite de route) et n'est PLUS un verrou financier. Deux barrieres dures subsistent : une rupture geographique
+     (hasGap) et une bijection invalide. Au-dela, c'est _dayFuelBreakdown + FUEL-R1 qui decident si ces kilometres
+     sont valorisables : prix disponibles -> cout, partiels -> etat partiel, absents -> etat indisponible. */
+  const _bMeters=(_proj && presentation && presentation.hasGap!==true)?1:null;
   let fuel=null, fuelPartial=false, fuelNA=false;   /* FUEL-R1 : un cout partiel n'est jamais presente comme complet */
-  if(_bMeters!=null && usesCar(tr) && travelMode(tr)==="DRIVE"){   /* correctif audit v1039 : meme attribution segmentaire A/transfert/B que _perDayFuelCost() -- jamais un prix unique pour toute la journee de transfert */
+  if(_bMeters!=null && usesCar(tr) && travelMode(tr)==="DRIVE"){   /* attribution segmentaire A/transfert/B inchangee (_dayFuelBreakdown non modifiee) */
     const veh=tr.veh||{}, fd=fuelDefault(veh.fuel), conso=parseFloat(String(veh.conso||"").replace(",","."))||fd.conso;
-    const _pts=(typeof buildBudgetDayRoutePoints==="function")?buildBudgetDayRoutePoints(tr,day):null;
-    if(_pts && Array.isArray(_bsnap.legs) && _bsnap.legs.length===(_pts.length-1)){
-      const bd=_dayFuelBreakdown(tr, day, _pts, _bsnap.legs, conso, veh, fd);
-      if(bd.priceUnavailable){ if(bd.totalCost>0){ fuel=bd.totalCost; fuelPartial=true; } else fuelNA=true; }
-      else fuel=(bd.totalCost>0)?bd.totalCost:null;
-    } else { fuel=_dayFuelCost(tr, _bMeters, day); if(fuel==null) fuelNA=true; }   /* repli defensif : structure inattendue -> ancien calcul scalaire, jamais un plantage */
+    const bd=_dayFuelBreakdown(tr, day, _proj.pts, _proj.legs, conso, veh, fd);   /* MEME fonction, memes entrees pts+legs : seule la source geometrique change */
+    if(bd.priceUnavailable){ if(bd.totalCost>0){ fuel=bd.totalCost; fuelPartial=true; } else fuelNA=true; }
+    else fuel=(bd.totalCost>0)?bd.totalCost:null;
   }
   if(fuelNA){ setF(_mvpTxt("tripNA")); const mm=(mealC>0)?(_mvpTxt("tripPartial")+" \u00b7 "+money(mealC,tr.currency)+" "+_mvpTxt("tripKnown")):_mvpTxt("tripNA"); setD(mm); setS(mm);
     document.querySelectorAll(".rc-daycost,.rc-fuel").forEach(e=>{ e.dataset.state=(mealC>0)?"partial":"na"; }); _mvpPaintKnownDayCost(); return; }   /* FUEL-R1 : carburant sans prix -> indisponible, jamais 0 EUR */
   if(fuelPartial){ const pf=_mvpTxt("tripPartial")+" \u00b7 "+money(fuel,tr.currency)+" "+_mvpTxt("tripKnown"); setF(pf); const pm=_mvpTxt("tripPartial")+" \u00b7 "+money(fuel+mealC,tr.currency)+" "+_mvpTxt("tripKnown"); setD(pm); setS(pm);
     document.querySelectorAll(".rc-daycost,.rc-fuel").forEach(e=>{ e.dataset.state="partial"; }); _mvpPaintKnownDayCost(); return; }   /* FUEL-R1 : certains trajets sans prix -> partiel explicite */
-  if(fuel==null){ setF("\u2014"); setD("\u2014"); setS("\u2014"); _mvpPaintKnownDayCost(); return; }   /* V4.4 : pas de snapshot Budget -> cout CONNU des trajets deja calcules (explicitement partiel), jamais un faux total */   /* route attendue mais échec -> jamais l\u2019ancien coût comme actuel */
-  setF(money(fuel,tr.currency)); const tot=fuel+mealC; const m=money(tot,tr.currency); setD(m); setS(m); document.querySelectorAll(".rc-daycost").forEach(e=>{ e.dataset.src="budget"; }); document.querySelectorAll(".rc-daycost-lbl").forEach(e=>{ e.textContent=t("plan.dayCost"); }); }   /* V4.4 : Budget = source de verite quand son snapshot existe */
+  if(fuel==null){ setF("\u2014"); setD("\u2014"); setS("\u2014"); _mvpPaintKnownDayCost(); return; }   /* P4 : projection impossible ou rupture geographique -> cout indisponible, jamais un faux total */   /* route attendue mais échec -> jamais l\u2019ancien coût comme actuel */
+  setF(money(fuel,tr.currency)); const tot=fuel+mealC; const m=money(tot,tr.currency); setD(m); setS(m); document.querySelectorAll(".rc-daycost").forEach(e=>{ e.dataset.src="presentation"; });   /* P4 : la source du cout est la presentation composee, plus le Budget */ document.querySelectorAll(".rc-daycost-lbl").forEach(e=>{ e.textContent=t("plan.dayCost"); }); }   /* V4.4 : Budget = source de verite quand son snapshot existe */
+function _paintDayCostsPending(tr, day, tk, tid){   /* P4, temps 1 : etat d'attente explicite -- aucune valeur heritee n'est laissee a l'ecran */
+  if(tk!==_routeUIToken) return; const cur=currentTrip(); if(!cur||cur.id!==tid||planState.dayIndex!==day) return;
+  const isDrive=usesCar(tr)&&travelMode(tr)==="DRIVE"; const mealC=_dayMealCost(tr, day);
+  if(!isDrive){ document.querySelectorAll(".rc-fuel").forEach(e=>e.textContent="");
+    const m=(mealC>0)?money(mealC,tr.currency):""; document.querySelectorAll(".rc-daycost").forEach(e=>e.textContent=m);
+    document.querySelectorAll(".rc-simplecost").forEach(e=>e.textContent=m); return; }
+  document.querySelectorAll(".rc-fuel,.rc-daycost,.rc-simplecost").forEach(e=>{ e.textContent="\u2026"; });
+  document.querySelectorAll(".rc-daycost,.rc-fuel").forEach(e=>{ try{ delete e.dataset.state; }catch(_e){} }); }
 /* FUEL-R1 : table statique FUEL_BY_CC supprimee -- aucun prix carburant/energie non source, dans aucun pays. */
 /* FUEL-R1 : fuelPrice() (table statique) supprimee. */
 /* ============================================================
@@ -10700,7 +10749,8 @@ function routeSignature(request){ request=request||{}; const mode=request.mode||
 
 /* ===== v958-A : cascade Apple->Google + snapshot Budget deterministe ===== */
 const ROUTE_POLICY_VERSION="route-v958";
-const UI_ROUTE_POLICY="route-ui-v1";   /* v958-B1 : version de politique Route UI (Apple->Google) ; bump = invalidation propre du cache tr._routeCore */
+const UI_ROUTE_POLICY="route-ui-v2";   /* PLANNING-ROUTE1 P1 : segmentType entre dans la signature -> bump = invalidation propre et deterministe du cache tr._routeCore (aucune migration, aucune reinterpretation d'ancienne entree) */
+const ROUTE_SEGMENT_LOCAL="LOCAL", ROUTE_SEGMENT_APPROACH="APPROACH", ROUTE_SEGMENT_RETURN="RETURN";   /* types canoniques ; LOCAL = comportement historique */
 
 /* signature PROVIDER-AGNOSTIQUE : un segment est defini par sa geometrie, jamais par le provider (le provider est le RESULTAT). */
 function budgetRouteSignature(request){ request=request||{}; const mode=request.mode||"DRIVE";
@@ -10712,7 +10762,8 @@ function budgetRouteSignature(request){ request=request||{}; const mode=request.
 function uiRouteSignature(request){ request=request||{}; const mode=request.mode||"DRIVE";
   const pts=(request.points||[]).map(_rcPoint).filter(Boolean).map(p=>p.lat.toFixed(5)+","+p.lng.toFixed(5)).join(">");
   const _dep=normalizeRouteDepartureTime(request.departureTime); const depKey=(mode==="TRANSIT"&&_dep)?_dep:"";
-  return [UI_ROUTE_POLICY, mode, pts, request.avoidTolls?"1":"0", depKey].join("|"); }
+  const segType=request.segmentType||ROUTE_SEGMENT_LOCAL;   /* PLANNING-ROUTE1 P1 : l'identite du cache est EXPLICITE, elle ne depend plus du seul fait que les coordonnees different */
+  return [UI_ROUTE_POLICY, segType, mode, pts, request.avoidTolls?"1":"0", depKey].join("|"); }
 
 /* cascade voulue et explicite : validation LOCALE d'abord, puis Apple -> Google. */
 async function routeCascade(request){ request=request||{}; const mode=request.mode||"DRIVE";
@@ -10876,6 +10927,82 @@ async function resolveDayRoute(tr, day, options){
   try{ return await run; } finally { try{ delete _routeCoreInflight[key]; }catch(_e){} }
 }
 
+/* ===== PLANNING-ROUTE1 P1 — segments canoniques nommes (APPROACH / RETURN) =========================================
+   Primitive SOEUR de resolveDayRoute(), avec les MEMES garanties : signature versionnee, cache tr._routeCore,
+   anti-rafale (inflight), anti-perime (storeId/epoch + derniere signature), persistance et donnees completes.
+   Differences volontaires :
+   - la cle du magasin est NOMMEE ("APPROACH" / "RETURN"), jamais un index de jour : une entree LOCAL ne peut pas
+     etre ecrasee, et la suppression <2 points ne vise QUE la cle du segment concerne ;
+   - les points sont fournis par l'appelant, deja ordonnes : APPROACH et RETURN sont deux routes INDEPENDANTES,
+     jamais reverse(APPROACH).
+   P1 n'ajoute AUCUN lecteur d'interface : rien n'est affiche, rien n'est recalcule ailleurs. */
+function routeSegmentAnchors(tr){   /* ancres canoniques du voyage ; STRICT : null des qu'une ancre manque (jamais d'ancre inventee) */
+  const R={ depart:null, firstBase:null, lastBase:null, lastPoint:null };
+  if(!tr) return R;
+  R.depart=_rcPoint(tr.depart)||null;
+  const legs=(typeof tripLegs==="function")?tripLegs(tr):[];
+  const fl=legs[0]||null, ll=legs.length?legs[legs.length-1]:null;
+  R.firstBase=fl?routeLegAnchor(fl):(_rcPoint(tr.lodging)||_rcPoint(tr.dest)||null);
+  R.lastBase=ll?routeLegAnchor(ll):(_rcPoint(tr.lodging)||_rcPoint(tr.dest)||null);
+  /* dernier point canonique du DERNIER jour : derniere visite geolocalisee, sinon la derniere base (SPEC 2.1) */
+  const days=(typeof tripDays==="function")?tripDays(tr):[];
+  if(days.length){ const last=days.length-1; const items=(typeof dayRouteItemsSnapshot==="function")?dayRouteItemsSnapshot(tr,last):[];
+    for(let i=(items||[]).length-1;i>=0;i--){ const it=items[i]; if(it&&it._trans) continue; const p=_rcPoint(it); if(p){ R.lastPoint={lat:p.lat,lng:p.lng}; break; } } }
+  if(!R.lastPoint) R.lastPoint=R.lastBase;
+  return R; }
+function routeSegmentPoints(tr, segmentType){   /* points ORDONNES d'un segment nomme, ou null si une ancre manque */
+  const a=routeSegmentAnchors(tr);
+  if(!routeUsesTripDeparture(tr)) return null;   /* avion/bateau : hors perimetre (transferts hub inchanges) */
+  if(segmentType===ROUTE_SEGMENT_APPROACH) return (a.depart&&a.firstBase)?[a.depart,a.firstBase]:null;
+  if(segmentType===ROUTE_SEGMENT_RETURN){ const ret=_rcPoint(tr&&tr.returnDestination)||a.depart;   /* returnDestination explicite || tr.depart (architecture extensible, aucune UI en P1) */
+    return (a.lastPoint&&ret)?[a.lastPoint,ret]:null; }
+  return null; }
+const _routeSegInflight={};   /* anti-rafale, hors objet voyage (jamais persiste) */
+const _routeSegLatest={};     /* derniere signature demandee par tripId|segmentType */
+async function resolveRouteSegment(tr, segmentType, options){
+  options=options||{};
+  const emptyMeta=(cacheable,fromCache,stale)=>({tripId:(tr&&tr.id)||null, segmentType, cacheable:!!cacheable, fromCache:!!fromCache, stale:!!stale});
+  if(!tr || (segmentType!==ROUTE_SEGMENT_APPROACH && segmentType!==ROUTE_SEGMENT_RETURN)) return { request:null, result:null, meta:emptyMeta(false,false,false) };
+  const store=routeCoreFor(tr);
+  const capturedStoreId=_storeId, capturedStoreEpoch=_storeEpoch;   /* capture AVANT tout await */
+  const latestKey=capturedStoreId+"|"+capturedStoreEpoch+"|"+(tr.id||"?")+"|"+segmentType;
+  const points=(options.points&&options.points.length)?options.points:routeSegmentPoints(tr, segmentType);
+  const mode=_routeCoreMode(tr,options);
+  if(!points || points.length<2){   /* ancre absente -> segment INDISPONIBLE : jamais 0, jamais d'ancre de repli */
+    _routeSegLatest[latestKey]=null;
+    if(store[segmentType]!==undefined){ delete store[segmentType]; try{ saveState(); }catch(_e){} }   /* SUPPRIME UNIQUEMENT la cle de CE segment */
+    return { request:{points:points||[], mode, avoidTolls:!!options.avoidTolls, segmentType}, result:null, meta:emptyMeta(false,false,false) }; }
+  let routeDepartureTime=null, dynamicDeparture=false;
+  if(mode==="TRANSIT"){ const explicit=normalizeRouteDepartureTime(options.departureTime);
+    if(explicit){ routeDepartureTime=explicit; } else { routeDepartureTime=_rdrBucketMinuteISO(Date.now()+3600000); dynamicDeparture=true; } }
+  const request={ points, mode, avoidTolls:!!options.avoidTolls, routeDepartureTime, segmentType };
+  const internalRequest={ points, mode, avoidTolls:request.avoidTolls, departureTime:routeDepartureTime, segmentType };
+  const sig=uiRouteSignature(internalRequest);
+  const cacheable = (mode!=="TRANSIT" || (!!routeDepartureTime && !dynamicDeparture));
+  if(cacheable) _routeSegLatest[latestKey]=sig;
+  const cached=store[segmentType];
+  if(cacheable && cached && cached.sig===sig) return { request, result:cached, meta:emptyMeta(true,true,false) };
+  if(!navigator.onLine) return { request, result:null, meta:emptyMeta(cacheable,false,false) };
+  const key=capturedStoreId+"|"+capturedStoreEpoch+"|"+(tr.id||"?")+"|"+segmentType+"|"+sig;
+  if(_routeSegInflight[key]) return _routeSegInflight[key];
+  const run=(async()=>{
+    const _stale=()=>(_storeId!==capturedStoreId || _storeEpoch!==capturedStoreEpoch);
+    let casc=null; try{ casc=await routeCascade(internalRequest); }catch(_e){ casc=null; }
+    if(_stale()) return { request, result:null, meta:emptyMeta(cacheable,false,true) };
+    if(!casc || !casc.result) return { request, result:null, meta:emptyMeta(cacheable,false,false) };
+    const res=casc.result;
+    const okLegs=Array.isArray(res.legs) && res.legs.length===(points.length-1);
+    const okNums=Number.isFinite(res.distanceMeters) && res.distanceMeters>0 && Number.isFinite(res.durationSeconds) && res.durationSeconds>0 && res.legs.every(l=>l && Number.isFinite(l.distanceMeters) && Number.isFinite(l.durationSeconds));
+    if(!okLegs || !okNums) return { request, result:null, meta:emptyMeta(cacheable,false,false) };   /* incomplet -> jamais de faux 0 */
+    const canonical={ sig, segmentType, provider:res.provider, fallbackLevel:casc.fallbackLevel, uiPolicyVersion:UI_ROUTE_POLICY, calculatedAt:res.calculatedAt,
+      mode:res.mode, origin:res.origin, destination:res.destination, distanceMeters:res.distanceMeters, durationSeconds:res.durationSeconds,
+      legs:res.legs, polyline:res.polyline||"" };
+    if(cacheable && _routeSegLatest[latestKey]===sig){ store[segmentType]=canonical; try{ saveState(); }catch(_e){} }   /* commit seulement si toujours la derniere signature (anti stale-write) */
+    return { request, result:canonical, meta:emptyMeta(cacheable,false,false) };
+  })();
+  _routeSegInflight[key]=run;
+  try{ return await run; } finally { try{ delete _routeSegInflight[key]; }catch(_e){} }
+}
 async function ensureDayRouteCore(tr, day, options){   /* v958-B1d-2 : fine couche de compatibilite -- renderDayRoute() ne change pas d'une ligne */
   const resolved=await resolveDayRoute(tr, day, options);
   return (resolved && resolved.result) ? resolved.result : null;
@@ -11442,15 +11569,15 @@ function _mvpMenuIco(k,cls){ return '<svg class="plan-menu-ico'+(cls?' '+cls:'')
 function _mvpTxt(k){   /* V4.4/V4.5 : libelles courts d'interface (5 langues) */
   const L={
     fr:{actions:"Actions",mode:"Mode",now:"En cours",past:"Passée",done:"Terminée",knownCost:"Coût connu du jour",fuelPartial:"carburant incomplet",
-        detailed:"Affichage détaillé",compact:"Affichage compact",addPause:"Ajouter une pause",addStep:"Étape",catFidele:"Fidèle",catWeather:"Météo",catCrowd:"Affluence",catHours:"Horaires",catRoute:"Trajet",myPos:"Ma position",startHere:"Partir d’ici",fsDay:"Journée",fsTrip:"Séjour",frameToStep:"Cadrer l’étape en cours",frameToDay:"Voir toute la journée",hintStep:"Étape en cours",hintDay:"Vue de la journée",hideSteps:"Masquer les étapes",showSteps:"Afficher les étapes",pastDay:"Journée passée · lecture seule",pvStation:"Automatique · station proche du départ",pvNational:"Automatique · médiane nationale",pvCountry:"Automatique · estimation pays",pvManual:"Votre prix",pvOffMAvg:"Officiel · moyenne nationale · {m}",tfdFso:"Office fédéral de la statistique (OFS) · moyenne mensuelle nationale",tfdSource:"Source",tfdPub:"publication {p} du {d}",pvOffPrice:"Officiel · prix national · {m}",pvOffAvg:"Officiel · prix national hebdomadaire · semaine du {d}",srcDataTitle:"Sources de données",srcDataIntro:"Les prix carburant et les limites administratives proviennent de sources officielles ouvertes.",srcDataIstatA:"Limites administratives 2026 :",srcDataIstatB:"données converties et normalisées par Magot Voyage",srcDataWob:"Commission européenne – Weekly Oil Bulletin · prix moyens nationaux des carburants",srcDataFso:"Office fédéral de la statistique",srcDataEtalab:"Licence Ouverte",srcDataIT:"Italie",srcDataFR:"France",srcDataCH:"Suisse",srcDataAE:"Émirats arabes unis",pvNoOfficial:"Aucun prix officiel disponible pour {fuel} ({country}). Saisissez votre prix pour calculer le coût du carburant.",pvNoOfficialElec:"Aucun prix officiel disponible pour {fuel} ({country}). Saisissez votre prix pour calculer le coût de l’énergie.",fuelElecName:"Électricité",pvPriceOf:"prix du {date}",pvServed:"{fuel} servi",srcMimit:"MIMIT – Osservaprezzi carburanti · relevé du {date} · licence IODL 2.0",pvStationAt:"Officiel · station à {d} km",pvOld:"⚠ Prix non mis à jour depuis {n} j (dernier relevé le {date})",pvNone:"Aucune station {fuel} à moins de {r} km",tripFuel:"Coût des trajets",tripPartial:"partiel",tripNA:"Prix indisponible",tripKnown:"connus",legFrom:"Départ",peTime:"Horaire",peDur:"Durée prévue",peDay:"Jour",peMore:"Plus d’options",peRename:"Renommer",peKind:"Modifier le type",peSee:"Voir la fiche du lieu",peSave:"Enregistrer les modifications",peDel:"Supprimer l’étape",durUser:"Durée personnalisée",durEst:"Estimation Magot Voyage",durFit:"Ajustée pour tenir dans la journée",durSaved:"Durée enregistrée",peHd:"Modifier l’étape",tfdTitle:"Détail du coût des trajets",tfdMore:"Détail",tfdDrive:"{km} en voiture",tfdWalk:"dont {km} à pied, non compté",tfdMulti:"{n} sources de prix",tfdFuel:"Carburant",tfdConso:"Consommation",tfdPrice:"Prix utilisé",tfdTotal:"Total",srcStation:"Officiel · station à {d} km",srcNational:"Médiane nationale",srcManual:"Votre prix",editable:"modifiable"},
+        detailed:"Affichage détaillé",compact:"Affichage compact",addPause:"Ajouter une pause",addStep:"Étape",catFidele:"Fidèle",catWeather:"Météo",catCrowd:"Affluence",catHours:"Horaires",catRoute:"Trajet",myPos:"Ma position",startHere:"Partir d’ici",fsDay:"Journée",fsTrip:"Séjour",frameToStep:"Cadrer l’étape en cours",frameToDay:"Voir toute la journée",hintStep:"Étape en cours",hintDay:"Vue de la journée",hideSteps:"Masquer les étapes",showSteps:"Afficher les étapes",pastDay:"Journée passée · lecture seule",pvStation:"Automatique · station proche du départ",pvNational:"Automatique · médiane nationale",pvCountry:"Automatique · estimation pays",pvManual:"Votre prix",pvOffMAvg:"Officiel · moyenne nationale · {m}",tfdFso:"Office fédéral de la statistique (OFS) · moyenne mensuelle nationale",tfdSource:"Source",tfdPub:"publication {p} du {d}",pvOffPrice:"Officiel · prix national · {m}",pvOffAvg:"Officiel · prix national hebdomadaire · semaine du {d}",srcDataTitle:"Sources de données",srcDataIntro:"Les prix carburant et les limites administratives proviennent de sources officielles ouvertes.",srcDataIstatA:"Limites administratives 2026 :",srcDataIstatB:"données converties et normalisées par Magot Voyage",srcDataWob:"Commission européenne – Weekly Oil Bulletin · prix moyens nationaux des carburants",srcDataFso:"Office fédéral de la statistique",srcDataEtalab:"Licence Ouverte",srcDataIT:"Italie",srcDataFR:"France",srcDataCH:"Suisse",srcDataAE:"Émirats arabes unis",planDepartSeg:"Départ · {place}",planReturnSeg:"Retour · {place}",pvNoOfficial:"Aucun prix officiel disponible pour {fuel} ({country}). Saisissez votre prix pour calculer le coût du carburant.",pvNoOfficialElec:"Aucun prix officiel disponible pour {fuel} ({country}). Saisissez votre prix pour calculer le coût de l’énergie.",fuelElecName:"Électricité",pvPriceOf:"prix du {date}",pvServed:"{fuel} servi",srcMimit:"MIMIT – Osservaprezzi carburanti · relevé du {date} · licence IODL 2.0",pvStationAt:"Officiel · station à {d} km",pvOld:"⚠ Prix non mis à jour depuis {n} j (dernier relevé le {date})",pvNone:"Aucune station {fuel} à moins de {r} km",tripFuel:"Coût des trajets",tripPartial:"partiel",tripNA:"Prix indisponible",tripKnown:"connus",legFrom:"Départ",peTime:"Horaire",peDur:"Durée prévue",peDay:"Jour",peMore:"Plus d’options",peRename:"Renommer",peKind:"Modifier le type",peSee:"Voir la fiche du lieu",peSave:"Enregistrer les modifications",peDel:"Supprimer l’étape",durUser:"Durée personnalisée",durEst:"Estimation Magot Voyage",durFit:"Ajustée pour tenir dans la journée",durSaved:"Durée enregistrée",peHd:"Modifier l’étape",tfdTitle:"Détail du coût des trajets",tfdMore:"Détail",tfdDrive:"{km} en voiture",tfdWalk:"dont {km} à pied, non compté",tfdMulti:"{n} sources de prix",tfdFuel:"Carburant",tfdConso:"Consommation",tfdPrice:"Prix utilisé",tfdTotal:"Total",srcStation:"Officiel · station à {d} km",srcNational:"Médiane nationale",srcManual:"Votre prix",editable:"modifiable"},
     en:{actions:"Actions",mode:"Mode",now:"In progress",past:"Past",done:"Done",knownCost:"Known day cost",fuelPartial:"fuel incomplete",
-        detailed:"Detailed view",compact:"Compact view",addPause:"Add a break",addStep:"Stop",catFidele:"Fidèle",catWeather:"Weather",catCrowd:"Crowds",catHours:"Hours",catRoute:"Route",myPos:"My location",startHere:"Start here",fsDay:"Day",fsTrip:"Trip",frameToStep:"Frame the current stop",frameToDay:"Show the whole day",hintStep:"Current stop",hintDay:"Whole day",hideSteps:"Hide stops",showSteps:"Show stops",pastDay:"Past day · read-only",pvStation:"Automatic · station near the start",pvNational:"Automatic · national median",pvCountry:"Automatic · country estimate",pvManual:"Your price",pvOffMAvg:"Official · national average · {m}",tfdFso:"Swiss Federal Statistical Office (FSO) · national monthly average",tfdSource:"Source",tfdPub:"{p} publication of {d}",pvOffPrice:"Official · national price · {m}",pvOffAvg:"Official · weekly national price · week of {d}",srcDataTitle:"Data sources",srcDataIntro:"Fuel prices and administrative boundaries come from official open data sources.",srcDataIstatA:"Administrative boundaries 2026:",srcDataIstatB:"data converted and normalised by Magot Voyage",srcDataWob:"European Commission – Weekly Oil Bulletin · national average fuel prices",srcDataFso:"Federal Statistical Office",srcDataEtalab:"Licence Ouverte (Open Licence)",srcDataIT:"Italy",srcDataFR:"France",srcDataCH:"Switzerland",srcDataAE:"United Arab Emirates",pvNoOfficial:"No official price available for {fuel} ({country}). Enter your price to calculate the fuel cost.",pvNoOfficialElec:"No official price available for {fuel} ({country}). Enter your price to calculate the energy cost.",fuelElecName:"Electricity",pvPriceOf:"price of {date}",pvServed:"{fuel} attendant-served",srcMimit:"MIMIT – Osservaprezzi carburanti · snapshot of {date} · IODL 2.0 licence",pvStationAt:"Official · station {d} km away",pvOld:"⚠ Price not updated for {n} days (last report {date})",pvNone:"No {fuel} station within {r} km",tripFuel:"Driving cost",tripPartial:"partial",tripNA:"Price unavailable",tripKnown:"known",legFrom:"Start",peTime:"Time",peDur:"Planned duration",peDay:"Day",peMore:"More options",peRename:"Rename",peKind:"Change type",peSee:"View place details",peSave:"Save changes",peDel:"Delete stop",durUser:"Custom duration",durEst:"Magot Voyage estimate",durFit:"Adjusted to fit the day",durSaved:"Saved duration",peHd:"Edit stop",tfdTitle:"Driving cost breakdown",tfdMore:"Details",tfdDrive:"{km} by car",tfdWalk:"incl. {km} on foot, not counted",tfdMulti:"{n} price sources",tfdFuel:"Fuel",tfdConso:"Consumption",tfdPrice:"Price used",tfdTotal:"Total",srcStation:"Official · station {d} km away",srcNational:"National median",srcManual:"Your price",editable:"editable"},
+        detailed:"Detailed view",compact:"Compact view",addPause:"Add a break",addStep:"Stop",catFidele:"Fidèle",catWeather:"Weather",catCrowd:"Crowds",catHours:"Hours",catRoute:"Route",myPos:"My location",startHere:"Start here",fsDay:"Day",fsTrip:"Trip",frameToStep:"Frame the current stop",frameToDay:"Show the whole day",hintStep:"Current stop",hintDay:"Whole day",hideSteps:"Hide stops",showSteps:"Show stops",pastDay:"Past day · read-only",pvStation:"Automatic · station near the start",pvNational:"Automatic · national median",pvCountry:"Automatic · country estimate",pvManual:"Your price",pvOffMAvg:"Official · national average · {m}",tfdFso:"Swiss Federal Statistical Office (FSO) · national monthly average",tfdSource:"Source",tfdPub:"{p} publication of {d}",pvOffPrice:"Official · national price · {m}",pvOffAvg:"Official · weekly national price · week of {d}",srcDataTitle:"Data sources",srcDataIntro:"Fuel prices and administrative boundaries come from official open data sources.",srcDataIstatA:"Administrative boundaries 2026:",srcDataIstatB:"data converted and normalised by Magot Voyage",srcDataWob:"European Commission – Weekly Oil Bulletin · national average fuel prices",srcDataFso:"Federal Statistical Office",srcDataEtalab:"Licence Ouverte (Open Licence)",srcDataIT:"Italy",srcDataFR:"France",srcDataCH:"Switzerland",srcDataAE:"United Arab Emirates",planDepartSeg:"Departure · {place}",planReturnSeg:"Return · {place}",pvNoOfficial:"No official price available for {fuel} ({country}). Enter your price to calculate the fuel cost.",pvNoOfficialElec:"No official price available for {fuel} ({country}). Enter your price to calculate the energy cost.",fuelElecName:"Electricity",pvPriceOf:"price of {date}",pvServed:"{fuel} attendant-served",srcMimit:"MIMIT – Osservaprezzi carburanti · snapshot of {date} · IODL 2.0 licence",pvStationAt:"Official · station {d} km away",pvOld:"⚠ Price not updated for {n} days (last report {date})",pvNone:"No {fuel} station within {r} km",tripFuel:"Driving cost",tripPartial:"partial",tripNA:"Price unavailable",tripKnown:"known",legFrom:"Start",peTime:"Time",peDur:"Planned duration",peDay:"Day",peMore:"More options",peRename:"Rename",peKind:"Change type",peSee:"View place details",peSave:"Save changes",peDel:"Delete stop",durUser:"Custom duration",durEst:"Magot Voyage estimate",durFit:"Adjusted to fit the day",durSaved:"Saved duration",peHd:"Edit stop",tfdTitle:"Driving cost breakdown",tfdMore:"Details",tfdDrive:"{km} by car",tfdWalk:"incl. {km} on foot, not counted",tfdMulti:"{n} price sources",tfdFuel:"Fuel",tfdConso:"Consumption",tfdPrice:"Price used",tfdTotal:"Total",srcStation:"Official · station {d} km away",srcNational:"National median",srcManual:"Your price",editable:"editable"},
     es:{actions:"Acciones",mode:"Modo",now:"En curso",past:"Pasada",done:"Hecha",knownCost:"Coste conocido del día",fuelPartial:"carburante incompleto",
-        detailed:"Vista detallada",compact:"Vista compacta",addPause:"Añadir una pausa",addStep:"Etapa",catFidele:"Fidèle",catWeather:"Tiempo",catCrowd:"Afluencia",catHours:"Horarios",catRoute:"Trayecto",myPos:"Mi ubicación",startHere:"Salir desde aquí",fsDay:"Día",fsTrip:"Viaje",frameToStep:"Encuadrar la etapa actual",frameToDay:"Ver todo el día",hintStep:"Etapa actual",hintDay:"Vista del día",hideSteps:"Ocultar etapas",showSteps:"Mostrar etapas",pastDay:"Día pasado · solo lectura",pvStation:"Automático · estación cerca de la salida",pvNational:"Automático · mediana nacional",pvCountry:"Automático · estimación del país",pvManual:"Tu precio",pvOffMAvg:"Oficial · media nacional · {m}",tfdFso:"Oficina Federal de Estadística suiza (OFS) · media mensual nacional",tfdSource:"Fuente",tfdPub:"publicación {p} del {d}",pvOffPrice:"Oficial · precio nacional · {m}",pvOffAvg:"Oficial · precio nacional semanal · semana del {d}",srcDataTitle:"Fuentes de datos",srcDataIntro:"Los precios de los carburantes y los límites administrativos proceden de fuentes oficiales abiertas.",srcDataIstatA:"Límites administrativos 2026:",srcDataIstatB:"datos convertidos y normalizados por Magot Voyage",srcDataWob:"Comisión Europea – Weekly Oil Bulletin · precios medios nacionales de los carburantes",srcDataFso:"Oficina Federal de Estadística",srcDataEtalab:"Licence Ouverte (licencia abierta)",srcDataIT:"Italia",srcDataFR:"Francia",srcDataCH:"Suiza",srcDataAE:"Emiratos Árabes Unidos",pvNoOfficial:"No hay precio oficial disponible para {fuel} ({country}). Introduzca su precio para calcular el coste del combustible.",pvNoOfficialElec:"No hay precio oficial disponible para {fuel} ({country}). Introduzca su precio para calcular el coste de la energía.",fuelElecName:"Electricidad",pvPriceOf:"precio del {date}",pvServed:"{fuel} con servicio",srcMimit:"MIMIT – Osservaprezzi carburanti · registro del {date} · licencia IODL 2.0",pvStationAt:"Oficial · estación a {d} km",pvOld:"⚠ Precio no actualizado desde hace {n} días (último dato el {date})",pvNone:"Ninguna estación de {fuel} a menos de {r} km",tripFuel:"Coste de los trayectos",tripPartial:"parcial",tripNA:"Precio no disponible",tripKnown:"conocidos",legFrom:"Salida",peTime:"Hora",peDur:"Duración prevista",peDay:"Día",peMore:"Más opciones",peRename:"Renombrar",peKind:"Cambiar el tipo",peSee:"Ver la ficha del lugar",peSave:"Guardar los cambios",peDel:"Eliminar la etapa",durUser:"Duración personalizada",durEst:"Estimación Magot Voyage",durFit:"Ajustada para caber en el día",durSaved:"Duración guardada",peHd:"Editar la etapa",tfdTitle:"Detalle del coste de los trayectos",tfdMore:"Detalle",tfdDrive:"{km} en coche",tfdWalk:"incl. {km} a pie, no contado",tfdMulti:"{n} fuentes de precio",tfdFuel:"Combustible",tfdConso:"Consumo",tfdPrice:"Precio usado",tfdTotal:"Total",srcStation:"Oficial · estación a {d} km",srcNational:"Mediana nacional",srcManual:"Tu precio",editable:"modificable"},
+        detailed:"Vista detallada",compact:"Vista compacta",addPause:"Añadir una pausa",addStep:"Etapa",catFidele:"Fidèle",catWeather:"Tiempo",catCrowd:"Afluencia",catHours:"Horarios",catRoute:"Trayecto",myPos:"Mi ubicación",startHere:"Salir desde aquí",fsDay:"Día",fsTrip:"Viaje",frameToStep:"Encuadrar la etapa actual",frameToDay:"Ver todo el día",hintStep:"Etapa actual",hintDay:"Vista del día",hideSteps:"Ocultar etapas",showSteps:"Mostrar etapas",pastDay:"Día pasado · solo lectura",pvStation:"Automático · estación cerca de la salida",pvNational:"Automático · mediana nacional",pvCountry:"Automático · estimación del país",pvManual:"Tu precio",pvOffMAvg:"Oficial · media nacional · {m}",tfdFso:"Oficina Federal de Estadística suiza (OFS) · media mensual nacional",tfdSource:"Fuente",tfdPub:"publicación {p} del {d}",pvOffPrice:"Oficial · precio nacional · {m}",pvOffAvg:"Oficial · precio nacional semanal · semana del {d}",srcDataTitle:"Fuentes de datos",srcDataIntro:"Los precios de los carburantes y los límites administrativos proceden de fuentes oficiales abiertas.",srcDataIstatA:"Límites administrativos 2026:",srcDataIstatB:"datos convertidos y normalizados por Magot Voyage",srcDataWob:"Comisión Europea – Weekly Oil Bulletin · precios medios nacionales de los carburantes",srcDataFso:"Oficina Federal de Estadística",srcDataEtalab:"Licence Ouverte (licencia abierta)",srcDataIT:"Italia",srcDataFR:"Francia",srcDataCH:"Suiza",srcDataAE:"Emiratos Árabes Unidos",planDepartSeg:"Salida · {place}",planReturnSeg:"Regreso · {place}",pvNoOfficial:"No hay precio oficial disponible para {fuel} ({country}). Introduzca su precio para calcular el coste del combustible.",pvNoOfficialElec:"No hay precio oficial disponible para {fuel} ({country}). Introduzca su precio para calcular el coste de la energía.",fuelElecName:"Electricidad",pvPriceOf:"precio del {date}",pvServed:"{fuel} con servicio",srcMimit:"MIMIT – Osservaprezzi carburanti · registro del {date} · licencia IODL 2.0",pvStationAt:"Oficial · estación a {d} km",pvOld:"⚠ Precio no actualizado desde hace {n} días (último dato el {date})",pvNone:"Ninguna estación de {fuel} a menos de {r} km",tripFuel:"Coste de los trayectos",tripPartial:"parcial",tripNA:"Precio no disponible",tripKnown:"conocidos",legFrom:"Salida",peTime:"Hora",peDur:"Duración prevista",peDay:"Día",peMore:"Más opciones",peRename:"Renombrar",peKind:"Cambiar el tipo",peSee:"Ver la ficha del lugar",peSave:"Guardar los cambios",peDel:"Eliminar la etapa",durUser:"Duración personalizada",durEst:"Estimación Magot Voyage",durFit:"Ajustada para caber en el día",durSaved:"Duración guardada",peHd:"Editar la etapa",tfdTitle:"Detalle del coste de los trayectos",tfdMore:"Detalle",tfdDrive:"{km} en coche",tfdWalk:"incl. {km} a pie, no contado",tfdMulti:"{n} fuentes de precio",tfdFuel:"Combustible",tfdConso:"Consumo",tfdPrice:"Precio usado",tfdTotal:"Total",srcStation:"Oficial · estación a {d} km",srcNational:"Mediana nacional",srcManual:"Tu precio",editable:"modificable"},
     it:{actions:"Azioni",mode:"Modalità",now:"In corso",past:"Passata",done:"Fatta",knownCost:"Costo noto del giorno",fuelPartial:"carburante incompleto",
-        detailed:"Vista dettagliata",compact:"Vista compatta",addPause:"Aggiungi una pausa",addStep:"Tappa",catFidele:"Fidèle",catWeather:"Meteo",catCrowd:"Affluenza",catHours:"Orari",catRoute:"Tragitto",myPos:"La mia posizione",startHere:"Parti da qui",fsDay:"Giorno",fsTrip:"Viaggio",frameToStep:"Inquadra la tappa in corso",frameToDay:"Mostra tutta la giornata",hintStep:"Tappa in corso",hintDay:"Vista della giornata",hideSteps:"Nascondi tappe",showSteps:"Mostra tappe",pastDay:"Giorno passato · sola lettura",pvStation:"Automatico · stazione vicino alla partenza",pvNational:"Automatico · mediana nazionale",pvCountry:"Automatico · stima del paese",pvManual:"Il tuo prezzo",pvOffMAvg:"Ufficiale · media nazionale · {m}",tfdFso:"Ufficio federale di statistica (UST) · media mensile nazionale",tfdSource:"Fonte",tfdPub:"pubblicazione {p} del {d}",pvOffPrice:"Ufficiale · prezzo nazionale · {m}",pvOffAvg:"Ufficiale · prezzo nazionale settimanale · settimana del {d}",srcDataTitle:"Fonti dei dati",srcDataIntro:"I prezzi dei carburanti e i confini amministrativi provengono da fonti ufficiali aperte.",srcDataIstatA:"Confini amministrativi 2026:",srcDataIstatB:"dati convertiti e normalizzati da Magot Voyage",srcDataWob:"Commissione europea – Weekly Oil Bulletin · prezzi medi nazionali dei carburanti",srcDataFso:"Ufficio federale di statistica",srcDataEtalab:"Licence Ouverte (licenza aperta)",srcDataIT:"Italia",srcDataFR:"Francia",srcDataCH:"Svizzera",srcDataAE:"Emirati Arabi Uniti",pvNoOfficial:"Nessun prezzo ufficiale disponibile per {fuel} ({country}). Inserisci il tuo prezzo per calcolare il costo del carburante.",pvNoOfficialElec:"Nessun prezzo ufficiale disponibile per {fuel} ({country}). Inserisci il tuo prezzo per calcolare il costo dell’energia.",fuelElecName:"Elettricità",pvPriceOf:"prezzo del {date}",pvServed:"{fuel} servito",srcMimit:"MIMIT – Osservaprezzi carburanti · rilevazione del {date} · licenza IODL 2.0",pvStationAt:"Ufficiale · stazione a {d} km",pvOld:"⚠ Prezzo non aggiornato da {n} giorni (ultimo rilievo il {date})",pvNone:"Nessuna stazione {fuel} entro {r} km",tripFuel:"Costo dei tragitti",tripPartial:"parziale",tripNA:"Prezzo non disponibile",tripKnown:"noti",legFrom:"Partenza",peTime:"Orario",peDur:"Durata prevista",peDay:"Giorno",peMore:"Altre opzioni",peRename:"Rinomina",peKind:"Cambia tipo",peSee:"Vedi la scheda del luogo",peSave:"Salva le modifiche",peDel:"Elimina la tappa",durUser:"Durata personalizzata",durEst:"Stima Magot Voyage",durFit:"Adattata alla giornata",durSaved:"Durata salvata",peHd:"Modifica la tappa",tfdTitle:"Dettaglio del costo dei tragitti",tfdMore:"Dettaglio",tfdDrive:"{km} in auto",tfdWalk:"di cui {km} a piedi, non contati",tfdMulti:"{n} fonti di prezzo",tfdFuel:"Carburante",tfdConso:"Consumo",tfdPrice:"Prezzo usato",tfdTotal:"Totale",srcStation:"Ufficiale · stazione a {d} km",srcNational:"Mediana nazionale",srcManual:"Il tuo prezzo",editable:"modificabile"},
+        detailed:"Vista dettagliata",compact:"Vista compatta",addPause:"Aggiungi una pausa",addStep:"Tappa",catFidele:"Fidèle",catWeather:"Meteo",catCrowd:"Affluenza",catHours:"Orari",catRoute:"Tragitto",myPos:"La mia posizione",startHere:"Parti da qui",fsDay:"Giorno",fsTrip:"Viaggio",frameToStep:"Inquadra la tappa in corso",frameToDay:"Mostra tutta la giornata",hintStep:"Tappa in corso",hintDay:"Vista della giornata",hideSteps:"Nascondi tappe",showSteps:"Mostra tappe",pastDay:"Giorno passato · sola lettura",pvStation:"Automatico · stazione vicino alla partenza",pvNational:"Automatico · mediana nazionale",pvCountry:"Automatico · stima del paese",pvManual:"Il tuo prezzo",pvOffMAvg:"Ufficiale · media nazionale · {m}",tfdFso:"Ufficio federale di statistica (UST) · media mensile nazionale",tfdSource:"Fonte",tfdPub:"pubblicazione {p} del {d}",pvOffPrice:"Ufficiale · prezzo nazionale · {m}",pvOffAvg:"Ufficiale · prezzo nazionale settimanale · settimana del {d}",srcDataTitle:"Fonti dei dati",srcDataIntro:"I prezzi dei carburanti e i confini amministrativi provengono da fonti ufficiali aperte.",srcDataIstatA:"Confini amministrativi 2026:",srcDataIstatB:"dati convertiti e normalizzati da Magot Voyage",srcDataWob:"Commissione europea – Weekly Oil Bulletin · prezzi medi nazionali dei carburanti",srcDataFso:"Ufficio federale di statistica",srcDataEtalab:"Licence Ouverte (licenza aperta)",srcDataIT:"Italia",srcDataFR:"Francia",srcDataCH:"Svizzera",srcDataAE:"Emirati Arabi Uniti",planDepartSeg:"Partenza · {place}",planReturnSeg:"Ritorno · {place}",pvNoOfficial:"Nessun prezzo ufficiale disponibile per {fuel} ({country}). Inserisci il tuo prezzo per calcolare il costo del carburante.",pvNoOfficialElec:"Nessun prezzo ufficiale disponibile per {fuel} ({country}). Inserisci il tuo prezzo per calcolare il costo dell’energia.",fuelElecName:"Elettricità",pvPriceOf:"prezzo del {date}",pvServed:"{fuel} servito",srcMimit:"MIMIT – Osservaprezzi carburanti · rilevazione del {date} · licenza IODL 2.0",pvStationAt:"Ufficiale · stazione a {d} km",pvOld:"⚠ Prezzo non aggiornato da {n} giorni (ultimo rilievo il {date})",pvNone:"Nessuna stazione {fuel} entro {r} km",tripFuel:"Costo dei tragitti",tripPartial:"parziale",tripNA:"Prezzo non disponibile",tripKnown:"noti",legFrom:"Partenza",peTime:"Orario",peDur:"Durata prevista",peDay:"Giorno",peMore:"Altre opzioni",peRename:"Rinomina",peKind:"Cambia tipo",peSee:"Vedi la scheda del luogo",peSave:"Salva le modifiche",peDel:"Elimina la tappa",durUser:"Durata personalizzata",durEst:"Stima Magot Voyage",durFit:"Adattata alla giornata",durSaved:"Durata salvata",peHd:"Modifica la tappa",tfdTitle:"Dettaglio del costo dei tragitti",tfdMore:"Dettaglio",tfdDrive:"{km} in auto",tfdWalk:"di cui {km} a piedi, non contati",tfdMulti:"{n} fonti di prezzo",tfdFuel:"Carburante",tfdConso:"Consumo",tfdPrice:"Prezzo usato",tfdTotal:"Totale",srcStation:"Ufficiale · stazione a {d} km",srcNational:"Mediana nazionale",srcManual:"Il tuo prezzo",editable:"modificabile"},
     de:{actions:"Aktionen",mode:"Modus",now:"Läuft",past:"Vorbei",done:"Erledigt",knownCost:"Bekannte Tageskosten",fuelPartial:"Kraftstoff unvollständig",
-        detailed:"Detailansicht",compact:"Kompaktansicht",addPause:"Pause hinzufügen",addStep:"Etappe",catFidele:"Fidèle",catWeather:"Wetter",catCrowd:"Andrang",catHours:"Öffnungszeiten",catRoute:"Strecke",myPos:"Mein Standort",startHere:"Von hier starten",fsDay:"Tag",fsTrip:"Reise",frameToStep:"Aktuelle Etappe zeigen",frameToDay:"Ganzen Tag zeigen",hintStep:"Aktuelle Etappe",hintDay:"Tagesansicht",hideSteps:"Etappen ausblenden",showSteps:"Etappen anzeigen",pastDay:"Vergangener Tag · nur lesen",pvStation:"Automatisch · Tankstelle nahe dem Start",pvNational:"Automatisch · nationaler Median",pvCountry:"Automatisch · Länderschätzung",pvManual:"Dein Preis",pvOffMAvg:"Offiziell · Landesdurchschnitt · {m}",tfdFso:"Bundesamt für Statistik (BFS) · nationaler Monatsdurchschnitt",tfdSource:"Quelle",tfdPub:"{p}-Veröffentlichung vom {d}",pvOffPrice:"Offiziell · Landespreis · {m}",pvOffAvg:"Offiziell · wöchentlicher Landespreis · Woche vom {d}",srcDataTitle:"Datenquellen",srcDataIntro:"Kraftstoffpreise und Verwaltungsgrenzen stammen aus offiziellen offenen Datenquellen.",srcDataIstatA:"Verwaltungsgrenzen 2026:",srcDataIstatB:"Daten konvertiert und normalisiert von Magot Voyage",srcDataWob:"Europäische Kommission – Weekly Oil Bulletin · nationale Durchschnittspreise für Kraftstoffe",srcDataFso:"Bundesamt für Statistik",srcDataEtalab:"Licence Ouverte (offene Lizenz)",srcDataIT:"Italien",srcDataFR:"Frankreich",srcDataCH:"Schweiz",srcDataAE:"Vereinigte Arabische Emirate",pvNoOfficial:"Kein offizieller Preis für {fuel} ({country}) verfügbar. Geben Sie Ihren Preis ein, um die Kraftstoffkosten zu berechnen.",pvNoOfficialElec:"Kein offizieller Preis für {fuel} ({country}) verfügbar. Geben Sie Ihren Preis ein, um die Energiekosten zu berechnen.",fuelElecName:"Strom",pvPriceOf:"Preis vom {date}",pvServed:"{fuel} bedient",srcMimit:"MIMIT – Osservaprezzi carburanti · Erhebung vom {date} · Lizenz IODL 2.0",pvStationAt:"Offiziell · Tankstelle in {d} km",pvOld:"⚠ Preis seit {n} Tagen nicht aktualisiert (letzte Meldung am {date})",pvNone:"Keine {fuel}-Tankstelle im Umkreis von {r} km",tripFuel:"Fahrtkosten",tripPartial:"teilweise",tripNA:"Preis nicht verfügbar",tripKnown:"bekannt",legFrom:"Start",peTime:"Uhrzeit",peDur:"Geplante Dauer",peDay:"Tag",peMore:"Weitere Optionen",peRename:"Umbenennen",peKind:"Typ ändern",peSee:"Ortsdetails ansehen",peSave:"Änderungen speichern",peDel:"Etappe löschen",durUser:"Eigene Dauer",durEst:"Schätzung Magot Voyage",durFit:"An den Tag angepasst",durSaved:"Gespeicherte Dauer",peHd:"Etappe bearbeiten",tfdTitle:"Aufschlüsselung der Fahrtkosten",tfdMore:"Details",tfdDrive:"{km} mit dem Auto",tfdWalk:"davon {km} zu Fuß, nicht gezählt",tfdMulti:"{n} Preisquellen",tfdFuel:"Kraftstoff",tfdConso:"Verbrauch",tfdPrice:"Verwendeter Preis",tfdTotal:"Gesamt",srcStation:"Offiziell · Tankstelle in {d} km",srcNational:"Nationaler Median",srcManual:"Dein Preis",editable:"änderbar"}
+        detailed:"Detailansicht",compact:"Kompaktansicht",addPause:"Pause hinzufügen",addStep:"Etappe",catFidele:"Fidèle",catWeather:"Wetter",catCrowd:"Andrang",catHours:"Öffnungszeiten",catRoute:"Strecke",myPos:"Mein Standort",startHere:"Von hier starten",fsDay:"Tag",fsTrip:"Reise",frameToStep:"Aktuelle Etappe zeigen",frameToDay:"Ganzen Tag zeigen",hintStep:"Aktuelle Etappe",hintDay:"Tagesansicht",hideSteps:"Etappen ausblenden",showSteps:"Etappen anzeigen",pastDay:"Vergangener Tag · nur lesen",pvStation:"Automatisch · Tankstelle nahe dem Start",pvNational:"Automatisch · nationaler Median",pvCountry:"Automatisch · Länderschätzung",pvManual:"Dein Preis",pvOffMAvg:"Offiziell · Landesdurchschnitt · {m}",tfdFso:"Bundesamt für Statistik (BFS) · nationaler Monatsdurchschnitt",tfdSource:"Quelle",tfdPub:"{p}-Veröffentlichung vom {d}",pvOffPrice:"Offiziell · Landespreis · {m}",pvOffAvg:"Offiziell · wöchentlicher Landespreis · Woche vom {d}",srcDataTitle:"Datenquellen",srcDataIntro:"Kraftstoffpreise und Verwaltungsgrenzen stammen aus offiziellen offenen Datenquellen.",srcDataIstatA:"Verwaltungsgrenzen 2026:",srcDataIstatB:"Daten konvertiert und normalisiert von Magot Voyage",srcDataWob:"Europäische Kommission – Weekly Oil Bulletin · nationale Durchschnittspreise für Kraftstoffe",srcDataFso:"Bundesamt für Statistik",srcDataEtalab:"Licence Ouverte (offene Lizenz)",srcDataIT:"Italien",srcDataFR:"Frankreich",srcDataCH:"Schweiz",srcDataAE:"Vereinigte Arabische Emirate",planDepartSeg:"Abfahrt · {place}",planReturnSeg:"Rückfahrt · {place}",pvNoOfficial:"Kein offizieller Preis für {fuel} ({country}) verfügbar. Geben Sie Ihren Preis ein, um die Kraftstoffkosten zu berechnen.",pvNoOfficialElec:"Kein offizieller Preis für {fuel} ({country}) verfügbar. Geben Sie Ihren Preis ein, um die Energiekosten zu berechnen.",fuelElecName:"Strom",pvPriceOf:"Preis vom {date}",pvServed:"{fuel} bedient",srcMimit:"MIMIT – Osservaprezzi carburanti · Erhebung vom {date} · Lizenz IODL 2.0",pvStationAt:"Offiziell · Tankstelle in {d} km",pvOld:"⚠ Preis seit {n} Tagen nicht aktualisiert (letzte Meldung am {date})",pvNone:"Keine {fuel}-Tankstelle im Umkreis von {r} km",tripFuel:"Fahrtkosten",tripPartial:"teilweise",tripNA:"Preis nicht verfügbar",tripKnown:"bekannt",legFrom:"Start",peTime:"Uhrzeit",peDur:"Geplante Dauer",peDay:"Tag",peMore:"Weitere Optionen",peRename:"Umbenennen",peKind:"Typ ändern",peSee:"Ortsdetails ansehen",peSave:"Änderungen speichern",peDel:"Etappe löschen",durUser:"Eigene Dauer",durEst:"Schätzung Magot Voyage",durFit:"An den Tag angepasst",durSaved:"Gespeicherte Dauer",peHd:"Etappe bearbeiten",tfdTitle:"Aufschlüsselung der Fahrtkosten",tfdMore:"Details",tfdDrive:"{km} mit dem Auto",tfdWalk:"davon {km} zu Fuß, nicht gezählt",tfdMulti:"{n} Preisquellen",tfdFuel:"Kraftstoff",tfdConso:"Verbrauch",tfdPrice:"Verwendeter Preis",tfdTotal:"Gesamt",srcStation:"Offiziell · Tankstelle in {d} km",srcNational:"Nationaler Median",srcManual:"Dein Preis",editable:"änderbar"}
   };
   return ((L[lang()]||L.fr)[k])||L.fr[k]||"";
 }
@@ -12541,11 +12668,42 @@ function _paintResolvedTraffic(r){   /* v958-B1d-5 : peint le badge trafic canon
   el.textContent=" +"+Math.round(r.delay/60)+" min";
   el.className="dst-traffic";
 }
+/* ===== PLANNING-ROUTE1 P3 — projection trafic LOCAL (option D) ======================================================
+   La banniere converge vers la presentation composee (APPROACH + LOCAL + RETURN), mais le TRAFIC conserve son
+   perimetre historique : les deplacements LOCAUX du jour. Cet adaptateur est PUR -- il lit la presentation deja
+   resolue, et n'appelle ni resolveDayRoute, ni routeCascade, ni _routeCore[day]. Si la projection est ambigue,
+   il renvoie null : le badge devient indisponible, JAMAIS un repli sur l'ancien resolver. */
+function _trafficProjectionFromPresentation(tr, presentation, mode, liveOrigin){
+  if(!presentation || !Array.isArray(presentation.moves)) return null;
+  const locals=presentation.moves.filter(m=>m && !m.segmentType);   /* APPROACH/RETURN exclus : jamais envoyes a computeTraffic */
+  if(!locals.length) return null;
+  /* Sequence ordonnee LOCAL : les frontieres entre moves dupliquent un point -> deduplication par identite
+     geographique canonique (_b1eSamePoint), jamais par arrondi. Le type/itemId de la destination est conserve. */
+  const points=[]; const push=(pt,type,itemId,label)=>{ const p=_rcPoint(pt); if(!p) return false;
+    const prev=points[points.length-1];
+    if(prev && _b1eSamePoint(prev,p)){ if(type) { prev.type=prev.type||type; prev.itemId=prev.itemId||itemId; } return true; }
+    points.push({lat:p.lat,lng:p.lng,type:type||null,itemId:itemId||null,label:label||""}); return true; };
+  const first=locals[0];
+  if(!push(first.fromPoint, (first.fromRole==="origin"||!first.fromItemId)?"origin":"stop", first.fromItemId, first.fromLabel||"")) return null;
+  for(const m of locals){
+    if(m.notNeeded) continue;   /* deplacement nul : ne cree pas de point supplementaire */
+    if(!push(m.toPoint, (m.role==="transfer")?"transfer":"stop", m.toItemId, m.toLabel||"")) return null; }
+  if(points.length<2) return null;
+  /* duree du PREMIER deplacement LOCAL pertinent -- jamais presentation.totalDurationSeconds */
+  const firstReal=locals.find(m=>!m.notNeeded && (m.parts||[]).length);
+  if(!firstReal) return null;
+  const firstSec=(firstReal.parts||[]).reduce((n,p)=>n+(Number(p.durationSeconds)||0),0);
+  const localSec=locals.reduce((n,m)=>n+(m.parts||[]).reduce((q,p)=>q+(Number(p.durationSeconds)||0),0),0);
+  if(!Number.isFinite(firstSec) || firstSec<=0) return null;
+  /* forme attendue par _trafficWhenMsFromResolved() et resolveDayTraffic() -- adaptation PURE, aucune resolution */
+  return { request:{ points, mode, avoidTolls:false, liveOrigin:!!liveOrigin },
+    result:{ distanceMeters:locals.reduce((n,m)=>n+(m.parts||[]).reduce((q,p)=>q+(Number(p.distanceMeters)||0),0),0),
+      durationSeconds:localSec, legs:[{distanceMeters:0, durationSeconds:firstSec}] } }; }
 async function renderDayRoute(tr, day, ro, trafficCtx){ const tk=++_routeUIToken; const tid=(tr&&tr.id);   /* invalide IMMÉDIATEMENT tout rendu async précédent, avant même la branche <2 points */
   const panel=document.getElementById("dayRoutePanel");
   const setSlots=(dTxt,tTxt)=>{ document.querySelectorAll(".rc-dist").forEach(e=>e.textContent=dTxt); document.querySelectorAll(".rc-dur").forEach(e=>e.textContent=tTxt); };
   _paintResolvedTraffic(null);   /* v958-B1d-5 : efface tout badge trafic precedent des le debut du rendu */
-  _paintDayCosts(tr, day, tk, tid);   /* flux coût/carburant PLANIFIÉ, indépendant du live (ne bloque pas) */
+  _paintDayCostsPending(tr, day, tk, tid);   /* P4, temps 1 : « … » immediatement -- JAMAIS l'ancien cout local pendant l'attente */
   try{ ensureFuelPriceFresh(tr); }catch(_e){}   /* audit v1034 P1-1 : point d'integration Planning, non attendu -- _paintDayCosts() reste un lecteur pur */
   const live=_routeUILiveGet(tr,day);
   const pts=buildDayRoutePoints(tr, day, live?{liveOrigin:live}:{});
@@ -12563,8 +12721,16 @@ async function renderDayRoute(tr, day, ro, trafficCtx){ const tk=++_routeUIToken
     panel.innerHTML='<div class="route-orig">'+escapeHtml(origText)+'</div><div class="route-metrics" id="routeMetrics">'+escapeHtml(t("route.computing"))+'</div>'+gpsBtn;
     const gb=panel.querySelector("#routeGpsBtn"); if(gb) gb.onclick=()=>_routeUseMyPosition((tr&&tr.id), day); }
   setSlots("\u2026","\u2026");
-  let resolved=null; try{ resolved=await resolveDayRoute(tr, day, Object.assign({mode:travelMode(tr)}, live?{liveOrigin:live}:{})); }catch(_e){ resolved=null; }   /* v958-B1d-5 : ensureDayRouteCore() intact, simplement plus appele ici */
-  const res=(resolved && resolved.result) ? resolved.result : null;
+  /* PLANNING-ROUTE1 P3 : distance/duree affichees = presentation COMPOSEE (APPROACH + LOCAL + RETURN), la meme que
+     la carte et la chronologie. Planifie ET live passent par cette chaine unique (resolveLocalDayOrigin place
+     options.liveOrigin en tete de sa cascade). Aucun repli vers resolveDayRoute ni _routeCore[day]. */
+  const _p3opts=normalizeDayPresentationUIOptions(Object.assign({}, planningPresentationOptions(tr, day), live?{liveOrigin:live}:{}));   /* objet NEUF : planningPresentationOptions() n'est jamais mutee */
+  let presentation=null; try{ presentation=await getOrResolvePlanningPresentation(tr, day, _p3opts); }catch(_e){ presentation=null; }
+  const res=(presentation && Number.isFinite(presentation.totalDistanceMeters) && presentation.totalDistanceMeters>0
+    && Number.isFinite(presentation.totalDurationSeconds) && presentation.totalDurationSeconds>0)
+    ? { distanceMeters:presentation.totalDistanceMeters, durationSeconds:presentation.totalDurationSeconds } : null;
+  const resolved=res ? _trafficProjectionFromPresentation(tr, presentation, travelMode(tr), live) : null;   /* projection LOCAL pour le trafic ; null -> badge indisponible, jamais de repli */
+  _paintDayCosts(tr, day, tk, tid, presentation);   /* P4, temps 2 : cout peint depuis LA MEME presentation que distance/duree */
   if(tk!==_routeUIToken) return;   /* un rendu plus récent a pris la main */
   const cur=currentTrip(); if(!cur || cur.id!==tid || planState.dayIndex!==day) return;   /* jour/voyage changé -> pas de MAJ stale */
   const mEl=document.getElementById("routeMetrics");
@@ -16890,6 +17056,58 @@ async function _presentationRoutePart(
    DAY ROUTE PRESENTATION
    PAS ENCORE CABLEE A L'UI.
    ------------------------------------------------------------ */
+/* ===== PLANNING-ROUTE1 P2 — composition APPROACH + LOCAL + RETURN (carte + chronologie) ============================
+   Option A : _localRouteCore reste la verite du LOCAL ; APPROACH/RETURN viennent du resolver canonique P1
+   (resolveRouteSegment), JAMAIS recalcules ici. P2 assemble, il ne produit pas de geometrie.
+   La banniere (renderDayRoute / _routeCore[day]) n'est PAS modifiee : convergence en P3. */
+function planSegmentApplies(tr, day, segmentType, options){   /* PUR : aucun reseau, aucun cache, aucune resolution */
+  if(!tr || !routeUsesTripDeparture(tr)) return false;   /* avion/bateau : hors perimetre */
+  const days=(typeof tripDays==="function")?tripDays(tr):[];
+  const last=days.length?days.length-1:0;
+  if(segmentType===ROUTE_SEGMENT_APPROACH){
+    if(day!==0) return false;
+    /* P3, amendement LIVE : au premier jour, une origine live valide REMPLACE le point de depart planifie.
+       APPROACH n'est donc pas applicable : on n'affiche pas comme restant a parcourir des kilometres deja faits.
+       RETURN n'est PAS concerne -- il represente toujours l'itineraire prevu vers returnDestination || tr.depart.
+       Cette fonction est l'UNIQUE regle d'applicabilite : identite de cache et composition la partagent, donc
+       elles ne peuvent pas diverger. */
+    if(_rcPoint(options&&options.liveOrigin)) return false; }
+  if(segmentType===ROUTE_SEGMENT_RETURN && day!==last) return false;
+  const pts=routeSegmentPoints(tr, segmentType);
+  return !!(pts && pts.length>=2); }
+function planSegmentExpectedSig(tr, day, segmentType, opts){   /* identite ATTENDUE : meme signature que P1, calculee LOCALEMENT (SPEC P2 §5) */
+  if(!planSegmentApplies(tr, day, segmentType, opts)) return "NONE";   /* marqueur explicite, jamais une signature heritee du cache ; J1 LIVE -> APPROACH = NONE */
+  const pts=routeSegmentPoints(tr, segmentType);
+  const mode=(opts&&opts.mode)||travelMode(tr);
+  return uiRouteSignature({ points:pts, mode, avoidTolls:!!(opts&&opts.avoidTolls), departureTime:null, segmentType }); }
+function _planSegmentParts(seg, mode){   /* ADAPTATEUR PUR : legs canoniques P1 -> contrat move.parts, zero nouveau routage */
+  const out=[]; const legs=(seg&&Array.isArray(seg.legs))?seg.legs:[];
+  const o=_rcPoint(seg&&seg.origin), d=_rcPoint(seg&&seg.destination);
+  if(!legs.length){ return null; }   /* information insuffisante -> l'appelant declare un gap, jamais une distance reconstituee */
+  for(let i=0;i<legs.length;i++){ const l=legs[i];
+    if(!l || !Number.isFinite(l.distanceMeters) || !Number.isFinite(l.durationSeconds)) return null;   /* leg incomplet -> gap honnete */
+    out.push(_presentationPart({ purpose:"canonical", mode,
+      fromPoint:(i===0)?o:null, toPoint:(i===legs.length-1)?d:null,
+      distanceMeters:l.distanceMeters, durationSeconds:l.durationSeconds,
+      polyline:l.polyline||"", drivable:(mode==="DRIVE") })); }
+  return out; }
+function _planSegmentMove(tr, seg, segmentType, mode){   /* move ADDITIF : meme forme que l'existant + segmentType */
+  const parts=_planSegmentParts(seg, mode);
+  const A=_rcPoint(seg&&seg.origin), B=_rcPoint(seg&&seg.destination);
+  if(!A || !B) return null;
+  const homeName=((tr&&tr.depart&&tr.depart.name)||"");
+  const baseName=(()=>{ const legs=(typeof tripLegs==="function")?tripLegs(tr):[]; const l=(segmentType===ROUTE_SEGMENT_APPROACH)?legs[0]:null;
+    return (l&&((l.lodging&&l.lodging.name)||(l.dest&&l.dest.name)))||((tr&&tr.lodging&&tr.lodging.name)||(tr&&tr.dest&&tr.dest.name)||""); })();
+  const isApp=(segmentType===ROUTE_SEGMENT_APPROACH);
+  const lbl=(key,name)=>{ const s=_mvpTxt(key); return name?s.replace("{place}",name):s.replace(" \u00b7 {place}","").replace("{place}",""); };
+  return { role:"main", segmentType,
+    fromItemId:null, toItemId:null,
+    fromRole:isApp?"origin":null, toRole:isApp?null:"home",
+    fromLabel:isApp?lbl("planDepartSeg",homeName):"",
+    toLabel:isApp?baseName:lbl("planReturnSeg",homeName),
+    fromPoint:A, toPoint:B,
+    parts:parts||[], notNeeded:false,
+    incomplete:!parts }; }
 async function resolveDayRoutePresentation(tr,day,options){
   options=options||{};
   const capturedStoreId=_storeId;
@@ -17949,6 +18167,37 @@ async function resolveDayRoutePresentation(tr,day,options){
         };
       }
     }
+    /* PLANNING-ROUTE1 P2 : composition APPROACH (en tete) et RETURN (en queue). Les segments viennent du resolver
+       canonique P1 (cache compris) ; aucune resolution geometrique supplementaire n'est produite ici. */
+    {
+      const _mode=(options&&options.mode)||travelMode(tr);
+      const _compose=async (segmentType, place)=>{
+        if(!planSegmentApplies(tr, day, segmentType, options)) return;   /* meme regle que l'identite de cache -- J1 LIVE : APPROACH non compose */
+        let r=null; try{ r=await resolveRouteSegment(tr, segmentType, {mode:_mode, avoidTolls:!!(options&&options.avoidTolls)}); }catch(_e){ r=null; }
+        const seg=r&&r.result;
+        if(!seg){ complete=false; return; }   /* segment indisponible : le LOCAL est rendu seul, jamais 0, jamais de geometrie inventee */
+        const mv=_planSegmentMove(tr, seg, segmentType, _mode);
+        if(!mv){ complete=false; return; }
+        if(mv.incomplete) complete=false;   /* legs insuffisants -> incomplet honnete */
+        /* continuite : identite geographique canonique (_b1eSamePoint), jamais une egalite stricte ni une ancre substituee */
+        const first=moves.length?moves[0]:null;
+        if(segmentType===ROUTE_SEGMENT_APPROACH){ if(first && !_b1eSamePoint(mv.toPoint, first.fromPoint)) hasGap=true; moves.unshift(mv); }
+        else {
+          /* SPEC P2 amendee (option B) : le dernier jour, le move LOCAL synthetique terminal qui referme la journee
+             vers l'hebergement (role "return" + toRole "return") est OMIS de la PRESENTATION composee -- le crochet
+             par l'hotel n'a pas lieu d'etre avant de rentrer. Le producteur LOCAL (_localRouteCore), sa geometrie,
+             son cache et l'ordre des visites restent INTOUCHES : seule la composition change.
+             Identification UNIVOQUE par role+toRole (unique producteur dans le moteur), JAMAIS par position. */
+          const _idx=moves.map((m,i)=>({m,i})).filter(x=>x.m && x.m.role==="return" && x.m.toRole==="return" && !x.m.segmentType);
+          if(_idx.length>1){ hasGap=true; }   /* identification non univoque -> signale, aucune suppression hasardeuse */
+          else if(_idx.length===1){ const last=_idx[0]; if(last.i===moves.length-1) moves.splice(last.i,1); else hasGap=true; }
+          const tail=moves.length?moves[moves.length-1]:null;
+          if(tail && !_b1eSamePoint(mv.fromPoint, tail.toPoint)) hasGap=true;
+          moves.push(mv); }
+      };
+      await _compose(ROUTE_SEGMENT_APPROACH);
+      await _compose(ROUTE_SEGMENT_RETURN);
+    }
     const allParts=[];
     moves.forEach(m=>{
       (m.parts||[]).forEach(p=>allParts.push(p));
@@ -18537,13 +18786,14 @@ function dayPresentationUIInputKey(tr, day, options){
   const livePoint=_rcPoint(opts.liveOrigin);
   const liveKey=livePoint ? "LIVE" : "PLANNED";
   const validKey=built.invalid ? "INVALID" : "VALID";
+  const segKey=[planSegmentExpectedSig(tr,day,ROUTE_SEGMENT_APPROACH,opts), planSegmentExpectedSig(tr,day,ROUTE_SEGMENT_RETURN,opts)].join("~");   /* P2 : identite ATTENDUE, sans resolution ni reseau ; NONE si inapplicable */
   const va=_rcPoint(opts.vehicleAnchor); const vaKey=va?((+va.lat).toFixed(5)+","+(+va.lng).toFixed(5)):"";
   const ra=(typeof dayReturnAnchor==="function")?dayReturnAnchor(tr,day):null;
   const raKey=ra?((+ra.lat).toFixed(5)+","+(+ra.lng).toFixed(5)):"";
   const returnLabelKey=dayReturnLabelKey(tr,day);
   const depKey=normalizeRouteDepartureTime(opts.departureTime)||"AUTO";
   const rdKey=normalizeRouteDepartureTime(opts.returnDepartureTime)||"AUTO";
-  return [validKey, mode, opts.avoidTolls?"1":"0", seq, liveKey, lang(), opts.enrichmentPolicy||"default", vaKey, raKey, returnLabelKey, depKey, rdKey].join("|");
+  return [validKey, mode, opts.avoidTolls?"1":"0", seq, liveKey, lang(), opts.enrichmentPolicy||"default", vaKey, raKey, returnLabelKey, depKey, rdKey, segKey].join("|");
 }
 const DAY_PRESENTATION_UI_TTL = Math.min(G_TTL, G_TTL_VIDE);   /* politique UI deliberement conservatrice -- pas une reproduction du TTL reel de gNearby() (arch-r12 note) */
 const _dayPresentationResolvedCache = {};
