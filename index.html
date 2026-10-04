@@ -12749,7 +12749,7 @@ function _routeUseMyPosition(tripId, day){ if(!navigator.geolocation){ toast(t("
     const cur=currentTrip(); if(!cur || cur.id!==tripId || planState.dayIndex!==day) return;   /* jour/voyage changé pendant la permission -> résultat GPS jeté */
     const la=_rcCoord(pos.coords.latitude,-90,90), ln=_rcCoord(pos.coords.longitude,-180,180);
     if(la==null||ln==null){ toast(t("route.gpsUnavailable")); return; }
-    _routeUILive[(tripId||"?")+"|"+day]={lat:la,lng:ln,label:t("route.liveOrigin"),source:"live",capturedAt:Date.now()};   /* transient + expirable */
+    _routeUILive[(tripId||"?")+"|"+day]={lat:la,lng:ln,label:t("route.liveOrigin"),source:"live",explicit:true,capturedAt:Date.now()};   /* P5b : explicit=true -> ACTION DELIBEREE de l'utilisateur (« Partir a partir d'ici »), pas un contexte live quelconque */
     renderDayRoute(cur, day, isPlanDayReadOnly(cur,day)); },
     function(){ const cur=currentTrip(); if(!cur || cur.id!==tripId || planState.dayIndex!==day) return; const _planned=!!resolveDayOrigin(cur, day, {}); toast(t(_planned?"route.gpsRefused":"route.gpsRefusedNoRoute")); }   /* refus : garde tripId/day + message selon origine planifiée */
   ); }
@@ -18765,7 +18765,14 @@ function planningPresentationOptionsForUI(tr, day){
   const base=planningPresentationOptions(tr, day);
   const live=(typeof _routeUILiveGet==="function")?_routeUILiveGet(tr, day):null;
   if(!live) return normalizeDayPresentationUIOptions(Object.assign({}, base));
-  return normalizeDayPresentationUIOptions(Object.assign({}, base, { liveOrigin:{ lat:live.lat, lng:live.lng } })); }
+  const opts=Object.assign({}, base, { liveOrigin:{ lat:live.lat, lng:live.lng } });
+  /* P5b : « Partir a partir d'ici » est une affirmation de l'utilisateur -- en voiture, le VEHICULE part aussi de la.
+     Sans cela, le moteur laisse vehicleAnchor a null (personne != vehicule) et fabrique un gapPart des le premier
+     deplacement : distance et duree tombent a « — » alors que l'utilisateur vient justement de dire ou il est.
+     La regle est volontairement etroite : elle exige l'ACTION EXPLICITE (explicit===true), et ne s'applique pas a
+     un contexte live quelconque qui serait introduit plus tard par une autre source. */
+  if(live.explicit===true && travelMode(tr)==="DRIVE") opts.vehicleAnchor={ lat:live.lat, lng:live.lng };
+  return normalizeDayPresentationUIOptions(opts); }
 function planningPresentationOptions(tr, day){
   return normalizeDayPresentationUIOptions({
     liveOrigin: null,
