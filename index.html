@@ -18458,7 +18458,28 @@ function _legFuelCtx(presentation,tr){
   const cur=(tr&&tr.currency)||"EUR";
   const _pcA=fuelPriceCur(tr,dstA.cc,veh.fuel,dstA.lat,dstA.lng,veh,cur), _pcB=fuelPriceCur(tr,dstB.cc,veh.fuel,dstB.lat,dstB.lng,veh,cur);   /* V4.8e : devise de chaque prix */
   const _kA=_fuelFx(_pcA,cur), _kB=_fuelFx(_pcB,cur);
-  return {veh,fd,conso,day,dstA,dstB,priceA,priceB,provA,provB,cur,_pcA,_pcB,_kA,_kB};
+  /* P5d : contextes PROPRES a APPROACH et RETURN. Convention figee (PLANNING-ROUTE1) :
+       APPROACH = prix applicable au DEPART du trajet principal (tr.depart) -- jamais priceA, qui est le prix de la
+                  DESTINATION de l'etape (sur France -> Berlin, priceA est allemand). Meme derivation que le
+                  homePrice du Budget, pour que les deux vues emploient la meme reference.
+       RETURN   = prix applicable a la DERNIERE BASE : coordonnees de routeSegmentAnchors().lastBase, pays du
+                  DERNIER tripLegs() -- la meme source que celle qui a determine cette base. Aucun pays deduit des
+                  coordonnees, aucun reverse-geocoding.
+     crossedTransfer reste valable pour les lignes LOCAL ; il devient sans effet sur ces deux segments. */
+  const _dep=(tr&&tr.depart)||{};
+  const approachPrice=(manual>0?manual:0)||fuelPriceResolved(tr,_dep.cc,veh.fuel,_dep.lat,_dep.lng);
+  const approachProv=(manual>0)?{manual:true}:fuelPriceRecordResolved(tr,_dep.cc,veh.fuel,_dep.lat,_dep.lng);
+  const _pcAp=fuelPriceCur(tr,_dep.cc,veh.fuel,_dep.lat,_dep.lng,veh,cur), _kAp=_fuelFx(_pcAp,cur);
+  const _legsAll=(typeof tripLegs==="function")?tripLegs(tr):[];
+  const _lastLeg=_legsAll.length?_legsAll[_legsAll.length-1]:null;
+  const _retCC=(_lastLeg&&_lastLeg.dest&&_lastLeg.dest.cc)||((tr&&tr.dest&&tr.dest.cc)||null);
+  const _anch=(typeof routeSegmentAnchors==="function")?routeSegmentAnchors(tr):null;
+  const _retPt=(_anch&&_anch.lastBase)||null;
+  const returnPrice=(manual>0?manual:0)||fuelPriceResolved(tr,_retCC,veh.fuel,_retPt&&_retPt.lat,_retPt&&_retPt.lng);
+  const returnProv=(manual>0)?{manual:true}:fuelPriceRecordResolved(tr,_retCC,veh.fuel,_retPt&&_retPt.lat,_retPt&&_retPt.lng);
+  const _pcRt=fuelPriceCur(tr,_retCC,veh.fuel,_retPt&&_retPt.lat,_retPt&&_retPt.lng,veh,cur), _kRt=_fuelFx(_pcRt,cur);
+  return {veh,fd,conso,day,dstA,dstB,priceA,priceB,provA,provB,cur,_pcA,_pcB,_kA,_kB,
+    approachPrice,approachProv,_pcAp,_kAp, returnPrice,returnProv,_pcRt,_kRt};
 }
 /* "Cout des trajets" calcule depuis les TRAJETS de la journee (DayRoutePresentation), pas depuis les lignes affichees.
    P5e : une journee a trajets mixtes (voiture garee + marche, segment non routable) AFFICHE desormais ses liaisons --
@@ -18546,7 +18567,7 @@ function injectPresentationLegs(presentation, mode, tr){
      La decision est donc prise MOVE PAR MOVE : un move en defaut ne contamine plus les autres.
      presentationDoneEnabled() reste intacte et conserve ses 3 usages legitimes (etat « fait » des moteurs de carte),
      qui n'ont jamais masque le trace. */
-  const {veh,conso,priceA,priceB,provA,provB,cur,_pcA,_pcB,_kA,_kB}=_legFuelCtx(presentation,tr);   /* V4.8f : contexte prix PARTAGE avec le total "Cout des trajets" (une seule formule) */
+  const {veh,conso,priceA,priceB,provA,provB,cur,_pcA,_pcB,_kA,_kB,approachPrice,approachProv,_pcAp,_kAp,returnPrice,returnProv,_pcRt,_kRt}=_legFuelCtx(presentation,tr);   /* V4.8f : contexte prix PARTAGE avec le total "Cout des trajets" (une seule formule) */
   let crossedTransfer=false;
   (presentation.moves||[]).forEach(move=>{
     if(move&&move.role==="transfer"){
@@ -18568,13 +18589,14 @@ function injectPresentationLegs(presentation, mode, tr){
     const agg=aggregateMoveForRow(move);
     if(!agg) return;
     const next=move.toLabel||"";
-    const price=crossedTransfer?priceB:priceA;
-    const prov=crossedTransfer?provB:provA;   /* correction Loic (section A) : provenance affichee, aucun impact sur price/driveMeters */
-    const _k=crossedTransfer?_kB:_kA, _pc=crossedTransfer?_pcB:_pcA;   /* V4.8e */
+    /* P5d : APPROACH et RETURN ont leur PROPRE reference de prix, independante de crossedTransfer. */
+    const price=_segApproach?approachPrice:(_segReturn?returnPrice:(crossedTransfer?priceB:priceA));
+    const prov=_segApproach?approachProv:(_segReturn?returnProv:(crossedTransfer?provB:provA));   /* provenance affichee, aucun impact sur price/driveMeters */
+    const _k=_segApproach?_kAp:(_segReturn?_kRt:(crossedTransfer?_kB:_kA));
+    const _pc=_segApproach?_pcAp:(_segReturn?_pcRt:(crossedTransfer?_pcB:_pcA));   /* V4.8e */
     const driveMeters=Number(agg.driveDist)||0;
     const showFuel=
-      !_seg   /* P5c : APPROACH/RETURN -> carburant volontairement MASQUE jusqu'a P5d, qui en est seul proprietaire */
-      &&mode==="DRIVE"
+      mode==="DRIVE"
       &&usesCar(tr)
       &&conso>0
       &&price>0
@@ -18595,7 +18617,7 @@ function injectPresentationLegs(presentation, mode, tr){
       ||"var(--gold)";   /* ligne autonome : repli natif, aucune couleur nouvelle */
     div.style.setProperty("--legc",legColor);
     div.dataset.fuelCost=showFuel?String(cost):"";   /* V4.4 : valeur numerique DEJA calculee ci-dessus, exposee avant formatage (aucun recalcul ailleurs) */
-    div.dataset.fuelMissing=(!_seg&&mode==="DRIVE"&&usesCar(tr)&&driveMeters>0&&!showFuel)?"1":"";   /* P5c : masque DELIBEREMENT n'est pas « prix indisponible » -> aucun avertissement sur APPROACH/RETURN */
+    div.dataset.fuelMissing=(mode==="DRIVE"&&usesCar(tr)&&driveMeters>0&&!showFuel)?"1":"";   /* P5d : le masquage P5c est leve -- un APPROACH/RETURN routable sans prix exploitable est un VRAI etat FUEL-R1 « indisponible », jamais 0 EUR */
     const fuelHtml=showFuel
       ? `<span class="pl-leg-fuel"><span class="pl-leg-qty">⛽ ${qty<10?qty.toFixed(1):Math.round(qty)} ${unit} ·</span> ≈ ${money(cost,cur)}</span>`   /* V4.8-B : la vue normale montre le montant ; la quantite reste en mode Details et au toucher */
       : "";
@@ -18628,11 +18650,11 @@ function injectPresentationLegs(presentation, mode, tr){
         {dist:agg.dist,dur:agg.dur},
         mode,
         conso,
-        _seg?0:price,     /* P5c : 0 n'est PAS un prix de 0 EUR/L -- c'est l'ABSENCE de prix, que showLegDetail() interprete deja (son test est price>0) comme « pas de bloc carburant ». Fonction inchangee. */
+        price,            /* P5d : prix REEL du segment (depart pour APPROACH, derniere base pour RETURN) */
         cur,
         veh.fuel,
         driveMeters,
-        _seg?null:prov,   /* provLabel vide par son propre test if(!prov) */
+        prov,
         _pc
       );
     };
