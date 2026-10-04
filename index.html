@@ -17078,17 +17078,22 @@ function planSegmentExpectedSig(tr, day, segmentType, opts){   /* identite ATTEN
   const pts=routeSegmentPoints(tr, segmentType);
   const mode=(opts&&opts.mode)||travelMode(tr);
   return uiRouteSignature({ points:pts, mode, avoidTolls:!!(opts&&opts.avoidTolls), departureTime:null, segmentType }); }
-function _planSegmentParts(seg, mode){   /* ADAPTATEUR PUR : legs canoniques P1 -> contrat move.parts, zero nouveau routage */
-  const out=[]; const legs=(seg&&Array.isArray(seg.legs))?seg.legs:[];
+function _planSegmentParts(seg, mode){   /* ADAPTATEUR PUR : leg canonique P1 -> contrat move.parts, zero nouveau routage */
+  const legs=(seg&&Array.isArray(seg.legs))?seg.legs:[];
   const o=_rcPoint(seg&&seg.origin), d=_rcPoint(seg&&seg.destination);
-  if(!legs.length){ return null; }   /* information insuffisante -> l'appelant declare un gap, jamais une distance reconstituee */
-  for(let i=0;i<legs.length;i++){ const l=legs[i];
-    if(!l || !Number.isFinite(l.distanceMeters) || !Number.isFinite(l.durationSeconds)) return null;   /* leg incomplet -> gap honnete */
-    out.push(_presentationPart({ purpose:"canonical", mode,
-      fromPoint:(i===0)?o:null, toPoint:(i===legs.length-1)?d:null,
-      distanceMeters:l.distanceMeters, durationSeconds:l.durationSeconds,
-      polyline:l.polyline||"", drivable:(mode==="DRIVE") })); }
-  return out; }
+  /* P5f : APPROACH/RETURN sont actuellement des segments canoniques a DEUX points. Une projection exploitable exige
+     donc EXACTEMENT un leg. Si le contrat canonique evolue un jour vers plusieurs legs, ceux-ci ne pourront etre
+     acceptes qu'avec leurs VERITABLES extremites intermediaires. Ne jamais les reconstruire ni les deduire ici.
+     L'ancienne forme (fromPoint au premier leg, toPoint au dernier, null ailleurs) contredisait l'exigence P4 de
+     continuite geometrique : une part intermediaire sans extremite fait echouer _planCostProjection(). Le defaut
+     restait latent parce que deux points produisent un seul leg -- une coincidence, pas une garantie. */
+  if(legs.length!==1) return null;   /* echec ferme : l'appelant declare le move incomplet, jamais une distance partielle */
+  const l=legs[0];
+  if(!l || !Number.isFinite(l.distanceMeters) || !Number.isFinite(l.durationSeconds)) return null;
+  if(!o || !d) return null;   /* extremites reelles indispensables : aucune n'est inventee */
+  return [ _presentationPart({ purpose:"canonical", mode, fromPoint:o, toPoint:d,
+    distanceMeters:l.distanceMeters, durationSeconds:l.durationSeconds,
+    polyline:l.polyline||"", drivable:(mode==="DRIVE") }) ]; }
 function _planSegmentMove(tr, seg, segmentType, mode){   /* move ADDITIF : meme forme que l'existant + segmentType */
   const parts=_planSegmentParts(seg, mode);
   const A=_rcPoint(seg&&seg.origin), B=_rcPoint(seg&&seg.destination);
