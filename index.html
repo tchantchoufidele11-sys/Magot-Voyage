@@ -12724,7 +12724,7 @@ async function renderDayRoute(tr, day, ro, trafficCtx){ const tk=++_routeUIToken
   /* PLANNING-ROUTE1 P3 : distance/duree affichees = presentation COMPOSEE (APPROACH + LOCAL + RETURN), la meme que
      la carte et la chronologie. Planifie ET live passent par cette chaine unique (resolveLocalDayOrigin place
      options.liveOrigin en tete de sa cascade). Aucun repli vers resolveDayRoute ni _routeCore[day]. */
-  const _p3opts=normalizeDayPresentationUIOptions(Object.assign({}, planningPresentationOptions(tr, day), live?{liveOrigin:live}:{}));   /* objet NEUF : planningPresentationOptions() n'est jamais mutee */
+  const _p3opts=planningPresentationOptionsForUI(tr, day);   /* P5a : identite PARTAGEE avec la carte Google et la carte OSM */
   let presentation=null; try{ presentation=await getOrResolvePlanningPresentation(tr, day, _p3opts); }catch(_e){ presentation=null; }
   const res=(presentation && Number.isFinite(presentation.totalDistanceMeters) && presentation.totalDistanceMeters>0
     && Number.isFinite(presentation.totalDurationSeconds) && presentation.totalDurationSeconds>0)
@@ -14382,7 +14382,7 @@ function renderDayMapOnline(el,stops,tr,day,gen){
   function stillCurrent(){ return gen===_dayMapGen && el.isConnected && document.getElementById("planMap")===el; }
 
   /* v958-B1e-3a : Presentation resolue UNE fois, EN PARALLELE de la cascade renderer -- jamais attendue avant elle, pour preserver le rendu progressif (arch-r10 Correctif 2) */
-  const _b3aOpts=planningPresentationOptions(tr,day);
+  const _b3aOpts=planningPresentationOptionsForUI(tr,day);   /* P5a : la carte suivait PLANNED meme en live -- d'ou un itineraire trace loin de la position reelle */
   const presentationPromise=getOrResolvePlanningPresentation(tr,day,_b3aOpts);
   const _b3aAiPlaces=(stops||[]).filter(x=>!x._trans).map(x=>({id:x.id,title:x.title||"",time:x.time||""}));   /* capture au debut du cycle, jamais relu apres les await (arch-r8/r9 Correctif 4) */
   const _b3aAiKey=_storeId+"|"+_storeEpoch+"|"+tr.id+"|"+day;
@@ -14566,7 +14566,7 @@ function renderDayMap(stops,tr,day){
   if(!navigator.onLine){ // hors-ligne : Google ne peut pas charger → bascule automatique sur la carte OSM (route en cache)
     const pts=stops.filter(s=>s.lat!=null); if(!pts.length){ el.style.display="none"; return; }
     _osmEngine=true;
-    const _b3aOpts=planningPresentationOptions(tr,day);
+    const _b3aOpts=planningPresentationOptionsForUI(tr,day);   /* P5a : carte OSM hors ligne -- meme identite que la banniere */
     const _b3aAiPlaces=pts.filter(x=>!x._trans).map(x=>({id:x.id,title:x.title||"",time:x.time||""}));
     const _b3aAiKey=_storeId+"|"+_storeEpoch+"|"+tr.id+"|"+day;
     const _b3aAiGeneration=(_dayAIRequestSeq[_b3aAiKey]=(_dayAIRequestSeq[_b3aAiKey]||0)+1);   /* V4 : meme correctif NaN que ci-dessus */
@@ -18755,6 +18755,17 @@ function normalizeDayPresentationUIOptions(options){
   const live=_rcPoint(src.liveOrigin);
   return Object.assign({}, src, { liveOrigin: live ? src.liveOrigin : null });
 }
+/* PLANNING-ROUTE1 P5a — identite de presentation des consommateurs de l'ECRAN DU JOUR.
+   Choisit UNIQUEMENT l'origine : LIVE si une position est active pour ce jour, sinon PLANNED.
+   N'ecrit JAMAIS vehicleAnchor -- la semantique du vehicule en DRIVE + live est le perimetre de P5b.
+   planningPresentationOptions() n'est pas mutee : un objet NEUF est construit a chaque appel.
+   La VIGNETTE de la liste des jours reste deliberement PLANNED : elle resume le programme enregistre,
+   pas la position momentanee du voyageur (sinon son kilometrage varierait pendant le deplacement). */
+function planningPresentationOptionsForUI(tr, day){
+  const base=planningPresentationOptions(tr, day);
+  const live=(typeof _routeUILiveGet==="function")?_routeUILiveGet(tr, day):null;
+  if(!live) return normalizeDayPresentationUIOptions(Object.assign({}, base));
+  return normalizeDayPresentationUIOptions(Object.assign({}, base, { liveOrigin:{ lat:live.lat, lng:live.lng } })); }
 function planningPresentationOptions(tr, day){
   return normalizeDayPresentationUIOptions({
     liveOrigin: null,
