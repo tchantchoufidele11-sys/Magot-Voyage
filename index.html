@@ -14484,8 +14484,11 @@ function renderDayMapOnline(el,stops,tr,day,gen){
           }
           if(_b3aSecondaryCommitted) return;   /* deja commis par une tentative provider precedente -- jamais une fois par provider (arch-r10 Correctif 2) */
           _b3aSecondaryCommitted=true;
-          const simpleTopology=presentationDoneEnabled(presentationRef);
-          if(simpleTopology){
+          /* P5e (amende) : second verrou retire. L'appel lui-meme etait conditionne a simpleTopology : retirer la
+             garde INTERNE a injectPresentationLegs() n'aurait rien change, puisque la fonction n'etait jamais
+             appelee sur une journee « mixte ». Les liaisons sont desormais injectees systematiquement, et c'est
+             aggregateMoveForRow() qui arbitre move par move. */
+          {
             injectPresentationLegs(presentationRef, base.mode, tr);
             _mvpTripFuelFromPresentation(presentationRef, base.mode, tr);   /* V4.8h : meme total (prouve egal en V4.8f) + detail et origine du prix */
             /* F1 Planning final :
@@ -14513,11 +14516,6 @@ function renderDayMapOnline(el,stops,tr,day,gen){
                   _mvpTripFuelFromPresentation(presentationRef, base.mode, tr);   /* V4.8h */
                 }).catch(()=>{});
               }
-            }catch(_e){}
-          } else {   /* V4.8f : journee a trajets mixtes -- aucune liaison affichee (regle inchangee), mais le total reste calcule */
-            _mvpTripFuelFromPresentation(presentationRef, base.mode, tr);
-            try{ const _fp2=_fuelInflightForPlanning(tr);
-              if(_fp2) _fp2.then(()=>{ if(!stillCurrent()) return; if(el._mapRenderer!==handle) return; if(presentationRef&&presentationRef.meta&&presentationRef.meta.stale) return; _mvpTripFuelFromPresentation(presentationRef, base.mode, tr); }).catch(()=>{});
             }catch(_e){}
           }
           renderFideleAIFromPresentation(tr,day,presentationRef,_b3aAiPlaces,_b3aAiGeneration,base.dd);
@@ -18359,6 +18357,10 @@ function presentationDoneEnabled(presentation){
    ------------------------------------------------------------ */
 function aggregateMoveForRow(move){
   if(move.notNeeded || !move.parts || !move.parts.length) return null;
+  /* P5e : une part en gap signifie que ce deplacement n'a PAS pu etre route. Agreger ses parts donnerait une
+     distance tronquee presentee comme complete. Ce move seul n'est donc pas chiffre -- les autres liaisons de la
+     journee restent affichees (aucune garde globale ne les supprime). */
+  if(move.parts.some(p=>p && p.gap)) return null;
   return {
     dist: move.parts.reduce((s,p)=>s+(Number(p.distanceMeters)||0),0),
     dur:  move.parts.reduce((s,p)=>s+(Number(p.durationSeconds)||0),0),
@@ -18453,10 +18455,11 @@ function _legFuelCtx(presentation,tr){
   const _kA=_fuelFx(_pcA,cur), _kB=_fuelFx(_pcB,cur);
   return {veh,fd,conso,day,dstA,dstB,priceA,priceB,provA,provB,cur,_pcA,_pcB,_kA,_kB};
 }
-/* V4.8f : "Cout des trajets" calcule depuis les TRAJETS de la journee (DayRoutePresentation), pas depuis les lignes affichees.
-   Une journee a trajets mixtes (voiture garee + marche, segment non routable) n'affiche pas de liaisons (regle presentationDoneEnabled,
-   inchangee) : le total doit pourtant etre connu. Meme selection de trajets et meme formule que les liaisons : seule la distance
-   reellement parcourue EN VOITURE (parts drivable) consomme du carburant. Jamais un faux total complet. */
+/* "Cout des trajets" calcule depuis les TRAJETS de la journee (DayRoutePresentation), pas depuis les lignes affichees.
+   P5e : une journee a trajets mixtes (voiture garee + marche, segment non routable) AFFICHE desormais ses liaisons --
+   la decision est prise move par move par aggregateMoveForRow(), qui ecarte seulement les moves notNeeded, sans part
+   ou contenant un gap. Meme selection de trajets et meme formule que les liaisons : seule la distance reellement
+   parcourue EN VOITURE (parts drivable) consomme du carburant. Jamais un faux total complet. */
 function _tripFuelSrc(prov,dst,price,pc,veh){   /* V4.8h : origine HONNETE du prix utilise (libelle + prix au litre dans sa devise) */
   const loc=LOCALE[lang()]||"fr-FR", unit=(veh&&veh.fuel)==="elec"?"kWh":"L";
   const pTxt=price.toLocaleString(loc,{minimumFractionDigits:2,maximumFractionDigits:3})+" "+curSym(pc)+"/"+unit;
@@ -18530,7 +18533,14 @@ function injectPresentationLegs(presentation, mode, tr){
   if(!body) return;
   body.querySelectorAll(".pl-leg").forEach(e=>e.remove());
   body.querySelectorAll(".pl-d-leg").forEach(e=>{ e.innerHTML=""; });   /* V4.1 : slot compact de la ligne d'activite, rempli ci-dessous a partir du MEME agg */
-  if(!presentationDoneEnabled(presentation)) return;   /* garde partagee avec done -- reproduit if(!route.mixed) (arch-r9 Correctif 2) */
+  /* P5e : la garde globale presentationDoneEnabled() est RETIREE d'ici. Audit : elle exige, pour chaque move
+     pertinent, exactement UNE part, en DRIVE, drivable et sans gap -- elle tombait donc des qu'une journee comportait
+     une marche depuis un parking, un notNeeded, un mode non routier, ou un simple gap, ET supprimait alors TOUTES
+     les liaisons de la journee. Or aggregateMoveForRow() gere nativement le multi-part (somme des parts, driveDist
+     distincte) et refuse deja notNeeded, parts vides et gap.
+     La decision est donc prise MOVE PAR MOVE : un move en defaut ne contamine plus les autres.
+     presentationDoneEnabled() reste intacte et conserve ses 3 usages legitimes (etat « fait » des moteurs de carte),
+     qui n'ont jamais masque le trace. */
   const {veh,conso,priceA,priceB,provA,provB,cur,_pcA,_pcB,_kA,_kB}=_legFuelCtx(presentation,tr);   /* V4.8f : contexte prix PARTAGE avec le total "Cout des trajets" (une seule formule) */
   let crossedTransfer=false;
   (presentation.moves||[]).forEach(move=>{
