@@ -10961,12 +10961,7 @@ function routeSegmentAnchors(tr){   /* ancres canoniques du voyage ; STRICT : nu
 function routeSegmentPoints(tr, segmentType){   /* points ORDONNES d'un segment nomme, ou null si une ancre manque */
   const a=routeSegmentAnchors(tr);
   if(!routeUsesTripDeparture(tr)) return null;   /* avion/bateau : hors perimetre (transferts hub inchanges) */
-  if(segmentType===ROUTE_SEGMENT_APPROACH){
-    /* P6a : l'origine EFFECTIVE (live explicite || tr.depart) remplace a.depart. routeSegmentPoints() reste
-       canonique pour tout le reste ; P1 n'est pas modifie, et le Budget ne passe pas par ici. */
-    const _o=(typeof planApproachOrigin==="function")?planApproachOrigin(tr, 0):null;
-    const _org=_o?{lat:_o.lat,lng:_o.lng}:a.depart;
-    return (_org&&a.firstBase)?[_org,a.firstBase]:null; }
+  if(segmentType===ROUTE_SEGMENT_APPROACH) return (a.depart&&a.firstBase)?[a.depart,a.firstBase]:null;   /* P1 : CANONIQUE et PLANIFIE -- aucune dependance a _routeUILive ni a aucun etat d'interface */
   if(segmentType===ROUTE_SEGMENT_RETURN){ const ret=_rcPoint(tr&&tr.returnDestination)||a.depart;   /* returnDestination explicite || tr.depart (architecture extensible, aucune UI en P1) */
     return (a.lastPoint&&ret)?[a.lastPoint,ret]:null; }
   return null; }
@@ -17097,6 +17092,16 @@ function planApproachOrigin(tr, day){
   if(live&&live.explicit===true){ const p=_rcPoint(live); if(p) return {lat:p.lat,lng:p.lng,live:true}; }
   const p2=_rcPoint(tr&&tr.depart); return p2?{lat:p2.lat,lng:p2.lng,live:false}:null; }
 function planApproachIsLive(tr, day){ const o=planApproachOrigin(tr, day); return !!(o&&o.live); }
+function planApproachPoints(tr, day){
+  /* Points EFFECTIFS de l'APPROACH pour le Planning : origine effective -> premiere base canonique.
+     Ils vivent ICI, dans la couche de composition, et JAMAIS dans routeSegmentPoints() : ce producteur P1 doit
+     rester canonique et planifie, sinon tout autre consommateur recevrait une geometrie dependante de l'etat
+     d'interface transient _routeUILive. Ils sont transmis explicitement a resolveRouteSegment({points}) -- le
+     point d'entree que P1 prevoit deja -- et signes tels quels par planSegmentExpectedSig(). */
+  const base=routeSegmentPoints(tr, ROUTE_SEGMENT_APPROACH);   /* canonique : [tr.depart, premiere base] */
+  if(!base || base.length<2) return base;
+  const o=planApproachOrigin(tr, day);
+  return (o&&o.live)?[{lat:o.lat,lng:o.lng}, base[1]]:base; }
 function planSegmentApplies(tr, day, segmentType, options){   /* PUR : aucun reseau, aucun cache, aucune resolution */
   if(!tr || !routeUsesTripDeparture(tr)) return false;   /* avion/bateau : hors perimetre */
   const days=(typeof tripDays==="function")?tripDays(tr):[];
@@ -17107,13 +17112,18 @@ function planSegmentApplies(tr, day, segmentType, options){   /* PUR : aucun res
        tant que l'approche partait de tr.depart et creait une rupture avec la position reelle ; desormais l'approche
        part de l'origine EFFECTIVE (GPS si explicitement active), donc elle redevient applicable et represente le
        trajet qui reste reellement a parcourir. RETURN n'est toujours PAS concerne par le live. */
-    if(!planApproachOrigin(tr, day)) return false; }
+    const _pts=(typeof planApproachPoints==="function")?planApproachPoints(tr, day):null;
+    if(!_pts || _pts.length<2) return false; }
   if(segmentType===ROUTE_SEGMENT_RETURN && day!==last) return false;
   const pts=routeSegmentPoints(tr, segmentType);
   return !!(pts && pts.length>=2); }
 function planSegmentExpectedSig(tr, day, segmentType, opts){   /* identite ATTENDUE : meme signature que P1, calculee LOCALEMENT (SPEC P2 §5) */
-  if(!planSegmentApplies(tr, day, segmentType, opts)) return "NONE";   /* marqueur explicite, jamais une signature heritee du cache ; J1 LIVE -> APPROACH = NONE */
-  const pts=routeSegmentPoints(tr, segmentType);
+  if(!planSegmentApplies(tr, day, segmentType, opts)) return "NONE";   /* marqueur explicite, jamais une signature heritee du cache */
+  /* P6a : signe EXACTEMENT les points effectivement routes -- jamais les points P1 planifies quand l'origine
+     effective est la position live. */
+  const pts=(segmentType===ROUTE_SEGMENT_APPROACH&&typeof planApproachPoints==="function")
+    ? planApproachPoints(tr, day)
+    : routeSegmentPoints(tr, segmentType);
   const mode=(opts&&opts.mode)||travelMode(tr);
   return uiRouteSignature({ points:pts, mode, avoidTolls:!!(opts&&opts.avoidTolls), departureTime:null, segmentType }); }
 function _planSegmentParts(seg, mode){   /* ADAPTATEUR PUR : leg canonique P1 -> contrat move.parts, zero nouveau routage */
@@ -18221,7 +18231,8 @@ async function resolveDayRoutePresentation(tr,day,options){
       const _mode=(options&&options.mode)||travelMode(tr);
       const _compose=async (segmentType, place)=>{
         if(!planSegmentApplies(tr, day, segmentType, options)) return;   /* meme regle que l'identite de cache -- J1 LIVE : APPROACH non compose */
-        let r=null; try{ r=await resolveRouteSegment(tr, segmentType, {mode:_mode, avoidTolls:!!(options&&options.avoidTolls)}); }catch(_e){ r=null; }
+        const _ptsEff=(segmentType===ROUTE_SEGMENT_APPROACH&&typeof planApproachPoints==="function")?planApproachPoints(tr, day):null;
+        let r=null; try{ r=await resolveRouteSegment(tr, segmentType, Object.assign({mode:_mode, avoidTolls:!!(options&&options.avoidTolls)}, _ptsEff?{points:_ptsEff}:{})); }catch(_e){ r=null; }
         const seg=r&&r.result;
         if(!seg){ complete=false; return; }   /* segment indisponible : le LOCAL est rendu seul, jamais 0, jamais de geometrie inventee */
         const mv=_planSegmentMove(tr, seg, segmentType, _mode);
