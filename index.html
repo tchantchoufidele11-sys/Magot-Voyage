@@ -6728,6 +6728,13 @@ function _fuelNeededPositions(tr){   /* audit v1034 P2-2 : depart + TOUTES les d
   const legs=(typeof tripLegs==="function")?tripLegs(tr):[];
   if(legs&&legs.length){ legs.forEach(l=>{ if(l&&l.dest) add(l.dest.cc||null,(l.dest.lat!=null)?l.dest.lat:null,(l.dest.lng!=null)?l.dest.lng:null); }); }
   else if(tr.dest){ add(tr.dest.cc||null,(tr.dest.lat!=null)?tr.dest.lat:null,(tr.dest.lng!=null)?tr.dest.lng:null); }
+  try{   /* CORRECTIF CARBURANT : « Partir a partir d'ici » actif -> la position devient un point d'ancrage carburant (pays donne par l'asset P6d) ;
+            sinon le pays de depart de l'APPROACH LIVE n'a ni station ni prix et le cout passe a « — ». Asset non charge -> rien d'ajoute. */
+    if(_p6dAsset&&_p6dAsset.status==="ready"&&_p6dAsset.asset){ const pre=(tr.id||"?")+"|";
+      for(const k of Object.keys(_routeUILive||{})){ if(k.indexOf(pre)!==0) continue; const lv=_routeUILiveGet(tr, +k.slice(pre.length));
+        if(!lv||lv.explicit!==true||!Number.isFinite(+lv.lat)||!Number.isFinite(+lv.lng)) continue;
+        const c=P6DGEO.classifyPoint(_p6dAsset.asset,+lv.lat,+lv.lng); if(c&&/^[A-Z]{2}$/.test(c)) add(c,+lv.lat,+lv.lng); } }
+  }catch(_e){}
   return positions; }
 function _fuelResolveSignature(tr){ if(!tr) return ""; const v=tr.veh||{};
   const ps=_fuelNeededPositions(tr).map(p=>p.cc+":"+(p.lat!=null?p.lat:"")+","+(p.lng!=null?p.lng:"")).join("|");
@@ -11410,7 +11417,8 @@ async function _p6dRunJob(tr, snap, key, fresh){
   const cls=p=>{ if(!p) return null; const c=P6DGEO.classifyPoint(asset,p.lat,p.lng); return (c&&/^[A-Z]{2}$/.test(c))?c:null; };
   const entry={p:JSON.parse(JSON.stringify(proj)), f:cls(snap.from), t:cls(snap.to)};
   _p6dMem.set(key,entry); _p6dFail.delete(key);
-  if((S.trips||[]).includes(tr)) _p6dCacheWrite(tr,key,entry); }
+  if((S.trips||[]).includes(tr)) _p6dCacheWrite(tr,key,entry);
+  try{ ensureFuelPriceFresh(tr); }catch(_e){} }   /* CORRECTIF CARBURANT : pays et ancrages connus apres projection -> prix manquants demandes (aucun reseau si rien ne manque) ; le cout se repeint a l'arrivee */
 
 /* ---------- E4 : prix nationaux des pays traverses (memoire, jamais tr._fuelPriceSnap) ---------- */
 const _p6dNat=new Map();
@@ -11436,6 +11444,10 @@ function _p6dAnchor(tr,cc,pt){
   ps=ps.filter(p=>p&&String(p.cc||"").toUpperCase()===cc&&p.lat!=null&&p.lng!=null&&Number.isFinite(+p.lat)&&Number.isFinite(+p.lng));
   let best=null, bd=Infinity; for(const p of ps){ let d=Infinity; try{ d=haversineKm(pt,{lat:+p.lat,lng:+p.lng}); }catch(_e){} if(d<bd){ bd=d; best=p; } }
   return best; }
+function _p6dAnchorsSorted(tr,cc,pt){   /* CORRECTIF CARBURANT : TOUS les ancrages du pays, du plus proche au plus lointain (meme filtre que _p6dAnchor) */
+  if(!pt) return []; let ps=[]; try{ ps=_fuelNeededPositions(tr); }catch(_e){ ps=[]; }
+  ps=ps.filter(p=>p&&String(p.cc||"").toUpperCase()===cc&&p.lat!=null&&p.lng!=null&&Number.isFinite(+p.lat)&&Number.isFinite(+p.lng));
+  return ps.map(p=>{ let d=Infinity; try{ d=haversineKm(pt,{lat:+p.lat,lng:+p.lng}); }catch(_e){} return {p,d}; }).sort((a,b)=>a.d-b.d).map(x=>x.p); }
 function p6dPartCost(tr, part){
   const st=p6dPartState(tr,part);
   if(st.state==="none") return {state:"none"};
@@ -11449,7 +11461,7 @@ function p6dPartCost(tr, part){
   const pack=r=>(r&&Number.isFinite(r.price)&&r.price>0)?{price:r.price,currency:String(r.currency||"EUR").toUpperCase(),record:r}:null;
   const res=p6dFuelCostCore(e.p,{ conso, manualPrice:manual, manualCur:String(veh.priceCur||tripCur).toUpperCase(), tripCur, fx:_fuelFx,
     priceOf:cc=>{
-      if(cc in ends){ const a=_p6dAnchor(tr,cc,ends[cc]); if(a){ anchors[cc]=a; const r=pack(fuelPriceRecordResolved(tr,cc,veh.fuel,+a.lat,+a.lng)); if(r) return r; } }   /* extremite effective */
+      if(cc in ends){ for(const a of _p6dAnchorsSorted(tr,cc,ends[cc])){ const r=pack(fuelPriceRecordResolved(tr,cc,veh.fuel,+a.lat,+a.lng)); if(r){ anchors[cc]=a; return r; } } }   /* extremite effective : ancrage le plus proche AYANT un prix (CORRECTIF CARBURANT) */
       const n=pack(fuelPriceRecordResolved(tr,cc,veh.fuel,null,null)); if(n) return n;   /* national deja connu */
       const x=pack(_p6dNatRecord(cc,veh.fuel)); if(x) return x;
       _p6dNatEnsure(cc,veh.fuel); const y=_p6dNat.get(_p6dNatKey(cc,veh.fuel)); if(y&&y.status==="loading") waiting=true;
