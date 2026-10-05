@@ -10965,7 +10965,7 @@ const P6DGEO=(function(){
 const KIND = Object.freeze({ ROAD: 'ROAD', FERRY: 'FERRY', FERRY_TRAIN: 'FERRY_TRAIN' });
 const CAPABILITY = Object.freeze({ VERIFIED: 'VERIFIED', UNVERIFIED: 'UNVERIFIED' });
 const UNKNOWN = 'UNKNOWN';
-const SUPPORTED_VERSION = 1, HEADER_LEN = 80, BISECTION_STEPS = 20;
+const SUPPORTED_VERSIONS = [1, 2], HEADER_LEN = 80, BISECTION_STEPS = 20;   // P6d-B2 : v1 (1e-3 homogene) et v2 (precision declaree)
 // Sondage des segments : tout passage par une autre classe plus long que l'espacement des sondes est detecte.
 const PROBE_SPACING_M = 100;
 
@@ -11006,10 +11006,12 @@ function decodeAsset(bytes) {
   if (bytes.length < HEADER_LEN) throw new GeoAssetError('asset tronque (en-tete incomplet)');
   if (String.fromCharCode(...bytes.subarray(0, 4)) !== 'MVGE') throw new GeoAssetError('magic invalide');
   const dv = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
-  const ver = dv.getUint16(4, true), quant = dv.getUint16(6, true), cs = dv.getUint32(8, true);
+  const ver = dv.getUint16(4, true);
+  if (!SUPPORTED_VERSIONS.includes(ver)) throw new GeoAssetError(`version de format ${ver} non supportee`);
+  if (ver === 2) return decodeAssetV2(bytes, dv);   // aucun repli : la version declaree choisit le decodeur, et lui seul
+  const quant = dv.getUint16(6, true), cs = dv.getUint32(8, true);
   const ncc = dv.getUint16(12, true), npoly = dv.getUint32(14, true), glen = dv.getUint32(18, true);
   const ilen = dv.getUint32(22, true), crc = dv.getUint32(26, true);
-  if (ver !== SUPPORTED_VERSION) throw new GeoAssetError(`version de format ${ver} non supportee`);
   if (bytes.length !== HEADER_LEN + glen + ilen) throw new GeoAssetError('longueur incoherente');
   const body = bytes.subarray(HEADER_LEN);
   if (crc32(body) !== crc) throw new GeoAssetError('somme de controle CRC-32 invalide');
@@ -11044,7 +11046,81 @@ function decodeAsset(bytes) {
     }
   }
   if (x.pos !== ilen) throw new GeoAssetError('index : octets residuels');
-  return Object.freeze({ quant, cs, W: 360000 / cs, H: 180000 / cs, codes, polys, cells, stats: { pipCalls: 0 } });
+  return Object.freeze({ version: 1, quant, scale: quant, offX: 180000, offY: 90000, cs, W: 360000 / cs, H: 180000 / cs, codes, polys, cells, stats: { pipCalls: 0 } });   // v1 : constantes historiques inchangees
+}
+
+
+// ---------- P6d-B2 : format v2 (Q3' -- precision DECLAREE par l'asset ; echec ferme sur toute incoherence) ----------
+// CRC-32 sur l'en-tete (hors champ CRC) ET le corps : la table de precision est protegee.
+// En-tete : 0 magic | 4 version u16 = 2 | 6 fineExp u8 | 7 coarseExp u8 | 8 cellFine u32 | 12 nCountries u16 | 14 nPolygons u32
+//           18 geomLen u32 | 22 indexLen u32 | 26 crc32 u32 | 30 reserved u16 = 0 | 32 sha256 | 64 outil.
+// Toutes les coordonnees sont ramenees en UNITES FINES (entiers exacts) : un sommet grossier vaut K unites fines.
+function decodeAssetV2(bytes, dv) {
+  const fineExp = bytes[6], coarseExp = bytes[7], cell = dv.getUint32(8, true);
+  const ncc = dv.getUint16(12, true), npoly = dv.getUint32(14, true), glen = dv.getUint32(18, true);
+  const ilen = dv.getUint32(22, true), crc = dv.getUint32(26, true), reserved = dv.getUint16(30, true);
+  if (!(Number.isInteger(fineExp) && Number.isInteger(coarseExp) && 0 < coarseExp && coarseExp < fineExp && fineExp <= 8))
+    throw new GeoAssetError(`table de precision incoherente : fin 1e-${fineExp}, grossier 1e-${coarseExp}`);
+  if (reserved !== 0) throw new GeoAssetError('en-tete : champ reserve non nul');
+  const S = 10 ** fineExp, K = 10 ** (fineExp - coarseExp), X = 180 * S, Y = 90 * S;
+  if (!(cell > 0) || (2 * X) % cell || (2 * Y) % cell) throw new GeoAssetError('parametres de grille invalides');
+  if (bytes.length !== HEADER_LEN + glen + ilen) throw new GeoAssetError('longueur incoherente');
+  const body = bytes.subarray(HEADER_LEN);
+  const covered = new Uint8Array(HEADER_LEN - 4 + body.length);   // v2 : en-tete (hors champ CRC) + corps
+  covered.set(bytes.subarray(0, 26), 0); covered.set(bytes.subarray(30, HEADER_LEN), 26); covered.set(body, HEADER_LEN - 4);
+  if (crc32(covered) !== crc) throw new GeoAssetError('somme de controle CRC-32 invalide (en-tete ou corps)');
+  if (!(ncc >= 1 && ncc <= 400) || !(npoly >= ncc)) throw new GeoAssetError('cardinalites impossibles');
+  const g = reader(body.subarray(0, glen)); const codes = [], polys = [];
+  const pt = (x, y) => { if (!(Math.abs(x) <= X && Math.abs(y) <= Y)) throw new GeoAssetError('coordonnee hors du globe'); };
+  for (let ci = 0; ci < ncc; ci++) {
+    const cc = String.fromCharCode(...g.bytes(2));
+    if (!/^[A-Z]{2}$/.test(cc) || (codes.length && cc <= codes[codes.length - 1])) throw new GeoAssetError('codes pays invalides ou non tries');
+    codes.push(cc);
+    const n = g.varint(); if (n < 1) throw new GeoAssetError('pays sans polygone');
+    for (let p = 0; p < n; p++) {
+      const nr = g.varint(); if (nr < 1) throw new GeoAssetError('polygone sans anneau'); const rings = [];
+      for (let r = 0; r < nr; r++) {
+        const h = g.varint(), npt = Math.floor(h / 2), mixed = h % 2 === 1;
+        if (npt < 3) throw new GeoAssetError('anneau degenere');
+        const a = new Float64Array((npt + 1) * 2); let k = 0;
+        if (!mixed) {
+          let px = 0, py = 0;
+          for (let t = 0; t < npt; t++) { px += g.zz(); py += g.zz(); const x = px * K, y = py * K; pt(x, y); a[2 * k] = x; a[2 * k + 1] = y; k++; }
+        } else {
+          const nruns = g.varint(); if (nruns < 1 || nruns > npt) throw new GeoAssetError('table de troncons : nombre de troncons impossible');
+          let tot = 0;
+          for (let u = 0; u < nruns; u++) {
+            const rr = g.varint(), len = Math.floor(rr / 2), unit = rr % 2 === 1 ? 1 : K;
+            if (len < 1) throw new GeoAssetError('table de troncons : troncon vide');
+            tot += len; if (tot > npt) throw new GeoAssetError('table de troncons : somme superieure au nombre de sommets');
+            let px = 0, py = 0;
+            for (let t = 0; t < len; t++) { px += g.zz(); py += g.zz(); const x = px * unit, y = py * unit; pt(x, y); a[2 * k] = x; a[2 * k + 1] = y; k++; }
+          }
+          if (tot !== npt) throw new GeoAssetError(`table de troncons : somme ${tot} != ${npt} sommets`);
+        }
+        a[2 * npt] = a[0]; a[2 * npt + 1] = a[1];   // anneau stocke OUVERT : referme pour le point-dans-polygone (inchange)
+        rings.push(a);
+      }
+      const o = rings[0]; let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
+      for (let t = 0; t < o.length; t += 2) { x0 = Math.min(x0, o[t]); x1 = Math.max(x1, o[t]); y0 = Math.min(y0, o[t + 1]); y1 = Math.max(y1, o[t + 1]); }
+      polys.push({ ci, rings, bbox: [x0, y0, x1, y1] });
+    }
+  }
+  if (g.pos !== glen) throw new GeoAssetError('geometrie : octets residuels');
+  if (polys.length !== npoly) throw new GeoAssetError('nombre de polygones incoherent');
+  const W = (2 * X) / cell, H = (2 * Y) / cell;
+  const x = reader(body.subarray(glen)); const nc = x.varint(); const cells = new Map(); let key = 0;
+  for (let c = 0; c < nc; c++) {
+    key += x.varint(); if (key >= W * H) throw new GeoAssetError('index : cellule hors grille'); const tag = x.varint();
+    if (tag % 2) { const cid = (tag - 1) / 2; if (cid >= ncc) throw new GeoAssetError('index : pays hors bornes'); cells.set(key, cid); }
+    else {
+      const n = tag / 2, ids = new Uint32Array(n); let q = 0;
+      for (let t = 0; t < n; t++) { q += x.varint(); if (q >= npoly) throw new GeoAssetError('index : polygone hors bornes'); ids[t] = q; }
+      cells.set(key, ids);
+    }
+  }
+  if (x.pos !== ilen) throw new GeoAssetError('index : octets residuels');
+  return Object.freeze({ version: 2, fineExp, coarseExp, scale: S, offX: X, offY: Y, cs: cell, W, H, codes, polys, cells, stats: { pipCalls: 0 } });
 }
 
 // ---------- point dans pays (index obligatoire, jamais de balayage) ----------
@@ -11068,9 +11144,9 @@ function inPoly(asset, x, y, pid) {
   return true;
 }
 function classifyPoint(asset, lat, lng) {
-  const x = lng * asset.quant, y = lat * asset.quant;           // le point interroge n'est pas quantifie
-  const cx = Math.min(asset.W - 1, Math.max(0, Math.floor((x + 180000) / asset.cs)));
-  const cy = Math.min(asset.H - 1, Math.max(0, Math.floor((y + 90000) / asset.cs)));
+  const x = lng * asset.scale, y = lat * asset.scale;           // le point interroge n'est pas quantifie ; unites de l'asset
+  const cx = Math.min(asset.W - 1, Math.max(0, Math.floor((x + asset.offX) / asset.cs)));   // v1 : 180000 / 90000 inchanges
+  const cy = Math.min(asset.H - 1, Math.max(0, Math.floor((y + asset.offY) / asset.cs)));
   const e = asset.cells.get(cy * asset.W + cx);
   if (e === undefined) return null;
   if (typeof e === 'number') return asset.codes[e];
@@ -11224,9 +11300,9 @@ return Object.freeze({KIND,CAPABILITY,UNKNOWN,PROBE_SPACING_M,GeoAssetError,GeoI
      coords_invalides) -> prix national francais indisponible pour une France seulement traversee.
    - Asset (E5) : octets recus -> SHA-256 -> comparaison -> decodage ; tout echec -> P6d indisponible, jamais de repli.
    - Affichage (E6) : montant seulement si complet ; « ... » pendant le calcul ; sinon « — ». Jamais de total partiel. */
-const P6D_ASSET_FILE="magot-geo-p6d-v1.bin";   /* a deposer A COTE d'index.html */
-const P6D_ASSET_SHA256="0bda484fb9e360c918e5579a627f9164e04c54fe31ee662843197c549887e0b9";   /* asset PROVISOIRE (Monaco Natural Earth) : interdit en production */
-const P6D_ASSET_ID="ne10m-topo1km-v1-"+P6D_ASSET_SHA256.slice(0,16);
+const P6D_ASSET_FILE="magot-geo-a7-final.v2.bin";   /* a deposer A COTE d'index.html */
+const P6D_ASSET_SHA256="09bfb63eb93814ff5282554e85a4d46aee55abede847678fde9dc7734b466af5";   /* asset FIGE A7-FINAL (LSIB 11.4, Q3prime) : contenu IMMUABLE sous ce nom */
+const P6D_ASSET_ID="magot-geo-a7-final-v2-"+P6D_ASSET_SHA256.slice(0,16);
 const P6D_CACHE_VERSION=1, P6D_CACHE_MAX=300, P6D_NORM_INDEX_MAX=400;
 const _P6D_TXT={
   fr:{note:"Coût calculé selon les prix carburant des pays traversés",missing:"Prix carburant indisponible pour certaines portions du trajet",ferry:"Ferry (hors carburant)",unknown:"Pays indéterminé",pending:"Calcul en cours…"},
