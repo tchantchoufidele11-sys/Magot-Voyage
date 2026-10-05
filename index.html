@@ -13444,7 +13444,7 @@ function _routeResumePlanned(tripId, day){   /* P6a : « Reprendre le depart pre
   const cur=currentTrip(); if(!cur || cur.id!==tripId) return;
   renderDayRoute(cur, day, isPlanDayReadOnly(cur,day));   /* meme cycle de rendu que l'activation : aucun mecanisme nouveau */
   try{ if(typeof renderPlan==="function") renderPlan(); }catch(_e){} }
-const ROUTE_LIVE_MAX_KM=100;   /* Hors APPROACH LIVE (jours suivants) : une position GPS ne devient le depart des visites que si elle est a <= 100 km de l'itineraire PREVU du jour */
+const ROUTE_LIVE_MAX_KM=100;   /* HOTFIX LIVE : une position GPS ne devient le depart du jour que si elle est a <= 100 km de l'itineraire PREVU du jour */
 function _routeLiveDistKm(tr, day, p){   /* distance minimale (km) de p aux points ET aux segments de l'itineraire prevu ; 0 si aucun programme */
   let pts=[]; try{ pts=buildDayRoutePoints(tr, day, {}).map(_rcPoint).filter(Boolean); }catch(_e){ pts=[]; }
   if(!pts.length) return 0;
@@ -13459,7 +13459,7 @@ function _routeUseMyPosition(tripId, day){ if(!navigator.geolocation){ toast(t("
     const cur=currentTrip(); if(!cur || cur.id!==tripId || planState.dayIndex!==day) return;   /* jour/voyage changé pendant la permission -> résultat GPS jeté */
     const la=_rcCoord(pos.coords.latitude,-90,90), ln=_rcCoord(pos.coords.longitude,-180,180);
     if(la==null||ln==null){ toast(t("route.gpsUnavailable")); return; }
-    if(!_routeLiveApproachBase(cur, day, {explicit:true})){ const dk=_routeLiveDistKm(cur, day, {lat:la,lng:ln}); if(dk>ROUTE_LIVE_MAX_KM){ toast(t("route.gpsTooFar",{km:String(Math.round(dk))})); return; } }   /* HOTFIX LIVE : position trop loin du programme -> refusee, depart prevu conserve */
+    { const dk=_routeLiveDistKm(cur, day, {lat:la,lng:ln}); if(dk>ROUTE_LIVE_MAX_KM){ toast(t("route.gpsTooFar",{km:String(Math.round(dk))})); return; } }   /* HOTFIX LIVE : position trop loin du programme -> refusee, depart prevu conserve */
     _routeUILive[(tripId||"?")+"|"+day]={lat:la,lng:ln,label:t("route.liveOrigin"),source:"live",explicit:true,capturedAt:Date.now()};   /* P5b : explicit=true -> ACTION DELIBEREE de l'utilisateur (« Partir a partir d'ici »), pas un contexte live quelconque */
     renderDayRoute(cur, day, isPlanDayReadOnly(cur,day));
     try{ if(typeof renderPlan==="function") renderPlan(); }catch(_e){} },   /* HOTFIX LIVE : chronologie redessinee comme dans _routeResumePlanned -- resume, carte et chronologie toujours coherents */
@@ -16858,8 +16858,7 @@ function toAppleMapsMode(mode){ return ({DRIVE:"driving",WALK:"walking",BIKE:"cy
 function usesCar(tr){ return localTransport(tr)==="car"; }
 function modeEmoji(m){ return ({DRIVE:"🚗",WALK:"🚶",TRANSIT:"🚌",BIKE:"🚲"})[m]||"🚗"; }
 function fmtDur(sec){ const m=Math.round((sec||0)/60); if(m<60) return m+" min"; const h=Math.floor(m/60),mm=m%60; return h+" h"+(mm?(" "+mm):""); }
-function fmtDist(m){ const d1=x=>{ try{ return x.toLocaleString(LOCALE[lang()]||"fr-FR",{minimumFractionDigits:1,maximumFractionDigits:1}); }catch(_e){ return x.toFixed(1); } };   /* separateur decimal selon la langue (4,3 km en francais) */
-  if((S.settings.units)==='imperial'){ const mi=(m||0)/1609.34; return (mi<10?d1(mi):Math.round(mi))+" mi"; } if((m||0)<1000) return Math.round(m||0)+" m"; const km=(m||0)/1000; return (km<10?d1(km):Math.round(km))+" km"; }
+function fmtDist(m){ if((S.settings.units)==='imperial'){ const mi=(m||0)/1609.34; return (mi<10?mi.toFixed(1):Math.round(mi))+" mi"; } if((m||0)<1000) return Math.round(m||0)+" m"; const km=(m||0)/1000; return (km<10?km.toFixed(1):Math.round(km))+" km"; }
 function stopsSig(stops,mode){ return "hq15|"+mode+"|"+stops.map(s=>(+s.lat).toFixed(4)+","+(+s.lng).toFixed(4)).join("|"); }
 async function computeRoute(stops,mode,opts){
   opts=opts||{};
@@ -19650,10 +19649,6 @@ function normalizeDayPresentationUIOptions(options){
    planningPresentationOptions() n'est pas mutee : un objet NEUF est construit a chaque appel.
    La VIGNETTE de la liste des jours reste deliberement PLANNED : elle resume le programme enregistre,
    pas la position momentanee du voyageur (sinon son kilometrage varierait pendant le deplacement). */
-function _routeLiveApproachBase(tr, day, live){   /* UNIQUE source : jour 0, action explicite, depart terrestre -> l'origine live appartient a l'APPROACH ; renvoie la BASE (point d'arrivee), sinon null */
-  if(!(day===0 && live && live.explicit===true && (typeof routeUsesTripDeparture!=="function" || routeUsesTripDeparture(tr)))) return null;
-  const _l0=(Array.isArray(tr&&tr.legs)&&tr.legs.length)?tr.legs[0]:null;
-  return ((_l0&&typeof routeLegAnchor==="function")?routeLegAnchor(_l0):null)||_rcPoint(tr&&tr.lodging)||_rcPoint(tr&&tr.dest)||null; }
 function planningPresentationOptionsForUI(tr, day){
   const base=planningPresentationOptions(tr, day);
   const live=(typeof _routeUILiveGet==="function")?_routeUILiveGet(tr, day):null;
@@ -19666,14 +19661,17 @@ function planningPresentationOptionsForUI(tr, day){
      (liveOrigin intact, donc APPROACH, repere « Ma position », carte et etat LIVE inchanges), et l'override est
      encode dans les deux identites (cle UI et signature logique). Lecture PURE : jamais tripLegs()/normalizeLegs(),
      qui muteraient le voyage et feraient croire la presentation perimee. */
-  const _base=_routeLiveApproachBase(tr, day, live);
-  if(_base) opts.localOriginOverride={ lat:_base.lat, lng:_base.lng };
+  if(day===0 && live.explicit===true && (typeof routeUsesTripDeparture!=="function" || routeUsesTripDeparture(tr))){
+    const _l0=(Array.isArray(tr&&tr.legs)&&tr.legs.length)?tr.legs[0]:null;
+    const _base=((_l0&&typeof routeLegAnchor==="function")?routeLegAnchor(_l0):null)||_rcPoint(tr&&tr.lodging)||_rcPoint(tr&&tr.dest);
+    if(_base) opts.localOriginOverride={ lat:_base.lat, lng:_base.lng };
+  }
   /* P5b : « Partir a partir d'ici » est une affirmation de l'utilisateur -- en voiture, le VEHICULE part aussi de la.
      Sans cela, le moteur laisse vehicleAnchor a null (personne != vehicule) et fabrique un gapPart des le premier
      deplacement : distance et duree tombent a « — » alors que l'utilisateur vient justement de dire ou il est.
      La regle est volontairement etroite : elle exige l'ACTION EXPLICITE (explicit===true), et ne s'applique pas a
      un contexte live quelconque qui serait introduit plus tard par une autre source. */
-  if(live.explicit===true && travelMode(tr)==="DRIVE") opts.vehicleAnchor=_base?{ lat:_base.lat, lng:_base.lng }:{ lat:live.lat, lng:live.lng };   /* CORRECTIF : la voiture a fait l'APPROACH avec l'utilisateur -> elle est a la BASE, jamais restee au point GPS (sinon « a pied » jusqu'a elle) */
+  if(live.explicit===true && travelMode(tr)==="DRIVE") opts.vehicleAnchor={ lat:live.lat, lng:live.lng };
   return normalizeDayPresentationUIOptions(opts); }
 function planningPresentationOptions(tr, day){
   return normalizeDayPresentationUIOptions({
