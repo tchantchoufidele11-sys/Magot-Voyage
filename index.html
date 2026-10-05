@@ -4716,7 +4716,7 @@ body:has(#view-plan.active) #agentBubble{display:none}
 .tfd-ov .tfd-row{padding:9px 0;border-bottom:1px solid var(--line,#E8ECF3)}
 .tfd-ov .tfd-head{font:700 13.5px/1.3 "Inter",sans-serif;color:var(--ink,#16233F);overflow-wrap:anywhere}
 .tfd-ov .tfd-det{margin-top:3px;font:500 12.5px/1.4 "Inter",sans-serif;color:var(--ink-2,#36425E);overflow-wrap:anywhere}
-.tfd-ov .tfd-walk{margin-top:2px;font:500 12px/1.35 "Inter",sans-serif;color:var(--muted,#6E7A90)}
+.tfd-ov .tfd-walk{margin-top:2px;font:500 12px/1.35 "Inter",sans-serif;color:var(--muted,#6E7A90)}.tfd-cc{font-size:.86em;opacity:.9;margin-top:2px;padding-left:8px;border-left:2px solid rgba(201,162,39,.45)}
 .tfd-ov .tfd-note{margin:10px 2px 0;font:500 12px/1.4 "Inter",sans-serif;color:var(--muted,#6E7A90)}
 
 /* F2-A0 : provenance du prix -- station / officiel national / estimation de reference visuellement distincts */
@@ -19286,17 +19286,22 @@ function showTripFuelDetail(){   /* V4.8h : detail trajet par trajet du "Cout de
   const rowsH=D.rows.map(r=>{
     const head=(r.origin?(_mvpTxt("legFrom")+" · "):"")+(r.from||"\u2014")+" \u2192 "+(r.to||"\u2014");
     let det=_mvpTxt("tfdDrive").replace("{km}",km(r.driveM));
-    if(r.p6d){ const bd=_p6dBreakdown(r.p6d,D.cur); const pp=Object.keys(bd.by).map(cc=>countryName(cc)+" "+km(bd.by[cc].m));
+    let ccH="";
+    if(r.p6d){ const bd=_p6dBreakdown(r.p6d,D.cur);
+      /* DETAIL PAR PAYS : km, litres, prix au litre et cout de CHAQUE pays -- donnees deja calculees par p6dFuelCostCore, aucun nouveau calcul de prix */
+      const pp=Object.keys(bd.by).map(cc=>{ const x=bd.by[cc]; const l=(x.m/1000)*(+D.conso)/100;
+        return countryName(cc)+" "+km(x.m)+(x.price>0?(" · "+L1(l)+" × "+x.price.toLocaleString(loc,{minimumFractionDigits:2,maximumFractionDigits:3})+" "+curSym(x.currency)+"/"+unit+" = "+money(l*x.price,x.currency)):(" · "+_mvpTxt("tripNA"))); });
       if(bd.ferry>0) pp.push(_p6dTxt("ferry")+" "+km(bd.ferry)); if(bd.unknown>0) pp.push(_p6dTxt("unknown")+" "+km(bd.unknown));
-      det+=(r.cost!=null?(" · "+L1(r.litres)+" = "+money(r.cost,D.cur)):(" · "+(r.p6d.state==="pending"?_p6dTxt("pending"):_mvpTxt("tripNA"))))+(pp.length?" · "+pp.join(", "):""); }   /* P6d-E */
+      det+=(r.cost!=null?(" · "+L1(r.litres)+" = "+money(r.cost,D.cur)):(" · "+(r.p6d.state==="pending"?_p6dTxt("pending"):_mvpTxt("tripNA"))));
+      ccH=pp.map(x=>`<div class="tfd-cc">${escapeHtml(x)}</div>`).join(""); }   /* P6d-E */
     else if(r.cost!=null){ const local=r.litres*r.price; det+=" · "+L1(r.litres)+" × "+r.src.pTxt+" = "+money(local,r.pc)+(String(r.pc).toUpperCase()!==String(D.cur).toUpperCase()?" ≈ "+money(r.cost,D.cur):""); }
     else det+=" · "+_mvpTxt("tripNA");
     const walk=r.walkM>=50?`<div class="tfd-walk">${escapeHtml(_mvpTxt("tfdWalk").replace("{km}",km(r.walkM)))}</div>`:"";
-    return `<div class="tfd-row"><div class="tfd-head">${escapeHtml(head)}</div><div class="tfd-det">${escapeHtml(det)}</div>${walk}</div>`; }).join("");
+    return `<div class="tfd-row"><div class="tfd-head">${escapeHtml(head)}</div><div class="tfd-det">${escapeHtml(det)}</div>${ccH}${walk}</div>`; }).join("");
   const fd=fuelDefault(D.fuel);
   const meta=`<div class="lr"><b>${escapeHtml(_mvpTxt("tfdFuel"))}</b><span>${escapeHtml(_fuelLabel(D.fuel))}</span></div>`
     +`<div class="lr"><b>${escapeHtml(_mvpTxt("tfdConso"))}</b><span>${escapeHtml((+D.conso).toLocaleString(loc,{maximumFractionDigits:1})+" "+unit+"/100 km")}</span></div>`
-    +D.srcs.map(x=>`<div class="lr"><b>${escapeHtml(_mvpTxt("tfdPrice"))}</b><span>${escapeHtml(x.line)}</span></div>`+(x.detail?`<div class="lr"><b>${escapeHtml(_mvpTxt("tfdSource"))}</b><span>${escapeHtml(x.detail)}</span></div>`:"")).join("");
+    +D.srcs.map(x=>`<div class="lr"><b>${escapeHtml(_mvpTxt("tfdPrice")+(x.cc?" · "+countryName(x.cc):""))}</b><span>${escapeHtml(x.line)}</span></div>`+(x.detail?`<div class="lr"><b>${escapeHtml(_mvpTxt("tfdSource"))}</b><span>${escapeHtml(x.detail)}</span></div>`:"")).join("");
   const totTxt=D.p6d?(D.missing?"\u2014":(D.pending?"\u2026":(D.known?money(D.sum,D.cur):"\u2014"))):(D.missing&&D.known?(_mvpTxt("tripPartial")+" · "+money(D.sum,D.cur)+" "+_mvpTxt("tripKnown")):(D.known?money(D.sum,D.cur):_mvpTxt("tripNA")));   /* P6d-E : jamais de total partiel */
   const note=D.p6d?(`<div class="leg-dl p6d-note">`+(D.missing?`<div class="lr"><span>${escapeHtml(_p6dTxt("missing"))}</span></div>`:"")+`<div class="lr"><span>${escapeHtml(_p6dTxt("note"))}</span></div></div>`):"";   /* FUEL-R1 : plus d'"estimation de reference" -- note supprimee */
   const ov=document.createElement("div"); ov.className="confirm-ov show tfd-ov";
@@ -19324,7 +19329,7 @@ function _mvpTripFuelFromPresentation(presentation,mode,tr){ try{
     const ok=mc.state==="complete"; const cost=ok?mc.cost:null;
     if(ok){ sum+=cost; known++; } else if(mc.state==="pending") pending++; else missing++;
     if(ok) for(const it of mc.items){ for(const l of ((it.res&&it.res.lines)||[])){ if(!(l.price>0)) continue;
-      const s1=_tripFuelSrc(l.source,(it.anchors&&it.anchors[l.countryCode])||{},l.price,l.currency,c.veh); if(s1) srcs.set(s1.key,s1); } }
+      const s1=_tripFuelSrc(l.source,(it.anchors&&it.anchors[l.countryCode])||{},l.price,l.currency,c.veh); if(s1) srcs.set(s1.key,Object.assign({},s1,{cc:l.countryCode})); } }   /* pays rattache a chaque prix (detail uniquement) */
     rows.push({ from:move.fromLabel||"", to:move.toLabel||"", origin:isOrigin, driveM:dm, walkM:Math.max(0,(Number(agg.dist)||0)-dm), litres:ok?mc.liters:null, price:null, pc:null, cost, src:null, p6d:mc });
   });
   window._mvpTripFuelDetail={ rows, cur:c.cur, conso:c.conso, fuel:c.veh.fuel, sum, known, missing, pending, p6d:true, srcs:[...srcs.values()] };
