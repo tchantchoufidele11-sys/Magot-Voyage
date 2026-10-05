@@ -6679,13 +6679,15 @@ async function _paintDayCosts(tr, day, tk, tid, presentation){   /* P4 : couts p
      (hasGap) et une bijection invalide. Au-dela, c'est _dayFuelBreakdown + FUEL-R1 qui decident si ces kilometres
      sont valorisables : prix disponibles -> cout, partiels -> etat partiel, absents -> etat indisponible. */
   const _bMeters=(_proj && presentation && presentation.hasGap!==true)?1:null;
-  let fuel=null, fuelPartial=false, fuelNA=false, fuelPending=false;
-  if(_bMeters!=null && usesCar(tr) && travelMode(tr)==="DRIVE"){   /* P6d-E : projection multi-pays des parts routieres ; _dayFuelBreakdown (partage avec le Budget) reste intact et n'est plus appele ici */
-    const dc=p6dDayCost(tr, presentation);
-    if(dc.state==="pending") fuelPending=true; else if(dc.state==="incomplete") fuelNA=true; else if(dc.state==="complete") fuel=(dc.cost>0)?dc.cost:null;
+  let fuel=null, fuelPartial=false, fuelNA=false;   /* FUEL-R1 : un cout partiel n'est jamais presente comme complet */
+  if(_bMeters!=null && usesCar(tr) && travelMode(tr)==="DRIVE"){   /* attribution segmentaire A/transfert/B inchangee (_dayFuelBreakdown non modifiee) */
+    const veh=tr.veh||{}, fd=fuelDefault(veh.fuel), conso=parseFloat(String(veh.conso||"").replace(",","."))||fd.conso;
+    const bd=_dayFuelBreakdown(tr, day, _proj.pts, _proj.legs, conso, veh, fd);   /* MEME fonction, memes entrees pts+legs : seule la source geometrique change */
+    if(bd.priceUnavailable){ if(bd.totalCost>0){ fuel=bd.totalCost; fuelPartial=true; } else fuelNA=true; }
+    else fuel=(bd.totalCost>0)?bd.totalCost:null;
   }
-  if(fuelPending){ setF("\u2026"); setD("\u2026"); setS("\u2026"); document.querySelectorAll(".rc-daycost,.rc-fuel").forEach(e=>{ e.dataset.state="pending"; }); return; }   /* P6d-E : calcul en cours */
-  if(fuelNA){ setF("\u2014"); setD("\u2014"); setS("\u2014"); document.querySelectorAll(".rc-daycost,.rc-fuel").forEach(e=>{ e.dataset.state="na"; }); _mvpPaintKnownDayCost(); return; }   /* P6d-E (E6) : jamais de total partiel */
+  if(fuelNA){ setF(_mvpTxt("tripNA")); const mm=(mealC>0)?(_mvpTxt("tripPartial")+" \u00b7 "+money(mealC,tr.currency)+" "+_mvpTxt("tripKnown")):_mvpTxt("tripNA"); setD(mm); setS(mm);
+    document.querySelectorAll(".rc-daycost,.rc-fuel").forEach(e=>{ e.dataset.state=(mealC>0)?"partial":"na"; }); _mvpPaintKnownDayCost(); return; }   /* FUEL-R1 : carburant sans prix -> indisponible, jamais 0 EUR */
   if(fuelPartial){ const pf=_mvpTxt("tripPartial")+" \u00b7 "+money(fuel,tr.currency)+" "+_mvpTxt("tripKnown"); setF(pf); const pm=_mvpTxt("tripPartial")+" \u00b7 "+money(fuel+mealC,tr.currency)+" "+_mvpTxt("tripKnown"); setD(pm); setS(pm);
     document.querySelectorAll(".rc-daycost,.rc-fuel").forEach(e=>{ e.dataset.state="partial"; }); _mvpPaintKnownDayCost(); return; }   /* FUEL-R1 : certains trajets sans prix -> partiel explicite */
   if(fuel==null){ setF("\u2014"); setD("\u2014"); setS("\u2014"); _mvpPaintKnownDayCost(); return; }   /* P4 : projection impossible ou rupture geographique -> cout indisponible, jamais un faux total */   /* route attendue mais échec -> jamais l\u2019ancien coût comme actuel */
@@ -10806,691 +10808,12 @@ async function budgetRouteSegment(tr, points, mode, avoidTolls, snapWrites){
   if(snapWrites) snapWrites[sig]=fresh;   /* v958-A P1 : STAGING -> jamais tr._routeSnap directement ; commit differe apres anti-stale (un calcul stale n'ecrit rien) */
   return fresh; }
 
-/* ===== PLANNING-ROUTE1 / P6d-C : contrat fournisseur canonique (NormalizedRouteLeg) =====
-   Normalise ce qu'Apple et Google renvoient DEJA vers l'entree du moteur P6d-B. Ne modifie ni routeCascade ni l'ordre
-   Apple -> Google, et ne cree aucun appel : Google n'est appele que si la cascade l'atteint, et c'est alors seulement que
-   son masque inclut les steps. Les legs normalises vivent dans une WeakMap memoire indexee par l'objet resultat de la
-   cascade : jamais serialises, jamais persistes (P6d-26). Aucun prix, aucune interface.
-   Google VERIFIED uniquement si chaque step a une distance entiere, une geometrie exploitable et une manoeuvre, ET si la
-   somme des steps egale la distance canonique du leg ; sinon UNVERIFIED (P6d-15). Apple : contrat P6d-C'3 (p6dNormalizeAppleLeg). */
-const P6D_GOOGLE_STEP_FIELDS="routes.legs.steps.distanceMeters,routes.legs.steps.polyline.encodedPolyline,routes.legs.steps.navigationInstruction.maneuver";
-const P6D_FERRY_KINDS={FERRY:"FERRY",FERRY_TRAIN:"FERRY_TRAIN"};
-const _p6dNormalized=new WeakMap();
-function p6dNormalizedLegs(result){ return (result&&typeof result==="object")?(_p6dNormalized.get(result)||null):null; }
-function _p6dAttach(out,n){ try{ Object.defineProperty(out,"_p6dNorm",{value:n,enumerable:false,configurable:true}); }catch(_e){} return out; }
-function _p6dPoints(enc){ if(typeof enc!=="string"||!enc) return []; let pts; try{ pts=decodePolyLL(enc); }catch(_e){ return null; }
-  return pts.every(p=>Number.isFinite(p[0])&&Number.isFinite(p[1])&&Math.abs(p[0])<=90&&Math.abs(p[1])<=180)?pts:null; }
-function _p6dRoadOnly(dist, enc, provider, reason){ const pts=_p6dPoints(enc);
-  return { provider, distanceMeters:dist, portions:[{kind:"ROAD", distanceMeters:dist, points:Array.isArray(pts)?pts:[]}], capabilities:{ferryClassification:"UNVERIFIED"}, reason }; }
-function p6dNormalizeGoogleLeg(dist, enc, steps){
-  if(!Number.isInteger(dist)||dist<=0) return null;   /* leg sans distance canonique entiere : aucune entree P6d-B */
-  if(!Array.isArray(steps)||!steps.length) return _p6dRoadOnly(dist, enc, "google", "NO_STEPS");
-  const portions=[]; let sum=0;
-  for(const x of steps){
-    if(!x||typeof x!=="object") return _p6dRoadOnly(dist, enc, "google", "STEP_INCOMPLETE");
-    const d=(x.distanceMeters===undefined)?0:x.distanceMeters;   /* JSON proto3 : une distance nulle est omise */
-    if(!Number.isInteger(d)||d<0) return _p6dRoadOnly(dist, enc, "google", "STEP_INCOMPLETE");
-    if(typeof x.maneuver!=="string"||!x.maneuver) return _p6dRoadOnly(dist, enc, "google", "STEP_INCOMPLETE");
-    const pts=_p6dPoints(x.polyline); if(!Array.isArray(pts)||(d>0&&pts.length<2)) return _p6dRoadOnly(dist, enc, "google", "STEP_INCOMPLETE");
-    portions.push({kind:P6D_FERRY_KINDS[x.maneuver]||"ROAD", distanceMeters:d, points:pts}); sum+=d; }
-  if(sum!==dist) return _p6dRoadOnly(dist, enc, "google", "STEP_SUM_MISMATCH");
-  return { provider:"google", distanceMeters:dist, portions, capabilities:{ferryClassification:"VERIFIED"}, reason:null }; }
-/* P6d-C'3 : contrat Apple, fonde sur le corpus reel C'2 (decision Loic). VERIFIED uniquement si :
-   - chaque step a une distance entiere >= 0 et une geometrie exploitable (>= 2 points si distance > 0) ;
-   - transportType absent/null -> ROAD ; exactement "FERRY" -> FERRY ; toute autre valeur -> UNVERIFIED (aucun FERRY_TRAIN invente) ;
-   - C'3-ACCESS : SEULE exception, exactement "WALKING" en SUFFIXE CONTIGU terminal (acces pieton a une destination hors voirie) :
-     reclasse ROAD avant P6d-B si sa somme Apple BRUTE (avant repartition de l'ecart) <= APPLE_TERMINAL_WALK_MAX_M et si le premier
-     step de distance > 0 qui le precede est ROAD. WALKING initial ou intermediaire, bloc trop long, bloc apres un FERRY ou sans route
-     -> UNVERIFIED. Aucune portion FERRY n'est creee, supprimee ni requalifiee ; la somme brute est tracee (terminalWalkMeters) ;
-   - la distance du leg est entiere et |somme des steps - leg| <= APPLE_STEP_DISTANCE_TOLERANCE_M.
-   P6d-B exige une conservation EXACTE : l'ecart toleré est reparti sur les seuls steps ROUTIERS, au prorata, par plus forts restes ;
-   les distances FERRY restent exactement celles d'Apple. Sans km routier pour l'absorber, l'ecart rend le leg UNVERIFIED.
-   P6d GUARD-REMOVE : le garde-fou de longueur (traversee maritime non marquee) a ete retire -- GUARD-CAL : signal non separable. */
-const APPLE_STEP_DISTANCE_TOLERANCE_M=3;
-const APPLE_TERMINAL_WALK_MAX_M=500;   /* C'3-ACCESS : max observe en production 334 m ; 1,25 x 334 -> premier multiple de 100 m strictement superieur */
-function p6dNormalizeAppleLeg(dist, enc, steps){
-  if(typeof dist!=="number"||!Number.isFinite(dist)||dist<=0) return null;
-  const d=Number.isInteger(dist)?dist:Math.round(dist);   /* distance canonique entiere ; l'arrondi est trace */
-  const unv=reason=>{ const n=_p6dRoadOnly(d, enc, "apple", reason); if(d!==dist) n.distanceRoundedFrom=dist; return n; };
-  if(!Array.isArray(steps)||!steps.length) return unv("NO_STEPS");
-  if(d!==dist) return unv("LEG_DISTANCE_NOT_INTEGER");
-  let ws=steps.length; while(ws>0&&steps[ws-1]&&typeof steps[ws-1]==="object"&&steps[ws-1].transportType==="WALKING") ws--;   /* C'3-ACCESS : debut du suffixe WALKING terminal */
-  const portions=[]; let sum=0, walk=0;
-  for(let i=0;i<steps.length;i++){ const x=steps[i];
-    if(!x||typeof x!=="object") return unv("STEP_INCOMPLETE");
-    if(!Number.isInteger(x.distanceMeters)||x.distanceMeters<0) return unv("STEP_INCOMPLETE");
-    const tt=x.transportType; let kind;
-    if(tt===undefined||tt===null) kind="ROAD"; else if(tt==="FERRY") kind="FERRY";
-    else if(tt==="WALKING"){ if(i<ws) return unv("WALKING_NOT_TERMINAL"); kind="ROAD"; walk+=x.distanceMeters; }   /* C'3-ACCESS : suffixe terminal seulement */
-    else return unv("TRANSPORT_TYPE_UNKNOWN");
-    const pts=_p6dPoints(x.polyline); if(!Array.isArray(pts)||(x.distanceMeters>0&&pts.length<2)) return unv("STEP_INCOMPLETE");
-    portions.push({kind, distanceMeters:x.distanceMeters, points:pts}); sum+=x.distanceMeters; }
-  if(ws<steps.length){   /* C'3-ACCESS : controles du bloc terminal sur les distances Apple BRUTES, avant toute repartition de l'ecart */
-    if(walk>APPLE_TERMINAL_WALK_MAX_M){ const n=unv("WALKING_TERMINAL_TOO_LONG"); n.terminalWalkMeters=walk; return n; }
-    let j=ws-1; while(j>=0&&steps[j].distanceMeters===0) j--;   /* un placeholder de 0 m ne separe jamais le bloc de ce qui le precede */
-    if(j<0||!(steps[j].transportType===undefined||steps[j].transportType===null)) return unv("WALKING_TERMINAL_NOT_AFTER_ROAD"); }
-  const delta=d-sum; if(Math.abs(delta)>APPLE_STEP_DISTANCE_TOLERANCE_M) return unv("STEP_SUM_MISMATCH");
-  if(delta!==0){
-    const road=portions.map((p,i)=>({i,m:p.distanceMeters})).filter(r=>portions[r.i].kind==="ROAD"&&r.m>0);
-    const S=road.reduce((a,r)=>a+r.m,0), T=S+delta; if(!(S>0)||T<0) return unv("STEP_SUM_MISMATCH");
-    const sc=road.map(r=>{ const x=r.m*T/S; return {i:r.i, fl:Math.floor(x), fr:x-Math.floor(x)}; });
-    let rest=T-sc.reduce((a,r)=>a+r.fl,0);
-    sc.slice().sort((a,b)=>(b.fr-a.fr)||(a.i-b.i)).forEach(r=>{ if(rest>0){ r.fl++; rest--; } });
-    sc.forEach(r=>{ portions[r.i].distanceMeters=r.fl; }); }
-  if(portions.reduce((a,p)=>a+p.distanceMeters,0)!==d) return unv("STEP_SUM_MISMATCH");   /* conservation exacte verifiee */
-  const out={ provider:"apple", distanceMeters:d, portions, capabilities:{ferryClassification:"VERIFIED"}, reason:null, stepSumDelta:delta };
-  if(ws<steps.length) out.terminalWalkMeters=walk;   /* C'3-ACCESS : trace, absente si aucun bloc (sortie inchangee sans WALKING) */
-  return out; }
-function p6dGeoLegInput(n){ return n?{ distanceMeters:n.distanceMeters, portions:n.portions, capability:n.capabilities.ferryClassification }:null; }
-
-/* ===== PLANNING-ROUTE1 / P6d-D : projection carburant multi-pays (pure, sans interface, aucun appelant dans ce lot) =====
-   CountryFuelProjection -> prix par pays -> litres -> cout. Les prix viennent EXCLUSIVEMENT des mecanismes existants
-   (fuelPriceRecordResolved, _fuelFx, fuelDefault) : aucune regle de fraicheur ni de devise n'est dupliquee ici.
-   - aucune substitution de prix entre pays ; un pays sans prix compatible garde ses km, le total devient indisponible ;
-   - prix manuel (priceManual) : applique UNIFORMEMENT a toutes les portions routieres, provenance "Votre prix" ;
-   - ferries hors litres ; toute distance UNKNOWN rend le total indisponible, MEME avec un prix manuel ;
-   - knownCost peut exister en interne ; totalCost vaut null tant que complete !== true -- jamais un total partiel, jamais 0 EUR invente ;
-   - point de prix d'un pays : l'extremite du leg situee dans ce pays (meme prix station que le calcul existant) ;
-     un pays seulement traverse n'a AUCUN point invente -> prix national ou manquant. */
-const P6D_PROJECTION_POLICY="p6d-proj-v1";
-function _p6dHashInit(){ return {a:0x811c9dc5, b:0x01000193^0x5bd1e995}; }
-function _p6dHashPush(h,str){ str=String(str); for(let i=0;i<str.length;i++){ const c=str.charCodeAt(i);
-    h.a=Math.imul(h.a^c,0x01000193)>>>0; h.b=Math.imul((h.b^c)+((h.b<<5)>>>0),0x5bd1e995)>>>0; } h.a=Math.imul(h.a^0x7c,0x01000193)>>>0; return h; }
-function _p6dHashHex(h){ return ("0000000"+h.a.toString(16)).slice(-8)+("0000000"+h.b.toString(16)).slice(-8); }
-function p6dGeometryFingerprint(norm){   /* empreinte deterministe de la geometrie canonique, sans la recopier */
-  if(!norm||!Array.isArray(norm.portions)) return null; const h=_p6dHashInit();
-  for(const p of norm.portions){ _p6dHashPush(h,p.kind+":"+p.distanceMeters+":"+((p.points&&p.points.length)||0));
-    for(const q of (p.points||[])) _p6dHashPush(h,Math.round(q[0]*1e5)+","+Math.round(q[1]*1e5)); }
-  return _p6dHashHex(h); }
-function p6dBuildProjection(norm, split, opts){
-  opts=opts||{}; const assetId=opts.assetId, mode=opts.mode||"DRIVE";
-  if(!norm||!split||split.ok!==true||typeof assetId!=="string"||!assetId) return null;   /* sans identite d'asset : aucune projection (un asset corrige doit invalider l'ancienne) */
-  const L=norm.distanceMeters; if(!Number.isInteger(L)||L<=0||split.distanceMeters!==L) return null;
-  const fm=split.ferryMeters||{}; const excluded=(fm.FERRY||0)+(fm.FERRY_TRAIN||0); const unknown=split.unknownMeters||0;
-  const portions=Object.keys(split.byCountry||{}).sort().filter(cc=>split.byCountry[cc]>0).map(cc=>({countryCode:cc, distanceMeters:split.byCountry[cc]}));
-  const road=portions.reduce((a,p)=>a+p.distanceMeters,0)+unknown;
-  if(![excluded,unknown,road].every(Number.isInteger)||road+excluded!==L) return null;   /* conservation exacte, sinon echec ferme */
-  const cap=(norm.capabilities&&norm.capabilities.ferryClassification)||null;
-  const fp=p6dGeometryFingerprint(norm); if(!fp) return null;
-  const sig=[P6D_PROJECTION_POLICY,assetId,mode,cap,L,fp].join("|");
-  return Object.freeze({ sig, legDistanceMeters:L, roadDistanceMeters:road, excludedDistanceMeters:excluded,
-    portions:Object.freeze(portions.map(p=>Object.freeze(p))), unknownDistanceMeters:unknown, completeGeometry:unknown===0, ferryClassification:cap }); }
-function p6dFuelCostCore(projection, ctx){
-  const out={complete:false, totalCost:null, knownCost:0, currency:String((ctx&&ctx.tripCur)||"EUR").toUpperCase(), liters:0, pricedMeters:0, unpricedMeters:0,
-    unknownMeters:0, excludedMeters:0, missingCountries:[], fxMissingCountries:[], lines:[], manual:false, reasons:[]};
-  const P=projection;
-  if(!P||!Array.isArray(P.portions)||![P.legDistanceMeters,P.roadDistanceMeters,P.excludedDistanceMeters,P.unknownDistanceMeters].every(n=>Number.isInteger(n)&&n>=0)
-     ||P.portions.some(p=>!p||typeof p.countryCode!=="string"||!Number.isInteger(p.distanceMeters)||p.distanceMeters<0)
-     ||P.portions.reduce((a,p)=>a+p.distanceMeters,0)+P.unknownDistanceMeters!==P.roadDistanceMeters||P.roadDistanceMeters+P.excludedDistanceMeters!==P.legDistanceMeters){
-    out.reasons.push("INVALID_PROJECTION"); out.knownCost=null; return out; }
-  const conso=ctx&&ctx.conso; if(!(Number.isFinite(conso)&&conso>0)){ out.reasons.push("NO_CONSO"); out.knownCost=null; return out; }
-  const manual=(ctx&&Number.isFinite(ctx.manualPrice)&&ctx.manualPrice>0)?ctx.manualPrice:NaN; out.manual=manual>0;
-  out.unknownMeters=P.unknownDistanceMeters; out.excludedMeters=P.excludedDistanceMeters;
-  out.liters=(P.roadDistanceMeters/1000)*conso/100;   /* litres des seules portions routieres ; ferries exclus */
-  for(const p of P.portions){
-    const liters=(p.distanceMeters/1000)*conso/100; const line={countryCode:p.countryCode, distanceMeters:p.distanceMeters, liters, price:null, currency:null, fx:null, cost:null, source:null};
-    let price=null, cur=null, source=null;
-    if(manual>0){ price=manual; cur=String(ctx.manualCur||out.currency).toUpperCase(); source={manual:true}; }
-    else { const r=ctx&&ctx.priceOf?ctx.priceOf(p.countryCode):null;
-      if(r&&Number.isFinite(r.price)&&r.price>0){ price=r.price; cur=String(r.currency||"EUR").toUpperCase(); source=r.record||null; } }
-    if(!(price>0)){ out.missingCountries.push(p.countryCode); out.unpricedMeters+=p.distanceMeters; out.lines.push(line); continue; }   /* aucune substitution */
-    const k=ctx.fx?ctx.fx(cur,out.currency):null;
-    Object.assign(line,{price,currency:cur,source});
-    if(!(Number.isFinite(k)&&k>0)){ out.fxMissingCountries.push(p.countryCode); out.unpricedMeters+=p.distanceMeters; out.lines.push(line); continue; }
-    line.fx=k; line.cost=liters*price*k; out.knownCost+=line.cost; out.pricedMeters+=p.distanceMeters; out.lines.push(line); }
-  if(out.unknownMeters>0) out.reasons.push("UNKNOWN_GEOMETRY");
-  if(out.missingCountries.length) out.reasons.push("PRICE_MISSING");
-  if(out.fxMissingCountries.length) out.reasons.push("FX_MISSING");
-  out.complete=out.reasons.length===0;
-  out.totalCost=out.complete?out.knownCost:null;   /* jamais un total partiel */
-  return out; }
-function p6dFuelCostForTrip(tr, projection, anchors){
-  if(!tr||!(usesCar(tr)&&travelMode(tr)==="DRIVE")) return null;   /* pas de carburant hors voiture */
-  const veh=tr.veh||{}; const fd=fuelDefault(veh.fuel);
-  const conso=parseFloat(String(veh.conso||"").replace(",","."))||fd.conso;   /* meme regle que _legFuelCtx */
-  const manual=veh.priceManual?parseFloat(String(veh.price||"").replace(",",".")):NaN;   /* seul priceManual===true fait office de prix manuel */
-  const tripCur=String(tr.currency||"EUR").toUpperCase();
-  const anchorFor=cc=>(Array.isArray(anchors)?anchors:[]).find(a=>a&&String(a.cc||"").toUpperCase()===cc&&Number.isFinite(+a.lat)&&Number.isFinite(+a.lng))||null;
-  return p6dFuelCostCore(projection,{ conso, manualPrice:manual, manualCur:String(veh.priceCur||tripCur).toUpperCase(), tripCur, fx:_fuelFx,
-    priceOf:cc=>{ const a=anchorFor(cc); const rec=fuelPriceRecordResolved(tr,cc,veh.fuel,a?+a.lat:null,a?+a.lng:null);
-      return (rec&&Number.isFinite(rec.price)&&rec.price>0)?{price:rec.price,currency:String(rec.currency||"EUR").toUpperCase(),record:rec}:null; } }); }
-
-/* ===== PLANNING-ROUTE1 / P6d-E : moteur geographique P6d-B/B1 (CLOSED) embarque TEL QUEL, mots-cles export retires ===== */
-const P6DGEO=(function(){
-// PLANNING-ROUTE1 / P6d-B — moteur geometrique pur.
-// Aucun reseau, aucun DOM, aucun prix, aucune connaissance d'un fournisseur d'itineraires.
-// Entree : octets de l'asset P6d-A (format v1) + portions typees { kind, distanceMeters, points:[[lat,lng],...] }.
-// Sortie : metres entiers par pays, UNKNOWN et ferries, dont la somme vaut exactement leg.distanceMeters.
-
-const KIND = Object.freeze({ ROAD: 'ROAD', FERRY: 'FERRY', FERRY_TRAIN: 'FERRY_TRAIN' });
-const CAPABILITY = Object.freeze({ VERIFIED: 'VERIFIED', UNVERIFIED: 'UNVERIFIED' });
-const UNKNOWN = 'UNKNOWN';
-const SUPPORTED_VERSIONS = [1, 2], HEADER_LEN = 80, BISECTION_STEPS = 20;   // P6d-B2 : v1 (1e-3 homogene) et v2 (precision declaree)
-// Sondage des segments : tout passage par une autre classe plus long que l'espacement des sondes est detecte.
-const PROBE_SPACING_M = 100;
-
-class GeoAssetError extends Error {}
-class GeoInputError extends Error {}
-
-// ---------- decodage de l'asset (echoue ferme) ----------
-let CRC_TABLE = null;
-function crc32(bytes) {
-  if (!CRC_TABLE) {
-    CRC_TABLE = new Uint32Array(256);
-    for (let n = 0; n < 256; n++) { let c = n; for (let k = 0; k < 8; k++) c = c & 1 ? 0xEDB88320 ^ (c >>> 1) : c >>> 1; CRC_TABLE[n] = c >>> 0; }
-  }
-  let c = 0xFFFFFFFF;
-  for (let i = 0; i < bytes.length; i++) c = CRC_TABLE[(c ^ bytes[i]) & 0xFF] ^ (c >>> 8);
-  return (c ^ 0xFFFFFFFF) >>> 0;
-}
-function reader(buf) {
-  let i = 0;
-  return {
-    get pos() { return i; },
-    varint() {
-      let r = 0, mul = 1;
-      for (let s = 0; ; s += 7) {
-        if (i >= buf.length) throw new GeoAssetError('varint tronque');
-        if (s > 49) throw new GeoAssetError('varint invalide');
-        const b = buf[i++]; r += (b & 0x7F) * mul; mul *= 128;
-        if (!(b & 0x80)) return r;
-      }
-    },
-    zz() { const n = this.varint(); return n % 2 ? -(n + 1) / 2 : n / 2; },
-    bytes(n) { if (i + n > buf.length) throw new GeoAssetError('donnees tronquees'); const s = buf.subarray(i, i + n); i += n; return s; },
-  };
-}
-
-function decodeAsset(bytes) {
-  if (!(bytes instanceof Uint8Array)) throw new GeoAssetError('asset : octets attendus');
-  if (bytes.length < HEADER_LEN) throw new GeoAssetError('asset tronque (en-tete incomplet)');
-  if (String.fromCharCode(...bytes.subarray(0, 4)) !== 'MVGE') throw new GeoAssetError('magic invalide');
-  const dv = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
-  const ver = dv.getUint16(4, true);
-  if (!SUPPORTED_VERSIONS.includes(ver)) throw new GeoAssetError(`version de format ${ver} non supportee`);
-  if (ver === 2) return decodeAssetV2(bytes, dv);   // aucun repli : la version declaree choisit le decodeur, et lui seul
-  const quant = dv.getUint16(6, true), cs = dv.getUint32(8, true);
-  const ncc = dv.getUint16(12, true), npoly = dv.getUint32(14, true), glen = dv.getUint32(18, true);
-  const ilen = dv.getUint32(22, true), crc = dv.getUint32(26, true);
-  if (bytes.length !== HEADER_LEN + glen + ilen) throw new GeoAssetError('longueur incoherente');
-  const body = bytes.subarray(HEADER_LEN);
-  if (crc32(body) !== crc) throw new GeoAssetError('somme de controle CRC-32 invalide');
-  if (!(quant > 0) || !(cs > 0) || 360000 % cs || 180000 % cs) throw new GeoAssetError('parametres de grille invalides');
-  const g = reader(body.subarray(0, glen));
-  const codes = [], polys = [];
-  for (let ci = 0; ci < ncc; ci++) {
-    codes.push(String.fromCharCode(...g.bytes(2)));
-    const n = g.varint();
-    for (let p = 0; p < n; p++) {
-      const nr = g.varint(), rings = [];
-      for (let r = 0; r < nr; r++) {
-        const npt = g.varint(); const a = new Float64Array(npt * 2); let px = 0, py = 0;
-        for (let k = 0; k < npt; k++) { px += g.zz(); py += g.zz(); a[2 * k] = px; a[2 * k + 1] = py; }
-        rings.push(a);
-      }
-      const o = rings[0]; let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
-      for (let k = 0; k < o.length; k += 2) { x0 = Math.min(x0, o[k]); x1 = Math.max(x1, o[k]); y0 = Math.min(y0, o[k + 1]); y1 = Math.max(y1, o[k + 1]); }
-      polys.push({ ci, rings, bbox: [x0, y0, x1, y1] });
-    }
-  }
-  if (g.pos !== glen) throw new GeoAssetError('geometrie : octets residuels');
-  if (polys.length !== npoly) throw new GeoAssetError('nombre de polygones incoherent');
-  const x = reader(body.subarray(glen)); const nc = x.varint(); const cells = new Map(); let k = 0;
-  for (let c = 0; c < nc; c++) {
-    k += x.varint(); const tag = x.varint();
-    if (tag % 2) { const cid = (tag - 1) / 2; if (cid >= ncc) throw new GeoAssetError('index : pays hors bornes'); cells.set(k, cid); }
-    else {
-      const n = tag / 2, ids = new Uint32Array(n); let q = 0;
-      for (let t = 0; t < n; t++) { q += x.varint(); if (q >= npoly) throw new GeoAssetError('index : polygone hors bornes'); ids[t] = q; }
-      cells.set(k, ids);
-    }
-  }
-  if (x.pos !== ilen) throw new GeoAssetError('index : octets residuels');
-  return Object.freeze({ version: 1, quant, scale: quant, offX: 180000, offY: 90000, cs, W: 360000 / cs, H: 180000 / cs, codes, polys, cells, stats: { pipCalls: 0 } });   // v1 : constantes historiques inchangees
-}
-
-
-// ---------- P6d-B2 : format v2 (Q3' -- precision DECLAREE par l'asset ; echec ferme sur toute incoherence) ----------
-// CRC-32 sur l'en-tete (hors champ CRC) ET le corps : la table de precision est protegee.
-// En-tete : 0 magic | 4 version u16 = 2 | 6 fineExp u8 | 7 coarseExp u8 | 8 cellFine u32 | 12 nCountries u16 | 14 nPolygons u32
-//           18 geomLen u32 | 22 indexLen u32 | 26 crc32 u32 | 30 reserved u16 = 0 | 32 sha256 | 64 outil.
-// Toutes les coordonnees sont ramenees en UNITES FINES (entiers exacts) : un sommet grossier vaut K unites fines.
-function decodeAssetV2(bytes, dv) {
-  const fineExp = bytes[6], coarseExp = bytes[7], cell = dv.getUint32(8, true);
-  const ncc = dv.getUint16(12, true), npoly = dv.getUint32(14, true), glen = dv.getUint32(18, true);
-  const ilen = dv.getUint32(22, true), crc = dv.getUint32(26, true), reserved = dv.getUint16(30, true);
-  if (!(Number.isInteger(fineExp) && Number.isInteger(coarseExp) && 0 < coarseExp && coarseExp < fineExp && fineExp <= 8))
-    throw new GeoAssetError(`table de precision incoherente : fin 1e-${fineExp}, grossier 1e-${coarseExp}`);
-  if (reserved !== 0) throw new GeoAssetError('en-tete : champ reserve non nul');
-  const S = 10 ** fineExp, K = 10 ** (fineExp - coarseExp), X = 180 * S, Y = 90 * S;
-  if (!(cell > 0) || (2 * X) % cell || (2 * Y) % cell) throw new GeoAssetError('parametres de grille invalides');
-  if (bytes.length !== HEADER_LEN + glen + ilen) throw new GeoAssetError('longueur incoherente');
-  const body = bytes.subarray(HEADER_LEN);
-  const covered = new Uint8Array(HEADER_LEN - 4 + body.length);   // v2 : en-tete (hors champ CRC) + corps
-  covered.set(bytes.subarray(0, 26), 0); covered.set(bytes.subarray(30, HEADER_LEN), 26); covered.set(body, HEADER_LEN - 4);
-  if (crc32(covered) !== crc) throw new GeoAssetError('somme de controle CRC-32 invalide (en-tete ou corps)');
-  if (!(ncc >= 1 && ncc <= 400) || !(npoly >= ncc)) throw new GeoAssetError('cardinalites impossibles');
-  const g = reader(body.subarray(0, glen)); const codes = [], polys = [];
-  const pt = (x, y) => { if (!(Math.abs(x) <= X && Math.abs(y) <= Y)) throw new GeoAssetError('coordonnee hors du globe'); };
-  for (let ci = 0; ci < ncc; ci++) {
-    const cc = String.fromCharCode(...g.bytes(2));
-    if (!/^[A-Z]{2}$/.test(cc) || (codes.length && cc <= codes[codes.length - 1])) throw new GeoAssetError('codes pays invalides ou non tries');
-    codes.push(cc);
-    const n = g.varint(); if (n < 1) throw new GeoAssetError('pays sans polygone');
-    for (let p = 0; p < n; p++) {
-      const nr = g.varint(); if (nr < 1) throw new GeoAssetError('polygone sans anneau'); const rings = [];
-      for (let r = 0; r < nr; r++) {
-        const h = g.varint(), npt = Math.floor(h / 2), mixed = h % 2 === 1;
-        if (npt < 3) throw new GeoAssetError('anneau degenere');
-        const a = new Float64Array((npt + 1) * 2); let k = 0;
-        if (!mixed) {
-          let px = 0, py = 0;
-          for (let t = 0; t < npt; t++) { px += g.zz(); py += g.zz(); const x = px * K, y = py * K; pt(x, y); a[2 * k] = x; a[2 * k + 1] = y; k++; }
-        } else {
-          const nruns = g.varint(); if (nruns < 1 || nruns > npt) throw new GeoAssetError('table de troncons : nombre de troncons impossible');
-          let tot = 0;
-          for (let u = 0; u < nruns; u++) {
-            const rr = g.varint(), len = Math.floor(rr / 2), unit = rr % 2 === 1 ? 1 : K;
-            if (len < 1) throw new GeoAssetError('table de troncons : troncon vide');
-            tot += len; if (tot > npt) throw new GeoAssetError('table de troncons : somme superieure au nombre de sommets');
-            let px = 0, py = 0;
-            for (let t = 0; t < len; t++) { px += g.zz(); py += g.zz(); const x = px * unit, y = py * unit; pt(x, y); a[2 * k] = x; a[2 * k + 1] = y; k++; }
-          }
-          if (tot !== npt) throw new GeoAssetError(`table de troncons : somme ${tot} != ${npt} sommets`);
-        }
-        a[2 * npt] = a[0]; a[2 * npt + 1] = a[1];   // anneau stocke OUVERT : referme pour le point-dans-polygone (inchange)
-        rings.push(a);
-      }
-      const o = rings[0]; let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
-      for (let t = 0; t < o.length; t += 2) { x0 = Math.min(x0, o[t]); x1 = Math.max(x1, o[t]); y0 = Math.min(y0, o[t + 1]); y1 = Math.max(y1, o[t + 1]); }
-      polys.push({ ci, rings, bbox: [x0, y0, x1, y1] });
-    }
-  }
-  if (g.pos !== glen) throw new GeoAssetError('geometrie : octets residuels');
-  if (polys.length !== npoly) throw new GeoAssetError('nombre de polygones incoherent');
-  const W = (2 * X) / cell, H = (2 * Y) / cell;
-  const x = reader(body.subarray(glen)); const nc = x.varint(); const cells = new Map(); let key = 0;
-  for (let c = 0; c < nc; c++) {
-    key += x.varint(); if (key >= W * H) throw new GeoAssetError('index : cellule hors grille'); const tag = x.varint();
-    if (tag % 2) { const cid = (tag - 1) / 2; if (cid >= ncc) throw new GeoAssetError('index : pays hors bornes'); cells.set(key, cid); }
-    else {
-      const n = tag / 2, ids = new Uint32Array(n); let q = 0;
-      for (let t = 0; t < n; t++) { q += x.varint(); if (q >= npoly) throw new GeoAssetError('index : polygone hors bornes'); ids[t] = q; }
-      cells.set(key, ids);
-    }
-  }
-  if (x.pos !== ilen) throw new GeoAssetError('index : octets residuels');
-  return Object.freeze({ version: 2, fineExp, coarseExp, scale: S, offX: X, offY: Y, cs: cell, W, H, codes, polys, cells, stats: { pipCalls: 0 } });
-}
-
-// ---------- point dans pays (index obligatoire, jamais de balayage) ----------
-function pip(x, y, ring) {
-  let c = false; const n = ring.length / 2;
-  for (let i = 0; i < n - 1; i++) {
-    const xi = ring[2 * i], yi = ring[2 * i + 1], xj = ring[2 * i + 2], yj = ring[2 * i + 3];
-    if ((yi > y) !== (yj > y)) {
-      const den = yj - yi, num = (y - yi) * (xj - xi), lhs = (x - xi) * den;
-      if (den > 0 ? lhs < num : lhs > num) c = !c;
-    }
-  }
-  return c;
-}
-function inPoly(asset, x, y, pid) {
-  const P = asset.polys[pid]; const [x0, y0, x1, y1] = P.bbox;
-  if (x < x0 || x > x1 || y < y0 || y > y1) return false;
-  asset.stats.pipCalls++;
-  if (!pip(x, y, P.rings[0])) return false;
-  for (let r = 1; r < P.rings.length; r++) if (pip(x, y, P.rings[r])) return false;
-  return true;
-}
-function classifyPoint(asset, lat, lng) {
-  const x = lng * asset.scale, y = lat * asset.scale;           // le point interroge n'est pas quantifie ; unites de l'asset
-  const cx = Math.min(asset.W - 1, Math.max(0, Math.floor((x + asset.offX) / asset.cs)));   // v1 : 180000 / 90000 inchanges
-  const cy = Math.min(asset.H - 1, Math.max(0, Math.floor((y + asset.offY) / asset.cs)));
-  const e = asset.cells.get(cy * asset.W + cx);
-  if (e === undefined) return null;
-  if (typeof e === 'number') return asset.codes[e];
-  for (const pid of e) if (inPoly(asset, x, y, pid)) return asset.codes[asset.polys[pid].ci];
-  return null;
-}
-
-// ---------- geometrie d'une portion routiere ----------
-const R_EARTH = 6371008.8, RAD = Math.PI / 180;
-function haversine(a, b) {
-  const dp = (b[0] - a[0]) * RAD, dl = (b[1] - a[1]) * RAD;
-  const h = Math.sin(dp / 2) ** 2 + Math.cos(a[0] * RAD) * Math.cos(b[0] * RAD) * Math.sin(dl / 2) ** 2;
-  return 2 * R_EARTH * Math.asin(Math.sqrt(h));
-}
-function pushRun(runs, country, m) {
-  const last = runs[runs.length - 1];
-  if (last && last.country === country) last.meters += m; else runs.push({ country, meters: m });
-}
-// Repartition geometrique d'une polyligne : sequence ordonnee [{ country|null, meters }] (metres geodesiques).
-// Chaque segment est sonde a pas fixe (n = ceil(L / espacement) sous-intervalles) : un segment dont les deux
-// extremites ont la meme classe peut traverser un autre pays ou UNKNOWN (A -> B -> A). Chaque changement de
-// classe entre deux sondes consecutives est ensuite affine par dichotomie. Regle deterministe ; garantie :
-// tout passage par une autre classe plus long que l'espacement des sondes est detecte.
-function segmentPolyline(asset, points, probeSpacingM = PROBE_SPACING_M) {
-  const runs = [];
-  if (!Array.isArray(points) || points.length === 0) return runs;
-  const cls = points.map(p => classifyPoint(asset, p[0], p[1]));
-  if (points.length === 1) { pushRun(runs, cls[0], 0); return runs; }
-  const at = (a, b, f) => classifyPoint(asset, a[0] + (b[0] - a[0]) * f, a[1] + (b[1] - a[1]) * f);
-  for (let j = 0; j < points.length - 1; j++) {
-    const a = points[j], b = points[j + 1], L = haversine(a, b);
-    const n = Math.max(1, Math.ceil(L / probeSpacingM));
-    const fr = [0], cl = [cls[j]];
-    for (let i = 1; i < n; i++) { fr.push(i / n); cl.push(at(a, b, i / n)); }
-    fr.push(1); cl.push(cls[j + 1]);
-    const bounds = [0], seq = [cl[0]];
-    for (let i = 0; i < n; i++) {
-      if (cl[i] === cl[i + 1]) continue;
-      let lo = fr[i], hi = fr[i + 1];                                // dichotomie entre deux sondes de classes differentes
-      for (let t = 0; t < BISECTION_STEPS; t++) {
-        const m = (lo + hi) / 2;
-        if (at(a, b, m) === cl[i]) lo = m; else hi = m;
-      }
-      bounds.push((lo + hi) / 2); seq.push(cl[i + 1]);
-    }
-    bounds.push(1);
-    for (let k = 0; k < seq.length; k++) pushRun(runs, seq[k], L * (bounds[k + 1] - bounds[k]));
-  }
-  return runs;
-}
-
-// ---------- regles UNKNOWN (sur les portions routieres uniquement) ----------
-// runs : [{ type: ROAD|FERRY|FERRY_TRAIN, country: code|null, meters }]. Decisions prises sur la sequence d'origine.
-function applyUnknownRules(runs, capability) {
-  if (capability !== CAPABILITY.VERIFIED && capability !== CAPABILITY.UNVERIFIED) throw new GeoInputError('capacite inconnue');
-  const out = runs.map(r => ({ ...r })); const applied = [];
-  if (capability === CAPABILITY.VERIFIED) {
-    const isFerry = r => r && r.type !== KIND.ROAD;
-    const roadCountry = r => (r && r.type === KIND.ROAD && r.country) || null;
-    for (let i = 0; i < runs.length; i++) {
-      const r = runs[i];
-      if (r.type !== KIND.ROAD || r.country) continue;            // regle 5 : un ferry n'est jamais absorbe
-      const p = runs[i - 1], n = runs[i + 1], cp = roadCountry(p), cn = roadCountry(n);
-      let to = null, rule = 4;
-      if (cp && cn && cp === cn) { to = cp; rule = 1; }
-      else if (!p && cn && !isFerry(n)) { to = cn; rule = 2; }
-      else if (!n && cp && !isFerry(p)) { to = cp; rule = 2; }
-      else if ((isFerry(p) && cn) || (isFerry(n) && cp)) { to = isFerry(p) ? cn : cp; rule = 3; }
-      if (to) { out[i].country = to; applied.push({ rule, index: i, type: r.type, meters: r.meters, to }); }
-      else applied.push({ rule: 4, index: i, type: r.type, meters: r.meters, to: null });
-    }
-  } else {
-    runs.forEach((r, i) => { if (r.type === KIND.ROAD && !r.country) applied.push({ rule: 4, index: i, type: r.type, meters: r.meters, to: null }); });
-  }
-  const merged = [];
-  for (const r of out) {
-    const last = merged[merged.length - 1];
-    if (last && last.type === r.type && last.country === r.country && r.type === KIND.ROAD) last.meters += r.meters;
-    else merged.push(r);
-  }
-  return { runs: merged, applied };
-}
-
-// ---------- plus forts restes : entiers exacts ----------
-function largestRemainder(buckets, target) {
-  const keys = Object.keys(buckets).sort();
-  const floors = {}; let sum = 0;
-  for (const k of keys) { floors[k] = Math.floor(buckets[k]); sum += floors[k]; }
-  let rest = target - sum;
-  if (rest < 0 || rest > keys.length) throw new GeoInputError('repartition impossible');
-  const order = keys.slice().sort((a, b) => (buckets[b] - floors[b]) - (buckets[a] - floors[a]) || (a < b ? -1 : 1));
-  for (const k of order) { if (rest === 0) break; floors[k]++; rest--; }
-  return floors;
-}
-
-// ---------- leg complet ----------
-function splitLeg(asset, leg) {
-  const { distanceMeters, portions, capability } = leg || {};
-  if (!Number.isInteger(distanceMeters) || distanceMeters < 0) throw new GeoInputError('distanceMeters du leg invalide');
-  if (!Array.isArray(portions) || portions.length === 0) throw new GeoInputError('portions absentes');
-  const runs = []; let stepSum = 0;
-  for (const p of portions) {
-    if (!Object.values(KIND).includes(p.kind)) throw new GeoInputError(`kind inconnu : ${p.kind}`);
-    if (!Number.isInteger(p.distanceMeters) || p.distanceMeters < 0) throw new GeoInputError('distanceMeters de portion invalide');
-    stepSum += p.distanceMeters;
-    if (p.kind !== KIND.ROAD) { runs.push({ type: p.kind, country: null, meters: p.distanceMeters }); continue; }
-    const geo = segmentPolyline(asset, p.points); const tot = geo.reduce((s, r) => s + r.meters, 0);
-    if (p.distanceMeters === 0) continue;
-    if (geo.length === 0) { runs.push({ type: KIND.ROAD, country: null, meters: p.distanceMeters }); continue; }
-    // la geometrie ne donne que des proportions ; chaque portion est repartie sur SA distance canonique
-    const scale = tot > 0 ? p.distanceMeters / tot : 0;
-    if (tot === 0) runs.push({ type: KIND.ROAD, country: geo[0].country, meters: p.distanceMeters });
-    else for (const r of geo) {
-      const last = runs[runs.length - 1], m = r.meters * scale;
-      if (last && last.type === KIND.ROAD && last.country === r.country) last.meters += m;
-      else runs.push({ type: KIND.ROAD, country: r.country, meters: m });
-    }
-  }
-  if (stepSum !== distanceMeters) {
-    return { ok: false, reason: 'STEP_SUM_MISMATCH', stepSum, distanceMeters };   // echec ferme : jamais de correction silencieuse
-  }
-  const { runs: resolved, applied } = applyUnknownRules(runs, capability);
-  const buckets = {};
-  for (const r of resolved) {
-    const key = r.type === KIND.ROAD ? (r.country || UNKNOWN) : r.type;
-    buckets[key] = (buckets[key] || 0) + r.meters;
-  }
-  const meters = largestRemainder(buckets, distanceMeters);
-  const byCountry = {}; let unknownMeters = 0; const ferryMeters = { FERRY: 0, FERRY_TRAIN: 0 };
-  for (const [k, v] of Object.entries(meters)) {
-    if (k === UNKNOWN) unknownMeters = v; else if (k === KIND.FERRY || k === KIND.FERRY_TRAIN) ferryMeters[k] = v; else byCountry[k] = v;
-  }
-  return { ok: true, distanceMeters, byCountry, unknownMeters, ferryMeters, complete: unknownMeters === 0,
-           sequence: resolved.map(r => ({ type: r.type, country: r.country, meters: r.meters })), rulesApplied: applied };
-}
-
-return Object.freeze({KIND,CAPABILITY,UNKNOWN,PROBE_SPACING_M,GeoAssetError,GeoInputError,decodeAsset,classifyPoint,haversine,segmentPolyline,applyUnknownRules,largestRemainder,splitLeg});
-})();
-/* ===== PLANNING-ROUTE1 / P6d-E : integration Planning (decisions E1 a E6 validees) =====
-   route -> normalisation C'3 -> moteur B -> CountryFuelProjection (D) -> pays -> prix -> D -> affichage.
-   - Aucun producteur de route, ni routeCascade, ni leur politique de cache ne change (E1) : les legs normalises sont
-     indexes EN MEMOIRE par l'empreinte de la polyligne du leg et sa distance, puis retrouves depuis la part affichee.
-   - tr._p6dProj (E2) : cache DERIVE de CountryFuelProjection uniquement (+ codes pays des extremites) ;
-     jamais de steps, de coordonnees, de prix ni de cout. Sa suppression ne provoque qu'un recalcul.
-     E2a : son ecriture passe par _p6dSaveDerivedState() -- localStorage + IndexedDB uniquement, sans saveState(),
-     sans schedulePush() et sans toucher S._ts ni tr._ts : aucune logique de synchronisation n'est jamais sollicitee.
-   - Sans steps frais ni projection (E3) : polyligne du leg seule, en UNVERIFIED -- aucune certification ferry ; toute
-     ambiguite (UNKNOWN) rend la liaison incomplete. Jamais de ferry infere.
-   - Prix (E4) : extremite effective -> mecanisme local existant ; pays seulement traverse -> prix national seul, sans
-     aucun point fabrique. France : le Worker exige des coordonnees (verifie sur le Worker reel FUEL-H1 :
-     coords_invalides) -> prix national francais indisponible pour une France seulement traversee.
-   - Asset (E5) : octets recus -> SHA-256 -> comparaison -> decodage ; tout echec -> P6d indisponible, jamais de repli.
-   - Affichage (E6) : montant seulement si complet ; « ... » pendant le calcul ; sinon « — ». Jamais de total partiel. */
-const P6D_ASSET_FILE="magot-geo-a7-final.v2.bin";   /* a deposer A COTE d'index.html */
-const P6D_ASSET_SHA256="09bfb63eb93814ff5282554e85a4d46aee55abede847678fde9dc7734b466af5";   /* asset FIGE A7-FINAL (LSIB 11.4, Q3prime) : contenu IMMUABLE sous ce nom */
-const P6D_ASSET_ID="magot-geo-a7-final-v2-"+P6D_ASSET_SHA256.slice(0,16);
-const P6D_CACHE_VERSION=1, P6D_CACHE_MAX=300, P6D_NORM_INDEX_MAX=400;
-const _P6D_TXT={
-  fr:{note:"Coût calculé selon les prix carburant des pays traversés",missing:"Prix carburant indisponible pour certaines portions du trajet",ferry:"Ferry (hors carburant)",unknown:"Pays indéterminé",pending:"Calcul en cours…"},
-  en:{note:"Cost based on fuel prices in the countries crossed",missing:"Fuel price unavailable for some parts of the route",ferry:"Ferry (no fuel)",unknown:"Unknown country",pending:"Calculating…"},
-  es:{note:"Coste calculado según los precios del carburante de los países atravesados",missing:"Precio del carburante no disponible para algunos tramos del trayecto",ferry:"Ferry (sin carburante)",unknown:"País indeterminado",pending:"Calculando…"},
-  it:{note:"Costo calcolato in base ai prezzi del carburante dei paesi attraversati",missing:"Prezzo del carburante non disponibile per alcuni tratti del percorso",ferry:"Traghetto (senza carburante)",unknown:"Paese non determinato",pending:"Calcolo in corso…"},
-  de:{note:"Kosten nach den Kraftstoffpreisen der durchfahrenen Länder berechnet",missing:"Kraftstoffpreis für einige Streckenabschnitte nicht verfügbar",ferry:"Fähre (ohne Kraftstoff)",unknown:"Land nicht bestimmbar",pending:"Wird berechnet…"} };
-function _p6dTxt(k){ return ((_P6D_TXT[lang()]||_P6D_TXT.fr)[k])||_P6D_TXT.fr[k]||""; }
-
-/* ---------- E5 : asset verifie ---------- */
-let _p6dAsset={status:"idle",asset:null,promise:null,error:null};
-function p6dAssetLoad(){
-  if(_p6dAsset.status==="ready") return Promise.resolve(_p6dAsset.asset);
-  if(_p6dAsset.status==="failed") return Promise.resolve(null);
-  if(_p6dAsset.promise) return _p6dAsset.promise;
-  _p6dAsset.status="loading";
-  _p6dAsset.promise=(async()=>{
-    try{
-      const r=await fetch(new URL(P6D_ASSET_FILE, location.href).href);
-      if(!r||!r.ok) throw new Error("http_"+(r?r.status:"?"));
-      const buf=await r.arrayBuffer();
-      const dig=new Uint8Array(await crypto.subtle.digest("SHA-256", buf));
-      const hex=Array.from(dig,b=>b.toString(16).padStart(2,"0")).join("");
-      if(hex!==P6D_ASSET_SHA256) throw new Error("sha_mismatch");   /* le SHA porte sur les octets RECUS, avant tout decodage */
-      const asset=P6DGEO.decodeAsset(new Uint8Array(buf));
-      _p6dAsset={status:"ready",asset,promise:null,error:null}; return asset;
-    }catch(e){ _p6dAsset={status:"failed",asset:null,promise:null,error:String((e&&e.message)||e)}; return null; } })();
-  return _p6dAsset.promise; }
-
-/* ---------- E1 : index memoire des legs normalises ---------- */
-const _p6dNormIndex=new Map();
-function _p6dLegKey(polyline, dist){
-  if(typeof polyline!=="string"||!polyline||typeof dist!=="number"||!Number.isFinite(dist)||dist<=0) return null;
-  const h=_p6dHashInit(); _p6dHashPush(h,polyline); return _p6dHashHex(h)+":"+polyline.length+":"+dist; }
-function _p6dNormIndexPut(polyline, dist, norm){
-  const k=_p6dLegKey(polyline,dist); if(!k||!norm) return;
-  _p6dNormIndex.delete(k); _p6dNormIndex.set(k,norm);
-  while(_p6dNormIndex.size>P6D_NORM_INDEX_MAX) _p6dNormIndex.delete(_p6dNormIndex.keys().next().value); }
-const _p6dSigMemo=new WeakMap();
-function _p6dExpectedSig(norm){   /* meme construction que p6dBuildProjection (D) */
-  if(!norm) return null; const m=_p6dSigMemo.get(norm); if(m) return m;
-  const fp=p6dGeometryFingerprint(norm); if(!fp) return null;
-  const s=[P6D_PROJECTION_POLICY,P6D_ASSET_ID,"DRIVE",(norm.capabilities&&norm.capabilities.ferryClassification)||null,norm.distanceMeters,fp].join("|");
-  _p6dSigMemo.set(norm,s); return s; }
-
-/* ---------- E2 : cache derive persiste ---------- */
-function _p6dEntryValid(x){ try{
-  if(!x||typeof x!=="object") return false; const p=x.p;
-  if(!p||typeof p.sig!=="string"||p.sig.indexOf(P6D_PROJECTION_POLICY+"|"+P6D_ASSET_ID+"|")!==0) return false;
-  if(![p.legDistanceMeters,p.roadDistanceMeters,p.excludedDistanceMeters,p.unknownDistanceMeters].every(n=>Number.isInteger(n)&&n>=0)) return false;
-  if(!Array.isArray(p.portions)||p.portions.some(q=>!q||!/^[A-Z]{2}$/.test(q.countryCode)||!Number.isInteger(q.distanceMeters)||q.distanceMeters<0)) return false;
-  if(p.portions.reduce((a,q)=>a+q.distanceMeters,0)+p.unknownDistanceMeters!==p.roadDistanceMeters||p.roadDistanceMeters+p.excludedDistanceMeters!==p.legDistanceMeters) return false;
-  if(p.completeGeometry!==(p.unknownDistanceMeters===0)||(p.ferryClassification!=="VERIFIED"&&p.ferryClassification!=="UNVERIFIED")) return false;
-  for(const c of [x.f,x.t]) if(c!==null&&!/^[A-Z]{2}$/.test(String(c))) return false;
-  return true; }catch(_e){ return false; } }   /* GUARD-REMOVE : plus de drapeau g ; un ancien champ g est ignore */
-function _p6dCacheRead(tr,key){
-  const c=tr&&tr._p6dProj;
-  if(!c||typeof c!=="object"||c.v!==P6D_CACHE_VERSION||c.asset!==P6D_ASSET_SHA256||!c.e||typeof c.e!=="object") return null;   /* incompatible -> ignore */
-  const x=Object.prototype.hasOwnProperty.call(c.e,key)?c.e[key]:null; return _p6dEntryValid(x)?x:null; }
-let _p6dSaveTimer=null;
-function _p6dCacheWrite(tr,key,entry){
-  if(!tr||!key||!_p6dEntryValid(entry)) return;
-  let c=tr._p6dProj;
-  if(!c||typeof c!=="object"||c.v!==P6D_CACHE_VERSION||c.asset!==P6D_ASSET_SHA256||!c.e||typeof c.e!=="object"){ c={v:P6D_CACHE_VERSION,asset:P6D_ASSET_SHA256,e:{}}; tr._p6dProj=c; }   /* asset ou version differents : purge complete */
-  for(const k of Object.keys(c.e)) if(!_p6dEntryValid(c.e[k])) delete c.e[k];   /* entrees incompatibles purgees */
-  const prev=c.e[key]; if(prev&&JSON.stringify(prev)===JSON.stringify(entry)) return;   /* rien de nouveau : aucune ecriture */
-  delete c.e[key]; c.e[key]=JSON.parse(JSON.stringify(entry));
-  const ks=Object.keys(c.e); for(let i=0;i<ks.length-P6D_CACHE_MAX;i++) delete c.e[ks[i]];   /* borne : les plus anciennes sortent */
-  clearTimeout(_p6dSaveTimer); _p6dSaveTimer=setTimeout(_p6dSaveDerivedState,800); }   /* E2a : persistance locale du cache derive, jamais saveState() */
-/* E2a : memes deux stockages que saveState(), SANS S._ts ni schedulePush() -- un cache derive n'est pas une modification du voyage.
-   Au demarrage, IndexedDB ne remplace localStorage que si son _ts est strictement plus recent : les deux copies ecrites ici
-   portent le meme _ts, l'arbitrage existant reste donc inchange. Une ecriture perdue ne coute qu'un recalcul. */
-function _p6dSaveDerivedState(){
-  try{ localStorage.setItem(activeStoreKey(), JSON.stringify(S)); }catch(e){ console.warn(e); }
-  idbSet(activeStoreKey(), S); }
-
-/* ---------- etats et calculs (sequentiels, hors du chemin de rendu) ---------- */
-const _p6dMem=new Map(), _p6dFail=new Map(), _p6dQueued=new Set(); let _p6dChain=Promise.resolve();
-function p6dPartState(tr, part){
-  if(!part||!part.drivable||!(Number(part.distanceMeters)>0)) return {state:"none"};
-  const key=_p6dLegKey(part.polyline, part.distanceMeters);
-  if(!key) return {state:"failed", reason:"NO_GEOMETRY"};
-  const fresh=_p6dNormIndex.get(key)||null, want=fresh?_p6dExpectedSig(fresh):null;   /* steps frais : leur projection prime */
-  const m=_p6dMem.get(key); if(m&&(!want||m.p.sig===want)) return {state:"ready", entry:m, key};
-  const c=_p6dCacheRead(tr,key); if(c&&(!want||c.p.sig===want)){ _p6dMem.set(key,c); return {state:"ready", entry:c, key}; }
-  const f=_p6dFail.get(key); if(f&&f.want===want) return {state:"failed", reason:f.reason, key};
-  if(_p6dAsset.status==="failed") return {state:"failed", reason:"ASSET", key};
-  _p6dEnqueue(tr, part, key, fresh); return {state:"pending", key}; }
-function _p6dEnqueue(tr, part, key, fresh){
-  if(_p6dQueued.has(key)) return; _p6dQueued.add(key);
-  const snap={polyline:part.polyline, distanceMeters:part.distanceMeters, from:_rcPoint(part.fromPoint), to:_rcPoint(part.toPoint)};
-  _p6dChain=_p6dChain.then(()=>_p6dRunJob(tr,snap,key,fresh)).catch(()=>{}).then(()=>{ _p6dQueued.delete(key); _p6dRequestRepaint(); }); }
-async function _p6dRunJob(tr, snap, key, fresh){
-  const asset=await p6dAssetLoad(); if(!asset) return;
-  await new Promise(r=>setTimeout(r,0));
-  const want=fresh?_p6dExpectedSig(fresh):null; const fail=reason=>{ _p6dFail.set(key,{reason,want}); };
-  let norm=fresh;
-  if(!norm){   /* E3 : polyligne seule, UNVERIFIED -- aucune certification ferry */
-    const L=snap.distanceMeters, pts=_p6dPoints(snap.polyline);
-    if(!Number.isInteger(L)||L<=0||!Array.isArray(pts)||pts.length<2) return fail("NO_GEOMETRY");
-    norm={provider:null, distanceMeters:L, portions:[{kind:"ROAD", distanceMeters:L, points:pts}], capabilities:{ferryClassification:"UNVERIFIED"}, reason:"NO_FRESH_STEPS"}; }
-  let split=null; try{ split=P6DGEO.splitLeg(asset, p6dGeoLegInput(norm)); }catch(_e){ split=null; }
-  if(!split||split.ok!==true) return fail("SPLIT");
-  const proj=p6dBuildProjection(norm, split, {assetId:P6D_ASSET_ID, mode:"DRIVE"}); if(!proj) return fail("PROJECTION");
-  const cls=p=>{ if(!p) return null; const c=P6DGEO.classifyPoint(asset,p.lat,p.lng); return (c&&/^[A-Z]{2}$/.test(c))?c:null; };
-  const entry={p:JSON.parse(JSON.stringify(proj)), f:cls(snap.from), t:cls(snap.to)};
-  _p6dMem.set(key,entry); _p6dFail.delete(key);
-  if((S.trips||[]).includes(tr)) _p6dCacheWrite(tr,key,entry); }
-
-/* ---------- E4 : prix nationaux des pays traverses (memoire, jamais tr._fuelPriceSnap) ---------- */
-const _p6dNat=new Map();
-function _p6dNatKey(cc,fuel){ return String(cc||"").toUpperCase()+"|"+canonicalFuelCode(fuel); }
-function _p6dNatRecord(cc,fuel){ const x=_p6dNat.get(_p6dNatKey(cc,fuel)); if(!x||x.status!=="ok") return null;
-  const fr=_fuelFreshnessOf(x.rec); return (fr==="FRESH"||fr==="STALE_ACCEPTABLE")?x.rec:null; }
-function _p6dNatEnsure(cc,fuel){
-  const CC=String(cc||"").toUpperCase(), k=_p6dNatKey(CC,fuel), x=_p6dNat.get(k);
-  if(x&&(x.status==="loading"||x.status==="failed")) return; if(_p6dNatRecord(CC,fuel)) return;
-  if(CC==="FR"||!(typeof fuelRemoteEnabled==="function"&&fuelRemoteEnabled(CC,fuel))){ _p6dNat.set(k,{status:"failed"}); return; }
-  _p6dNat.set(k,{status:"loading"});
-  (async()=>{
-    const ek=CC+"|"+canonicalFuelCode(fuel), had=Object.prototype.hasOwnProperty.call(_fuelLastErr,ek), prev=_fuelLastErr[ek]; let rec=null;
-    try{ rec=await resolveFuelPriceRemote(CC,fuel,null,null); }catch(_e){ rec=null; }
-    finally{ if(had) _fuelLastErr[ek]=prev; else delete _fuelLastErr[ek]; }   /* motif d'affichage des extremites jamais modifie */
-    const fr=rec?_fuelFreshnessOf(rec):"MISSING";
-    _p6dNat.set(k,(rec&&rec.scope==="NATIONAL"&&Number.isFinite(rec.price)&&rec.price>0&&(fr==="FRESH"||fr==="STALE_ACCEPTABLE"))?{status:"ok",rec:Object.assign({},rec,{freshness:fr})}:{status:"failed"});
-    _p6dRequestRepaint(); })(); }
-
-/* ---------- couts : part, deplacement, journee ---------- */
-function _p6dAnchor(tr,cc,pt){
-  if(!pt) return null; let ps=[]; try{ ps=_fuelNeededPositions(tr); }catch(_e){ ps=[]; }   /* lecture seule */
-  ps=ps.filter(p=>p&&String(p.cc||"").toUpperCase()===cc&&p.lat!=null&&p.lng!=null&&Number.isFinite(+p.lat)&&Number.isFinite(+p.lng));
-  let best=null, bd=Infinity; for(const p of ps){ let d=Infinity; try{ d=haversineKm(pt,{lat:+p.lat,lng:+p.lng}); }catch(_e){} if(d<bd){ bd=d; best=p; } }
-  return best; }
-function p6dPartCost(tr, part){
-  const st=p6dPartState(tr,part);
-  if(st.state==="none") return {state:"none"};
-  if(st.state==="pending") return {state:"pending"};
-  if(st.state==="failed") return {state:"incomplete", reason:st.reason};
-  const e=st.entry;
-  const veh=tr.veh||{}, fd=fuelDefault(veh.fuel), conso=parseFloat(String(veh.conso||"").replace(",","."))||fd.conso;
-  const manual=veh.priceManual?parseFloat(String(veh.price||"").replace(",",".")):NaN, tripCur=String(tr.currency||"EUR").toUpperCase();
-  const ends={}; if(e.f) ends[e.f]=_rcPoint(part.fromPoint); if(e.t&&!(e.t in ends)) ends[e.t]=_rcPoint(part.toPoint);
-  let waiting=false; const anchors={};
-  const pack=r=>(r&&Number.isFinite(r.price)&&r.price>0)?{price:r.price,currency:String(r.currency||"EUR").toUpperCase(),record:r}:null;
-  const res=p6dFuelCostCore(e.p,{ conso, manualPrice:manual, manualCur:String(veh.priceCur||tripCur).toUpperCase(), tripCur, fx:_fuelFx,
-    priceOf:cc=>{
-      if(cc in ends){ const a=_p6dAnchor(tr,cc,ends[cc]); if(a){ anchors[cc]=a; const r=pack(fuelPriceRecordResolved(tr,cc,veh.fuel,+a.lat,+a.lng)); if(r) return r; } }   /* extremite effective */
-      const n=pack(fuelPriceRecordResolved(tr,cc,veh.fuel,null,null)); if(n) return n;   /* national deja connu */
-      const x=pack(_p6dNatRecord(cc,veh.fuel)); if(x) return x;
-      _p6dNatEnsure(cc,veh.fuel); const y=_p6dNat.get(_p6dNatKey(cc,veh.fuel)); if(y&&y.status==="loading") waiting=true;
-      return null; } });
-  if(res.complete) return {state:"complete", cost:res.totalCost, liters:res.liters, res, entry:e, anchors};
-  if(waiting&&res.reasons.length===1&&res.reasons[0]==="PRICE_MISSING") return {state:"pending", res, entry:e, anchors};
-  return {state:"incomplete", res, entry:e, anchors}; }
-function _p6dAggregate(tr, parts){
-  parts=parts.filter(p=>p&&p.drivable&&Number(p.distanceMeters)>0);
-  if(!parts.length) return {state:"none", items:[]};
-  let pending=false, incomplete=false, cost=0, liters=0; const items=[];
-  for(const p of parts){ const c=p6dPartCost(tr,p); items.push(c);
-    if(c.state==="incomplete") incomplete=true; else if(c.state==="pending") pending=true; else if(c.state==="complete"){ cost+=c.cost; liters+=c.liters; } }
-  if(incomplete) return {state:"incomplete", items};   /* une portion sans prix ou sans pays : jamais de total partiel */
-  if(pending) return {state:"pending", items};
-  return {state:"complete", cost, liters, items}; }
-function p6dMoveCost(tr, move){ return _p6dAggregate(tr, (move&&!move.notNeeded&&Array.isArray(move.parts))?move.parts:[]); }
-function p6dDayCost(tr, presentation){
-  const parts=[]; for(const m of ((presentation&&presentation.moves)||[])) if(m&&!m.notNeeded&&Array.isArray(m.parts)) parts.push(...m.parts);
-  return _p6dAggregate(tr, parts); }
-function _p6dBreakdown(mc, cur){   /* ventilation par pays, pour le DETAIL uniquement */
-  const by={}; let ferry=0, unknown=0;
-  for(const it of (mc&&mc.items)||[]){ const e=it.entry; if(!e) continue; ferry+=e.p.excludedDistanceMeters; unknown+=e.p.unknownDistanceMeters;
-    for(const q of e.p.portions){ const line=it.res&&it.res.lines.find(l=>l.countryCode===q.countryCode);
-      const b=by[q.countryCode]||(by[q.countryCode]={m:0,price:null,currency:null,source:null}); b.m+=q.distanceMeters;
-      if(line&&line.price>0&&b.price==null){ b.price=line.price; b.currency=line.currency; b.source=line.source; } } }
-  return {by, ferry, unknown}; }
-
-/* ---------- repeinte (les fonctions enregistrees portent leurs propres gardes anti-stale) ---------- */
-const _p6dRepaint={lines:null, day:null}; let _p6dRepaintTimer=null;
-function p6dSetRepaint(slot, fn){ _p6dRepaint[slot]=fn; }
-function _p6dRequestRepaint(){ clearTimeout(_p6dRepaintTimer); _p6dRepaintTimer=setTimeout(()=>{ for(const k of ["lines","day"]){ const f=_p6dRepaint[k]; if(typeof f==="function"){ try{ f(); }catch(_e){} } } },120); }
-
 const routeProvider={ active:"google",   /* APPLE A : registre de providers + resolver ; Google par défaut, sorties identiques à v951 */
   providers:{
     google:{
       supports(mode){ return mode==="DRIVE"||mode==="WALK"||mode==="BIKE"||mode==="TRANSIT"; },
-      async compute(valid, mode, opts){ const cr=await computeRoute(valid.map(p=>({lat:p.lat,lng:p.lng})), mode, Object.assign({}, opts, {p6dSteps:true})); if(!cr) return null;   /* distance/durée RÉELLES depuis Google Routes — jamais haversine ici */
-        const out={ distanceMeters:cr.distanceMeters, durationSeconds:cr.duration, legs:(cr.legs||[]).map(l=>({distanceMeters:l.dist,durationSeconds:l.dur,polyline:l.poly||""})), polyline:cr.polyline||"" };
-        if(mode==="DRIVE") _p6dAttach(out, (cr.legs||[]).map(l=>p6dNormalizeGoogleLeg(l.dist, l.poly, l._steps)));   /* P6d-C */
-        return out; }
+      async compute(valid, mode, opts){ const cr=await computeRoute(valid.map(p=>({lat:p.lat,lng:p.lng})), mode, opts); if(!cr) return null;   /* distance/durée RÉELLES depuis Google Routes — jamais haversine ici */
+        return { distanceMeters:cr.distanceMeters, durationSeconds:cr.duration, legs:(cr.legs||[]).map(l=>({distanceMeters:l.dist,durationSeconds:l.dur,polyline:l.poly||""})), polyline:cr.polyline||"" }; }
     },
     apple:{   /* APPLE B2 : adapter diagnostic. active reste "google" -> jamais appele par defaut ni par le Budget ; seulement sur provider:"apple" explicite */
       supports(mode){ return mode==="DRIVE"||mode==="WALK"||mode==="BIKE"; },   /* pas TRANSIT (le resolver garde TRANSIT cote Google) */
@@ -11502,9 +10825,7 @@ const routeProvider={ active:"google",   /* APPLE A : registre de providers + re
         const d=j.data;
         const num=(x)=>typeof x==="number" && Number.isFinite(x);   /* vrai nombre : rejette null/"bad" (+null=0 passerait sinon) */
         if(!num(d.distanceMeters) || d.distanceMeters<=0 || !num(d.durationSeconds) || d.durationSeconds<=0 || !Array.isArray(d.legs) || d.legs.length!==valid.length-1 || !d.legs.every(l=>l && num(l.distanceMeters) && l.distanceMeters>=0 && num(l.durationSeconds) && l.durationSeconds>=0)) return null;   /* contrat STRICT : reponse Apple malformee -> null, jamais 0m/0s artificiel qui fausserait le compare A/B */
-        const out={ distanceMeters:d.distanceMeters, durationSeconds:d.durationSeconds, legs:d.legs.map(l=>({distanceMeters:l.distanceMeters, durationSeconds:l.durationSeconds, polyline:l.polyline||""})), polyline:d.polyline||"" };   /* deja valides : aucun ||0 */
-        if(mode==="DRIVE") _p6dAttach(out, d.legs.map(l=>p6dNormalizeAppleLeg(l.distanceMeters, l.polyline, l.steps)));   /* P6d-C, P6d-C'3 : steps C'1 transmis au seul normaliseur */
-        return out;
+        return { distanceMeters:d.distanceMeters, durationSeconds:d.durationSeconds, legs:d.legs.map(l=>({distanceMeters:l.distanceMeters, durationSeconds:l.durationSeconds, polyline:l.polyline||""})), polyline:d.polyline||"" };   /* deja valides : aucun ||0 */
       }
     }
   },
@@ -11516,12 +10837,10 @@ const routeProvider={ active:"google",   /* APPLE A : registre de providers + re
     const prov=this.resolve(mode, request.provider); const impl=this.providers[prov]; if(!impl) return null;
     const cr=await impl.compute(valid, mode, {avoidTolls:!!request.avoidTolls, departureTime:request.departureTime});
     if(!cr) return null;
-    const res={ provider:prov, calculatedAt:Date.now(), mode,
+    return { provider:prov, calculatedAt:Date.now(), mode,
       origin:{lat:valid[0].lat,lng:valid[0].lng}, destination:{lat:valid[valid.length-1].lat,lng:valid[valid.length-1].lng},
       distanceMeters:cr.distanceMeters, durationSeconds:cr.durationSeconds,
-      legs:cr.legs, polyline:cr.polyline };
-    if(cr._p6dNorm){ _p6dNormalized.set(res, cr._p6dNorm); try{ (res.legs||[]).forEach((l,i)=>_p6dNormIndexPut(l&&l.polyline, l&&l.distanceMeters, cr._p6dNorm[i])); }catch(_e){} }   /* P6d-C ; P6d-E (E1) : index memoire par leg, jamais serialise */
-    return res; } };
+      legs:cr.legs, polyline:cr.polyline }; } };
 
 /* APPLE C : comparaison A/B DIAGNOSTIQUE. Appelle explicitement Google ET Apple sur le MEME request,
    renvoie les deltas total + par leg. Ne touche JAMAIS ensureDayRouteCore/saveState/Budget/Planning,
@@ -12358,13 +11677,12 @@ function _mvpPaintKnownDayCost(){   /* V4.8-B : "Cout des trajets" = SOMME des l
   const legs=[...document.querySelectorAll(".timeline .pl-leg")]; if(!legs.length) return;   /* liaisons pas encore connues : etat d'attente conserve */
   const known=legs.filter(l=>l.dataset.fuelCost!=null&&l.dataset.fuelCost!==""&&Number.isFinite(+l.dataset.fuelCost));
   const missing=legs.filter(l=>l.dataset.fuelMissing==="1");
-  const pending=legs.filter(l=>l.dataset.fuelPending==="1");   /* P6d-E */
   const sum=known.reduce((a,l)=>a+(+l.dataset.fuelCost),0);
-  if(!known.length&&!missing.length&&!pending.length){ el.textContent="\u2014"; el.dataset.state="none"; if(note) note.textContent=""; return; }
-  if(missing.length){ el.textContent="\u2014"; el.dataset.state="na"; if(note) note.textContent=""; }   /* P6d-E (E6) : jamais de total partiel */
-  else if(pending.length){ el.textContent="\u2026"; el.dataset.state="pending"; if(note) note.textContent=""; }
-  else { el.textContent=money(sum,cur); el.dataset.state="complete"; if(note) note.textContent=""; }
-  el.dataset.sum=(missing.length||pending.length)?"":String(sum); el.dataset.legs=String(legs.length);
+  if(!known.length&&!missing.length){ el.textContent="\u2014"; el.dataset.state="none"; if(note) note.textContent=""; return; }
+  if(!missing.length){ el.textContent=money(sum,cur); el.dataset.state="complete"; if(note) note.textContent=""; }
+  else if(!known.length){ el.textContent=_mvpTxt("tripNA"); el.dataset.state="na"; if(note) note.textContent=""; }
+  else { el.textContent=_mvpTxt("tripPartial"); el.dataset.state="partial"; if(note) note.textContent=" · "+money(sum,cur)+" "+_mvpTxt("tripKnown"); }
+  el.dataset.sum=String(sum); el.dataset.legs=String(legs.length);
 }
 const _mvpFrame={key:"",state:""};
 function _mvpStepSegment(tr,day){   /* V4.6 : segment utile MAINTENANT, a partir des donnees deja calculees (timeline + points de route existants), aucun appel reseau */
@@ -13425,7 +12743,6 @@ async function renderDayRoute(tr, day, ro, trafficCtx){ const tk=++_routeUIToken
     ? { distanceMeters:presentation.totalDistanceMeters, durationSeconds:presentation.totalDurationSeconds } : null;
   const resolved=res ? _trafficProjectionFromPresentation(tr, presentation, travelMode(tr), live) : null;   /* projection LOCAL pour le trafic ; null -> badge indisponible, jamais de repli */
   _paintDayCosts(tr, day, tk, tid, presentation);   /* P4, temps 2 : cout peint depuis LA MEME presentation que distance/duree */
-  p6dSetRepaint("day",()=>_paintDayCosts(tr, day, tk, tid, presentation));   /* P6d-E : _paintDayCosts conserve ses gardes (jeton, voyage, jour) */
   if(tk!==_routeUIToken) return;   /* un rendu plus récent a pris la main */
   const cur=currentTrip(); if(!cur || cur.id!==tid || planState.dayIndex!==day) return;   /* jour/voyage changé -> pas de MAJ stale */
   const mEl=document.getElementById("routeMetrics");
@@ -15191,8 +14508,6 @@ function renderDayMapOnline(el,stops,tr,day,gen){
           {
             injectPresentationLegs(presentationRef, base.mode, tr);
             _mvpTripFuelFromPresentation(presentationRef, base.mode, tr);   /* V4.8h : meme total (prouve egal en V4.8f) + detail et origine du prix */
-            p6dSetRepaint("lines",()=>{ if(!stillCurrent()) return; if(el._mapRenderer!==handle) return; if(presentationRef&&presentationRef.meta&&presentationRef.meta.stale) return;
-              injectPresentationLegs(presentationRef, base.mode, tr); _mvpTripFuelFromPresentation(presentationRef, base.mode, tr); });   /* P6d-E : memes gardes que la repeinte carburant existante */
             /* F1 Planning final :
                ensureFuelPriceFresh() est deja lance plus haut dans renderDayRoute() ; on s'accroche a SA promesse en vol (meme inflight).
                Sans requete F1 en vol (rien a rafraichir, prix manuel, electrique, hors France, deja resolue...) : AUCUN repeint inutile --
@@ -16865,17 +16180,14 @@ async function computeRoute(stops,mode,opts){
   if(clean.length>2) body.intermediates=clean.slice(1,-1).map(loc);
   // 3) Départ = arrivée SANS étape intermédiaire → Google ne peut router un point vers lui-même, il renvoie {}. On abandonne proprement.
   if(!body.intermediates && clean[0].lat===clean[clean.length-1].lat && clean[0].lng===clean[clean.length-1].lng) return null;
-  const _p6dSteps=!!(opts.p6dSteps && mode==="DRIVE");   /* P6d-C : steps demandes UNIQUEMENT par le fournisseur Google de la cascade, en voiture ; autres appelants inchanges */
-  const fields="routes.distanceMeters,routes.duration,routes.polyline.encodedPolyline,routes.legs.distanceMeters,routes.legs.duration,routes.legs.polyline.encodedPolyline"+(_p6dSteps?","+P6D_GOOGLE_STEP_FIELDS:"");
+  const fields="routes.distanceMeters,routes.duration,routes.polyline.encodedPolyline,routes.legs.distanceMeters,routes.legs.duration,routes.legs.polyline.encodedPolyline";
   try{ let rt=null; const delays=[0,400]; // un réessai court suffit pour un vide passager ; on ne fige pas l'affichage
     for(let a=0;a<delays.length;a++){ if(delays[a]) await new Promise(r=>setTimeout(r,delays[a]));
       const j=await workerFetch("/google/routes",{fieldMask:fields,request:body}); rt=(((j&&j.data)||{}).routes||[])[0]; if(rt) break; }
     if(!rt){ try{console.warn("[route] Google a renvoyé une réponse vide",{mode,points:clean.length,from:clean[0],to:clean[clean.length-1]});}catch(e){} return null; } // vide -> l'appelant tentera un mode degrade si prevu ; le log dit POURQUOI (coords/mode) sans popup
     return { distanceMeters:rt.distanceMeters||0, duration:parseInt((rt.duration||"0s").replace("s",""),10)||0,
       polyline:(rt.polyline&&rt.polyline.encodedPolyline)||"", mode,
-      legs:(rt.legs||[]).map(l=>{ const o={dist:l.distanceMeters||0,dur:parseInt((l.duration||"0s").replace("s",""),10)||0,poly:(l.polyline&&l.polyline.encodedPolyline)||""};
-        if(_p6dSteps) o._steps=Array.isArray(l.steps)?l.steps.map(x=>({distanceMeters:x?x.distanceMeters:null, polyline:x&&x.polyline?x.polyline.encodedPolyline:undefined, maneuver:x&&x.navigationInstruction?x.navigationInstruction.maneuver:undefined})):null;   /* P6d-C : transitoire, jamais persiste */
-        return o; }) };
+      legs:(rt.legs||[]).map(l=>({dist:l.distanceMeters||0,dur:parseInt((l.duration||"0s").replace("s",""),10)||0,poly:(l.polyline&&l.polyline.encodedPolyline)||""})) };
   }catch(e){ return null; } }
 /* TRAFIC ROUTIER — appel SEPARE, une seule journee a la fois.
    Google ne renvoie une duree avec trafic que si routingPreference vaut
@@ -19260,10 +18572,7 @@ function showTripFuelDetail(){   /* V4.8h : detail trajet par trajet du "Cout de
   const rowsH=D.rows.map(r=>{
     const head=(r.origin?(_mvpTxt("legFrom")+" · "):"")+(r.from||"\u2014")+" \u2192 "+(r.to||"\u2014");
     let det=_mvpTxt("tfdDrive").replace("{km}",km(r.driveM));
-    if(r.p6d){ const bd=_p6dBreakdown(r.p6d,D.cur); const pp=Object.keys(bd.by).map(cc=>countryName(cc)+" "+km(bd.by[cc].m));
-      if(bd.ferry>0) pp.push(_p6dTxt("ferry")+" "+km(bd.ferry)); if(bd.unknown>0) pp.push(_p6dTxt("unknown")+" "+km(bd.unknown));
-      det+=(r.cost!=null?(" · "+L1(r.litres)+" = "+money(r.cost,D.cur)):(" · "+(r.p6d.state==="pending"?_p6dTxt("pending"):_mvpTxt("tripNA"))))+(pp.length?" · "+pp.join(", "):""); }   /* P6d-E */
-    else if(r.cost!=null){ const local=r.litres*r.price; det+=" · "+L1(r.litres)+" × "+r.src.pTxt+" = "+money(local,r.pc)+(String(r.pc).toUpperCase()!==String(D.cur).toUpperCase()?" ≈ "+money(r.cost,D.cur):""); }
+    if(r.cost!=null){ const local=r.litres*r.price; det+=" · "+L1(r.litres)+" × "+r.src.pTxt+" = "+money(local,r.pc)+(String(r.pc).toUpperCase()!==String(D.cur).toUpperCase()?" ≈ "+money(r.cost,D.cur):""); }
     else det+=" · "+_mvpTxt("tripNA");
     const walk=r.walkM>=50?`<div class="tfd-walk">${escapeHtml(_mvpTxt("tfdWalk").replace("{km}",km(r.walkM)))}</div>`:"";
     return `<div class="tfd-row"><div class="tfd-head">${escapeHtml(head)}</div><div class="tfd-det">${escapeHtml(det)}</div>${walk}</div>`; }).join("");
@@ -19271,8 +18580,8 @@ function showTripFuelDetail(){   /* V4.8h : detail trajet par trajet du "Cout de
   const meta=`<div class="lr"><b>${escapeHtml(_mvpTxt("tfdFuel"))}</b><span>${escapeHtml(_fuelLabel(D.fuel))}</span></div>`
     +`<div class="lr"><b>${escapeHtml(_mvpTxt("tfdConso"))}</b><span>${escapeHtml((+D.conso).toLocaleString(loc,{maximumFractionDigits:1})+" "+unit+"/100 km")}</span></div>`
     +D.srcs.map(x=>`<div class="lr"><b>${escapeHtml(_mvpTxt("tfdPrice"))}</b><span>${escapeHtml(x.line)}</span></div>`+(x.detail?`<div class="lr"><b>${escapeHtml(_mvpTxt("tfdSource"))}</b><span>${escapeHtml(x.detail)}</span></div>`:"")).join("");
-  const totTxt=D.p6d?(D.missing?"\u2014":(D.pending?"\u2026":(D.known?money(D.sum,D.cur):"\u2014"))):(D.missing&&D.known?(_mvpTxt("tripPartial")+" · "+money(D.sum,D.cur)+" "+_mvpTxt("tripKnown")):(D.known?money(D.sum,D.cur):_mvpTxt("tripNA")));   /* P6d-E : jamais de total partiel */
-  const note=D.p6d?(`<div class="leg-dl p6d-note">`+(D.missing?`<div class="lr"><span>${escapeHtml(_p6dTxt("missing"))}</span></div>`:"")+`<div class="lr"><span>${escapeHtml(_p6dTxt("note"))}</span></div></div>`):"";   /* FUEL-R1 : plus d'"estimation de reference" -- note supprimee */
+  const totTxt=D.missing&&D.known?(_mvpTxt("tripPartial")+" · "+money(D.sum,D.cur)+" "+_mvpTxt("tripKnown")):(D.known?money(D.sum,D.cur):_mvpTxt("tripNA"));
+  const note="";   /* FUEL-R1 : plus d'"estimation de reference" -- note supprimee */
   const ov=document.createElement("div"); ov.className="confirm-ov show tfd-ov";
   ov.innerHTML=`<div class="confirm-card"><div class="cf-msg">⛽ ${escapeHtml(_mvpTxt("tfdTitle"))}</div><div class="leg-dl">${rowsH}${meta}<div class="lr tot"><b>${escapeHtml(_mvpTxt("tfdTotal"))}</b><span>${escapeHtml(totTxt)}</span></div></div>${note}<div class="cf-actions"><button class="cf-cancel" id="tfdX">OK</button></div></div>`;
   document.body.appendChild(ov); const close=()=>ov.remove(); ov.querySelector("#tfdX").onclick=close; ov.onclick=e=>{ if(e.target===ov) close(); };
@@ -19280,7 +18589,7 @@ function showTripFuelDetail(){   /* V4.8h : detail trajet par trajet du "Cout de
 function _mvpTripFuelFromPresentation(presentation,mode,tr){ try{
   const el=document.querySelector(".rc-tripfuel"); if(!el||!presentation||!tr) return; const note=document.querySelector(".rc-trip-note");
   if(!(mode==="DRIVE"&&usesCar(tr))) return;
-  const c=_legFuelCtx(presentation,tr); let crossed=false, sum=0, known=0, missing=0, pending=0; const rows=[], srcs=new Map();
+  const c=_legFuelCtx(presentation,tr); let crossed=false, sum=0, known=0, missing=0; const rows=[], srcs=new Map();
   (presentation.moves||[]).forEach(move=>{
     if(!move) return;
     if(move.role==="transfer"){ crossed=true; return; }
@@ -19294,24 +18603,27 @@ function _mvpTripFuelFromPresentation(presentation,mode,tr){ try{
     const isOrigin=!seg&&!!(move.role==="main"&&move.fromRole==="origin"&&!move.notNeeded&&move.fromItemId==null&&move.toItemId!=null);
     if(!seg&&!isOrigin&&!eligibleForInjectedLeg(move,tr)) return;   /* meme selection que les liaisons */
     const agg=aggregateMoveForRow(move); if(!agg) return; const dm=Number(agg.driveDist)||0; if(!(dm>0)) return;   /* arbitre UNIQUE, inchange */
-    const mc=p6dMoveCost(tr,move);   /* P6d-E : projection multi-pays, meme selection de liaisons que les lignes */
-    const ok=mc.state==="complete"; const cost=ok?mc.cost:null;
-    if(ok){ sum+=cost; known++; } else if(mc.state==="pending") pending++; else missing++;
-    if(ok) for(const it of mc.items){ for(const l of ((it.res&&it.res.lines)||[])){ if(!(l.price>0)) continue;
-      const s1=_tripFuelSrc(l.source,(it.anchors&&it.anchors[l.countryCode])||{},l.price,l.currency,c.veh); if(s1) srcs.set(s1.key,s1); } }
-    rows.push({ from:move.fromLabel||"", to:move.toLabel||"", origin:isOrigin, driveM:dm, walkM:Math.max(0,(Number(agg.dist)||0)-dm), litres:ok?mc.liters:null, price:null, pc:null, cost, src:null, p6d:mc });
+    const price=segApproach?c.approachPrice:(segReturn?c.returnPrice:(crossed?c.priceB:c.priceA));
+    const k=segApproach?c._kAp:(segReturn?c._kRt:(crossed?c._kB:c._kA));
+    const ok=c.conso>0&&price>0&&k!=null; const cost=ok?(dm/1000)*c.conso/100*price*k:null;
+    if(ok){ sum+=cost; known++; } else missing++;
+    const prov=segApproach?c.approachProv:(segReturn?c.returnProv:(crossed?c.provB:c.provA));
+    const dst=segApproach?c.approachDst:(segReturn?c.returnDst:(crossed?c.dstB:c.dstA));
+    const pc=segApproach?c._pcAp:(segReturn?c._pcRt:(crossed?c._pcB:c._pcA));   /* V4.8h : tracabilite -- memes valeurs que le calcul */
+    const src=ok?_tripFuelSrc(prov,dst,price,pc,c.veh):null; if(src) srcs.set(src.key,src);
+    rows.push({ from:move.fromLabel||"", to:move.toLabel||"", origin:isOrigin, driveM:dm, walkM:Math.max(0,(Number(agg.dist)||0)-dm), litres:(dm/1000)*c.conso/100, price:ok?price:null, pc, cost, src });
   });
-  window._mvpTripFuelDetail={ rows, cur:c.cur, conso:c.conso, fuel:c.veh.fuel, sum, known, missing, pending, p6d:true, srcs:[...srcs.values()] };
+  window._mvpTripFuelDetail={ rows, cur:c.cur, conso:c.conso, fuel:c.veh.fuel, sum, known, missing, srcs:[...srcs.values()] };
   { const blk=el.closest(".ds-tripfuel"); let sl=blk&&blk.querySelector(".rc-trip-src");
     if(blk&&!sl){ sl=document.createElement("span"); sl.className="rc-trip-src"; blk.appendChild(sl); }
     const S1=[...srcs.values()];
     if(sl){ sl.dataset.kind=S1.length===1?S1[0].kind:(S1.length>1?"mixed":""); sl.textContent=S1.length===1?(S1[0].line+" · "+_mvpTxt("tfdMore")+" \u203a"):(S1.length>1?(_mvpTxt("tfdMulti").replace("{n}",S1.length)+" · "+_mvpTxt("tfdMore")+" \u203a"):""); }
     if(blk&&rows.length){ blk.classList.add("is-tappable"); blk.setAttribute("role","button"); blk.tabIndex=0; blk.onclick=showTripFuelDetail; blk.onkeydown=e=>{ if(e.key==="Enter"||e.key===" "){ e.preventDefault(); showTripFuelDetail(); } }; } }
-  if(missing){ el.textContent="\u2014"; el.dataset.state="na"; if(note) note.textContent=""; }   /* P6d-E (E6) : jamais de total partiel */
-  else if(pending){ el.textContent="\u2026"; el.dataset.state="pending"; if(note) note.textContent=""; }
-  else if(!known){ el.textContent="\u2014"; el.dataset.state="none"; if(note) note.textContent=""; }
-  else { el.textContent=money(sum,c.cur); el.dataset.state="complete"; if(note) note.textContent=""; }
-  el.dataset.sum=(missing||pending)?"":String(sum); el.dataset.src="presentation";   /* knownCost reste interne */
+  if(!known&&!missing){ el.textContent="\u2014"; el.dataset.state="none"; if(note) note.textContent=""; }
+  else if(!missing){ el.textContent=money(sum,c.cur); el.dataset.state="complete"; if(note) note.textContent=""; }
+  else if(!known){ el.textContent=_mvpTxt("tripNA"); el.dataset.state="na"; if(note) note.textContent=""; }
+  else { el.textContent=_mvpTxt("tripPartial"); el.dataset.state="partial"; if(note) note.textContent=" \u00b7 "+money(sum,c.cur)+" "+_mvpTxt("tripKnown"); }
+  el.dataset.sum=String(sum); el.dataset.src="presentation";
 }catch(_e){} }
 /* ===== PLANNING-ROUTE1 P6b — reperes de route ======================================================================
    Composant VISUEL dedie (role "route-anchor") : il reprend le langage graphique d'une .pl-item (media, titre,
@@ -19382,18 +18694,19 @@ function injectPresentationLegs(presentation, mode, tr){
     const _k=_segApproach?_kAp:(_segReturn?_kRt:(crossedTransfer?_kB:_kA));
     const _pc=_segApproach?_pcAp:(_segReturn?_pcRt:(crossedTransfer?_pcB:_pcA));   /* V4.8e */
     const driveMeters=Number(agg.driveDist)||0;
-    /* P6d-E : cout de la liaison = projection multi-pays (P6d-D) des parts routieres ; l'ancien prix mono-pays
-       (price/_k ci-dessus) ne chiffre plus rien -- il ne reste qu'au service de la fiche hors voiture. */
-    const _p6dOn=mode==="DRIVE"&&usesCar(tr)&&driveMeters>0;
-    const _p6dMc=_p6dOn?p6dMoveCost(tr,move):null;
-    const showFuel=!!(_p6dMc&&_p6dMc.state==="complete");
-    const _p6dPending=!!(_p6dMc&&_p6dMc.state==="pending");
+    const showFuel=
+      mode==="DRIVE"
+      &&usesCar(tr)
+      &&conso>0
+      &&price>0
+      &&_k!=null   /* V4.8e : taux inconnu -> jamais un montant faux */
+      &&driveMeters>0;
     const unit=veh.fuel==="elec"?"kWh":"L";
     let cost=0;
     let qty=0;
     if(showFuel){
-      qty=_p6dMc.liters;   /* ferries exclus */
-      cost=_p6dMc.cost;    /* deja dans la devise du voyage */
+      qty=(driveMeters/1000)*conso/100;
+      cost=qty*price*_k;   /* V4.8e : cout dans la devise du voyage */
     }
     const div=document.createElement("div");
     div.className="pl-leg"+(_isOrigin?" pl-leg-origin":"")+(_seg?" pl-leg-seg":"");
@@ -19403,11 +18716,10 @@ function injectPresentationLegs(presentation, mode, tr){
       ||"var(--gold)";   /* ligne autonome : repli natif, aucune couleur nouvelle */
     div.style.setProperty("--legc",legColor);
     div.dataset.fuelCost=showFuel?String(cost):"";   /* V4.4 : valeur numerique DEJA calculee ci-dessus, exposee avant formatage (aucun recalcul ailleurs) */
-    div.dataset.fuelMissing=(_p6dOn&&!showFuel&&!_p6dPending)?"1":"";   /* P6d-E : incomplet -> indisponible */
-    div.dataset.fuelPending=_p6dPending?"1":"";   /* P6d-E : calcul en cours */   /* P5d : le masquage P5c est leve -- un APPROACH/RETURN routable sans prix exploitable est un VRAI etat FUEL-R1 « indisponible », jamais 0 EUR */
+    div.dataset.fuelMissing=(mode==="DRIVE"&&usesCar(tr)&&driveMeters>0&&!showFuel)?"1":"";   /* P5d : le masquage P5c est leve -- un APPROACH/RETURN routable sans prix exploitable est un VRAI etat FUEL-R1 « indisponible », jamais 0 EUR */
     const fuelHtml=showFuel
       ? `<span class="pl-leg-fuel"><span class="pl-leg-qty">⛽ ${qty<10?qty.toFixed(1):Math.round(qty)} ${unit} ·</span> ≈ ${money(cost,cur)}</span>`   /* V4.8-B : la vue normale montre le montant ; la quantite reste en mode Details et au toucher */
-      : (_p6dPending?`<span class="pl-leg-fuel" data-state="pending">⛽ \u2026</span>`:"");   /* P6d-E */
+      : "";
     div.innerHTML=`
       <div class="pl-leg-arrow" aria-hidden="true"></div>
       <button class="pl-legbtn"
@@ -19442,8 +18754,7 @@ function injectPresentationLegs(presentation, mode, tr){
         veh.fuel,
         driveMeters,
         prov,
-        _pc,
-        _p6dMc   /* P6d-E : ventilation multi-pays du detail */
+        _pc
       );
     };
     div.querySelector(".pl-legmap").onclick=e=>{
@@ -19923,36 +19234,7 @@ function showRouteSummary(route){ const el=document.getElementById("routeSummary
   const _li=route.legsInfo||[]; const _drive=_li.some(l=>l.mode==="DRIVE"||l.drivable), _gap=_li.some(l=>l.gap);
   const em=_drive?"🚗":(_gap?"🚆":(_li.some(l=>l.mode==="WALK")?"🥾":modeEmoji(route.mode)));
   el.innerHTML=`<span class="rs-em">${em}</span><span>${t("plan.travel")} · ${fmtDist(route.distanceMeters)} · ${fmtDur(route.duration)}</span>`; }
-function _legProvLabel(prov){   /* P6d-E : extrait TEL QUEL de showLegDetail() pour etre partage avec la ventilation multi-pays */
-    if(!prov) return "";
-    if(prov.manual) return t("plan.legPriceManual");
-    if(prov.scope==="STATION"&&prov.priceKind==="DECLARED_PRICE"){ const _o=_fuelOldNote(prov); return t("plan.legPriceStation")+_fuelForeignStationSuffix(prov)+(_o?" · "+_o:""); }   /* V4.8d : age signale ; F2 IT-3 : date du releve */
-    if(prov.scope==="NATIONAL"&&prov.priceKind==="OBSERVED_MEDIAN") return t("plan.legPriceNational");
-    if(prov.priceKind==="OFFICIAL_MONTHLY_PRICE"||prov.priceKind==="OFFICIAL_WEEKLY_CONSUMER_PRICE"||prov.priceKind==="OFFICIAL_MONTHLY_AVERAGE") return _fuelOfficialLabel(prov);   /* F2-A0 */
-    return "";
-  }
-function _showLegDetailP6d(next,leg,mode,conso,cur,fuel,p6d){   /* P6d-E : detail d'une liaison chiffree par pays traverses */
-  const loc=LOCALE[lang()]||"fr-FR", unit=fuel==="elec"?"kWh":"L", st=p6d&&p6d.state;
-  const rows=[[t("plan.legDist"),fmtDist(leg.dist)],[t("plan.duration"),fmtDur(leg.dur)]];
-  const fuelOn=mode==="DRIVE"&&p6d&&st!=="none";
-  if(fuelOn){
-    rows.push([t("plan.legConso"),conso.toLocaleString(loc,{maximumFractionDigits:1})+" "+unit+"/100 km"]);
-    const bd=_p6dBreakdown(p6d,cur);
-    for(const cc of Object.keys(bd.by)){ const x=bd.by[cc], pl=x.source?(_legProvLabel(x.source)||""):"";
-      rows.push([countryName(cc),fmtDist(x.m)+(x.price>0?(" · "+x.price.toLocaleString(loc,{minimumFractionDigits:2,maximumFractionDigits:3})+" "+curSym(x.currency)+"/"+unit+(pl?" · "+pl:"")):"")]); }
-    if(bd.unknown>0) rows.push([_p6dTxt("unknown"),fmtDist(bd.unknown)]);
-    if(bd.ferry>0) rows.push([_p6dTxt("ferry"),fmtDist(bd.ferry)]);
-    if(st==="complete") rows.push([t("plan.legFuel"),p6d.liters.toLocaleString(loc,{minimumFractionDigits:1,maximumFractionDigits:1})+" "+unit]); }
-  let bodyH=rows.map(r=>`<div class="lr"><b>${escapeHtml(r[0])}</b><span>${escapeHtml(r[1])}</span></div>`).join("");
-  if(fuelOn){
-    bodyH+=`<div class="lr tot"><b>${escapeHtml(t("plan.legCost"))}</b><span>${escapeHtml(st==="complete"?money(p6d.cost,cur):(st==="pending"?"\u2026":"\u2014"))}</span></div>`;   /* jamais de cout partiel */
-    if(st==="incomplete") bodyH+=`<div class="lr"><span>${escapeHtml(_p6dTxt("missing"))}</span></div>`;
-    bodyH+=`<div class="lr p6d-note"><span>${escapeHtml(_p6dTxt("note"))}</span></div>`; }
-  const ov=document.createElement("div"); ov.className="confirm-ov show";
-  ov.innerHTML=`<div class="confirm-card"><div class="cf-msg">${modeEmoji(mode)} ${escapeHtml(t("plan.legTrip",{p:next||"—"}))}</div><div class="leg-dl">${bodyH}</div><div class="cf-actions"><button class="cf-cancel" id="lgX">OK</button></div></div>`;
-  document.body.appendChild(ov); const close=()=>ov.remove(); ov.querySelector("#lgX").onclick=close; ov.onclick=e=>{ if(e.target===ov) close(); }; }
-function showLegDetail(next,leg,mode,conso,price,cur,fuel,fuelMeters,prov,priceCur,p6d){
-  if(p6d!==undefined) return _showLegDetailP6d(next,leg,mode,conso,cur,fuel,p6d);   /* P6d-E : liaisons du Planning */
+function showLegDetail(next,leg,mode,conso,price,cur,fuel,fuelMeters,prov,priceCur){
   const loc=LOCALE[lang()]||"fr-FR";
   const unit=fuel==="elec"?"kWh":"L";
   /* F1 Planning final : la distance AFFICHEE reste la distance totale du trajet ; litres et cout ne portent QUE sur la distance drivable (fuelMeters). Sans fuelMeters : distance totale (compatibilite). */
@@ -19964,7 +19246,14 @@ function showLegDetail(next,leg,mode,conso,price,cur,fuel,fuelMeters,prov,priceC
   const _pc=String(priceCur||cur||"EUR").toUpperCase(), _kc=_fuelFx(_pc,cur);   /* V4.8e : prix au litre dans SA devise, cout converti dans celle du voyage */
   /* correction Loic (section A) : provenance AFFICHEE uniquement -- ne touche ni price/litres/cost ci-dessus,
      ni distance/duree ci-dessous. Jamais "Prix station reel" pour une mediane. */
-  const provLabel=_legProvLabel(prov)||"";   /* FUEL-R1 : plus de prix de table pays -- aucune provenance inventee */
+  const provLabel=(()=>{
+    if(!prov) return "";
+    if(prov.manual) return t("plan.legPriceManual");
+    if(prov.scope==="STATION"&&prov.priceKind==="DECLARED_PRICE"){ const _o=_fuelOldNote(prov); return t("plan.legPriceStation")+_fuelForeignStationSuffix(prov)+(_o?" · "+_o:""); }   /* V4.8d : age signale ; F2 IT-3 : date du releve */
+    if(prov.scope==="NATIONAL"&&prov.priceKind==="OBSERVED_MEDIAN") return t("plan.legPriceNational");
+    if(prov.priceKind==="OFFICIAL_MONTHLY_PRICE"||prov.priceKind==="OFFICIAL_WEEKLY_CONSUMER_PRICE"||prov.priceKind==="OFFICIAL_MONTHLY_AVERAGE") return _fuelOfficialLabel(prov);   /* F2-A0 */
+    return "";
+  })()||"";   /* FUEL-R1 : plus de prix de table pays -- aucune provenance inventee */
   const rows=[
     [t("plan.legDist"),fmtDist(leg.dist)],
     [t("plan.duration"),fmtDur(leg.dur)]
