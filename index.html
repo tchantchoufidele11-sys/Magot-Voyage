@@ -19375,31 +19375,28 @@ function _mvpTripFuelFromPresentation(presentation,mode,tr){ try{
    Aucune requete reseau, aucun placeId cree, aucun rapprochement heuristique avec tr.places : sans identite
    directement exploitable par planItemPhotoUrl(), on affiche l'emoji du repere. */
 /* ===== LOT 3 : photos des lignes « Point de depart », « Hebergement », « Destination de retour », « Ma position » =====
-   Regle : photo deja portee par l'objet ; sinon ville (gText nom + position) ; « Ma position » : lieu CONNU le plus proche (3 km), sinon lieu touristique le plus proche (gNearby).
+   Regle : photo deja portee par l'objet ; sinon ville (gText nom + position) ; « Ma position » : photo de la COMMUNE la plus proche (gNearby type locality) --
+   jamais un lieu precis : image representative, et la position exacte n'est pas devoilee.
    Une seule recherche par lieu : cache appareil 30 j (aucun resultat : 24 h) ; erreur reseau jamais memorisee. L'ecran n'attend jamais : photo injectee a l'arrivee. */
 const _ANCH_PH_KEY="mv_anchorPhotos", _ANCH_PH_TTL=30*86400000, _ANCH_PH_NONE_TTL=86400000; let _anchPh=null; const _anchPending=new Set();
 function _anchPhLoad(){ if(_anchPh) return _anchPh; try{ _anchPh=JSON.parse(localStorage.getItem(_ANCH_PH_KEY)||"{}")||{}; }catch(_e){ _anchPh={}; } return _anchPh; }
 function _anchPhSave(){ try{ const m=_anchPhLoad(), ks=Object.keys(m); if(ks.length>200){ ks.sort((a,b)=>(m[a].t||0)-(m[b].t||0)).slice(0,ks.length-200).forEach(k=>delete m[k]); } localStorage.setItem(_ANCH_PH_KEY, JSON.stringify(m)); }catch(_e){} }
 function _anchGeoOk(pt){ return !!pt&&pt.lat!=null&&pt.lng!=null&&Number.isFinite(+pt.lat)&&Number.isFinite(+pt.lng); }
-function _anchPhKey(kind,pt){ return kind+"|"+(+pt.lat).toFixed(3)+","+(+pt.lng).toFixed(3); }
+function _anchPhKey(kind,pt){ return (kind==="pos")?("pos2|"+(+pt.lat).toFixed(2)+","+(+pt.lng).toFixed(2)):(kind+"|"+(+pt.lat).toFixed(3)+","+(+pt.lng).toFixed(3)); }   /* position : maille ~1 km, une recherche par zone */
 function _anchPhUrl(ph){ return ph?(/^https?:\/\//i.test(ph)?ph:gPhoto(ph,220)):""; }
 function _anchPhotoOfObj(o){ try{ if(!o) return ""; const ph=o.photo||(Array.isArray(o.photos)&&o.photos[0])||""; if(ph) return _anchPhUrl(ph);
     const id=o.placeId; if(id&&typeof _magPlaceSnap==="function"){ const p=_magPlaceSnap(id,o,currentTrip()); const pics=(p&&typeof _pickPhotos==="function")?_pickPhotos(p):[]; if(pics&&pics[0]) return _anchPhUrl(pics[0]); }
   }catch(_e){} return ""; }
-function _anchNearestKnownPhoto(pt){ let best="", bd=3; try{ const tr=currentTrip(); const cands=[].concat((tr&&tr.places)||[], (typeof _placeReg!=="undefined")?Object.values(_placeReg):[]);
-    for(const p of cands){ if(!p||!_anchGeoOk(p)) continue; const ph=p.photo||(Array.isArray(p.photos)&&p.photos[0]); if(!ph) continue;
-      let d=Infinity; try{ d=haversineKm(pt,{lat:+p.lat,lng:+p.lng}); }catch(_e){} if(d<bd){ bd=d; best=ph; } } }catch(_e){} return best; }
 function _anchorPhotoUrl(kind, pt, name, obj){
   const own=_anchPhotoOfObj(obj); if(own) return own;
   if(!_anchGeoOk(pt)) return "";
-  if(kind==="pos"){ const n=_anchNearestKnownPhoto(pt); if(n) return _anchPhUrl(n); }
   const k=_anchPhKey(kind,pt), e=_anchPhLoad()[k];
   if(e&&e.n&&(Date.now()-(e.t||0))<_ANCH_PH_TTL) return gPhoto(e.n,220);
   if(e&&e.none&&(Date.now()-(e.t||0))<_ANCH_PH_NONE_TTL) return "";
   if(kind!=="pos"&&!name) return "";
   _anchorPhotoFetch(kind,pt,name,k); return ""; }
 async function _anchorPhotoFetch(kind,pt,name,k){ if(_anchPending.has(k)) return; _anchPending.add(k); let n="", ok=false;
-  try{ const r=(kind==="pos")?await gNearby(+pt.lat,+pt.lng,"tourist_attraction",3000,"DISTANCE"):await gText(name,{lat:+pt.lat,lng:+pt.lng});
+  try{ const r=(kind==="pos")?await gNearby(+pt.lat,+pt.lng,"locality",15000,"DISTANCE"):await gText(name,{lat:+pt.lat,lng:+pt.lng});   /* position : commune la plus proche */
     if(r&&!r.error){ ok=true; const p=(r.places||[]).find(x=>x&&x.photos&&x.photos[0]&&x.photos[0].name); if(p) n=p.photos[0].name; } }catch(_e){}
   _anchPending.delete(k); if(!ok) return;
   const m=_anchPhLoad(); m[k]=n?{n,t:Date.now()}:{none:1,t:Date.now()}; _anchPhSave();
