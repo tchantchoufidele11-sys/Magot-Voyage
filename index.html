@@ -27036,21 +27036,27 @@ document.addEventListener("DOMContentLoaded",boot);
 (function _mvMesureTemps(){ try{
   if(!/(^|[#&])mesure-temps\b/.test(String(location.hash||""))) return;
   const T=()=>Math.round(performance.now()), calls=[], gels=[], ecran={}; let last=performance.now();
-  setInterval(()=>{ const n=performance.now(); if(n-last>250&&gels.length<200) gels.push({a_ms:Math.round(last),fige_ms:Math.round(n-last-100)}); last=n; },100);
+  setInterval(()=>{ const n=performance.now(); if(document.visibilityState!=="visible"){ last=n; return; } if(n-last>250&&gels.length<200) gels.push({a_ms:Math.round(last),fige_ms:Math.round(n-last-100)}); last=n; },100);   /* v2 : arriere-plan iOS ignore */
+  document.addEventListener("visibilitychange",()=>{ last=performance.now(); });
   const wrap=(obj,name,lab)=>{ const f0=obj&&obj[name]; if(typeof f0!=="function") return;
-    obj[name]=function(){ const e={f:lab||name,a_ms:T()}; if(name==="computeRoute"){ const q=arguments[0]||{}; e.pts=(q.points||[]).length; e.prov=q.provider; } if(calls.length<500) calls.push(e); const t1=performance.now(); let r;
+    obj[name]=function(){ const e={f:lab||name,a_ms:T()}; if(name==="computeRoute"){ const q=arguments[0]||{}; e.pts=(q.points||[]).length; e.prov=q.provider; e.mode=q.mode||"DRIVE"; }
+      if(name==="_presentationRoutePart"){ const r5=x=>x?(+x.lat).toFixed(4)+","+(+x.lng).toFixed(4):"?"; e.mode=arguments[2]; e.motif=arguments[3]; e.de=r5(arguments[0]); e.vers=r5(arguments[1]); }
+      if(calls.length<700) calls.push(e); const t1=performance.now(); let r;
       try{ r=f0.apply(this,arguments); }catch(x){ e.err=String(x&&x.message||x).slice(0,80); throw x; }
-      if(r&&typeof r.then==="function") return r.then(v=>{ e.ms=Math.round(performance.now()-t1); return v; },x=>{ e.ms=Math.round(performance.now()-t1); e.err=String(x&&x.message||x).slice(0,80); throw x; });
+      if(r&&typeof r.then==="function") return r.then(v=>{ e.ms=Math.round(performance.now()-t1); if(name==="computeRoute"||name==="_presentationRoutePart") e.ok=!!(v&&(+v.distanceMeters||0)>0); return v; },x=>{ e.ms=Math.round(performance.now()-t1); e.err=String(x&&x.message||x).slice(0,80); throw x; });
       e.ms=Math.round(performance.now()-t1); return r; }; };
   wrap(routeProvider,"computeRoute","itineraire");
-  ["resolveDayRoutePresentation","_p6dRunJob","p6dAssetLoad","ensureFuelPriceFresh","renderPlan","renderDayRoute"].forEach(n=>wrap(window,n));
-  const dist=()=>[...document.querySelectorAll(".rc-dist")].map(e=>e.textContent).join("/"), cout=()=>[...document.querySelectorAll(".rc-daycost,.rc-fuel")].map(e=>e.textContent).join("/");
+  ["resolveDayRoutePresentation","_p6dRunJob","p6dAssetLoad","ensureFuelPriceFresh","renderPlan","renderDayRoute","_presentationRoutePart"].forEach(n=>wrap(window,n));
+  { const f0=window.fetch; window.fetch=function(u,o){ const url=String((u&&u.url)||u||""); const m=/\/(apple|google)\/routes/.exec(url); if(!m) return f0.apply(this,arguments);   /* v2 : reponse brute des Workers d'itineraire */
+      const e={f:"http-"+m[1],a_ms:T()}; try{ const b=JSON.parse((o&&o.body)||"{}"); e.mode=b.mode||b.travelMode||null; e.pts=Array.isArray(b.points)?b.points.length:null; }catch(_e){} if(calls.length<700) calls.push(e); const t1=performance.now();
+      return f0.apply(this,arguments).then(res=>{ e.ms=Math.round(performance.now()-t1); e.statut=res.status; try{ res.clone().json().then(j=>{ e.erreur=j&&j.error?String(j.error.message||j.error.code||j.error).slice(0,120):null; e.source=j&&j.source||null; e.donnees=!!(j&&j.data); }).catch(()=>{ e.erreur="reponse non JSON"; }); }catch(_e){} return res; },x=>{ e.ms=Math.round(performance.now()-t1); e.erreur="reseau : "+String(x&&x.message||x).slice(0,80); throw x; }); }; }
+  const dist=()=>[...document.querySelectorAll(".rc-dist")].map(e=>e.textContent).join("/"), cout=()=>[...document.querySelectorAll(".rc-tripfuel")].map(e=>e.textContent).join("/");   /* v2 : element du cout de la presentation actuelle */
   const pret=x=>/\d/.test(x)&&!/\u2026/.test(x);
   const suivi=setInterval(()=>{ if(ecran.distance_a_ms==null&&pret(dist())) ecran.distance_a_ms=T(); if(ecran.cout_a_ms==null&&pret(cout())) ecran.cout_a_ms=T();
     if(ecran.planning_a_ms==null&&document.querySelector("#view-plan .pl-item")) ecran.planning_a_ms=T(); if(T()>120000) clearInterval(suivi); },200);
   const rapport=extra=>{ const nav=(performance.getEntriesByType("navigation")||[])[0];
     const court=u=>{ try{ const x=new URL(u); return (x.hostname.indexOf("workers.dev")>=0?"worker":x.hostname.split(".").slice(-2).join("."))+x.pathname.slice(0,42); }catch(_e){ return String(u).slice(0,60); } };
-    return { v:"mesure-1", t:new Date().toISOString(), depuisChargement_ms:T(), page:{domPret_ms:Math.round(nav&&nav.domContentLoadedEventEnd||0),charge_ms:Math.round(nav&&nav.loadEventEnd||0)},
+    return { v:"mesure-2", t:new Date().toISOString(), depuisChargement_ms:T(), page:{domPret_ms:Math.round(nav&&nav.domContentLoadedEventEnd||0),charge_ms:Math.round(nav&&nav.loadEventEnd||0)},
       ecran:Object.assign({},ecran), asset:(typeof _p6dAsset==="object"&&_p6dAsset)?_p6dAsset.status:null,
       requetes:(performance.getEntriesByType("resource")||[]).filter(e=>/workers\.dev|\.bin|googleapis|gstatic|apple/.test(e.name)).map(e=>({u:court(e.name),debut_ms:Math.round(e.startTime),duree_ms:Math.round(e.duration),ko:Math.round((e.transferSize||0)/1024)})).slice(0,100),
       appels:calls.slice(0,400), gelsEcran:gels.slice(0,150), partirDici:extra||null }; };
