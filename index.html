@@ -17797,7 +17797,36 @@ function _presPartCascade(req){ const k=_presPartKey(req); if(!k) return routeCa
   const pr=Promise.resolve().then(()=>routeCascade(req)).then(v=>{ if(!v||!v.result){ if(_presPartCache.get(k)&&_presPartCache.get(k).p===pr) _presPartCache.delete(k); } return v; },
     x=>{ if(_presPartCache.get(k)&&_presPartCache.get(k).p===pr) _presPartCache.delete(k); throw x; });
   _presPartCache.set(k,{t:Date.now(),p:pr}); while(_presPartCache.size>_PRES_PART_MAX) _presPartCache.delete(_presPartCache.keys().next().value);
+  pr.then(v=>{ if(v&&v.result) _presRecNote(k, req); },()=>{});   /* PRECHARGEMENT : on note la portion REELLEMENT obtenue (rejouee au prochain calcul du jour) */
   return pr.then(_presPartCopy); }
+/* PRECHARGEMENT (enregistrer et rejouer) -- mesure iPhone Apple actif : 13 portions EN SERIE (mediane 282 ms) = 3,2 s.
+   On NOTE les portions reellement demandees (parametres exacts) ; au calcul suivant du MEME jour, on les relance EN PARALLELE
+   (4 a la fois, 40 max/jour, 1 fois/min/jour) dans la memoire des portions. La boucle de presentation est INCHANGEE : elle trouve
+   ses reponses pretes ou en cours ; une portion prechargee devenue inutile n'est simplement pas lue. Resultats identiques par construction. */
+const _PRES_REC_KEY="mv_presParts", _PRES_REC_MAX=300, _PRES_REC_TTL=3*86400000;
+let _presRec=null, _presRecTimer=null; const _presPrefetchAt=new Map();
+function _presRecLoad(){ if(_presRec) return _presRec; _presRec=new Map(); try{ const a=JSON.parse(localStorage.getItem(_PRES_REC_KEY)||"[]"); const now=Date.now();
+    (Array.isArray(a)?a:[]).forEach(e=>{ if(e&&e.k&&e.r&&(now-(+e.t||0))<_PRES_REC_TTL) _presRec.set(e.k,e); }); }catch(_e){} return _presRec; }
+function _presRecNote(k, req){ try{ const m=_presRecLoad(); m.delete(k);
+    m.set(k,{ k, t:Date.now(), r:{ points:(req.points||[]).map(q=>({lat:+q.lat,lng:+q.lng})), mode:req.mode||"DRIVE", avoidTolls:!!req.avoidTolls, departureTime:req.departureTime||null } });
+    while(m.size>_PRES_REC_MAX) m.delete(m.keys().next().value);
+    if(!_presRecTimer) _presRecTimer=setTimeout(()=>{ _presRecTimer=null; try{ localStorage.setItem(_PRES_REC_KEY, JSON.stringify([..._presRecLoad().values()])); }catch(_e){} },1500);
+  }catch(_e){} }
+function _presPrefetch(tr, day){ try{
+    if(!tr||typeof navigator!=="undefined"&&navigator.onLine===false) return;
+    const pk=(tr.id||"?")+"|"+day, now=Date.now(); if(now-(_presPrefetchAt.get(pk)||0)<60000) return; _presPrefetchAt.set(pk,now);
+    const anchors=[]; const add=x=>{ const q=_rcPoint(x); if(q) anchors.push(q); };
+    try{ (_dayItemsOrdered(tr,day)||[]).forEach(add); }catch(_e){}
+    [tr.lodging,tr.dest,tr.depart,tr.returnDestination].forEach(add);
+    try{ ((typeof tripLegs==="function")?tripLegs(tr):[]).forEach(l=>{ add(l&&l.lodging); add(l&&l.dest); }); }catch(_e){}
+    if(!anchors.length) return;
+    const near=q=>anchors.some(a=>haversineKm(a,q)<=1.5);
+    const todo=[]; for(const e of _presRecLoad().values()){ const pts=e.r.points||[]; if(pts.length<2||!pts.every(near)) continue;
+      const c=_presPartCache.get(e.k); if(c&&(now-c.t)<_PRES_PART_TTL) continue; todo.push(e.r); if(todo.length>=40) break; }
+    if(!todo.length) return;
+    let i=0; const worker=async()=>{ while(i<todo.length){ const r=todo[i++]; try{ await _presPartCascade(r); }catch(_e){} } };
+    for(let w=0; w<Math.min(4,todo.length); w++) worker();
+  }catch(_e){} }
 async function _presentationRoutePart(
   A,
   B,
@@ -17949,6 +17978,7 @@ function _planSegmentMove(tr, seg, segmentType, mode){   /* move ADDITIF : meme 
     parts:parts||[], notNeeded:false,
     incomplete:!parts }; }
 async function resolveDayRoutePresentation(tr,day,options){
+  _presPrefetch(tr, day);   /* PRECHARGEMENT : relance en parallele les portions deja connues de ce jour (sans attendre ; boucle inchangee) */
   options=options||{};
   const capturedStoreId=_storeId;
   const capturedStoreEpoch=_storeEpoch;
