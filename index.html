@@ -6735,6 +6735,7 @@ function _fuelNeededPositions(tr){   /* audit v1034 P2-2 : depart + TOUTES les d
         if(!lv||lv.explicit!==true||!Number.isFinite(+lv.lat)||!Number.isFinite(+lv.lng)) continue;
         const c=P6DGEO.classifyPoint(_p6dAsset.asset,+lv.lat,+lv.lng); if(c&&/^[A-Z]{2}$/.test(c)) add(c,+lv.lat,+lv.lng); } }
   }catch(_e){}
+  try{ const m=_p6dEndAnchors[tr.id||"?"]; if(m) for(const x of m.values()) add(x.cc,x.lat,x.lng); }catch(_e){}   /* extremites sans prix (CORRECTIF CARBURANT) */
   return positions; }
 function _fuelResolveSignature(tr){ if(!tr) return ""; const v=tr.veh||{};
   const ps=_fuelNeededPositions(tr).map(p=>p.cc+":"+(p.lat!=null?p.lat:"")+","+(p.lng!=null?p.lng:"")).join("|");
@@ -11444,6 +11445,16 @@ function _p6dAnchor(tr,cc,pt){
   ps=ps.filter(p=>p&&String(p.cc||"").toUpperCase()===cc&&p.lat!=null&&p.lng!=null&&Number.isFinite(+p.lat)&&Number.isFinite(+p.lng));
   let best=null, bd=Infinity; for(const p of ps){ let d=Infinity; try{ d=haversineKm(pt,{lat:+p.lat,lng:+p.lng}); }catch(_e){} if(d<bd){ bd=d; best=p; } }
   return best; }
+const _p6dFuelKicked=new Set();
+const _p6dEndAnchors={};   /* CORRECTIF CARBURANT : extremites d'un trajet dont le pays n'a pas de prix -> points d'ancrage carburant (pays et coordonnees deja connus du trajet, AUCUN besoin de l'asset) */
+function _p6dEndAnchorAdd(tr,cc,pt){ try{ if(!tr||!cc||!pt||!Number.isFinite(+pt.lat)||!Number.isFinite(+pt.lng)) return;
+  const m=_p6dEndAnchors[tr.id||"?"]||(_p6dEndAnchors[tr.id||"?"]=new Map()); const k=cc+"|"+(+pt.lat).toFixed(4)+","+(+pt.lng).toFixed(4);
+  if(!m.has(k)){ m.set(k,{cc,lat:+pt.lat,lng:+pt.lng}); while(m.size>20) m.delete(m.keys().next().value); } }catch(_e){} }
+function _p6dFuelKick(tr){   /* CORRECTIF CARBURANT : prix d'extremite absent -> demande relancee (une fois par voyage+signature), MEME si le trajet vient du cache.
+                                 Renvoie true si une demande est en cours (cout « … » au lieu de « — »). Echec -> la demande se termine, le cout passe a « — ». */
+  try{ if(!tr) return false; const k=(tr.id||"?")+"|"+_fuelResolveSignature(tr);
+    if(!_p6dFuelKicked.has(k)){ _p6dFuelKicked.add(k); ensureFuelPriceFresh(tr); }
+    return !!_fuelResolveInflight[k]; }catch(_e){ return false; } }
 function _p6dAnchorsSorted(tr,cc,pt){   /* CORRECTIF CARBURANT : TOUS les ancrages du pays, du plus proche au plus lointain (meme filtre que _p6dAnchor) */
   if(!pt) return []; let ps=[]; try{ ps=_fuelNeededPositions(tr); }catch(_e){ ps=[]; }
   ps=ps.filter(p=>p&&String(p.cc||"").toUpperCase()===cc&&p.lat!=null&&p.lng!=null&&Number.isFinite(+p.lat)&&Number.isFinite(+p.lng));
@@ -11461,7 +11472,8 @@ function p6dPartCost(tr, part){
   const pack=r=>(r&&Number.isFinite(r.price)&&r.price>0)?{price:r.price,currency:String(r.currency||"EUR").toUpperCase(),record:r}:null;
   const res=p6dFuelCostCore(e.p,{ conso, manualPrice:manual, manualCur:String(veh.priceCur||tripCur).toUpperCase(), tripCur, fx:_fuelFx,
     priceOf:cc=>{
-      if(cc in ends){ for(const a of _p6dAnchorsSorted(tr,cc,ends[cc])){ const r=pack(fuelPriceRecordResolved(tr,cc,veh.fuel,+a.lat,+a.lng)); if(r){ anchors[cc]=a; return r; } } }   /* extremite effective : ancrage le plus proche AYANT un prix (CORRECTIF CARBURANT) */
+      if(cc in ends){ for(const a of _p6dAnchorsSorted(tr,cc,ends[cc])){ const r=pack(fuelPriceRecordResolved(tr,cc,veh.fuel,+a.lat,+a.lng)); if(r){ anchors[cc]=a; return r; } }
+        _p6dEndAnchorAdd(tr,cc,ends[cc]); if(_p6dFuelKick(tr)) waiting=true; }   /* extremite effective : ancrage le plus proche AYANT un prix ; sinon l'extremite devient ancrage et la demande est relancee (CORRECTIF CARBURANT) */
       const n=pack(fuelPriceRecordResolved(tr,cc,veh.fuel,null,null)); if(n) return n;   /* national deja connu */
       const x=pack(_p6dNatRecord(cc,veh.fuel)); if(x) return x;
       _p6dNatEnsure(cc,veh.fuel); const y=_p6dNat.get(_p6dNatKey(cc,veh.fuel)); if(y&&y.status==="loading") waiting=true;
@@ -19300,7 +19312,7 @@ function showTripFuelDetail(){   /* V4.8h : detail trajet par trajet du "Cout de
     return `<div class="tfd-row"><div class="tfd-head">${escapeHtml(head)}</div><div class="tfd-det">${escapeHtml(det)}</div>${ccH}${walk}</div>`; }).join("");
   const fd=fuelDefault(D.fuel);
   const meta=`<div class="lr"><b>${escapeHtml(_mvpTxt("tfdFuel"))}</b><span>${escapeHtml(_fuelLabel(D.fuel))}</span></div>`
-    +`<div class="lr"><b>${escapeHtml(_mvpTxt("tfdConso"))}</b><span>${escapeHtml((+D.conso).toLocaleString(loc,{maximumFractionDigits:1})+" "+unit+"/100 km")}</span></div>`
+    +`<div class="lr"><b>${escapeHtml(_mvpTxt("tfdConso"))}</b><span>${escapeHtml((parseFloat(String(D.conso).replace(",","."))||0).toLocaleString(loc,{minimumFractionDigits:1,maximumFractionDigits:1})+" "+unit+"/100 km")}</span></div>`
     +D.srcs.map(x=>`<div class="lr"><b>${escapeHtml(_mvpTxt("tfdPrice")+(x.cc?" · "+countryName(x.cc):""))}</b><span>${escapeHtml(x.line)}</span></div>`+(x.detail?`<div class="lr"><b>${escapeHtml(_mvpTxt("tfdSource"))}</b><span>${escapeHtml(x.detail)}</span></div>`:"")).join("");
   const totTxt=D.p6d?(D.missing?"\u2014":(D.pending?"\u2026":(D.known?money(D.sum,D.cur):"\u2014"))):(D.missing&&D.known?(_mvpTxt("tripPartial")+" · "+money(D.sum,D.cur)+" "+_mvpTxt("tripKnown")):(D.known?money(D.sum,D.cur):_mvpTxt("tripNA")));   /* P6d-E : jamais de total partiel */
   const note=D.p6d?(`<div class="leg-dl p6d-note">`+(D.missing?`<div class="lr"><span>${escapeHtml(_p6dTxt("missing"))}</span></div>`:"")+`<div class="lr"><span>${escapeHtml(_p6dTxt("note"))}</span></div></div>`):"";   /* FUEL-R1 : plus d'"estimation de reference" -- note supprimee */
