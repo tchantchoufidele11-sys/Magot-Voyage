@@ -10808,6 +10808,24 @@ function uiRouteSignature(request){ request=request||{}; const mode=request.mode
   return [UI_ROUTE_POLICY, segType, mode, pts, request.avoidTolls?"1":"0", depKey].join("|"); }
 
 /* cascade voulue et explicite : validation LOCALE d'abord, puis Apple -> Google. */
+/* DISJONCTEUR APPLE (mesure iPhone : 13/13 requetes Apple en echec de service, chacune attendue 50 a 2 900 ms avant Google).
+   Indisponibilite DE SERVICE seulement : quota / quota_global (30 min), token_unavailable (5 min), 3 erreurs reseau d'affilee (2 min).
+   A l'expiration : UNE seule requete de test vers Apple, les autres vont a Google jusqu'a sa reponse.
+   Un succes, ou un echec PROPRE AU TRAJET (leg_*_failed / no_route / no_geometry : le quota a ete franchi, Apple repond), retablit Apple.
+   Memoire seule, jamais persiste ; aucun effet sur le contenu d'un resultat (Google sert deja de repli aujourd'hui). */
+const _appleHealth={ downUntil:0, netFails:0, reason:"", probing:false };
+function _appleHealthNote(j, net){ try{ const now=Date.now(); _appleHealth.probing=false;
+    if(net){ _appleHealth.netFails++; if(_appleHealth.netFails>=3){ _appleHealth.downUntil=now+2*60000; _appleHealth.reason="network"; } return; }
+    _appleHealth.netFails=0;
+    const d=String((j&&j.detail)||"");
+    if(j&&!j.error&&j.data){ _appleHealth.downUntil=0; _appleHealth.reason=""; return; }   /* service sain */
+    if(d==="quota"||d==="quota_global"){ _appleHealth.downUntil=now+30*60000; _appleHealth.reason=d; return; }
+    if(d==="token_unavailable"){ _appleHealth.downUntil=now+5*60000; _appleHealth.reason=d; return; }
+    if(/^leg_\d+_(failed|no_route|no_geometry)$/.test(d)){ _appleHealth.downUntil=0; _appleHealth.reason=""; }   /* quota franchi : Apple repond */
+  }catch(_e){} }
+function _appleIsDown(){ const now=Date.now(); if(!_appleHealth.downUntil) return false; if(now<_appleHealth.downUntil) return true;
+  if(_appleHealth.probing) return true;   /* une requete de test est deja en cours */
+  _appleHealth.probing=true; return false; }   /* expiration : CETTE requete sert de test */
 async function routeCascade(request){ request=request||{}; const mode=request.mode||"DRIVE";
   const raw=(request.points||[]); const valid=raw.map(_rcPoint).filter(Boolean);
   if(valid.length<2 || valid.length!==raw.length) return null;   /* v958-A P2 : STRICT -> tout point invalide rejette la requete (0 appel, aucun A->C silencieux) */
@@ -11547,9 +11565,11 @@ const routeProvider={ active:"google",   /* APPLE A : registre de providers + re
     apple:{   /* APPLE B2 : adapter diagnostic. active reste "google" -> jamais appele par defaut ni par le Budget ; seulement sur provider:"apple" explicite */
       supports(mode){ return mode==="DRIVE"||mode==="WALK"||mode==="BIKE"; },   /* pas TRANSIT (le resolver garde TRANSIT cote Google) */
       async compute(valid, mode, opts){
+        if(_appleIsDown()) return null;   /* DISJONCTEUR : Apple indisponible (quota, acces, reseau) -> aucun appel reseau ; routeCascade (inchange) passe a Google comme pour tout echec */
         const body={ points: valid.map(p=>({lat:p.lat,lng:p.lng})), mode, avoidTolls: !!(opts&&opts.avoidTolls) };
         let j=null;
-        try{ const r=await fetch(APPLE_WORKER_URL+"/apple/routes",{method:"POST",headers:{"Content-Type":"application/json","Authorization":"Bearer "+deviceId()},body:JSON.stringify(body)}); j=await r.json(); }catch(_e){ return null; }
+        try{ const r=await fetch(APPLE_WORKER_URL+"/apple/routes",{method:"POST",headers:{"Content-Type":"application/json","Authorization":"Bearer "+deviceId()},body:JSON.stringify(body)}); j=await r.json(); }catch(_e){ _appleHealthNote(null, true); return null; }   /* DISJONCTEUR : erreur reseau */
+        _appleHealthNote(j, false);   /* DISJONCTEUR : toute reponse JSON renseigne l'etat d'Apple (quota, acces, ou service sain) */
         if(!j || j.error || j.source!=="apple_routes" || !j.data) return null;   /* erreur/absent -> null : jamais de resultat partiel, jamais de fallback silencieux vers Google */
         const d=j.data;
         const num=(x)=>typeof x==="number" && Number.isFinite(x);   /* vrai nombre : rejette null/"bad" (+null=0 passerait sinon) */
@@ -27049,17 +27069,17 @@ document.addEventListener("DOMContentLoaded",boot);
   ["resolveDayRoutePresentation","_p6dRunJob","p6dAssetLoad","ensureFuelPriceFresh","renderPlan","renderDayRoute","_presentationRoutePart"].forEach(n=>wrap(window,n));
   { const f0=window.fetch; window.fetch=function(u,o){ const url=String((u&&u.url)||u||""); const m=/\/(apple|google)\/routes/.exec(url); if(!m) return f0.apply(this,arguments);   /* v2 : reponse brute des Workers d'itineraire */
       const e={f:"http-"+m[1],a_ms:T()}; try{ const b=JSON.parse((o&&o.body)||"{}"); e.mode=b.mode||b.travelMode||null; e.pts=Array.isArray(b.points)?b.points.length:null; }catch(_e){} if(calls.length<700) calls.push(e); const t1=performance.now();
-      return f0.apply(this,arguments).then(res=>{ e.ms=Math.round(performance.now()-t1); e.statut=res.status; try{ res.clone().json().then(j=>{ e.erreur=j&&j.error?String(j.error.message||j.error.code||j.error).slice(0,120):null; e.source=j&&j.source||null; e.donnees=!!(j&&j.data); }).catch(()=>{ e.erreur="reponse non JSON"; }); }catch(_e){} return res; },x=>{ e.ms=Math.round(performance.now()-t1); e.erreur="reseau : "+String(x&&x.message||x).slice(0,80); throw x; }); }; }
+      return f0.apply(this,arguments).then(res=>{ e.ms=Math.round(performance.now()-t1); e.statut=res.status; try{ res.clone().json().then(j=>{ e.erreur=j&&j.error?[j.error.message||j.error.code||j.error, j.detail, j.reason].filter(Boolean).map(String).join(" : ").slice(0,200):null; e.source=j&&j.source||null; e.donnees=!!(j&&j.data); }).catch(()=>{ e.erreur="reponse non JSON"; }); }catch(_e){} return res; },x=>{ e.ms=Math.round(performance.now()-t1); e.erreur="reseau : "+String(x&&x.message||x).slice(0,80); throw x; }); }; }
   const dist=()=>[...document.querySelectorAll(".rc-dist")].map(e=>e.textContent).join("/"), cout=()=>[...document.querySelectorAll(".rc-tripfuel")].map(e=>e.textContent).join("/");   /* v2 : element du cout de la presentation actuelle */
   const pret=x=>/\d/.test(x)&&!/\u2026/.test(x);
   const suivi=setInterval(()=>{ if(ecran.distance_a_ms==null&&pret(dist())) ecran.distance_a_ms=T(); if(ecran.cout_a_ms==null&&pret(cout())) ecran.cout_a_ms=T();
     if(ecran.planning_a_ms==null&&document.querySelector("#view-plan .pl-item")) ecran.planning_a_ms=T(); if(T()>120000) clearInterval(suivi); },200);
   const rapport=extra=>{ const nav=(performance.getEntriesByType("navigation")||[])[0];
     const court=u=>{ try{ const x=new URL(u); return (x.hostname.indexOf("workers.dev")>=0?"worker":x.hostname.split(".").slice(-2).join("."))+x.pathname.slice(0,42); }catch(_e){ return String(u).slice(0,60); } };
-    return { v:"mesure-2", t:new Date().toISOString(), depuisChargement_ms:T(), page:{domPret_ms:Math.round(nav&&nav.domContentLoadedEventEnd||0),charge_ms:Math.round(nav&&nav.loadEventEnd||0)},
+    return { v:"mesure-3", t:new Date().toISOString(), depuisChargement_ms:T(), page:{domPret_ms:Math.round(nav&&nav.domContentLoadedEventEnd||0),charge_ms:Math.round(nav&&nav.loadEventEnd||0)},
       ecran:Object.assign({},ecran), asset:(typeof _p6dAsset==="object"&&_p6dAsset)?_p6dAsset.status:null,
       requetes:(performance.getEntriesByType("resource")||[]).filter(e=>/workers\.dev|\.bin|googleapis|gstatic|apple/.test(e.name)).map(e=>({u:court(e.name),debut_ms:Math.round(e.startTime),duree_ms:Math.round(e.duration),ko:Math.round((e.transferSize||0)/1024)})).slice(0,100),
-      appels:calls.slice(0,400), gelsEcran:gels.slice(0,150), partirDici:extra||null }; };
+      appels:calls.slice(0,400), gelsEcran:gels.slice(0,150), apple:(typeof _appleHealth==="object")?{ indisponibleEncore_s:Math.max(0,Math.round((_appleHealth.downUntil-Date.now())/1000)), cause:_appleHealth.reason }:null, partirDici:extra||null }; };
   const panneau=extra=>{ const old=document.getElementById("mvMesurePan"); if(old) old.remove(); const out=rapport(extra), txt=JSON.stringify(out);
     const box=document.createElement("div"); box.id="mvMesurePan"; box.style.cssText="position:fixed;inset:0;z-index:2147483647;background:#fff;color:#111;padding:16px;font:11px ui-monospace,monospace;overflow:auto;white-space:pre-wrap"; box.textContent=JSON.stringify(out,null,1);
     const mk=(lbl,bg,fn)=>{ const b=document.createElement("button"); b.textContent=lbl; b.style.cssText="display:block;margin:0 0 10px;padding:13px;width:100%;font-size:16px;border-radius:12px;border:0;background:"+bg+";color:"+(bg==="#fff"?"#16234a":"#fff"); b.onclick=fn; return b; };
