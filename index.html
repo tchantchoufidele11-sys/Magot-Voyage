@@ -4627,6 +4627,10 @@ body:has(#view-plan.active) #agentBubble{display:none}
 #view-plan.mv-plan-v4 .mvp-pos-capsule{position:absolute;top:8px;left:8px;z-index:9;display:flex;align-items:center;gap:8px;height:40px;box-sizing:border-box;padding:0 5px 0 12px;border-radius:12px;background:var(--v4-ctl);box-shadow:0 2px 8px rgba(13,40,86,.16);font:700 12.5px/1 "Inter",sans-serif;color:var(--v4-ink);white-space:nowrap;max-width:calc(100% - 72px)}
 #view-plan.mv-plan-v4 .mvp-pos-capsule[hidden]{display:none}
 .pl-anchor-acts{display:flex;flex-wrap:wrap;gap:6px}
+#view-plan.mv-plan-v4 .pl-anchor{display:grid;grid-template-columns:52px 18px 90px minmax(0,1fr) 36px;align-items:center;gap:0;padding:10px 0}   /* ALIGNEMENT : meme grille que les visites (heure, point, photo, texte) */
+#view-plan.mv-plan-v4 .pl-anchor .pl-media{grid-column:3;grid-row:1}
+#view-plan.mv-plan-v4 .pl-anchor .pl-anchor-txt{grid-column:4;grid-row:1;padding:0 7px 0 12px}
+@media(max-width:359px){#view-plan.mv-plan-v4 .pl-anchor{grid-template-columns:34px 14px 56px minmax(0,1fr) 32px}}
 .retd-ov{position:fixed;inset:0;z-index:9000;background:rgba(10,16,34,.45);display:flex;align-items:flex-end;justify-content:center}
 .retd-card{width:100%;max-width:520px;background:#fff;border-radius:18px 18px 0 0;padding:16px 16px calc(16px + env(safe-area-inset-bottom,0px));display:flex;flex-direction:column;gap:10px;font:500 14px/1.35 "Inter",sans-serif;color:#16234a}
 .retd-title{font-size:16px}
@@ -14323,23 +14327,11 @@ function renderOverviewMap(tr,el,options){
   const preparePresentations=async()=>{
     const presentations={};
     const n=tripDays(tr).length;
-    for(let i=0;i<n;i++){
-      if(!stillCurrentEl()) throw new Error("ov_stale_prepare");
-      let p=null;
-      try{
-        p=await getOrResolvePlanningPresentation(
-          tr,
-          i,
-          planningPresentationOptions(tr,i)
-        );
-      }catch(e){
-        p=null;
-      }
-      if(!stillCurrentEl()) throw new Error("ov_stale_prepare");
-      if(p && p.meta && p.meta.stale!==true){
-        presentations[i]=p;
-      }
-    }
+    if(!stillCurrentEl()) throw new Error("ov_stale_prepare");
+    /* PERFORMANCE : jours resolus EN PARALLELE (independants : derniere demande propre a chaque jour) -- attente du jour le plus long, plus de la somme des jours */
+    const _res=await Promise.all(Array.from({length:n},(_,i)=>Promise.resolve().then(()=>getOrResolvePlanningPresentation(tr,i,planningPresentationOptions(tr,i))).catch(()=>null)));
+    if(!stillCurrentEl()) throw new Error("ov_stale_prepare");
+    _res.forEach((p,i)=>{ if(p && p.meta && p.meta.stale!==true){ presentations[i]=p; } });
     if(!stillCurrentEl()) throw new Error("ov_stale_prepare");
     if(typeof options.onPresentations==="function"){
       try{ options.onPresentations(presentations); }catch(e){}
@@ -17746,6 +17738,19 @@ function _presentationPart(data){
     gap:false
   },data||{});
 }
+/* PERFORMANCE : memoire de SESSION des portions de presentation. Mesure iPhone : ~60 requetes en serie par calcul de journee, refaites a chaque
+   calcul (ecran, carte, chronologie, Partir d'ici). Une portion identique (points, mode, peages, depart) redemandee sous 10 min est servie de la
+   memoire ; deux demandes simultanees partagent la meme requete ; un echec n'est JAMAIS memorise ; chaque appelant recoit sa PROPRE copie. */
+const _presPartCache=new Map(), _PRES_PART_TTL=10*60000, _PRES_PART_MAX=400;
+function _presPartKey(req){ try{ return [req.mode||"DRIVE", req.avoidTolls?"1":"0", String((typeof normalizeRouteDepartureTime==="function"?normalizeRouteDepartureTime(req.departureTime):req.departureTime)||""),
+  (req.points||[]).map(q=>(+q.lat).toFixed(5)+","+(+q.lng).toFixed(5)).join(">")].join("|"); }catch(_e){ return null; } }
+function _presPartCopy(v){ try{ return v?JSON.parse(JSON.stringify(v)):v; }catch(_e){ return v; } }
+function _presPartCascade(req){ const k=_presPartKey(req); if(!k) return routeCascade(req);
+  const e=_presPartCache.get(k); if(e&&(Date.now()-e.t)<_PRES_PART_TTL) return e.p.then(_presPartCopy);
+  const pr=Promise.resolve().then(()=>routeCascade(req)).then(v=>{ if(!v||!v.result){ if(_presPartCache.get(k)&&_presPartCache.get(k).p===pr) _presPartCache.delete(k); } return v; },
+    x=>{ if(_presPartCache.get(k)&&_presPartCache.get(k).p===pr) _presPartCache.delete(k); throw x; });
+  _presPartCache.set(k,{t:Date.now(),p:pr}); while(_presPartCache.size>_PRES_PART_MAX) _presPartCache.delete(_presPartCache.keys().next().value);
+  return pr.then(_presPartCopy); }
 async function _presentationRoutePart(
   A,
   B,
@@ -17771,7 +17776,7 @@ async function _presentationRoutePart(
   if(!navigator.onLine) return null;   /* v958-B1e-2-fix : aucun helper de presentation n'initie de reseau hors ligne */
   let casc=null;
   try{
-    casc=await routeCascade({
+    casc=await _presPartCascade({
       points:[a,b],
       mode,
       avoidTolls:!!avoidTolls,
