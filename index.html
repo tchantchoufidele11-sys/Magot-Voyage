@@ -14866,7 +14866,7 @@ function createAppleMapRenderer(el,base,isValid){
           const done=simpleTopology && doneForMove(move, base.tr, base.day);
           (move.parts||[]).forEach(part=>{
             const segments=presentationVisualSegments(part, colorIndex); colorIndex++;
-            if(!segments.length){ drawErrors.push(new Error("apple_missing_part_geometry")); return; }
+            if(!segments.length) return;   /* PARITE GOOGLE : portion sans trace (marche de quelques metres, meme point) ignoree comme dans le moteur Google -- avant : echec de TOUTE la carte Apple et bascule sur Google (8 oct.). Une vraie erreur de dessin MapKit reste fatale. */
             expectedSegments+=segments.length;
             segments.forEach(segment=>{
               if(!segment.coords||segment.coords.length<2){ drawErrors.push(new Error("apple_invalid_segment_geometry")); return; }
