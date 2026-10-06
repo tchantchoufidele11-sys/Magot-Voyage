@@ -4626,8 +4626,7 @@ body:has(#view-plan.active) #agentBubble{display:none}
 #view-plan.mv-plan-v4 .mvp-fs-seg button.on{background:var(--v4-navy);color:#fff}
 #view-plan.mv-plan-v4 .mvp-pos-capsule{position:absolute;top:8px;left:8px;z-index:9;display:flex;align-items:center;gap:8px;height:40px;box-sizing:border-box;padding:0 5px 0 12px;border-radius:12px;background:var(--v4-ctl);box-shadow:0 2px 8px rgba(13,40,86,.16);font:700 12.5px/1 "Inter",sans-serif;color:var(--v4-ink);white-space:nowrap;max-width:calc(100% - 72px)}
 #view-plan.mv-plan-v4 .mvp-pos-capsule[hidden]{display:none}
-.pl-anchor-cancel{display:inline-block;margin-top:6px;padding:5px 10px;border:1px solid var(--v4-navy,#16234a);border-radius:9px;background:transparent;color:var(--v4-navy,#16234a);font:600 12px/1.2 "Inter",sans-serif;cursor:pointer}
-#view-plan.mv-plan-v4 .mvp-pos-capsule.is-live button{background:#fff;color:var(--v4-navy,#16234a);border:1px solid var(--v4-navy,#16234a)}
+.pl-anchor-cancel{display:inline-flex;align-items:center;margin-top:4px;padding:2px 8px;border:1px solid rgba(22,35,74,.35);border-radius:999px;background:transparent;color:var(--v4-navy,#16234a);font:600 11px/1.3 "Inter",sans-serif;cursor:pointer;white-space:nowrap;font-variant-emoji:text}
 #view-plan.mv-plan-v4 .mvp-pos-capsule button{height:30px;padding:0 11px;border:0;border-radius:9px;background:var(--v4-navy);color:#fff;font:700 12px/1 "Inter",sans-serif;cursor:pointer;white-space:nowrap}
 #view-plan.mv-plan-v4 .plan-map-premium.full .mvp-pos-capsule{top:70px;left:14px}
 #view-plan.mv-plan-v4 .plan-map-premium[data-mapmode="trip"] .mvp-pos-capsule{display:none}   /* "Partir d'ici" agit sur la route DU JOUR : jamais propose sur la carte du sejour */
@@ -12773,10 +12772,7 @@ function renderPlan(){
        rebrancages a CHAQUE renderPlan() (comme #planOptimize l'etait deja), sur les MEMES fonctions metier, jamais reimplementees. */
     { const pa2=body.querySelector("#planAdd"); if(pa2) pa2.onclick=openPlanAdd; }
     { const as=body.querySelector("#planAddStep"); if(as&&!as.disabled) as.onclick=openPlanAdd; }   /* V4.5 : "+ Etape" = meme fonction que l'ancien item de menu */
-    { const sh=body.querySelector("#planStartHere"); const cap=document.getElementById("planPosCapsule");
-      const _lvC=(typeof _routeUILiveGet==="function")?_routeUILiveGet(tr,d.i):null, _roC=(typeof isPlanDayReadOnly==="function")&&isPlanDayReadOnly(tr,d.i);
-      if(sh&&_lvC&&!_roC){ if(cap){ cap.hidden=false; cap.classList.add("is-live"); } sh.textContent="\u21A9 "+_mvpTxt("resumePlanned"); sh.onclick=()=>{ _routeResumePlanned(tr.id, d.i); }; }   /* LOT 1 : depart GPS actif -> annulation VISIBLE, meme fonction que l'ancien panneau */
-      else if(sh) sh.onclick=()=>{ if(cap) cap.hidden=true; _routeUseMyPosition(tr.id, d.i); }; }
+    { const sh=body.querySelector("#planStartHere"); if(sh) sh.onclick=()=>{ const cap=document.getElementById("planPosCapsule"); if(cap) cap.hidden=true; _routeUseMyPosition(tr.id, d.i); }; }
     { const seg=body.querySelector("#planFsSeg"); if(seg) seg.querySelectorAll("[data-v]").forEach(b=>{ b.onclick=()=>{ const want=b.dataset.v, cur=(_planMapMode==="trip")?"trip":"day"; if(want!==cur){ const tt=document.getElementById("planTripToggle"); if(tt) tt.click(); } requestAnimationFrame(_mvpSyncFsSeg); }; }); }   /* V4.5 : Journee|Sejour = mecanisme sejour EXISTANT (#planTripToggle) */
     { const po2=body.querySelector("#planOptimize2"); if(po2) po2.onclick=optimizeDay; }
     {
@@ -19367,6 +19363,12 @@ function _mvpTripFuelFromPresentation(presentation,mode,tr){ try{
    .pl-item serait contamine (ordre des visites, fromItemId, injection des liaisons, horaires, etat « fait »).
    Aucune requete reseau, aucun placeId cree, aucun rapprochement heuristique avec tr.places : sans identite
    directement exploitable par planItemPhotoUrl(), on affiche l'emoji du repere. */
+function _routeLiveCancelInto(anchorEl, tr, day){   /* LOT 1 : bouton « Reprendre le depart prevu » sur la ligne « Ma position » (jamais sur une journee en lecture seule) */
+  try{ if(!anchorEl||((typeof isPlanDayReadOnly==="function")&&isPlanDayReadOnly(tr,day))) return;
+    const b=document.createElement("button"); b.type="button"; b.className="pl-anchor-cancel";
+    b.textContent="\u21A9\uFE0E "+_mvpTxt("resumePlanned"); b.setAttribute("aria-label",_mvpTxt("resumePlanned"));
+    b.onclick=e=>{ e.stopPropagation(); _routeResumePlanned(tr&&tr.id,day); };
+    (anchorEl.querySelector(".pl-anchor-txt")||anchorEl).appendChild(b); }catch(_e){} }
 function _routeAnchorEl(kind, titre, sousTitre, emoji, photo){
   const div=document.createElement("div");
   div.className="pl-anchor";
@@ -19528,10 +19530,7 @@ function injectPresentationLegs(presentation, mode, tr){
         const _live=(typeof planApproachIsLive==="function")&&planApproachIsLive(tr, (presentation&&presentation.meta&&presentation.meta.day)||0);
         const _chez=!_live&&(!!(_dep&&_dep.isHome===true)||!!(tr&&tr.departIsHome===true));
         const _aStart=_routeAnchorEl("start", _live?_mvpTxt("anchorLive"):(_lbl(_dep)||move.fromLabel||""), _mvpTxt("anchorStart"), _chez?"\u{1F3E0}":"\u{1F4CD}", "");
-        if(_live){ const _dL=(presentation&&presentation.meta&&presentation.meta.day)||0;   /* LOT 1 : annulation visible sur la ligne « Ma position » */
-          if(!((typeof isPlanDayReadOnly==="function")&&isPlanDayReadOnly(tr,_dL))){ const _bx=document.createElement("button"); _bx.type="button"; _bx.className="pl-anchor-cancel";
-            _bx.textContent="\u21A9 "+_mvpTxt("resumePlanned"); _bx.onclick=e=>{ e.stopPropagation(); _routeResumePlanned(tr&&tr.id,_dL); };
-            const _tx=_aStart.querySelector(".pl-anchor-txt"); (_tx||_aStart).appendChild(_bx); } }
+        if(_live) _routeLiveCancelInto(_aStart, tr, (presentation&&presentation.meta&&presentation.meta.day)||0);   /* LOT 1 : annulation sur la ligne « Ma position » */
         const _legs0=(typeof tripLegs==="function")?tripLegs(tr):[];
         const _base=(_legs0[0]&&(_legs0[0].lodging||_legs0[0].dest))||((tr&&(tr.lodging||tr.dest))||null);
         const _aLodge=_routeAnchorEl("lodging", _lbl(_base)||move.toLabel||"", _mvpTxt("anchorLodging"), "\u{1F3E8}", "");
@@ -19548,6 +19547,10 @@ function injectPresentationLegs(presentation, mode, tr){
       }
     } else {
     row.insertAdjacentElement(_isOrigin?"beforebegin":"afterend",div);   /* V4.8-B : la liaison de depart precede la 1re activite */
+    if(_isOrigin){ const _dO=(presentation&&presentation.meta&&presentation.meta.day)||0;   /* LOT 1 : depart GPS SANS etape depart -> ligne « Ma position » + annulation */
+      const _lvO=(typeof _routeUILiveGet==="function")?_routeUILiveGet(tr,_dO):null;
+      if(_lvO&&!((typeof planApproachIsLive==="function")&&planApproachIsLive(tr,_dO))&&!body.querySelector('.pl-anchor[data-anchor-kind="start"]')){
+        const _aO=_routeAnchorEl("start", _mvpTxt("anchorLive"), _mvpTxt("anchorStart"), "\u{1F4CD}", ""); _routeLiveCancelInto(_aO, tr, _dO); div.insertAdjacentElement("beforebegin", _aO); } }
     }
     _mvpPaintKnownDayCost();
   });
