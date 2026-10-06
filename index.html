@@ -4630,7 +4630,14 @@ body:has(#view-plan.active) #agentBubble{display:none}
 #view-plan.mv-plan-v4 .pl-anchor{display:grid;grid-template-columns:52px 18px 90px minmax(0,1fr) 36px;align-items:center;gap:0;padding:10px 0}   /* ALIGNEMENT : meme grille que les visites (heure, point, photo, texte) */
 #view-plan.mv-plan-v4 .pl-anchor .pl-media{grid-column:3;grid-row:1}
 #view-plan.mv-plan-v4 .pl-anchor .pl-anchor-txt{grid-column:4;grid-row:1;padding:0 7px 0 12px}
-@media(max-width:359px){#view-plan.mv-plan-v4 .pl-anchor{grid-template-columns:34px 14px 56px minmax(0,1fr) 32px}}
+#view-plan.mv-plan-v4 .pl-anchor{position:relative}   /* COHERENCE : frise et point identiques aux visites */
+#view-plan.mv-plan-v4 .pl-anchor::before{content:"";position:absolute;left:59.5px;top:0;bottom:0;width:3px;border-radius:2px;background:var(--v4-line)}
+#view-plan.mv-plan-v4 .pl-anchor[data-anchor-kind="start"]::before{top:50%}
+#view-plan.mv-plan-v4 .pl-anchor[data-anchor-kind="end"]::before{bottom:50%}
+#view-plan.mv-plan-v4 .pl-anchor::after{content:"";position:absolute;left:54px;top:50%;width:14px;height:14px;box-sizing:border-box;transform:translateY(-50%);border-radius:50%;background:var(--v4-gold);border:3px solid var(--v4-card);box-shadow:0 0 0 1px rgba(13,40,86,.06);z-index:2}
+#view-plan.mv-plan-v4 .pl-anchor-title{font:800 15.5px/1.2 "Inter",sans-serif;color:var(--v4-ink);white-space:normal;overflow:visible;text-overflow:clip;overflow-wrap:anywhere;letter-spacing:0}
+#view-plan.mv-plan-v4 .pl-anchor-sub{margin-top:3px;font:500 12.5px/1.25 "Inter",sans-serif;color:var(--v4-muted);letter-spacing:0}
+@media(max-width:359px){#view-plan.mv-plan-v4 .pl-anchor{grid-template-columns:34px 14px 56px minmax(0,1fr) 32px}#view-plan.mv-plan-v4 .pl-anchor::before{left:39.5px}#view-plan.mv-plan-v4 .pl-anchor::after{left:34px}}
 .retd-ov{position:fixed;inset:0;z-index:9000;background:rgba(10,16,34,.45);display:flex;align-items:flex-end;justify-content:center}
 .retd-card{width:100%;max-width:520px;background:#fff;border-radius:18px 18px 0 0;padding:16px 16px calc(16px + env(safe-area-inset-bottom,0px));display:flex;flex-direction:column;gap:10px;font:500 14px/1.35 "Inter",sans-serif;color:#16234a}
 .retd-title{font-size:16px}
