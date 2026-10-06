@@ -4790,6 +4790,32 @@ body:has(#view-plan.active) #agentBubble{display:none}
   #view-plan.mv-plan-v4 .pl-item::after{left:34px}
 }
 
+
+/* ===== LISIBILITE DU PLANNING (audit WCAG automatique : 4,5:1 texte courant, 3:1 gros texte, clair ET sombre) ===== */
+/* MODE CLAIR : gris de reference legerement assombris, dans le Planning seulement (le reste de l'application inchange) */
+html:not([data-theme="dark"]) #view-plan.mv-plan-v4{--v4-muted:#636D81;--v4-soft:#666D7C;--muted:#646E83}
+html:not([data-theme="dark"]) #view-plan.mv-plan-v4 .day-sum .ds-tripfuel .rc-tripfuel[data-state="partial"],html:not([data-theme="dark"]) #view-plan.mv-plan-v4 .day-sum .ds-tripfuel .rc-tripfuel[data-state="na"]{color:#8D6721}
+html:not([data-theme="dark"]) .retd-it span,html:not([data-theme="dark"]) .retd-x{color:#636D81}
+html:not([data-theme="dark"]) .tfd-ov{--muted:#646E83;--gold-d:#8D6721}   /* detail du cout (hors #view-plan) : memes ajustements */
+/* MODE SOMBRE : couleurs fixes prevues pour le fond blanc -> equivalents pour le fond sombre */
+[data-theme="dark"] #view-plan.mv-plan-v4 .pl-leg .pl-legbtn .pl-leg-main b{color:#E8ECF4}
+[data-theme="dark"] #view-plan.mv-plan-v4 .pl-leg .pl-legbtn .pl-leg-main>span,[data-theme="dark"] #view-plan.mv-plan-v4 .pl-leg .pl-leg-from,[data-theme="dark"] #view-plan.mv-plan-v4 .pl-leg .pl-legbtn .pl-leg-fuel,[data-theme="dark"] #view-plan.mv-plan-v4 .mvp-day-card.is-simple .pl-leg .pl-leg-fuel,[data-theme="dark"] #view-plan.mv-plan-v4 .mvp-day-card.is-simple .pl-leg-fuel{color:#A3ADC0}
+[data-theme="dark"] #view-plan.mv-plan-v4 .pl-dur{color:#A3ADC0}
+[data-theme="dark"] #view-plan.mv-plan-v4 .pl-item.past .pl-title,[data-theme="dark"] #view-plan.mv-plan-v4 .pl-anchor.past .pl-anchor-title{color:#8C97AB}
+[data-theme="dark"] .pl-anchor-cancel{color:#C9D5EE;border-color:rgba(201,213,238,.45)}
+[data-theme="dark"] #view-plan.mv-plan-v4 .day-sum .ds-tripfuel .rc-trip-src{color:#E9AE3D}
+[data-theme="dark"] .retd-card{background:#151C2B;color:#E8ECF4}
+[data-theme="dark"] .retd-q{background:#1C2436;color:#E8ECF4;border-color:rgba(232,236,244,.25)}
+[data-theme="dark"] .retd-q::placeholder{color:#8C97AB}
+[data-theme="dark"] .retd-it{background:#1C2436;color:#E8ECF4}
+[data-theme="dark"] .retd-it span,[data-theme="dark"] .retd-x{color:#A3ADC0}
+[data-theme="dark"] .retd-gps{background:transparent;color:#E8ECF4;border-color:rgba(232,236,244,.35)}
+/* LES DEUX MODES : badge « Arrive » (blanc sur vert 2,9:1 -> 4,7:1) */
+#view-plan.mv-plan-v4 .mvp-acell.arrive:not(.is-disabled):not([disabled]){background:#0A8540;border-color:#0A8540}
+#view-plan.mv-plan-v4 .pl-check.done .pl-dot{background:#0A8540;border-color:#0A8540}
+#view-plan.mv-plan-v4 .pl-leg .pl-legbtn:has(.pl-leg-from){flex-wrap:wrap;height:auto;overflow:visible;row-gap:2px}   /* etape depart/retour, « Vers… » : la distance et la duree passent a la ligne au lieu d'etre rognees */
+#view-plan.mv-plan-v4 .pl-leg .pl-legbtn:has(.pl-leg-from) .pl-leg-main{flex-wrap:wrap;row-gap:2px;min-width:0;flex:1 1 auto}   /* coche des visites faites : meme vert lisible que « Arrive » */
+html:not([data-theme="dark"]) #view-plan.mv-plan-v4 .pl-item.past .pl-title,html:not([data-theme="dark"]) #view-plan.mv-plan-v4 .pl-anchor.past .pl-anchor-title{color:#636D81}   /* gris des elements passes : 4,33 -> 5,2 */
 </style>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
@@ -13990,19 +14016,31 @@ const MAPKIT_LIBS=["map","annotations","overlays","services"];   /* v958-B2a : b
 function _mapkitType(mk,name){ return (mk.MapType&&mk.MapType[name])||(mk.Map&&mk.Map.MapTypes&&mk.Map.MapTypes[name]); }   /* v958-v984-fix : prefere le chemin top-level mapkit.MapType (documente depuis MapKit JS 5.0.0), repli sur mapkit.Map.MapTypes si absent */
 function mapKitReady(){ const libs=window.mapkit && window.mapkit.loadedLibraries; return Array.isArray(libs) && MAPKIT_LIBS.every(x=>libs.includes(x)); }   /* v958-B2a P2 : MapKit JS 6 appelle data-callback meme si une lib echoue -> exiger TOUTES les libs (jamais un faux positif sur ["services"] seul) */
 let _mapkitP=null;
+const MAPKIT_TOKEN_URL=WORKER_URL+"/apple/mapkit-token";
+let _mkTok=null, _mkTokP=null;   /* token MapKit en memoire seulement, jusqu'a 1 min avant son expiration ; une seule requete a la fois */
+function _mapkitToken(){ const now=Date.now(); if(_mkTok && now<_mkTok.exp-60000) return Promise.resolve(_mkTok.token); if(_mkTokP) return _mkTokP;
+  _mkTokP=fetch(MAPKIT_TOKEN_URL,{cache:"no-store"}).then(r=>r.ok?r.json():Promise.reject(new Error("mapkit_token_http_"+r.status)))
+    .then(j=>{ if(!j||typeof j.token!=="string"||!j.token) throw new Error("mapkit_no_token"); _mkTok={ token:j.token, exp:(+j.expiresAt)||(Date.now()+25*60000) }; return j.token; })
+    .finally(()=>{ _mkTokP=null; });
+  return _mkTokP; }
 function loadMapKit(){
   if(mapKitReady()) return Promise.resolve(window.mapkit);
   if(_mapkitP) return _mapkitP;
-  if(!MAPKIT_TOKEN) return Promise.reject(new Error("mapkit_no_token"));   /* token non configure -> MapKit inactif (B2b retombera sur Google) */
-  _mapkitP=new Promise((res,rej)=>{
-    const ready=()=>{ try{ delete window.initMapKit; }catch(_e){} if(mapKitReady()) res(window.mapkit); else rej(new Error("mapkit_library_load")); };   /* callback avec liste partielle -> rejet, B2b cascade vers Google */
+  const viaWorker=!MAPKIT_TOKEN;   /* MAPKIT JS : token FOURNI PAR LE WORKER (/apple/mapkit-token), jamais dans le HTML ; MAPKIT_TOKEN fixe = ancien chemin, conserve */
+  const charge=()=>new Promise((res,rej)=>{
+    const ready=()=>{ try{ delete window.initMapKit; }catch(_e){}
+      if(!mapKitReady()){ rej(new Error("mapkit_library_load")); return; }   /* callback avec liste partielle -> rejet, B2b cascade vers Google */
+      if(viaWorker && !window.__mvMapkitInit){ try{ window.mapkit.init({ authorizationCallback:done=>{ _mapkitToken().then(done).catch(()=>{}); } }); window.__mvMapkitInit=true; }catch(_e){ rej(new Error("mapkit_init")); return; } }   /* MapKit redemande un token a chaque expiration */
+      res(window.mapkit); };
     window.initMapKit=ready;
     const el=document.createElement("script");
     el.src="https://cdn.apple-mapkit.com/mk/6/mapkit.core.js"; el.crossOrigin="anonymous"; el.async=true;
-    el.dataset.callback="initMapKit"; el.dataset.libraries=MAPKIT_LIBS.join(","); el.dataset.token=MAPKIT_TOKEN;
+    el.dataset.callback="initMapKit"; el.dataset.libraries=MAPKIT_LIBS.join(",");
+    if(viaWorker) el.dataset.initialToken=""; else el.dataset.token=MAPKIT_TOKEN;
     el.onerror=()=>{ try{ delete window.initMapKit; }catch(_e){} rej(new Error("mapkit_sdk_load")); };
     document.head.appendChild(el);
   });
+  _mapkitP=viaWorker ? _mapkitToken().then(charge) : charge();   /* Worker sans token -> rejet -> B2b retombe sur Google, comme avant */
   _mapkitP.catch(()=>{ _mapkitP=null; });   /* echec -> autoriser une nouvelle tentative */
   return _mapkitP; }
 /* v958-B2a : auto-test live (console). Sur le domaine autorise du token : loadMapKit() doit resoudre. */
@@ -27082,51 +27120,6 @@ async function boot(){
   setTimeout(()=>{ let skipped=false,asked=false; try{ skipped=localStorage.getItem("mv_auth_skipped")==="1"; asked=localStorage.getItem("mv_name_asked")==="1"; }catch(e){} if(skipped && !asked) maybeAskName(null); }, 1400);   /* rattrapage : uniquement anciens « sans compte » pas encore sollicités ; plus jamais avant le choix de l'utilisateur */
 }
 document.addEventListener("DOMContentLoaded",boot);
-/* ===== MESURE DES TEMPS (diagnostic) -- INERTE : ne s'active QUE si l'adresse contient #mesure-temps ; aucun effet sinon ===== */
-(function _mvMesureTemps(){ try{
-  if(!/(^|[#&])mesure-temps\b/.test(String(location.hash||""))) return;
-  const T=()=>Math.round(performance.now()), calls=[], gels=[], ecran={}; let last=performance.now();
-  setInterval(()=>{ const n=performance.now(); if(document.visibilityState!=="visible"){ last=n; return; } if(n-last>250&&gels.length<200) gels.push({a_ms:Math.round(last),fige_ms:Math.round(n-last-100)}); last=n; },100);   /* v2 : arriere-plan iOS ignore */
-  document.addEventListener("visibilitychange",()=>{ last=performance.now(); });
-  const wrap=(obj,name,lab)=>{ const f0=obj&&obj[name]; if(typeof f0!=="function") return;
-    obj[name]=function(){ const e={f:lab||name,a_ms:T()}; if(name==="computeRoute"){ const q=arguments[0]||{}; e.pts=(q.points||[]).length; e.prov=q.provider; e.mode=q.mode||"DRIVE"; }
-      if(name==="_presentationRoutePart"){ const r5=x=>x?(+x.lat).toFixed(4)+","+(+x.lng).toFixed(4):"?"; e.mode=arguments[2]; e.motif=arguments[3]; e.de=r5(arguments[0]); e.vers=r5(arguments[1]); }
-      if(calls.length<700) calls.push(e); const t1=performance.now(); let r;
-      try{ r=f0.apply(this,arguments); }catch(x){ e.err=String(x&&x.message||x).slice(0,80); throw x; }
-      if(r&&typeof r.then==="function") return r.then(v=>{ e.ms=Math.round(performance.now()-t1); if(name==="computeRoute"||name==="_presentationRoutePart") e.ok=!!(v&&(+v.distanceMeters||0)>0); return v; },x=>{ e.ms=Math.round(performance.now()-t1); e.err=String(x&&x.message||x).slice(0,80); throw x; });
-      e.ms=Math.round(performance.now()-t1); return r; }; };
-  wrap(routeProvider,"computeRoute","itineraire");
-  ["resolveDayRoutePresentation","_p6dRunJob","p6dAssetLoad","ensureFuelPriceFresh","renderPlan","renderDayRoute","_presentationRoutePart"].forEach(n=>wrap(window,n));
-  { const f0=window.fetch; window.fetch=function(u,o){ const url=String((u&&u.url)||u||""); const m=/\/(apple|google)\/routes/.exec(url); if(!m) return f0.apply(this,arguments);   /* v2 : reponse brute des Workers d'itineraire */
-      const e={f:"http-"+m[1],a_ms:T()}; try{ const b=JSON.parse((o&&o.body)||"{}"); e.mode=b.mode||b.travelMode||null; e.pts=Array.isArray(b.points)?b.points.length:null; }catch(_e){} if(calls.length<700) calls.push(e); const t1=performance.now();
-      return f0.apply(this,arguments).then(res=>{ e.ms=Math.round(performance.now()-t1); e.statut=res.status; try{ res.clone().json().then(j=>{ e.erreur=j&&j.error?[j.error.message||j.error.code||j.error, j.detail, j.reason].filter(Boolean).map(String).join(" : ").slice(0,200):null; e.source=j&&j.source||null; e.donnees=!!(j&&j.data); }).catch(()=>{ e.erreur="reponse non JSON"; }); }catch(_e){} return res; },x=>{ e.ms=Math.round(performance.now()-t1); e.erreur="reseau : "+String(x&&x.message||x).slice(0,80); throw x; }); }; }
-  const dist=()=>[...document.querySelectorAll(".rc-dist")].map(e=>e.textContent).join("/"), cout=()=>[...document.querySelectorAll(".rc-tripfuel")].map(e=>e.textContent).join("/");   /* v2 : element du cout de la presentation actuelle */
-  const pret=x=>/\d/.test(x)&&!/\u2026/.test(x);
-  const suivi=setInterval(()=>{ if(ecran.distance_a_ms==null&&pret(dist())) ecran.distance_a_ms=T(); if(ecran.cout_a_ms==null&&pret(cout())) ecran.cout_a_ms=T();
-    if(ecran.planning_a_ms==null&&document.querySelector("#view-plan .pl-item")) ecran.planning_a_ms=T(); if(T()>120000) clearInterval(suivi); },200);
-  const rapport=extra=>{ const nav=(performance.getEntriesByType("navigation")||[])[0];
-    const court=u=>{ try{ const x=new URL(u); return (x.hostname.indexOf("workers.dev")>=0?"worker":x.hostname.split(".").slice(-2).join("."))+x.pathname.slice(0,42); }catch(_e){ return String(u).slice(0,60); } };
-    return { v:"mesure-3", t:new Date().toISOString(), depuisChargement_ms:T(), page:{domPret_ms:Math.round(nav&&nav.domContentLoadedEventEnd||0),charge_ms:Math.round(nav&&nav.loadEventEnd||0)},
-      ecran:Object.assign({},ecran), asset:(typeof _p6dAsset==="object"&&_p6dAsset)?_p6dAsset.status:null,
-      requetes:(performance.getEntriesByType("resource")||[]).filter(e=>/workers\.dev|\.bin|googleapis|gstatic|apple/.test(e.name)).map(e=>({u:court(e.name),debut_ms:Math.round(e.startTime),duree_ms:Math.round(e.duration),ko:Math.round((e.transferSize||0)/1024)})).slice(0,100),
-      appels:calls.slice(0,400), gelsEcran:gels.slice(0,150), apple:(typeof _appleHealth==="object")?{ indisponibleEncore_s:Math.max(0,Math.round((_appleHealth.downUntil-Date.now())/1000)), cause:_appleHealth.reason }:null, partirDici:extra||null }; };
-  const panneau=extra=>{ const old=document.getElementById("mvMesurePan"); if(old) old.remove(); const out=rapport(extra), txt=JSON.stringify(out);
-    const box=document.createElement("div"); box.id="mvMesurePan"; box.style.cssText="position:fixed;inset:0;z-index:2147483647;background:#fff;color:#111;padding:16px;font:11px ui-monospace,monospace;overflow:auto;white-space:pre-wrap"; box.textContent=JSON.stringify(out,null,1);
-    const mk=(lbl,bg,fn)=>{ const b=document.createElement("button"); b.textContent=lbl; b.style.cssText="display:block;margin:0 0 10px;padding:13px;width:100%;font-size:16px;border-radius:12px;border:0;background:"+bg+";color:"+(bg==="#fff"?"#16234a":"#fff"); b.onclick=fn; return b; };
-    const sv=mk("Enregistrer mesure.json","#2F6BE0",async()=>{ const fl=new File([txt],"mesure.json",{type:"application/json"}); if(navigator.canShare&&navigator.canShare({files:[fl]})){ try{ await navigator.share({files:[fl]}); return; }catch(e){} } const a=document.createElement("a"); a.href=URL.createObjectURL(fl); a.download="mesure.json"; a.click(); });
-    const pd=mk("Mesurer « Partir d'ici »","#16234a",async()=>{ box.remove(); await mesurerPartir(); });
-    const fx=mk("Fermer","#fff",()=>box.remove()); fx.style.border="1px solid #ccc";
-    box.prepend(fx); box.prepend(pd); box.prepend(sv); document.body.appendChild(box); };
-  const mesurerPartir=async()=>{ const r={}; try{ const tr=currentTrip(), day=planState.dayIndex; const n0=calls.length, g0=gels.length, tB=performance.now(); _routeUseMyPosition(tr.id, day);
-      for(let i=0;i<160;i++){ await new Promise(z=>setTimeout(z,250)); const d=dist(), c=cout();
-        if(r.distance_ms==null&&pret(d)) r.distance_ms=Math.round(performance.now()-tB); if(r.cout_ms==null&&pret(c)) r.cout_ms=Math.round(performance.now()-tB); if(r.distance_ms!=null&&r.cout_ms!=null&&i>12) break; }
-      r.live=!!_routeUILiveGet(tr,day); r.distance=dist(); r.cout=cout(); r.depart_a_ms=Math.round(tB); r.appels=calls.slice(n0,n0+200); r.gels=gels.slice(g0);
-      if(r.live) _routeResumePlanned(tr.id, day); }catch(e){ r.erreur=String((e&&e.message)||e); } panneau(r); };
-  const go=()=>{ const b=document.createElement("button"); b.id="mvMesureBtn"; b.textContent="\u23F1\uFE0E"; b.title="Mesure des temps";
-    b.style.cssText="position:fixed;left:10px;bottom:120px;z-index:2147483646;width:44px;height:44px;border-radius:22px;border:0;background:#C9A227;color:#16234a;font:700 20px/44px sans-serif;box-shadow:0 2px 8px rgba(0,0,0,.25)";
-    b.onclick=()=>panneau(null); document.body.appendChild(b); };
-  if(document.readyState==="loading") document.addEventListener("DOMContentLoaded",go); else go();
-}catch(_e){} })();
 </script>
 <div class="mpc-ov" id="magotPlaceCard" aria-hidden="true" role="dialog" aria-modal="true">
   <div class="mpc-sheet">
