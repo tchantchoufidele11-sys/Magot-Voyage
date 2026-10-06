@@ -4635,7 +4635,12 @@ body:has(#view-plan.active) #agentBubble{display:none}
 #view-plan.mv-plan-v4 .pl-anchor[data-anchor-kind="start"]::before{top:50%}
 #view-plan.mv-plan-v4 .pl-anchor[data-anchor-kind="end"]::before{bottom:50%}
 #view-plan.mv-plan-v4 .pl-anchor::after{content:"";position:absolute;left:54px;top:50%;width:14px;height:14px;box-sizing:border-box;transform:translateY(-50%);border-radius:50%;background:var(--v4-gold);border:3px solid var(--v4-card);box-shadow:0 0 0 1px rgba(13,40,86,.06);z-index:2}
+#view-plan.mv-plan-v4 .pl-anchor.past::before{background:#D7DDE7}
+#view-plan.mv-plan-v4 .pl-anchor.past::after{background:#C5CDD9}
+#view-plan.mv-plan-v4 .pl-anchor.past .pl-media{opacity:.72;filter:saturate(.7)}
+#view-plan.mv-plan-v4 .pl-leg.past::before{background:#D7DDE7}
 #view-plan.mv-plan-v4 .pl-anchor-title{font:800 15.5px/1.2 "Inter",sans-serif;color:var(--v4-ink);white-space:normal;overflow:visible;text-overflow:clip;overflow-wrap:anywhere;letter-spacing:0}
+#view-plan.mv-plan-v4 .pl-anchor.past .pl-anchor-title{color:#6E7A90}
 #view-plan.mv-plan-v4 .pl-anchor-sub{margin-top:3px;font:500 12.5px/1.25 "Inter",sans-serif;color:var(--v4-muted);letter-spacing:0}
 @media(max-width:359px){#view-plan.mv-plan-v4 .pl-anchor{grid-template-columns:34px 14px 56px minmax(0,1fr) 32px}#view-plan.mv-plan-v4 .pl-anchor::before{left:39.5px}#view-plan.mv-plan-v4 .pl-anchor::after{left:34px}}
 .retd-ov{position:fixed;inset:0;z-index:9000;background:rgba(10,16,34,.45);display:flex;align-items:flex-end;justify-content:center}
@@ -4734,7 +4739,7 @@ body:has(#view-plan.active) #agentBubble{display:none}
 
 /* V4.8h : origine du prix sous le total + detail des trajets */
 #view-plan.mv-plan-v4 .day-sum .ds-tripfuel.is-tappable{cursor:pointer;-webkit-tap-highlight-color:transparent}
-#view-plan.mv-plan-v4 .day-sum .ds-tripfuel .rc-trip-src{display:block;margin-top:3px;font:600 12px/1.35 "Inter",sans-serif;color:var(--v4-muted,#6E7A90);overflow-wrap:anywhere}
+#view-plan.mv-plan-v4 .day-sum .ds-tripfuel .rc-trip-src{display:inline-block;margin:0 0 0 8px;font:700 19px/1 "Inter",sans-serif;color:var(--v4-navy,#16233F);vertical-align:-1px}
 .tfd-ov .leg-dl{max-height:56vh;overflow-y:auto}
 .tfd-ov .tfd-row{padding:9px 0;border-bottom:1px solid var(--line,#E8ECF3)}
 .tfd-ov .tfd-head{font:700 13.5px/1.3 "Inter",sans-serif;color:var(--ink,#16233F);overflow-wrap:anywhere}
@@ -10736,7 +10741,7 @@ async function computeBudgetRouteMeters(tr, snapWrites){   /* retourne des MÈTR
     if(!dep || !firstBase || !lastBase){ R.unavailableDays.push("main"); }   /* coordonnées absentes -> non calculable (jamais un faux 0) */
     else { let ro=null, rb=null;
       try{ ro=await budgetRouteSegment(tr,[dep,firstBase],"DRIVE",false,snapWrites); }catch(_e){ ro=null; }
-      try{ rb=await budgetRouteSegment(tr,[lastBase,dep],"DRIVE",false,snapWrites); }catch(_e){ rb=null; }   /* aller et retour calculés séparément (peuvent différer) */
+      try{ rb=await budgetRouteSegment(tr,[lastBase,(_rcPoint(tr.returnDestination)||dep)],"DRIVE",false,snapWrites); }catch(_e){ rb=null; }   /* aller et retour calculés séparément (peuvent différer) ; RETOUR vers la destination choisie (lot 2), sinon le départ */
       const okO=ro&&Number.isFinite(ro.distanceMeters)&&ro.distanceMeters>0, okB=rb&&Number.isFinite(rb.distanceMeters)&&rb.distanceMeters>0;
       if(okO && okB) R.mainTripMeters=ro.distanceMeters+rb.distanceMeters;   /* home->firstBase + lastBase->home */
       else R.unavailableDays.push("main"); } }   /* ATOMIQUE : une seule direction échoue -> 0 + main unavailable, aucun demi-trajet */
@@ -17903,8 +17908,8 @@ function _planSegmentMove(tr, seg, segmentType, mode){   /* move ADDITIF : meme 
   return { role:"main", segmentType,
     fromItemId:null, toItemId:null,
     fromRole:isApp?"origin":null, toRole:isApp?null:"home",
-    fromLabel:isApp?lbl("planDepartSeg",homeName):"",
-    toLabel:isApp?baseName:lbl("planReturnSeg",homeName),
+    fromLabel:isApp?lbl("planDepartSeg",((()=>{ const d=_rcPoint(tr&&tr.depart); return (d&&!_b1eSamePoint(d,A))?_mvpTxt("anchorLive"):homeName; })())):"",   /* LIBELLE : approche depuis la position GPS -> « Ma position », jamais le depart enregistre */
+    toLabel:isApp?baseName:lbl("planReturnSeg",((tr&&tr.returnDestination&&tr.returnDestination.name)||homeName)),   /* LIBELLE : destination de retour choisie (lot 2) */
     fromPoint:A, toPoint:B,
     parts:parts||[], notNeeded:false,
     incomplete:!parts }; }
@@ -19372,7 +19377,7 @@ function _mvpTripFuelFromPresentation(presentation,mode,tr){ try{
   { const blk=el.closest(".ds-tripfuel"); let sl=blk&&blk.querySelector(".rc-trip-src");
     if(blk&&!sl){ sl=document.createElement("span"); sl.className="rc-trip-src"; blk.appendChild(sl); }
     const S1=[...srcs.values()];
-    if(sl){ sl.dataset.kind=S1.length===1?S1[0].kind:(S1.length>1?"mixed":""); sl.textContent=S1.length===1?(S1[0].line+" · "+_mvpTxt("tfdMore")+" \u203a"):(S1.length>1?(_mvpTxt("tfdMulti").replace("{n}",S1.length)+" · "+_mvpTxt("tfdMore")+" \u203a"):""); }
+    if(sl){ sl.dataset.kind=""; sl.textContent=rows.length?"\u203a":""; sl.setAttribute("aria-label",_mvpTxt("tfdMore")); sl.title=_mvpTxt("tfdMore"); }   /* une simple fleche : les sources, pays par pays, sont dans le detail */
     if(blk&&rows.length){ blk.classList.add("is-tappable"); blk.setAttribute("role","button"); blk.tabIndex=0; blk.onclick=showTripFuelDetail; blk.onkeydown=e=>{ if(e.key==="Enter"||e.key===" "){ e.preventDefault(); showTripFuelDetail(); } }; } }
   if(missing){ el.textContent="\u2014"; el.dataset.state="na"; if(note) note.textContent=""; }   /* P6d-E (E6) : jamais de total partiel */
   else if(pending){ el.textContent="\u2026"; el.dataset.state="pending"; if(note) note.textContent=""; }
@@ -19452,6 +19457,16 @@ function _retDestButtonsInto(anchorEl, tr, day){   /* LOT 2 : « Modifier » (+ 
     if(tr&&tr.returnDestination){ const rs=document.createElement("button"); rs.type="button"; rs.className="pl-anchor-cancel retd-reset"; rs.textContent="\u21A9\uFE0E "+_mvpTxt("retReset");
       rs.onclick=e=>{ e.stopPropagation(); _retDestSet(tr,null); }; box.appendChild(rs); }
     (anchorEl.querySelector(".pl-anchor-txt")||anchorEl).appendChild(box); }catch(_e){} }
+function _anchorsPastPass(body, tr, day){   /* depart + hebergement (+ leurs liaisons) passes des que la 1re visite est passee/faite ou que le jour est passe ; arrivee du retour : jour passe */
+  try{ const dayPast=(typeof isPlanDayReadOnly==="function")&&isPlanDayReadOnly(tr,day);
+    const items=[...body.querySelectorAll(".pl-item")], first=items[0];
+    const isPast=el=>!!el&&(el.classList.contains("past")||el.classList.contains("done"));
+    const debutPasse=dayPast||isPast(first);
+    const all=[...body.querySelectorAll(".pl-anchor,.pl-leg,.pl-item")], iFirst=first?all.indexOf(first):all.length;
+    all.forEach((el,i)=>{ if(el.classList.contains("pl-item")) return; const avant=i<iFirst, kind=el.dataset&&el.dataset.anchorKind;
+      const passe=(avant&&debutPasse)||(kind==="end"&&dayPast)||(!avant&&dayPast&&el.classList.contains("pl-leg"));
+      el.classList.toggle("past",!!passe); });
+  }catch(_e){} }
 function _routeLiveCancelInto(anchorEl, tr, day){   /* LOT 1 : bouton « Reprendre le depart prevu » sur la ligne « Ma position » (jamais sur une journee en lecture seule) */
   try{ if(!anchorEl||((typeof isPlanDayReadOnly==="function")&&isPlanDayReadOnly(tr,day))) return;
     const b=document.createElement("button"); b.type="button"; b.className="pl-anchor-cancel pl-live-cancel";
@@ -19646,6 +19661,7 @@ function injectPresentationLegs(presentation, mode, tr){
     }
     _mvpPaintKnownDayCost();
   });
+  _anchorsPastPass(body, tr, (presentation&&presentation.meta&&presentation.meta.day)||0);   /* COHERENCE : depart/hebergement/retour grises comme les visites passees */
 }
 
 /* ------------------------------------------------------------
@@ -19801,7 +19817,7 @@ function planningPresentationOptionsForUI(tr, day){
      encode dans les deux identites (cle UI et signature logique). Lecture PURE : jamais tripLegs()/normalizeLegs(),
      qui muteraient le voyage et feraient croire la presentation perimee. */
   const _base=_routeLiveApproachBase(tr, day, live);
-  if(_base) opts.localOriginOverride={ lat:_base.lat, lng:_base.lng };
+  if(_base) opts.localOriginOverride={ lat:_base.lat, lng:_base.lng, label:String(_base.name||_base.label||(tr&&tr.lodging&&tr.lodging.name)||(tr&&tr.dest&&tr.dest.name)||"") };   /* LIBELLE : la 1re liaison locale porte le nom de la base (identite = coordonnees seules) */
   /* P5b : « Partir a partir d'ici » est une affirmation de l'utilisateur -- en voiture, le VEHICULE part aussi de la.
      Sans cela, le moteur laisse vehicleAnchor a null (personne != vehicule) et fabrique un gapPart des le premier
      deplacement : distance et duree tombent a « — » alors que l'utilisateur vient justement de dire ou il est.
@@ -20352,6 +20368,7 @@ function _estSignature(tr){
     (tr.depHub&&tr.depHub.lat!=null)?tr.depHub.lat:"", (tr.depHub&&tr.depHub.lng!=null)?tr.depHub.lng:"",   /* hub de départ : invalide le cache si l'aéroport/port change (0 réel préservé) */
     (tr.arrHub&&tr.arrHub.lat!=null)?tr.arrHub.lat:"", (tr.arrHub&&tr.arrHub.lng!=null)?tr.arrHub.lng:"", (tr.returnHub&&tr.returnHub.lat!=null)?tr.returnHub.lat:"", (tr.returnHub&&tr.returnHub.lng!=null)?tr.returnHub.lng:"", tr.arrHubMode||"", tr.arrHubRoundTrip?1:0, (tr.arrHubManualCost!=null?tr.arrHubManualCost:""),   /* transfert arrivée + coords hub d'arrivée (0 réel préservé) */
     _sgFb?_sgFb.lat:"", _sgFb?_sgFb.lng:"", _sgLb?_sgLb.lat:"", _sgLb?_sgLb.lng:"",   /* firstBase/lastBase dérivés null-safe (0 réel distingué d'absent) */
+    (tr.returnDestination&&tr.returnDestination.lat!=null)?tr.returnDestination.lat:"", (tr.returnDestination&&tr.returnDestination.lng!=null)?tr.returnDestination.lng:"",   /* destination de retour choisie : invalide l'estimation */
     (tr.lodging&&tr.lodging.lat)||"", (tr.lodging&&tr.lodging.lng)||"", (tr.dest&&tr.dest.lat)||"", (tr.dest&&tr.dest.lng)||"",
     pl, pn, lg
   ].join("|");
