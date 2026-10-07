@@ -6199,7 +6199,20 @@ async function placeSuggest(q,near,cc){
 
 let draft=null,_acT=null,editId=null,detailId=null;
 /* ---- Brouillon de création : survit à la fermeture de la feuille et au rechargement ---- */
-const DRAFT_KEY="mv_create_draft"; let _draftT=null;
+const DRAFT_KEY="mv_create_draft", DRAFTS_KEY="mv_create_drafts"; let _draftT=null, _draftActive=null, _draftForce=null;
+/* BROUILLONS PAR DESTINATION (Loic) : un brouillon par lieu -- reprise proposee SEULEMENT pour la meme destination ;
+   identite = identifiant du lieu, sinon pays + coordonnees proches (jamais le nom : deux « Paris » ne se confondent pas). 5 max, 7 jours. */
+function _draftDestOf(d){ if(!d) return null; if(d.dest&&(d.dest.lat!=null||d.dest.placeId||d.dest.name)) return d.dest; if(d.country&&d.country.cc) return {cc:d.country.cc,lvl:"country"}; return null; }
+function _draftKey(d){ const x=_draftDestOf(d); if(!x) return "_"; if(x.lvl==="country") return "k:"+(x.cc||"");
+  if(x.placeId) return "p:"+x.placeId; if(x.lat!=null&&x.lng!=null) return "c:"+(x.cc||"")+":"+(+x.lat).toFixed(1)+","+(+x.lng).toFixed(1); return "n:"+(x.cc||"")+":"+String(x.name||"").toLowerCase(); }
+function _sameDraftDest(a,b){ if(!a||!b) return false; if(a.lvl==="country"||b.lvl==="country") return a.lvl===b.lvl&&!!a.cc&&a.cc===b.cc;
+  if(a.placeId&&b.placeId) return a.placeId===b.placeId;
+  if(a.lat!=null&&b.lat!=null&&a.lng!=null&&b.lng!=null){ if(a.cc&&b.cc&&a.cc!==b.cc) return false; return haversineKm({lat:+a.lat,lng:+a.lng},{lat:+b.lat,lng:+b.lng})<=15; }
+  return !!a.name&&!!b.name&&String(a.name).toLowerCase()===String(b.name).toLowerCase()&&(!a.cc||!b.cc||a.cc===b.cc); }
+function _draftsLoad(){ let m={}; try{ m=JSON.parse(localStorage.getItem(DRAFTS_KEY)||"{}")||{}; }catch(e){ m={}; }
+  try{ const raw=localStorage.getItem(DRAFT_KEY); if(raw){ const s0=JSON.parse(raw); if(s0&&s0.d){ const k=_draftKey(s0.d); if(!m[k]||(m[k].ts||0)<(s0.ts||0)) m[k]=s0; } localStorage.removeItem(DRAFT_KEY); _draftsSave(m); } }catch(e){}   /* migration de l'ancien brouillon unique */
+  const now=Date.now(); let ch=false; for(const k of Object.keys(m)){ if(!m[k]||!m[k].d||now-(m[k].ts||0)>7*86400000){ delete m[k]; ch=true; } } if(ch) _draftsSave(m); return m; }
+function _draftsSave(m){ try{ const ks=Object.keys(m).sort((x,y)=>(m[y].ts||0)-(m[x].ts||0)); ks.slice(5).forEach(k=>delete m[k]); localStorage.setItem(DRAFTS_KEY,JSON.stringify(m)); }catch(e){} }
 function draftFieldVals(){ const b=document.getElementById("createBody"); if(!b) return null;
   const g=q=>{ const el=b.querySelector(q); return el?el.value:""; };
   return { name:g("#cName"), destText:g("#cDest"), lodgeText:g("#cLodge") }; }
@@ -6207,14 +6220,16 @@ function draftIsEmpty(f){ if(!draft) return true;
   return !(draft.dest||draft.dateStart||draft.dateEnd||draft.depart||draft.lodging
     ||(draft.styles&&draft.styles.length)||(f&&(f.destText.trim()||f.name.trim()||f.lodgeText.trim()))); }
 function saveDraft(){ if(editId||!draft) return; clearTimeout(_draftT);
-  _draftT=setTimeout(()=>{ try{ const f=draftFieldVals(); if(!f) return;
-    if(draftIsEmpty(f)){ localStorage.removeItem(DRAFT_KEY); return; }
-    localStorage.setItem(DRAFT_KEY,JSON.stringify({d:draft,f:f,ts:Date.now()}));
+  _draftT=setTimeout(()=>{ try{ const f=draftFieldVals(); if(!f) return; const m=_draftsLoad();
+    if(draftIsEmpty(f)){ if(_draftActive&&m[_draftActive]){ delete m[_draftActive]; _draftsSave(m); } return; }
+    const k=_draftKey(draft); if(_draftActive&&_draftActive!==k) delete m[_draftActive];   /* la destination a change : le brouillon SE DEPLACE (pas de doublon) */
+    m[k]={k,d:draft,f:f,ts:Date.now()}; _draftActive=k; _draftsSave(m);
   }catch(e){} },400); }
-function clearDraft(){ clearTimeout(_draftT); try{ localStorage.removeItem(DRAFT_KEY); }catch(e){} }
-function loadDraft(){ try{ const raw=localStorage.getItem(DRAFT_KEY); if(!raw) return null;
-  const s0=JSON.parse(raw); if(!s0||!s0.d) return null;
-  if(Date.now()-(s0.ts||0)>7*86400000){ clearDraft(); return null; } return s0; }catch(e){ return null; } }
+function clearDraft(){ clearTimeout(_draftT); try{ const m=_draftsLoad(); if(_draftActive) delete m[_draftActive]; if(draft) delete m[_draftKey(draft)]; _draftsSave(m); }catch(e){} _draftActive=null; }   /* efface le brouillon EN COURS seulement */
+function loadDraft(){ const m=_draftsLoad(); let best=null; for(const k of Object.keys(m)){ const e=m[k]; if(!best||(e.ts||0)>(best.ts||0)) best=Object.assign({k},e); } return best; }   /* le plus recent (accueil, « Nouveau voyage ») */
+function loadDraftFor(dest){ if(!dest) return null; const m=_draftsLoad(); const x=(dest.lvl==="country")?{cc:dest.cc,lvl:"country"}:dest; let best=null;
+  for(const k of Object.keys(m)){ const e=m[k]; if(_sameDraftDest(_draftDestOf(e.d),x)&&(!best||(e.ts||0)>(best.ts||0))) best=Object.assign({k},e); } return best; }
+/* RESTAURE a l'identique (supprime par erreur avec l'ancien bloc du brouillon) */
 function askConfirm(msg,okLabel,onOk){
   const ov=document.getElementById("confirmModal");
   document.getElementById("cfMsg").textContent=msg;
@@ -6249,7 +6264,7 @@ function openCreate(id){ editId=(typeof id==="string"&&id)?id:null; const tr=edi
   }
   _createTried=false; _allowNoDates=false;
   let _rs=null;
-  if(!editId){ _rs=loadDraft(); if(_rs) draft=Object.assign(newDraft(),_rs.d); }
+  if(!editId){ _rs=_draftForce||loadDraft(); _draftForce=null; if(_rs) draft=Object.assign(newDraft(),_rs.d); _draftActive=_rs?(_rs.k||_draftKey(_rs.d)):null; }
   renderCreate(tr);
   if(_rs){ const rb=document.getElementById("createBody"); const set=(q,v)=>{ const el=rb.querySelector(q); if(el&&v) el.value=v; };
     set("#cName",_rs.f&&_rs.f.name); set("#cDest",_rs.f&&_rs.f.destText); set("#cLodge",_rs.f&&_rs.f.lodgeText);
@@ -6267,7 +6282,7 @@ function askChoice(msg,aLabel,aFn,bLabel,bFn){
   ov.onclick=e=>{ if(e.target===ov) close(); };
   ov.style.zIndex="12000"; ov.classList.add("show");
 }
-function _openCreateFresh(dest){ editId=null; _createTried=false; _allowNoDates=false; draft=newDraft();
+function _openCreateFresh(dest){ editId=null; _createTried=false; _allowNoDates=false; draft=newDraft(); _draftActive=null;   /* nouveau brouillon : les autres (autres destinations) sont conserves */
   if(dest){
     if(dest.lvl==="country"){ draft.country={cc:dest.cc||"",name:dest.name}; draft.countryExplicit=true; draft.destCountryMode=true; }
     else { draft.dest=dest; draft.countryExplicit=false; }
@@ -6282,12 +6297,12 @@ function openCreateWithDest(dest){
   /* #2 (retour GPT, v2) : DES QU'UN BROUILLON EXISTE, on propose systematiquement le choix
      Reprendre / Nouveau voyage. Plus de comparaison par nom (deux "Paris" de pays differents
      etaient vus comme identiques, et rechercher la meme ville ouvrait un formulaire neuf). */
-  var _rs=loadDraft();
-  var hasDraft=!!(_rs&&_rs.d&&(_rs.d.dest||(_rs.f&&_rs.f.destText)));
+  var _rs=loadDraftFor(dest);   /* BROUILLONS PAR DESTINATION : reprise proposee SEULEMENT si un brouillon existe pour CETTE destination */
+  var hasDraft=!!(_rs&&_rs.d);
   if(hasDraft){
     askChoice(t("create.resumeAsk"),
-      t("create.resumeKeep"), function(){ openCreate(); },
-      t("create.startNew"), function(){ clearDraft(); _openCreateFresh(dest); });
+      t("create.resumeKeep"), function(){ _draftForce=_rs; openCreate(); },
+      t("create.startNew"), function(){ _draftActive=_rs.k; clearDraft(); _openCreateFresh(dest); });
     return;
   }
   _openCreateFresh(dest);
@@ -6591,7 +6606,7 @@ function renderCreate(tr){
     cCountry.addEventListener("focus",()=>{ if(!draft.country) renderCountryAc(cCountry.value.trim()); });
     cCountry.addEventListener("blur",()=>{ setTimeout(()=>{ if(cCountryAc) cCountryAc.classList.remove("show"); },200); }); }
   const dest=b.querySelector("#cDest"),ac=b.querySelector("#cAc"); bindCityField(b); restoreDestFields(b);
-  dest.addEventListener("input",()=>{ draft.dest=null; const q=dest.value.trim(); clearTimeout(_acT); const _mySeq=(dest._acSeq=(dest._acSeq||0)+1); ac.style.removeProperty("display"); if(q.length<3){ ac.classList.remove("show"); ac.innerHTML=""; return; }
+  dest.addEventListener("input",()=>{ if(draft.dest&&draft.dest.name) draft._lastDestName=draft.dest.name; draft.dest=null;   /* NOM : on garde le nom de la derniere destination CONFIRMEE (la saisie efface draft.dest) */ const q=dest.value.trim(); clearTimeout(_acT); const _mySeq=(dest._acSeq=(dest._acSeq||0)+1); ac.style.removeProperty("display"); if(q.length<3){ ac.classList.remove("show"); ac.innerHTML=""; return; }
     ac.innerHTML='<div class="ac-none">'+escapeHtml(t("hub.searching"))+'</div>'; ac.classList.add("show");   /* #4 : « Recherche… » immédiat via classList (jamais d'inline) */
     _acT=setTimeout(async()=>{ const _cc=(draft.countryExplicit&&draft.country)?draft.country.cc:null;   /* #3 : filtre pays seulement si l'utilisateur a choisi le pays lui-meme ; sinon recherche mondiale (Paris -> Rome possible) */
       /* Même moteur que la barre d'accueil et le champ « Où dormir ? » :
@@ -6618,6 +6633,7 @@ function renderCreate(tr){
       ac.classList.add("show");
       ac.querySelectorAll("div[data-i]").forEach(el=>el.onclick=async()=>{ let r=res[+el.dataset.i]; ac.classList.remove("show"); r=await resolveSuggestion(r)||r;
         if(r&&r.lvl==="country"){ /* PAYS choisi : on le garde visible et on révèle un champ « Ville » dédié (les deux visibles) */ draft.country={cc:r.cc||"",name:r.name}; draft.countryExplicit=true; draft.destCountryMode=true; const _cf=b.querySelector("#cCountry"); if(_cf)_cf.value=r.name; if(r.cc&&CC_CUR[r.cc]){ draft.currency=CC_CUR[r.cc]; const _cs=b.querySelector("#cCur"); if(_cs)_cs.value=draft.currency; } dest.value=r.name; draft.dest=null; const _cw=b.querySelector("#cCityWrap"); if(_cw)_cw.style.display=""; const _cca=b.querySelector("#cCityAc"); if(_cca){ _cca.classList.remove("show"); _cca.innerHTML=""; } const _ci=b.querySelector("#cCity"); if(_ci){ _ci.value=""; try{_ci.focus();}catch(_e){} } updateRecap(); return; }
+        { const _prev=(draft.dest&&draft.dest.name)||draft._lastDestName||""; const _nm=b.querySelector("#cName"); if(_nm&&_prev&&_nm.value.trim()===_prev&&r&&r.name) _nm.value=r.name; draft._lastDestName=r&&r.name||_prev; }   /* NOM : s'il etait celui de l'ancienne destination, il suit la nouvelle (nom personnalise jamais touche) */
         draft.dest=r; draft.destCountryMode=false; draft.coverPhoto=""; dest.value=r.name+(r.country?", "+r.country:""); { const _cw=b.querySelector("#cCityWrap"); if(_cw){ _cw.style.display="none"; const _ci=b.querySelector("#cCity"); if(_ci)_ci.value=""; } } revealCRest();
         if(r.cc){ draft.country={cc:r.cc,name:countryName(r.cc)}; draft.countryExplicit=false;   /* #3 : pays DEDUIT de la destination -> ne verrouille pas la recherche suivante */ const _cf=b.querySelector("#cCountry"); if(_cf) _cf.value=countryName(r.cc); }
         if(r.cc&&CC_CUR[r.cc]){ draft.currency=CC_CUR[r.cc]; const sel=b.querySelector("#cCur"); if(sel) sel.value=draft.currency; } applyCountryFuel(r.cc); renderVehPanel(); updateRecap(); updateDestSub(); fetchDraftCover(); const _dc=b.querySelector('.acard[data-card="dest"]'); if(_dc)_dc.classList.remove("open"); /* #1 : « Détails » reste fermé (section facultative) */ }); },600); });
@@ -7947,7 +7963,7 @@ async function submitCreate(){
     if(dest&&dest.lvl==="country"){ if(dest.cc){ draft.country={cc:dest.cc,name:dest.name}; draft.countryExplicit=true; const _cf2=b.querySelector("#cCountry"); if(_cf2)_cf2.value=dest.name; } const _dd=b.querySelector("#cDest"); if(_dd)_dd.value=dest.name; const _cw2=b.querySelector("#cCityWrap"); if(_cw2)_cw2.style.display=""; const _ci2=b.querySelector("#cCity"); if(_ci2){ _ci2.value=""; _ci2.focus(); } toast(t("create.needCity")); return; }
     if(dest.cc&&CC_CUR[dest.cc]) draft.currency=CC_CUR[dest.cc]; }
   if(dest && dest.lvl==="country"){ /* BACKSTOP (retour GPT) : quelle que soit l'origine (accueil/brouillon/IA/formulaire), un PAYS seul ne cree jamais un voyage — on bascule en mode ville */ if(dest.cc){ draft.country={cc:dest.cc,name:dest.name}; draft.countryExplicit=true; const _cf3=b.querySelector("#cCountry"); if(_cf3)_cf3.value=dest.name; } draft.dest=null; draft.destCountryMode=true; const _dd3=b.querySelector("#cDest"); if(_dd3)_dd3.value=dest.name; const _cw3=b.querySelector("#cCityWrap"); if(_cw3)_cw3.style.display=""; const _ci3=b.querySelector("#cCity"); if(_ci3){ _ci3.value=""; _ci3.focus(); } toast(t("create.needCity")); return; }
-  if(!name) name=(dest&&dest.name)||destText;
+  if(!name) name=(dest&&dest.name)||destText; if(editId){ const _tr0=S.trips.find(x=>x.id===editId); if(_tr0&&_tr0.dest&&_tr0.dest.name&&dest&&dest.name&&name===_tr0.dest.name&&dest.name!==_tr0.dest.name) name=dest.name; }   /* NOM : garantie a l'enregistrement -- le nom de l'ANCIENNE destination suit la nouvelle */;
   const ds=draft.dateStart||"", de=draft.dateEnd||"";
   if(ds&&de&&de<ds){ toast(t("create.dateError")); return; }
   const base={ name, dest:{name:dest.name,country:dest.country||"",cc:dest.cc||"",lat:dest.lat,lng:dest.lng,bbox:dest.bbox||null},
