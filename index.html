@@ -5217,7 +5217,7 @@ const DEFAULT_S={ version:"0.2.0", settings:{ lang:"fr", theme:"system", units:"
 /* Clé Maps JS partagée (restreinte au domaine GitHub Pages). Repli : clé perso de l'utilisateur si fournie. */
 const SHARED_MAP_KEY="AIzaSyCt5iVx8nPr1V067A3daE0X1YA568XJNbU";
 function mapKey(){ return (S.settings.mapKey||"").trim() || SHARED_MAP_KEY; }
-const BUILD="0.6.164 · F2-A3-suisse-moyenne-ofs";
+const BUILD="0.7.1 · 7 oct. 2026 · nom du voyage"   /* A CHANGER A CHAQUE PUBLICATION : permet de verifier sur iPhone la version qui tourne (Reglages) */;
 /* V4.1 lot A (P0 stockage) : CC_CUR deplacee ICI, avant le premier loadState() -- loadState>mergeState>normalizeTrip>normalizeLegs la lit ;
    declaree plus bas, elle etait en zone morte temporelle (ReferenceError avalee par loadState -> S vide -> saveState() pouvait ecraser les voyages). Contenu inchange. */
 const CC_CUR={FR:"EUR",BE:"EUR",DE:"EUR",ES:"EUR",IT:"EUR",PT:"EUR",NL:"EUR",AT:"EUR",IE:"EUR",GR:"EUR",LU:"EUR",FI:"EUR",SK:"EUR",SI:"EUR",EE:"EUR",LV:"EUR",LT:"EUR",GB:"GBP",US:"USD",CA:"CAD",CH:"CHF",JP:"JPY",AU:"AUD",NZ:"NZD",MA:"MAD",TN:"TND",DZ:"DZD",EG:"EGP",SE:"SEK",NO:"NOK",DK:"DKK",PL:"PLN",CZ:"CZK",HU:"HUF",RO:"RON",MX:"MXN",BR:"BRL",AR:"ARS",CN:"CNY",TH:"THB",IN:"INR",ID:"IDR",VN:"VND",TR:"TRY",AE:"AED",ZA:"ZAR",SN:"XOF",CI:"XOF",CM:"XAF",GA:"XAF",CG:"XAF",TD:"XAF",CF:"XAF",GQ:"XAF",BJ:"XOF",BF:"XOF",ML:"XOF",NE:"XOF",TG:"XOF",GW:"XOF",NG:"NGN",GH:"GHS",KE:"KES",TZ:"TZS",UG:"UGX",RW:"RWF",ET:"ETB",MU:"MUR",MG:"MGA",AO:"AOA",MZ:"MZN",CD:"CDF",LY:"LYD",SA:"SAR",QA:"QAR",KW:"KWD",BH:"BHD",OM:"OMR",JO:"JOD",LB:"LBP",IL:"ILS",PK:"PKR",BD:"BDT",LK:"LKR",NP:"NPR",KR:"KRW",SG:"SGD",MY:"MYR",PH:"PHP",KH:"KHR",MM:"MMK",KZ:"KZT",GE:"GEL",AM:"AMD",AZ:"AZN",RU:"RUB",UA:"UAH",RS:"RSD",BG:"BGN",IS:"ISK",HR:"EUR",CY:"EUR",MT:"EUR",CL:"CLP",CO:"COP",PE:"PEN",UY:"UYU",BO:"BOB",EC:"USD",PA:"USD",CR:"CRC",GT:"GTQ",DO:"DOP",FJ:"FJD"};
@@ -7975,6 +7975,8 @@ async function submitCreate(){
     if(_tr0&&_moved&&!draft._nameTyped&&!draft._keepName){
       if(_tr0.nameAuto===true||_nameIsPlace(name,_tr0.dest)) name=dest.name;
       else if(_tr0.nameAuto!==false&&!draft._renameDone&&_normPlace(name)!==_normPlace(dest.name)) _askRename={from:name,to:dest.name}; }
+    else if(_tr0&&!_moved&&!draft._nameTyped&&!draft._keepName&&!draft._renameDone&&_tr0.nameAuto===undefined&&dest&&dest.name&&!_nameIsPlace(name,_tr0.dest)&&_normPlace(name)!==_normPlace(dest.name))
+      _askRename={from:name,to:dest.name};   /* voyage ANCIEN deja incoherent (ex. « Dubaï » sur l'Alsace) : question au prochain enregistrement, UNE fois (reponse retenue) */
     _nameAuto=draft._keepName?false:(draft._nameTyped?(_normPlace(name)===_normPlace(dest&&dest.name)):((_tr0&&_tr0.nameAuto===false)?false:(_normPlace(name)===_normPlace(dest&&dest.name)?true:(_tr0?_tr0.nameAuto:undefined)))); }
   else _nameAuto=!draft._nameTyped||_normPlace(name)===_normPlace(dest&&dest.name);
   if(_askRename){ askChoice(t("create.renameAsk",{from:_askRename.from,to:_askRename.to}),
