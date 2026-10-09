@@ -7559,7 +7559,12 @@ function budgetPlanningFuel(tr){
     else { const g=_b2PlannedGet(tr,i);
       if(!g) r={day:i, state:"not_computed", minor:0, missingCountries:[], reasons:["NO_PRESENTATION"], signature:"nc|"+i};
       else { const x=_b2NoNet(()=>planningDayFuel(tr, i, g.presentation, {context:"PLANNED", inputKey:g.inputKey}));
-        r=x.value; if(x.attempted&&r.state!=="incomplete"){ r=Object.assign({},r,{state:"not_computed", reasons:(r.reasons||[]).concat(["PRIX_OU_PROJECTION_A_DEMANDER"])}); r.signature="nc+|"+i+"|"+r.signature; } } }
+        r=x.value;
+        /* AUDIT B2 P1 : une demande interceptee est, par construction, une demande JAMAIS faite (prix d'extremite jamais demande pour
+           cette signature, prix national jamais tente, projection jamais calculee ni en echec). Son resultat peut changer l'etat du
+           jour : le jour est donc « a calculer », meme si P6d le voit incomplet sans elle -- le geste lance la demande. Une fois faite,
+           elle n'est plus jamais interceptee : une absence REELLE de prix redevient « incomplet », sans bouton, sans boucle. */
+        if(x.attempted){ r=Object.assign({},r,{state:"not_computed", blockedState:r.state, blockedMissingCountries:(r.missingCountries||[]).slice(), missingCountries:[], reasons:(r.reasons||[]).concat(["DEMANDE_NON_LANCEE"])}); r.signature="nc+|"+i+"|"+r.signature; } } }
     out.days.push(r);
     if(r.state==="complete") sum+=BigInt(r.minor);
     else if(r.state==="incomplete"){ out.incompleteDays.push(i); for(const c of r.missingCountries||[]) miss.add(c); for(const x of r.reasons||[]) if(out.reasons.indexOf(x)<0) out.reasons.push(x); }
@@ -7632,14 +7637,17 @@ function planningDayFuelHypothesis(ref, conso){
         if(!X){ out.state="incomplete"; out.reasons.push("NOMBRE"); return out; }
         total=_b2Add(total,X); out.lines.push(l); } } }
   if(!_b2Conform(total,F)){ out.state="incomplete"; out.reasons.push("ECART"); return out; }
-  out.floatCost=F; out.minor=Number(_b2ToMinor(total,ref.digits)); out.state="complete"; return out; }
+  const mi=_b2ToMinor(total,ref.digits);
+  if(mi>BigInt(Number.MAX_SAFE_INTEGER)){ out.state="incomplete"; out.reasons.push("TROP_GRAND"); return out; }   /* AUDIT B2 P2 : meme garde que le resultat journalier -- jamais un entier non representable exactement */
+  out.floatCost=F; out.minor=Number(mi); out.state="complete"; return out; }
 function budgetFuelHypothesis(ref, conso){   /* ref = budgetPlanningFuel(tr) deja calcule : l'hypothese ne relit RIEN (ni trace, ni prix, ni projection) */
   const out={state:ref?ref.state:"none", minor:null, currency:ref&&ref.currency, digits:ref&&ref.digits, days:[], b1User:null};
   if(!ref||!ref.applicable||ref.state!=="complete") return out;   /* jamais disponible si la reference du voyage ne l'est pas */
   let sum=0n;
   for(let i=0;i<ref.days.length;i++){ const r=ref.days[i]; if(r.state==="none"){ out.days.push({day:i,state:"none",minor:0}); continue; }
-    const h=planningDayFuelHypothesis(r, conso); if(h.state!=="complete"){ out.state=h.state; return out; }
+    const h=planningDayFuelHypothesis(r, conso); if(h.state!=="complete"){ out.state=h.state; out.reasons=h.reasons; return out; }
     out.days.push({day:i,state:"complete",minor:h.minor}); sum+=BigInt(h.minor); }
+  if(sum>BigInt(Number.MAX_SAFE_INTEGER)){ out.state="incomplete"; out.reasons=["TROP_GRAND"]; out.days=[]; return out; }   /* AUDIT B2 P2 : somme des jours aussi */
   out.state="complete"; out.minor=Number(sum);
   out.b1User={ total:{ amount:_b2MinorToDecStr(out.minor,out.digits), currency:out.currency, basis:"fuel_consumption" } };   /* B1 : saisie d'origine fuel_consumption */
   return out; }
