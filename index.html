@@ -28072,5 +28072,201 @@ document.addEventListener("DOMContentLoaded",boot);
     <div class="auth-skip"><a id="nameSkip"></a></div>
   </div>
 </div>
+<script>/* SONDE B2 -- copie de diagnostic, NE PAS GELER NI DEPLOYER */
+/* ===== SONDE B2 -- diagnostic en LECTURE SEULE, copie de diagnostic de 18cec637 (jamais le candidat a geler) =====
+   - N'ecrit RIEN dans l'etat de l'application (S, voyages, caches d'interface, registre PREVU, prix, positions en direct).
+     Seule ecriture : la cle localStorage "mv_b2sonde" (ses propres releves, 12 au plus), et son propre panneau.
+   - Aucun reseau : les seuls calculs sont budgetPlanningFuel() (deja sous _b2NoNet) et planningDayFuel() sous _b2NoNet,
+     c'est-a-dire exactement les lectures que fait l'ecran Budget quand il s'ouvre. Aucune fonction de l'application n'est
+     remplacee (hors _b2NoNet existant, le temps d'un calcul synchrone).
+   - La position « Partir d'ici » est lue directement (sans _routeUILiveGet, qui efface une position expiree). */
+(function(){
+  "use strict";
+  const KEY="mv_b2sonde", MAX=12, VERSION="SONDE-B2-1", CAND="18cec637";
+  const h=s=>{ s=String(s==null?"":s); let x=0x811c9dc5; for(let i=0;i<s.length;i++){ x^=s.charCodeAt(i); x=Math.imul(x,0x01000193)>>>0; } return ("0000000"+x.toString(16)).slice(-8); };
+  const load=()=>{ try{ const a=JSON.parse(localStorage.getItem(KEY)||"[]"); return Array.isArray(a)?a:[]; }catch(_e){ return []; } };
+  const store=a=>{ try{ localStorage.setItem(KEY, JSON.stringify(a.slice(-MAX))); return true; }catch(_e){ return false; } };
+  const err=e=>String((e&&e.message)||e);
+  const SID=Math.random().toString(36).slice(2,10);   /* identifiant de la session de page : change a chaque rechargement */
+  const _pid=new WeakMap(); let _pidN=0; const pid=o=>{ if(!o||typeof o!=="object") return null; if(!_pid.has(o)) _pid.set(o,++_pidN); return _pid.get(o); };   /* identite d'objet, memoire de la sonde seulement */
+  const slotOf=(tr,day)=>[_storeId,_storeEpoch,(tr&&tr.id)||"?",day].join("|");
+  const iso=d=>{ try{ return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0"); }catch(_e){ return null; } };
+  /* empreinte du trace : pour chaque deplacement, ses portions (metres, secondes, conduite, rupture, polyligne) */
+  const presFp=p=>{ if(!p) return null; try{ return h(JSON.stringify((p.moves||[]).map(m=>m?[m.role||null,m.segmentType||null,!!m.notNeeded,
+      (m.parts||[]).map(q=>q?[Number(q.distanceMeters)||0,Number.isFinite(q.durationSeconds)?q.durationSeconds:null,!!q.drivable,!!q.gap,h(q.polyline||"")]:null)]:null))); }catch(_e){ return "ERR"; } };
+  const fuelOf=r=>({ state:r.state, minor:r.state==="complete"?r.minor:null, sig:h(r.signature||"") });
+  const movesOf=r=>(r.moves||[]).map(m=>({ idx:m.idx, kind:m.kind, from:String(m.fromLabel||"").slice(0,40), to:String(m.toLabel||"").slice(0,40),
+        m:m.distanceMeters, drive:m.driveMeters, dur:m.durationSeconds, state:m.state, minor:m.minor, own:m.ownMinor }));
+  const linesOf=r=>(r.lines||[]).map(l=>({ mv:l[0], cc:l[1], m:l[2], price:l[3], cur:l[4], fx:l[5], src:l[6]||null }));
+
+  function dayRow(tr, i, r){
+    const slot=slotOf(tr,i), reg=_b2Planned[slot], ui=_dayPresentationResolvedCache[slot], now=Date.now();
+    let pk=null; try{ pk=_b2PlannedKeyNow(tr,i); }catch(_e){}
+    let date=null; try{ const d=tripDays(tr)[i]; date=d&&d.date?iso(d.date):null; }catch(_e){}
+    r=r||{};
+    const o={ i, date, plannedKey:pk==null?null:h(pk),
+      registry: reg?{ pid:pid(reg.result), at:reg.at||0, ageS:Math.round((now-(reg.at||0))/1000), key:h(reg.inputKey), keyOk:reg.inputKey===pk, fp:presFp(reg.result) }:null,
+      ui:null,
+      budget:{ state:r.state||null, minor:r.state==="complete"?r.minor:null, blocked:r.blockedState||null, reasons:(r.reasons||[]).slice(), sig:h(r.signature||"") },
+      moves:movesOf(r), lines:linesOf(r) };
+    if(ui){ const tag=_b2PresTag.get(ui.result)||null; let pf=null;
+      if(tag){ try{ const x=_b2NoNet(()=>planningDayFuel(tr,i,ui.result,{context:tag.context,inputKey:tag.inputKey})); pf=Object.assign(fuelOf(x.value),{attempted:x.attempted}); }catch(e){ pf={err:err(e)}; } }
+      o.ui={ pid:pid(ui.result), ageS:Math.round((now-(ui.at||0))/1000), context:tag?tag.context:null, key:h(ui.inputKey), fp:presFp(ui.result), same:!!(reg&&reg.result===ui.result), fuel:pf }; }
+    return o; }
+
+  function snapshot(label){
+    const tr=currentTrip(); if(!tr) return { v:VERSION, err:"Aucun voyage ouvert" };
+    const now=Date.now(); let bud=null, be=null;
+    try{ bud=budgetPlanningFuel(tr); }catch(e){ be=err(e); }
+    const n=(bud&&bud.days)?bud.days.length:0, days=[];
+    for(let i=0;i<n;i++){ try{ days.push(dayRow(tr,i,bud.days[i])); }catch(e){ days.push({ i, err:err(e) }); } }
+    let sum=0; for(const d of days) if(d.budget&&d.budget.state==="complete") sum+=d.budget.minor;
+    const el=document.querySelector(".b2-fuel-amt");
+    const shown=el?{ minor:el.dataset.minor!=null?Number(el.dataset.minor):null, state:el.dataset.state||(el.dataset.minor!=null?"complete":null), text:(el.textContent||"").trim() }:null;
+    const ec=(typeof _estCache!=="undefined"&&_estCache)?_estCache[tr.id]:null;
+    const live=[]; for(let i=0;i<n;i++){ const l=_routeUILive[(tr.id||"?")+"|"+i]; if(l) live.push({ day:i, ageS:l.capturedAt?Math.round((now-l.capturedAt)/1000):null, expired:!!(l.capturedAt&&(now-l.capturedAt)>_ROUTE_LIVE_TTL) }); }
+    const lp=_b2LastPaint; let conso=null; try{ conso=_b2Conso(tr); }catch(_e){}
+    return { v:VERSION, cand:CAND, sid:SID, label:String(label||"").slice(0,60), at:new Date(now).toISOString(), t:now, online:navigator.onLine,
+      trip:{ id:tr.id, name:String(tr.name||"").slice(0,40), cur:bud?bud.currency:tr.currency, digits:bud?bud.digits:null, fuel:(tr.veh||{}).fuel||null, conso, manual:!!(tr.veh||{}).priceManual },
+      fuelGen:(typeof _fuelGen!=="undefined"&&_fuelGen&&_fuelGen[tr.id])||0,
+      budget:bud?{ state:bud.state, minor:bud.state==="complete"?bud.minor:null, sig:h(bud.signature), nc:bud.notComputedDays.slice(), pend:bud.pendingDays.slice(), inc:bud.incompleteDays.slice(), text:bud.text }:{ err:be },
+      sumDays:sum, shown,
+      estCache:ec?{ ageS:Math.round((now-(ec.at||0))/1000), fuelSigOk:bud?ec.fuelSig===bud.signature:null, total:ec.total }:null,
+      live, lastPaint:lp?{ day:lp.day, context:lp.context, key:h(lp.inputKey), budget:{ state:lp.state, minor:lp.state==="complete"?lp.minor:null, reasons:(lp.reasons||[]).slice() }, sig:h(lp.signature), moves:movesOf(lp), lines:linesOf(lp) }:null,
+      planDay:(typeof planState!=="undefined"&&planState)?planState.dayIndex:null, days }; }
+
+  /* ---------- lecture ---------- */
+  const fmt=(minor,s)=>{ if(minor==null) return "—"; const d=(s&&s.trip&&s.trip.digits!=null)?s.trip.digits:2; const v=(minor/Math.pow(10,d)).toFixed(d).replace(".",","); return v+" "+((s&&s.trip&&s.trip.cur)||""); };
+  const km=m=>(m==null?"?":(m/1000).toFixed(3).replace(".",",")+" km");
+  const dlab=d=>"J"+(d.i+1)+(d.date?" ("+d.date+")":"");
+
+  function selfCheck(s){   /* coherence a l'interieur d'UN releve (meme ensemble de donnees) */
+    const out=[], bad=[];
+    if(s.err){ return { lines:["ERREUR : "+s.err], bad:["ERREUR"] }; }
+    out.push("Releve « "+(s.label||"sans libelle")+" » "+s.at+(s.online?"":" (HORS LIGNE)"));
+    const b=s.budget||{};
+    out.push("Budget recalcule maintenant : "+(b.state||"?")+" "+fmt(b.minor,s)+" | somme des jours complets : "+fmt(s.sumDays,s)
+      +(b.nc&&b.nc.length?" | a calculer : J"+b.nc.map(x=>x+1).join(",J"):"")+(b.pend&&b.pend.length?" | en cours : J"+b.pend.map(x=>x+1).join(",J"):"")+(b.inc&&b.inc.length?" | incomplets : J"+b.inc.map(x=>x+1).join(",J"):""));
+    if(b.state==="complete"&&b.minor!==s.sumDays){ out.push("  !! DEFAUT B2 : total Budget different de la somme des jours"); bad.push("SOMME"); }
+    if(s.shown){
+      out.push("Ligne affichee a l'ecran : "+s.shown.text+(s.estCache?" (estimation ecrite il y a "+s.estCache.ageS+" s, signature carburant "+(s.estCache.fuelSigOk?"a jour":"PERIMEE")+")":""));
+      if(s.shown.state==="complete"&&b.state==="complete"&&s.shown.minor!==b.minor){
+        if(s.estCache&&!s.estCache.fuelSigOk) out.push("  (note) Affiche "+fmt(s.shown.minor,s)+", calcul de cet instant "+fmt(b.minor,s)+" : donnees changees depuis l'ouverture de l'ecran -- le referme et le rouvre, puis refais le releve");
+        else { out.push("  !! Affiche ("+fmt(s.shown.minor,s)+") different du calcul de cet instant ("+fmt(b.minor,s)+") sur les memes donnees : DEFAUT DE TRANSMISSION B2"); bad.push("AFFICHAGE"); } }
+    } else out.push("Ligne affichee : ecran « Estimer mon budget » non ouvert");
+    if(s.live.length) out.push("« Partir d'ici » actif : "+s.live.map(l=>"J"+(l.day+1)+" ("+l.ageS+" s"+(l.expired?", expire":"")+")").join(", "));
+    for(const d of s.days){
+      if(d.err){ out.push(dlab(d)+" : ERREUR "+d.err); bad.push("ERREUR"); continue; }
+      const km0=(d.moves||[]).reduce((a,m)=>a+(m.m||0),0);
+      let t=dlab(d)+" : Budget "+(d.budget.state||"?")+" "+fmt(d.budget.minor,s)+" | "+km(km0)+" | trace PREVU "+(d.registry?("#"+d.registry.fp+", "+d.registry.ageS+" s"):"absent");
+      if(d.ui){
+        t+=" | Planning "+(d.ui.context||"?")+(d.ui.fuel&&!d.ui.fuel.err?" "+fmt(d.ui.fuel.minor,s):"")+" #"+d.ui.fp+(d.ui.same?" (meme presentation)":"");
+        if(d.ui.context==="PLANNED"&&d.ui.fuel&&!d.ui.fuel.err&&d.budget.state==="complete"&&d.ui.fuel.state==="complete"&&d.ui.fp===(d.registry&&d.registry.fp)&&d.ui.fuel.minor!==d.budget.minor){ t+="\n  !! DEFAUT B2 : Planning et Budget differents sur le meme trace"; bad.push("JOUR"); }
+        if(d.ui.context==="LIVE") t+=" -- Planning en direct, le Budget reste sur le PREVU (attendu)";
+      }
+      out.push(t); }
+    const lp=s.lastPaint;
+    if(lp){ const d=s.days[lp.day]; let t="Planning affiche (dernier calcul peint) : J"+(lp.day+1)+" "+lp.context+" "+(lp.budget.state==="complete"?fmt(lp.budget.minor,s):lp.budget.state);
+      if(lp.context==="LIVE") t+=" -- en direct, le Budget reste sur le PREVU "+fmt(d&&d.budget.minor,s)+" (attendu)";
+      else if(!d||d.err) t+=" -- jour introuvable dans le Budget";
+      else if(!d.registry||lp.key!==d.registry.key) t+=" -- cle differente du trace PREVU du Budget (affichage anterieur a une modification de la journee ?)";
+      else { const x=dataDiff(lp,d,s,s);
+        if(!x) t+=" = Budget J"+(lp.day+1)+" (memes donnees, meme montant)";
+        else if(x.cls==="DEFAUT_B2"){ t+="\n  !! DEFAUT B2 : Planning affiche et Budget, memes donnees, montants differents : "+x.txt; bad.push("JOUR"); }
+        else t+=" -- donnees differentes depuis l'affichage ("+CLS[x.cls]+" : "+x.txt+")"; }
+      out.push(t); } else out.push("Planning affiche : aucun calcul peint depuis l'ouverture");
+    out.push(bad.length?"VERDICT DU RELEVE : ANOMALIE ("+[...new Set(bad)].join(", ")+")":"VERDICT DU RELEVE : coherent (Budget = somme des jours ; Planning PREVU = Budget sur le meme trace)");
+    return { lines:out, bad }; }
+
+  function srcDiff(a,b){ const ks=new Set([...Object.keys(a||{}),...Object.keys(b||{})]); const o=[]; for(const k of ks){ if(JSON.stringify((a||{})[k])!==JSON.stringify((b||{})[k])) o.push(k+" "+JSON.stringify((a||{})[k])+" -> "+JSON.stringify((b||{})[k])); } return o; }
+  function dayDiff(A,B,da,db){   /* premiere donnee differente, dans l'ordre : trace -> pays/metres -> prix -> taux -> source -> vehicule -> montant */
+    if(!da||!db) return { cls:"STRUCTURE", txt:"jour absent d'un des deux releves" };
+    if(da.err||db.err) return { cls:"ERREUR", txt:"erreur de lecture" };
+    const ra=da.registry, rb=db.registry;
+    if(!ra||!rb){ if(!ra&&!rb) return da.budget.state===db.budget.state?null:{ cls:"ETAT", txt:"etat "+da.budget.state+" -> "+db.budget.state+" (aucun trace PREVU)" };
+      return { cls:"TRACE", txt:"trace PREVU "+(ra?"present":"absent")+" -> "+(rb?"present":"absent")+" (etat "+da.budget.state+" -> "+db.budget.state+")" }; }
+    if(da.plannedKey!==db.plannedKey) return { cls:"CLE", txt:"cle d'entree PREVUE changee (journee, vehicule, options ou heures modifiees)" };
+    const renew=(A.sid!==B.sid)?" ; page rechargee, trace PREVU recalcule (il y a "+rb.ageS+" s)":((ra.pid!==rb.pid)?" ; trace PREVU recalcule entre les deux releves (il y a "+rb.ageS+" s)":"");
+    const x=dataDiff(da,db,A,B); if(x&&x.cls==="ITINERAIRE") x.txt+=renew;
+    if(!x&&ra.fp!==rb.fp) return { cls:"ITINERAIRE", txt:"trace different a distance egale (polyligne ou durees) #"+ra.fp+" -> #"+rb.fp+renew+" -- sans effet sur le montant" };
+    return x; }
+  function dataDiff(da,db,A,B){   /* deux calculs du MEME jour : deplacements -> pays/metres -> prix -> taux -> source -> vehicule -> etat -> montant */
+    { const n=Math.max(da.moves.length,db.moves.length);
+      for(let k=0;k<n;k++){ const x=da.moves[k], y=db.moves[k];
+        if(!x||!y||x.m!==y.m||x.drive!==y.drive) return { cls:"ITINERAIRE", txt:"itineraire different"+(x&&y?" : "+(y.from||x.from)+" -> "+(y.to||x.to)+" "+km(x.m)+" -> "+km(y.m)+" ("+((y.m-x.m)>=0?"+":"")+(y.m-x.m)+" m)":" : deplacements differents ("+da.moves.length+" -> "+db.moves.length+")") }; } }
+    const n=Math.max(da.lines.length,db.lines.length);
+    for(let k=0;k<n;k++){ const x=da.lines[k], y=db.lines[k];
+      if(!x||!y) return { cls:"ITINERAIRE", txt:"decoupage par pays different ("+da.lines.length+" -> "+db.lines.length+" lignes)" };
+      if(x.mv!==y.mv||x.cc!==y.cc||x.m!==y.m) return { cls:"ITINERAIRE", txt:"ligne "+(k+1)+" : "+x.cc+" "+km(x.m)+" -> "+y.cc+" "+km(y.m)+" (meme trace, projection pays differente)" };
+      if(x.price!==y.price||x.cur!==y.cur){ const sd=srcDiff(x.src,y.src).filter(z=>!/^price |^currency /.test(z)); return { cls:"PRIX", txt:"prix "+x.cc+" (deplacement "+(x.mv+1)+") "+x.price+" "+x.cur+" -> "+y.price+" "+y.cur+(sd.length?" ; source : "+sd.join(" ; "):"") }; }
+      if(x.fx!==y.fx) return { cls:"TAUX", txt:"taux "+x.cur+" "+x.fx+" -> "+y.fx };
+      const sd=srcDiff(x.src,y.src); if(sd.length) return { cls:"SOURCE", txt:"meme prix, provenance differente ("+x.cc+") : "+sd.join(" ; ") }; }
+    if(A&&B&&(A.trip.conso!==B.trip.conso||A.trip.fuel!==B.trip.fuel||A.trip.manual!==B.trip.manual)) return { cls:"VEHICULE", txt:"vehicule : "+A.trip.fuel+" "+A.trip.conso+" -> "+B.trip.fuel+" "+B.trip.conso };
+    if(da.budget.state!==db.budget.state) return { cls:"ETAT", txt:"memes donnees, etat "+da.budget.state+" -> "+db.budget.state+" ("+db.budget.reasons.join(",")+")" };
+    if(da.budget.minor!==db.budget.minor) return { cls:"DEFAUT_B2", txt:"!! MEMES DONNEES, MONTANT DIFFERENT : "+fmt(da.budget.minor,A)+" -> "+fmt(db.budget.minor,B) };
+    return null; }
+
+  const CLS={ ITINERAIRE:"nouvelle estimation d'itineraire", PRIX:"actualisation du prix carburant", TAUX:"actualisation du taux de change", SOURCE:"provenance du prix changee",
+    CLE:"journee modifiee", VEHICULE:"vehicule modifie", TRACE:"trace PREVU apparu ou disparu", ETAT:"changement d'etat", STRUCTURE:"structure", ERREUR:"erreur", DEFAUT_B2:"DEFAUT B2 A CORRIGER" };
+  function compare(A,B){
+    const out=[]; if(!A||!B) return ["Il faut deux releves."]; if(A.err||B.err) return ["Releve en erreur."];
+    if(A.trip.id!==B.trip.id) return ["Deux voyages differents : comparaison impossible."];
+    out.push("COMPARAISON « "+(A.label||A.at)+" » -> « "+(B.label||B.at)+" » ("+Math.round((B.t-A.t)/1000)+" s)");
+    const ba=A.budget, bb=B.budget;
+    out.push("Budget : "+ba.state+" "+fmt(ba.minor,A)+" -> "+bb.state+" "+fmt(bb.minor,B)+(ba.minor!=null&&bb.minor!=null?" (ecart "+((bb.minor-ba.minor)>=0?"+":"")+fmt(bb.minor-ba.minor,B)+")":""));
+    if(A.sid!==B.sid) out.push("Page rechargee entre les deux releves (memoire des traces et des itineraires repartie de zero)");
+    if(A.fuelGen!==B.fuelGen) out.push("Prix du domicile actualises entre les deux releves (generation "+A.fuelGen+" -> "+B.fuelGen+")");
+    const la=A.live.map(l=>l.day+1).join(","), lb=B.live.map(l=>l.day+1).join(",");
+    if(la!==lb) out.push("« Partir d'ici » : "+(la?"J"+la:"inactif")+" -> "+(lb?"J"+lb:"inactif"));
+    const cls=new Set(); let any=false;
+    const n=Math.max(A.days.length,B.days.length);
+    for(let i=0;i<n;i++){ const da=A.days[i], db=B.days[i]; const d=dayDiff(A,B,da,db);
+      const dm=(da&&db&&da.budget&&db.budget&&da.budget.minor!=null&&db.budget.minor!=null)?db.budget.minor-da.budget.minor:null;
+      if(!d){ out.push(dlab(db||da)+" : identique ("+fmt(db&&db.budget.minor,B)+")"); continue; }
+      any=true; cls.add(d.cls); out.push(dlab(db||da)+" : "+fmt(da&&da.budget.minor,A)+" -> "+fmt(db&&db.budget.minor,B)+(dm?" ("+(dm>0?"+":"")+fmt(dm,B)+")":"")+" -- "+CLS[d.cls].toUpperCase()+" : "+d.txt); }
+    if(la!==lb&&!any&&ba.minor===bb.minor) out.push("=> « Partir d'ici » n'a modifie AUCUNE donnee PREVUE du Budget (attendu).");
+    if(!any&&ba.minor===bb.minor) out.push("VERDICT : aucune difference.");
+    else if(cls.has("DEFAUT_B2")) out.push("VERDICT : DEFAUT B2 -- meme ensemble de donnees, montant different.");
+    else out.push("VERDICT : ecart explique par -- "+[...cls].map(c=>CLS[c]).join(" ; ")+". Aucune donnee identique n'a donne un montant different.");
+    return out; }
+
+  /* ---------- panneau ---------- */
+  let panel=null, pre=null, selA=null, selB=null, lab=null;
+  const say=t=>{ if(pre) pre.textContent=t; };
+  const btn=(t,f)=>{ const b=document.createElement("button"); b.type="button"; b.textContent=t; b.style.cssText="font:600 13px -apple-system,system-ui,sans-serif;padding:8px 10px;margin:3px;border-radius:9px;border:1px solid #888;background:#fff;color:#111"; b.onclick=()=>{ try{ f(); }catch(e){ say("Erreur sonde : "+err(e)); } }; return b; };
+  const fill=()=>{ const a=load(); for(const s of [selA,selB]){ s.innerHTML=""; a.forEach((x,k)=>{ const o=document.createElement("option"); o.value=k; o.textContent=(k+1)+". "+(x.label||"sans libelle")+" "+String(x.at||"").slice(11,19); s.appendChild(o); }); }
+    if(a.length){ selA.value=String(Math.max(0,a.length-2)); selB.value=String(a.length-1); } };
+  const report=()=>{ const a=load(); if(!a.length) return ""; const t=["SONDE B2 "+VERSION+" -- "+a.length+" releve(s) -- "+new Date().toISOString(),""];   /* TOUT : comparaisons successives, controles de chaque releve, donnees brutes */
+    for(let k=1;k<a.length;k++) t.push(...compare(a[k-1],a[k]),"");
+    for(const s of a) t.push(...selfCheck(s).lines,"");
+    t.push("--- JSON ---", JSON.stringify(a)); return t.join("\n"); };
+  function open(){
+    if(panel){ panel.style.display=panel.style.display==="none"?"block":"none"; if(panel.style.display==="block") fill(); return; }
+    panel=document.createElement("div"); panel.id="b2s-panel";
+    panel.style.cssText="position:fixed;left:8px;right:8px;bottom:8px;max-height:72vh;overflow:auto;z-index:2147483647;background:#f6f6f2;color:#111;border:2px solid #111;border-radius:14px;padding:10px;box-shadow:0 8px 30px rgba(0,0,0,.35);font:13px -apple-system,system-ui,sans-serif";
+    const h1=document.createElement("div"); h1.textContent="Sonde B2 (lecture seule) -- "+CAND; h1.style.cssText="font-weight:700;margin-bottom:6px";
+    lab=document.createElement("input"); lab.placeholder="Libelle (ex. avant rechargement)"; lab.style.cssText="width:100%;box-sizing:border-box;padding:8px;font-size:15px;border:1px solid #888;border-radius:8px;margin-bottom:4px";
+    selA=document.createElement("select"); selB=document.createElement("select"); for(const s of [selA,selB]) s.style.cssText="max-width:48%;font-size:13px;margin:3px";
+    pre=document.createElement("pre"); pre.style.cssText="white-space:pre-wrap;word-break:break-word;font:11.5px ui-monospace,Menlo,monospace;background:#fff;border:1px solid #ccc;border-radius:8px;padding:8px;margin-top:6px;min-height:40px";
+    const row1=document.createElement("div"), row2=document.createElement("div");
+    row1.append(btn("Relevé",()=>{ const s=snapshot(lab.value); const a=load(); a.push(s); const ok=store(a); lab.value=""; fill(); say((ok?"Relevé "+Math.min(a.length,MAX)+" enregistré.\n\n":"!! Relevé NON enregistré (stockage refusé).\n\n")+selfCheck(s).lines.join("\n")); }),
+      btn("Comparer",()=>{ const a=load(); if(a.length<2){ say("Il faut deux relevés."); return; } say(compare(a[+selA.value],a[+selB.value]).join("\n")); }),
+      btn("Copier",()=>{ const t=report(); if(!t){ say("Aucun relevé."); return; }
+        const fb=()=>{ const ta=document.createElement("textarea"); ta.value=t; ta.style.cssText="width:100%;height:140px;font-size:11px"; pre.replaceWith(ta); ta.focus(); ta.select(); setTimeout(()=>{ ta.replaceWith(pre); },60000); };
+        if(navigator.clipboard&&navigator.clipboard.writeText) navigator.clipboard.writeText(t).then(()=>say("Rapport complet copié ("+t.length+" caractères, tous les relevés). Colle-le dans la conversation."),fb); else fb(); }),
+      btn("Partager",()=>{ const t=report(); if(!t){ say("Aucun relevé."); return; } if(navigator.share) navigator.share({ title:"Sonde B2", text:t }).catch(()=>{}); else say("Partage indisponible : utilise Copier."); }));
+    row2.append(document.createTextNode("A "),selA,document.createTextNode(" B "),selB,
+      btn("Effacer",()=>{ if(confirm("Effacer tous les relevés de la sonde ?")){ try{ localStorage.removeItem(KEY); }catch(_e){} fill(); say("Relevés effacés."); } }),
+      btn("Fermer",()=>{ panel.style.display="none"; }));
+    panel.append(h1,lab,row1,row2,pre); document.body.appendChild(panel); fill();
+    const a=load(); say(a.length?a.length+" relevé(s) enregistré(s).":"Aucun relevé. Ouvre l'écran voulu, puis appuie sur Relevé."); }
+  function mount(){ if(document.getElementById("b2s-fab")) return; const f=document.createElement("button"); f.id="b2s-fab"; f.type="button"; f.textContent="B2";
+    f.setAttribute("aria-label","Sonde B2");
+    f.style.cssText="position:fixed;left:8px;bottom:calc(92px + env(safe-area-inset-bottom));z-index:2147483646;width:44px;height:44px;border-radius:22px;border:2px solid #fff;background:#b3261e;color:#fff;font:700 13px -apple-system,system-ui,sans-serif;box-shadow:0 3px 10px rgba(0,0,0,.35);opacity:.9";
+    f.onclick=open; document.body.appendChild(f); }
+  window.__b2sonde={ snapshot, selfCheck, compare, load, report:()=>report(), version:VERSION };
+  if(document.readyState==="loading") document.addEventListener("DOMContentLoaded",mount); else mount();
+})();
+</script>
 </body>
 </html>
