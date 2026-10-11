@@ -5968,6 +5968,7 @@ function renderSettings(){
     <div class="about" style="margin-bottom:8px">${_fxWhen?t("set.fxUpdated",{d:_fxWhen}):t("set.fxNever")}</div>
     <button class="btn navy block" id="setFxRefresh">↻ ${t("set.fxRefresh")}</button>
     <div class="about" style="margin-top:7px">${t("set.fxHint")}</div>`;
+  h+=bv2SettingsHtml();   /* B3.0 : ligne « Nouveau Budget (apercu) », sous les taux de change, sans etiquette section-label */
   h+=`<div class="section-label" style="margin-top:22px">${t("mb.title")}</div>
     <div class="seg">
       <button data-mb="on" class="${S.settings.mbSync?'on':''}">${t("set.autotrOn")}</button>
@@ -6013,6 +6014,7 @@ function renderSettings(){
   const gk=body.querySelector("#setGkeySave"); if(gk) gk.onclick=()=>{ S.settings.mapKey=(body.querySelector("#setGkey").value||"").trim(); saveState(); toast(t("set.gkeySaved")); if(currentTab==="explore") renderExplore(); };
   const an=body.querySelector("#setAgentNameSave"); if(an) an.onclick=()=>{ S.settings.agentName=(body.querySelector("#setAgentName").value||"").trim(); saveState(); toast(t("set.gkeySaved")); };
   const fxb=body.querySelector("#setFxRefresh"); if(fxb) fxb.onclick=async()=>{ const _o=fxb.textContent; fxb.disabled=true; fxb.textContent=t("set.fxRefreshing"); const ok=await refreshFxRates(); fxb.disabled=false; fxb.textContent=_o; if(ok){ toast(t("set.fxDone")); renderSettings(); if(document.getElementById("budgetBody")) renderBudget(); renderHome(); } else { toast(t("set.fxFail")); } };
+  bv2BindSettings(body);   /* B3.0 */
   body.querySelectorAll("[data-mb]").forEach(b=>b.onclick=()=>{ S.settings.mbSync=(b.dataset.mb==="on"); saveState(); renderSettings(); });
   const mb=body.querySelector("#setMbSave"); if(mb) mb.onclick=()=>{ S.settings.mbLink=(body.querySelector("#setMbLink").value||"").trim(); saveState(); toast(t("set.gkeySaved")); };
   const _ex=body.querySelector("#setExport"); if(_ex) _ex.onclick=()=>exportMyData();
@@ -7651,6 +7653,279 @@ function budgetFuelHypothesis(ref, conso){   /* ref = budgetPlanningFuel(tr) dej
   out.state="complete"; out.minor=Number(sum);
   out.b1User={ total:{ amount:_b2MinorToDecStr(out.minor,out.digits), currency:out.currency, basis:"fuel_consumption" } };   /* B1 : saisie d'origine fuel_consumption */
   return out; }
+/* ===== BUDGET V2 -- B3.0 FONDATIONS (spec B3-r3 §7, §8, §9, §12.8 ; GO technique GPT B3-r3, accord de Loic du 11 oct. 2026) =====
+   - Bloc NEUF, place APRES la zone gelee G-0.3 (B2) : il lit B1 (MagotB1) et B2 (_b2Dec, _b2ToMinor, _b2Digits,
+     _b2MinorToDecStr, _b2FuelFmt) sans jamais les modifier. G-0 (B1), G-0.2 (P6d) et G-0.3 (B2) restent identiques a l'octet.
+   - AUCUN ecran Budget V2 dans ce lot : le Budget V1 reste l'interface par defaut. Seule une ligne « Nouveau Budget (apercu) »
+     apparait dans Reglages ; elle n'agit que dans l'espace INVITE.
+   - Apercu V2 actif seulement si l'espace courant est l'invite ET qu'aucune synchronisation n'est possible (syncEnabled faux).
+     La condition est RELUE a chaque appel, jamais memorisee (§12.8 regle 1).
+   - bv2Mutate est le SEUL point d'ecriture de tr.budgetV2 : il capture l'espace (_storeId, _storeEpoch) au debut du geste et
+     refuse l'ecriture, sans rien modifier, si l'espace a change, s'il est en cours de chargement, si une synchronisation est
+     possible, ou si un rendu est en cours (§12.8 regle 2, §7.4).
+   - Montants V2 : entiers en unites mineures + devise explicite (table ISO 4217 du B1 gele). Les champs V1 gardent leur sens
+     (flottants en unites majeures) : ils sont LUS a chaque appel (migration paresseuse, §9) et ne sont ecrits en miroir par
+     bv2Mutate (tr.budget, tr.budgetAuto, tr.catBudgets) que si le geste change « Mon budget » (§9 regles 2, 3, 6).
+   - Aucun reseau, aucun appel a l'IA, aucun calcul de carburant, aucune ecriture pendant un rendu. */
+const BV2_SCHEMA_V=1;
+const BV2_KEYS=["v","travelersConfirmed","choice","margin","edits","taxPersons","envelopes","expenses","snapshots","notices"];   /* §7.3 */
+const BV2_POSTS=["ACCOMMODATION","TRANSPORT","MEALS","ACTIVITIES","PERSONAL"];   /* = MagotB1.POST_ORDER (controle par les tests B3.0) */
+const BV2_CAT_POST=Object.freeze(Object.assign(Object.create(null),{lodging:"ACCOMMODATION",transport:"TRANSPORT",food:"MEALS",activities:"ACTIVITIES",
+  groceries:"PERSONAL",shopping:"PERSONAL",souvenirs:"PERSONAL",nightlife:"PERSONAL",health:"PERSONAL",misc:"PERSONAL",reserve:"PERSONAL"}));   /* §6.8 (A6 : courses -> Personnel ; A7 : reserve -> Personnel, affiche « Autres ») ; sans prototype : « constructor » n'est pas une categorie */
+const BV2_POST_FIRST_CAT={ACCOMMODATION:"lodging",TRANSPORT:"transport",MEALS:"food",ACTIVITIES:"activities",PERSONAL:"groceries"};   /* §9 regle 6 : somme du poste sur sa premiere categorie */
+const BV2_ORIGINS=["typed","estimate_central","estimate_with_margin","migrated_v1"];
+const BV2_MAX_INT_DIGITS=12;   /* comme B1 (MAX_INT_DIGITS l. 6821) : au plus 12 chiffres en unites majeures */
+let _bv2Rendering=0;   /* > 0 pendant un rendu : toute ecriture V2 est refusee (§7.4) */
+const _bv2Has=(o,k)=>Object.prototype.hasOwnProperty.call(o,k);
+const _bv2CatOf=k=>(typeof k==="string"&&_bv2Has(BV2_CAT_POST,k))?k:"misc";
+
+/* ---------- unites monetaires (exactes, un seul arrondi) ---------- */
+function bv2Digits(cur){ return _b2Digits(cur); }   /* devise inconnue -> null, jamais 2 par defaut */
+function bv2ToMinor(x, cur){   /* flottant V1 en unites majeures -> entier en unites mineures (forme decimale la plus courte, demi-unite la plus eloignee de zero, arrondi seulement s'il y a plus de decimales que la devise) */
+  const d=_b2Digits(cur); if(d==null||typeof x!=="number"||!Number.isFinite(x)) return null;
+  const a=_b2Dec(Math.abs(x)); if(!a) return null; const m=_b2ToMinor(a,d);
+  if(m>BigInt(Number.MAX_SAFE_INTEGER)) return null; const n=Number(m); return (x<0&&n!==0)?-n:n; }
+function bv2FromMinor(minor, cur){   /* entier en unites mineures -> flottant V1 en unites majeures, valeur decimale exacte (miroirs, §9 regle 3) */
+  const d=_b2Digits(cur); if(d==null||!Number.isSafeInteger(minor)) return null;
+  const v=parseFloat(_b2MinorToDecStr(Math.abs(minor), d)); return minor<0?-v:v; }
+function bv2MaxMinor(cur){ const d=_b2Digits(cur); return d==null?null:Math.min(10**(BV2_MAX_INT_DIGITS+d)-1, 10**15-1); }   /* <= 10^15 - 1 (< MAX_SAFE_INTEGER) : aller-retour exact garanti, devises a 4 decimales comprises */
+function bv2Fmt(minor, cur){ return _b2FuelFmt(minor, cur); }   /* formateur general du V2 = meme rendu que le carburant B2 : decimales de la devise, centimes seulement s'ils ne sont pas nuls (B0 l. 779) */
+
+/* ---------- apercu V2 : espace invite seulement, relu a chaque appel ---------- */
+function bv2SyncedAccount(){ return _storeId!=="guest" || syncEnabled(); }
+function bv2PreviewWanted(){ return !!(S&&S.settings&&S.settings.budgetV2Preview===true); }
+function bv2PreviewActive(){ return bv2PreviewWanted() && !bv2SyncedAccount() && !_storeHydrating; }
+function bv2SetPreview(on){   /* reglage de l'espace INVITE (S.settings, jamais synchronise) ; aucune ecriture hors invite */
+  if(bv2SyncedAccount()) return {ok:false, code:"COMPTE_SYNCHRONISE"};
+  if(_storeHydrating) return {ok:false, code:"ESPACE_EN_CHARGEMENT"};
+  S.settings.budgetV2Preview=!!on; saveState(); return {ok:true}; }
+
+/* ---------- lecture de tr.budgetV2 (jamais d'ecriture) ---------- */
+function bv2Clone(x){ return x==null?x:JSON.parse(JSON.stringify(x)); }
+function bv2Default(){ return { v:BV2_SCHEMA_V, travelersConfirmed:false, choice:null, margin:{mode:"auto"}, edits:{}, taxPersons:null,
+  envelopes:[], expenses:{}, snapshots:{departure:null}, notices:{budgetAutoFrozen:false} }; }
+const _bv2Obj=x=>!!x&&typeof x==="object"&&!Array.isArray(x);
+const _bv2Int=x=>Number.isSafeInteger(x)&&x>=0;
+function _bv2NoUnderscore(x){ if(Array.isArray(x)) return x.every(_bv2NoUnderscore);
+  if(_bv2Obj(x)) return Object.keys(x).every(k=>k.charAt(0)!=="_"&&_bv2NoUnderscore(x[k])); return true; }
+function bv2Check(d){   /* schema §7.3 -> null si valide, sinon le code de la premiere anomalie */
+  if(!_bv2Obj(d)) return "FORME_INVALIDE";
+  for(const k of Object.keys(d)) if(BV2_KEYS.indexOf(k)<0) return "CHAMP_INCONNU";
+  if(!_bv2NoUnderscore(d)) return "CLE_RESERVEE";   /* convention de cache du code : aucune cle prefixee _ (persistance.md §7) */
+  if(d.v!==BV2_SCHEMA_V) return "VERSION_INCONNUE";
+  if(d.travelersConfirmed!==undefined&&typeof d.travelersConfirmed!=="boolean") return "VOYAGEURS_INVALIDE";
+  const c=d.choice;
+  if(c!=null){ if(!_bv2Obj(c)) return "BUDGET_INVALIDE";
+    if(typeof c.currency!=="string"||_b2Digits(c.currency)==null||c.currency.toUpperCase()!==c.currency) return "BUDGET_INVALIDE";
+    const max=bv2MaxMinor(c.currency); if(!_bv2Int(c.amountMinor)||c.amountMinor>max) return "BUDGET_INVALIDE";
+    if(BV2_ORIGINS.indexOf(c.origin)<0||!Number.isFinite(c.setAt)) return "BUDGET_INVALIDE";
+    if(c.estimateAtChoiceMinor!=null&&(!_bv2Int(c.estimateAtChoiceMinor)||c.estimateAtChoiceMinor>max)) return "BUDGET_INVALIDE";
+    if(c.estimateAtChoiceComplete!==undefined&&typeof c.estimateAtChoiceComplete!=="boolean") return "BUDGET_INVALIDE";
+    if(c.byPost!=null){ if(!_bv2Obj(c.byPost)) return "REPARTITION_INVALIDE"; let sum=0;
+      for(const [p,v] of Object.entries(c.byPost)){ if(BV2_POSTS.indexOf(p)<0||!_bv2Int(v)) return "REPARTITION_INVALIDE"; sum+=v; }
+      if(sum>c.amountMinor) return "REPARTITION_INVALIDE"; }
+    if(c.mirror!=null&&(!_bv2Obj(c.mirror)||typeof c.mirror.budget!=="number"||typeof c.mirror.currency!=="string"||(c.mirror.catBudgets!=null&&!_bv2Obj(c.mirror.catBudgets)))) return "MIROIR_INVALIDE"; }
+  const m=d.margin;
+  if(m!==undefined){ if(!_bv2Obj(m)) return "MARGE_INVALIDE";
+    const ok=(m.mode==="auto"||m.mode==="off")?Object.keys(m).length===1
+      :m.mode==="percent"?([0,5,10].indexOf(m.percent)>=0&&Object.keys(m).length===2)
+      :m.mode==="amount"?(_bv2Int(m.amountMinor)&&m.amountMinor<10**15&&Object.keys(m).length===2):false;
+    if(!ok) return "MARGE_INVALIDE"; }
+  if(d.edits!==undefined){ if(!_bv2Obj(d.edits)) return "SAISIES_INVALIDES";
+    for(const [k,v] of Object.entries(d.edits)) if(!/^[A-Za-z0-9_.:-]{1,80}$/.test(k)||!_bv2Obj(v)) return "SAISIES_INVALIDES"; }   /* cles = ids de ligne B1 (§7.2) */
+  const tp=d.taxPersons;
+  if(tp!=null&&(!_bv2Obj(tp)||!Number.isInteger(tp.value)||tp.value<0||tp.value>99||!Number.isFinite(tp.confirmedAt))) return "TAXE_INVALIDE";
+  if(d.envelopes!==undefined){ if(!Array.isArray(d.envelopes)) return "ENVELOPPES_INVALIDES";
+    for(const e of d.envelopes) if(!_bv2Obj(e)||typeof e.id!=="string"||!e.id||typeof e.label!=="string"||!Array.isArray(e.categories)) return "ENVELOPPES_INVALIDES"; }
+  if(d.expenses!==undefined){ if(!_bv2Obj(d.expenses)) return "DEPENSES_INVALIDES";
+    for(const x of Object.values(d.expenses)){ if(!_bv2Obj(x)||(x.kind!=="expense"&&x.kind!=="refund")) return "DEPENSES_INVALIDES";
+      if(x.lineId!=null&&typeof x.lineId!=="string") return "DEPENSES_INVALIDES";
+      if((x.settles!==undefined&&typeof x.settles!=="boolean")||(x.settlesTax!==undefined&&typeof x.settlesTax!=="boolean")) return "DEPENSES_INVALIDES";
+      if(x.kind==="refund"&&(x.settles===true||x.settlesTax===true)) return "DEPENSES_INVALIDES";   /* r3 : pas de bascule pour un remboursement */
+      if(x.settlesTax===true&&x.settles!==true) return "DEPENSES_INVALIDES";
+      if(x.fx!=null&&!bv2FxSourced(x.fx)) return "DEPENSES_INVALIDES";
+      if(typeof x.digest!=="string") return "DEPENSES_INVALIDES"; } }
+  if(d.snapshots!==undefined&&!_bv2Obj(d.snapshots)) return "INSTANTANES_INVALIDES";
+  if(d.notices!==undefined&&!_bv2Obj(d.notices)) return "MESSAGES_INVALIDES";
+  return null; }
+function bv2Store(tr){   /* LECTURE seule : copie normalisee de tr.budgetV2. N'ecrit jamais, n'appelle jamais saveState */
+  const out={ present:false, readOnly:false, reason:null, data:bv2Default() };
+  const raw=tr?tr.budgetV2:undefined; if(raw==null) return out;
+  out.present=true;
+  if(!_bv2Obj(raw)){ out.readOnly=true; out.reason="FORME_INVALIDE"; return out; }
+  if(raw.v!==BV2_SCHEMA_V){ out.readOnly=true; out.reason="VERSION_INCONNUE"; return out; }   /* version future ou inconnue : lue comme absente, jamais reecrite */
+  let c; try{ c=bv2Clone(raw); }catch(_e){ out.readOnly=true; out.reason="FORME_INVALIDE"; return out; }
+  const err=bv2Check(c); if(err){ out.readOnly=true; out.reason=err; return out; }   /* donnee invalide : jamais ecrasee sans un geste explicite d'un lot ulterieur */
+  out.data=Object.assign(bv2Default(), c); return out; }
+
+/* ---------- migration paresseuse : vue V2 des champs V1, LUE a chaque appel (§9) ---------- */
+function bv2ByPostFromCat(catBudgets, cur){   /* tr.catBudgets (majeures, par categorie) -> {byPost (mineures, par poste), unallocatedMinor (reserve)} ; null si rien d'exploitable */
+  if(!_bv2Obj(catBudgets)) return null; const byPost={}; let any=false, unalloc=0;
+  for(const k of Object.keys(catBudgets)){ const v=catBudgets[k]; if(typeof v!=="number"||!Number.isFinite(v)||v<=0) continue;
+    const mi=bv2ToMinor(v,cur); if(mi==null) return null;
+    if(k==="reserve"){ unalloc+=mi; any=true; continue; }   /* §9 : la reserve V1 va dans « non reparti » */
+    const p=BV2_CAT_POST[_bv2CatOf(k)]; byPost[p]=(byPost[p]||0)+mi; any=true; }
+  return any?{byPost, unallocatedMinor:unalloc}:null; }
+function _bv2CatMinor(cat, cur){   /* categories V1 en mineures, cles triees : comparaison exacte avec un miroir */
+  const o={}; if(!_bv2Obj(cat)) return o; for(const k of Object.keys(cat).sort()){ const v=cat[k]; const mi=(typeof v==="number"&&Number.isFinite(v))?bv2ToMinor(v,cur):null; if(mi) o[k]=mi; } return o; }
+function bv2ExpenseDigest(e){ return String(e&&e.amount)+"|"+String((e&&e.currency)||"")+"|"+String((e&&e.date)||"")+"|"+String((e&&e.category)||""); }   /* §9 regle 4 : montant|devise|date|categorie */
+function _bv2DigestParts(s){ if(typeof s!=="string") return null; const p=s.split("|"); if(p.length!==4) return null; return {amount:p[0],currency:p[1],date:p[2],category:p[3]}; }
+function bv2FxSourced(fx){   /* taux V2 = chaine decimale (<= 10 decimales, non nulle) + date effective du fournisseur + source ; JAMAIS le fxRate V1 */
+  return _bv2Obj(fx)&&typeof fx.rate==="string"&&/^\d+(\.\d{1,10})?$/.test(fx.rate)&&!/^0+(\.0+)?$/.test(fx.rate)
+    &&typeof fx.date==="string"&&/^\d{4}-\d{2}-\d{2}$/.test(fx.date)&&typeof fx.source==="string"&&fx.source.length>0; }
+function bv2ReadExpenses(tr, data){   /* depenses V1 -> enregistrements V2 (unites mineures). Le fxRate V1 n'est jamais repris (A11) */
+  const cur=String((tr&&tr.currency)||"EUR").toUpperCase(), d=data||bv2Store(tr).data;
+  return ((tr&&tr.expenses)||[]).filter(_bv2Obj).map(e=>{
+    const ecur=String(e.currency||cur).toUpperCase(), amt=(typeof e.amount==="number"&&Number.isFinite(e.amount))?e.amount:null;
+    const sm=amt==null?null:bv2ToMinor(amt,ecur), cat=_bv2CatOf(e.category);
+    const rec={ id:String(e.id||""), kind:(amt!=null&&amt<0)?"refund":"expense", minor:sm==null?null:Math.abs(sm), currency:ecur,
+      category:cat, post:BV2_CAT_POST[cat], otherLabel:e.category==="reserve", date:e.date||null, ticket:e.ticket===true,
+      fx:null, fxStatus:sm==null?"invalid":(ecur===cur?"trip":"toRefresh"), lineId:null, settles:false, settlesTax:false,
+      digest:bv2ExpenseDigest(e), changedOutsideV2:false };
+    const c=(rec.id&&_bv2Obj(d.expenses)&&_bv2Has(d.expenses,rec.id))?d.expenses[rec.id]:null;
+    if(c){ const was=_bv2DigestParts(c.digest), now=_bv2DigestParts(rec.digest);
+      rec.changedOutsideV2=c.digest!==rec.digest;   /* modifiee par le V1 ou une ancienne version : la donnee V1 fait foi */
+      const sameMoney=!!was&&was.amount===now.amount&&was.currency===now.currency, sameCat=!!was&&was.category===now.category;
+      if(sameMoney&&ecur!==cur&&sm!=null&&bv2FxSourced(c.fx)){ rec.fx=bv2Clone(c.fx); rec.fxStatus="sourced"; }   /* E16 : le taux fige survit a un changement de date seule */
+      if(sameCat){ rec.lineId=(typeof c.lineId==="string")?c.lineId:null; rec.settles=rec.kind==="expense"&&c.settles===true; rec.settlesTax=rec.settles&&c.settlesTax===true; } }
+    else if(rec.ticket&&rec.kind==="expense"){ rec.lineId="ticket.main"; rec.settles=true; }   /* §9 : billet V1 deja paye, lie a ticket.main et solde */
+    return rec; }); }
+function _bv2V1Split(tr, cur, amt){   /* repartition V1 reprise si coherente (somme des postes <= budget) */
+  const bp=bv2ByPostFromCat(tr&&tr.catBudgets,cur); if(!bp) return null;
+  const sum=Object.values(bp.byPost).reduce((a,b)=>a+b,0); return sum<=amt?{byPost:bp.byPost, unallocatedMinor:amt-sum}:null; }
+function bv2ReadV1(tr){   /* §9 : ce que le V2 affichera, lu sur les champs V1 tant que budgetV2 ne les a pas pris en charge. Aucune ecriture */
+  const st=bv2Store(tr), d=st.data, cur=String((tr&&tr.currency)||"EUR").toUpperCase();
+  const r={ currency:cur, digits:_b2Digits(cur), present:st.present, readOnly:st.readOnly, reason:st.reason, choice:null, choiceSource:null,
+    byPostSource:null, changedByV1:false, changedByV1Fields:[], needsAutoFreeze:false, expenses:[], errors:[] };
+  if(r.digits==null) r.errors.push("DEVISE_INVALIDE");
+  const v1=(tr&&typeof tr.budget==="number"&&Number.isFinite(tr.budget)&&tr.budget>0)?tr.budget:0;
+  const fromV1=()=>{ const amt=bv2ToMinor(v1,cur); if(amt==null||amt===0) return null; const sp=_bv2V1Split(tr,cur,amt);
+    return { amountMinor:amt, currency:cur, origin:"migrated_v1", byPost:sp?sp.byPost:null, unallocatedMinor:sp?sp.unallocatedMinor:null }; };
+  if(d.choice){ const mi=d.choice.mirror, f=[];
+    if(d.choice.currency!==cur) f.push("currency");   /* le V1 a change la devise du voyage (sans conversion) */
+    if(mi){ const mb=bv2ToMinor(mi.budget,mi.currency), now=bv2ToMinor(v1,cur);
+      if(mi.currency!==cur||mb==null||now==null||mb!==now) f.push("budget");
+      if(mi.catBudgets!=null&&JSON.stringify(_bv2CatMinor(mi.catBudgets,mi.currency))!==JSON.stringify(_bv2CatMinor(tr&&tr.catBudgets,cur))) f.push("catBudgets"); }
+    if(f.length){ r.changedByV1=true; r.changedByV1Fields=Array.from(new Set(f)); const x=fromV1(); r.choice=x; r.choiceSource=x?"v1":null; r.byPostSource=x&&x.byPost?"v1":null; }   /* §9 regle 5 : la valeur ancienne fait foi */
+    else { r.choice=bv2Clone(d.choice); r.choiceSource="v2";
+      if(r.choice.byPost){ r.byPostSource="v2"; r.choice.unallocatedMinor=r.choice.amountMinor-Object.values(r.choice.byPost).reduce((a,b)=>a+b,0); }
+      else { const sp=_bv2V1Split(tr,cur,r.choice.amountMinor); r.choice.byPost=sp?sp.byPost:null; r.choice.unallocatedMinor=sp?sp.unallocatedMinor:null; r.byPostSource=sp?"v1":null; } } }   /* repartition pas encore prise en charge : lue dans le V1 */
+  else if(v1>0){ const x=fromV1(); if(x){ r.choice=x; r.choiceSource="v1"; r.byPostSource=x.byPost?"v1":null; } }
+  r.needsAutoFreeze=!!tr&&tr.budgetAuto===true&&v1>0;   /* exception declaree §7.4 : gel unique, refait si le V1 le reactive */
+  r.expenses=bv2ReadExpenses(tr,d);
+  return r; }
+
+/* ---------- moteur B1 : interception de BudgetInputError ---------- */
+function bv2Run(input){   /* appel UNIQUE du moteur gele ; une entree refusee rend {ok:false, code}, jamais une exception dans l'interface */
+  try{ return {ok:true, result:MagotB1.estimateBudgetV2(input)}; }
+  catch(e){ if(e instanceof MagotB1.BudgetInputError) return {ok:false, code:e.code||"ENTREE_INVALIDE"};
+    try{ console.error("bv2Run",e); }catch(_e){} return {ok:false, code:"ERREUR_INTERNE"}; } }
+
+/* ---------- ecriture : bv2Mutate, seul point d'ecriture (§7.1, §9, §12.8) ---------- */
+function bv2Capture(){ return {storeId:_storeId, epoch:_storeEpoch}; }   /* a appeler au DEBUT du geste */
+function bv2RenderGuard(fn){ _bv2Rendering++; try{ return fn(); } finally{ _bv2Rendering--; } }   /* tout rendu V2 passe par ici */
+function bv2AfterRender(fn){ queueMicrotask(fn); }   /* les deux ecritures differees declarees (§7.4) partent apres le rendu */
+function _bv2ChoiceKey(c){ if(!c) return "null"; const x={}; for(const k of Object.keys(c).sort()) if(k!=="mirror") x[k]=c[k]; return JSON.stringify(x); }   /* ordre des cles indifferent */
+function _bv2SplitKey(bp){ if(!_bv2Obj(bp)) return "null"; const x={}; for(const k of Object.keys(bp).sort()) if(bp[k]>0) x[k]=bp[k]; return Object.keys(x).length?JSON.stringify(x):"null"; }
+function _bv2Mirrors(tr, before, draft, div){   /* §9 regles 2, 3, 5 et 6 : miroir V1 ecrit champ par champ, seulement pour ce que le geste change */
+  const w={}, cur=String(tr.currency||"EUR").toUpperCase(), c=draft.choice, b0=before&&before.choice;
+  if(_bv2ChoiceKey(b0)===_bv2ChoiceKey(c)){ if(c){ if(b0&&b0.mirror) c.mirror=b0.mirror; else delete c.mirror; } return {ok:true, writes:w}; }   /* geste sans rapport avec « Mon budget » : le V1 n'est pas touche */
+  const v1=(typeof tr.budget==="number"&&Number.isFinite(tr.budget)&&tr.budget>0)?bv2ToMinor(tr.budget,cur):0;   /* null : devise du voyage inconnue */
+  const adoption=c?(c.currency===cur&&v1>0&&c.amountMinor===v1&&!c.byPost)   /* le geste reprend exactement le budget V1, sans repartition V2 (gel, ou reprise apres une modification V1) */
+    :(v1===0||v1==null||(!!b0&&b0.currency!==cur));   /* retrait quand le V1 n'a pas de budget utilisable dans sa devise : le V1 reste tel quel */
+  if(!adoption){ if(div&&div.length) return {ok:false, code:"MODIFIE_PAR_V1"};   /* §9 regle 5 : la valeur V1 fait foi ; elle doit etre reprise (bv2AdoptV1) avant tout autre geste sur « Mon budget » */
+    if(tr.budgetAuto===true&&v1>0) return {ok:false, code:"GEL_REQUIS"}; }   /* le V1 recalcule encore un budget : le gel (bv2FreezeBudgetAuto) passe d'abord, avec son message */
+  const keys=new Set(Object.keys(BV2_CAT_POST)); if(_bv2Obj(tr.catBudgets)) for(const k of Object.keys(tr.catBudgets)) keys.add(k);
+  if(c){ if(c.currency!==cur) return {ok:false, code:"DEVISE_DIFFERENTE"};
+    const budgetChanged=!b0||b0.amountMinor!==c.amountMinor||b0.currency!==c.currency;
+    const splitChanged=_bv2SplitKey(b0&&b0.byPost)!==_bv2SplitKey(c.byPost);
+    const mirror={ budget:(b0&&b0.mirror)?b0.mirror.budget:null, currency:cur, catBudgets:(b0&&b0.mirror)?b0.mirror.catBudgets:null };
+    if(budgetChanged){ const b=bv2FromMinor(c.amountMinor,cur); if(b==null) return {ok:false, code:"DEVISE_INVALIDE"}; w.budget=b; mirror.budget=b; }
+    if(c.byPost&&(splitChanged||budgetChanged)){ const cat=Object.assign({}, _bv2Obj(tr.catBudgets)?tr.catBudgets:{}); let sum=0;
+      for(const k of keys) cat[k]=0;   /* toutes les categories V1, connues ou non : la somme V1 reste egale au budget */
+      for(const p of BV2_POSTS){ const v=c.byPost[p]||0; sum+=v; cat[BV2_POST_FIRST_CAT[p]]=bv2FromMinor(v,cur); }
+      cat.reserve=bv2FromMinor(c.amountMinor-sum,cur);   /* non reparti -> reserve V1 */
+      w.catBudgets=cat; mirror.catBudgets=bv2Clone(cat); }
+    else if(!c.byPost&&splitChanged) mirror.catBudgets=null;   /* la repartition redevient celle du V1 : catBudgets n'est pas touche */
+    if(tr.budgetAuto!==false) w.budgetAuto=false;   /* un budget choisi dans le V2 est fige : le V1 ne doit plus le recalculer */
+    if(mirror.budget==null){ const b=bv2FromMinor(c.amountMinor,cur); mirror.budget=b; }
+    c.mirror=mirror; }
+  else if(b0){ if(adoption) return {ok:true, writes:w};   /* reprise : le V1 (sans budget, ou dans une autre devise) reste exactement tel quel */
+    w.budget=0; if(tr.budgetAuto!==false) w.budgetAuto=false;   /* « Mon budget » retire dans le V2 : le V1 n'affiche plus l'ancien montant */
+    if(b0.byPost&&_bv2Obj(tr.catBudgets)&&!(div&&div.indexOf("catBudgets")>=0)){ const cat=Object.assign({}, tr.catBudgets); for(const k of keys) cat[k]=0; w.catBudgets=cat; } }   /* repartition remise a 0 seulement si le V2 l'avait prise en charge */
+  return {ok:true, writes:w}; }
+function bv2Mutate(tr, fn, gesture){
+  const g=gesture||bv2Capture();
+  if(_bv2Rendering>0) return {ok:false, code:"ECRITURE_PENDANT_RENDU"};
+  if(!g||g.storeId!==_storeId||g.epoch!==_storeEpoch) return {ok:false, code:"ESPACE_CHANGE"};
+  if(bv2SyncedAccount()) return {ok:false, code:"COMPTE_SYNCHRONISE"};
+  if(_storeHydrating) return {ok:false, code:"ESPACE_EN_CHARGEMENT"};
+  if(!bv2PreviewWanted()) return {ok:false, code:"APERCU_INACTIF"};
+  if(!tr||!S||!Array.isArray(S.trips)||S.trips.indexOf(tr)<0) return {ok:false, code:"VOYAGE_ABSENT"};   /* objet du S courant, jamais une copie perimee */
+  const st=bv2Store(tr); if(st.readOnly) return {ok:false, code:st.reason||"LECTURE_SEULE"};
+  const before=bv2Clone(st.data), draft=bv2Clone(st.data), div=bv2ReadV1(tr).changedByV1Fields; let res;
+  try{ res=fn(draft); }catch(_e){ return {ok:false, code:"GESTE_ERREUR"}; }
+  if(res&&typeof res.then==="function") return {ok:false, code:"GESTE_ASYNCHRONE"};   /* le geste doit etre synchrone : aucune ecriture differee hors garde */
+  if(res===false) return {ok:false, code:"ANNULE"};
+  draft.v=BV2_SCHEMA_V; const err=bv2Check(draft); if(err) return {ok:false, code:err};
+  const m=_bv2Mirrors(tr, before, draft, div); if(!m.ok) return m;
+  if(bv2Check(draft)) return {ok:false, code:"MIROIR_INVALIDE"};
+  if(g.storeId!==_storeId||g.epoch!==_storeEpoch||bv2SyncedAccount()||_storeHydrating||S.trips.indexOf(tr)<0) return {ok:false, code:"ESPACE_CHANGE"};   /* revalide juste avant d'ecrire (le geste a pu changer d'espace) */
+  tr.budgetV2=draft; for(const k of Object.keys(m.writes)) tr[k]=m.writes[k];
+  tr._ts=Date.now(); saveState(); return {ok:true, mirrored:Object.keys(m.writes)}; }
+function _bv2AdoptedChoice(tr){   /* « Mon budget » repris tel quel du V1 : montant V1, repartition laissee au V1 (byPost null) */
+  const cur=String((tr&&tr.currency)||"EUR").toUpperCase(), v1=(tr&&typeof tr.budget==="number"&&Number.isFinite(tr.budget)&&tr.budget>0)?bv2ToMinor(tr.budget,cur):0;
+  if(v1==null) return {ok:false, code:"DEVISE_INVALIDE"};
+  return {ok:true, choice:v1>0?{ amountMinor:v1, currency:cur, origin:"migrated_v1", setAt:Date.now(), estimateAtChoiceMinor:null, estimateAtChoiceComplete:false, byPost:null }:null, minor:v1}; }
+function bv2AdoptV1(tr, gesture){   /* geste « reprendre la valeur de l'ancien Budget » apres une modification V1 (§9 regle 5) */
+  if(bv2ReadV1(tr).needsAutoFreeze) return bv2FreezeBudgetAuto(tr, gesture);   /* gel du : il passe avec son message */
+  const a=_bv2AdoptedChoice(tr); if(!a.ok) return a; return bv2Mutate(tr, d=>{ d.choice=a.choice; }, gesture); }
+function bv2FreezeBudgetAuto(tr, gesture){   /* §9 : gel unique de budgetAuto (exception declaree §7.4) ; a lancer par bv2AfterRender.
+     C'est une reprise du V1 : seuls le budget et budgetAuto sont figes, la repartition V1 (catBudgets) n'est pas reecrite. */
+  const r=bv2ReadV1(tr); if(!r.needsAutoFreeze) return {ok:true, done:false};
+  const a=_bv2AdoptedChoice(tr); if(!a.ok) return a;
+  const out=bv2Mutate(tr, d=>{ d.choice=a.choice;
+    d.notices=Object.assign({}, d.notices, {budgetAutoFrozen:true, budgetAutoFrozenAt:Date.now(), budgetAutoFrozenMinor:a.minor}); }, gesture);
+  return Object.assign({done:out.ok}, out); }
+
+/* ---------- Reglages : une ligne « Nouveau Budget (apercu) » (A14), sans nouvelle etiquette section-label (setGroupize) ---------- */
+const BV2_TXT={
+  fr:{title:"Nouveau Budget (aperçu)",on:"Activé",off:"Désactivé",
+      hintOff:"En préparation. L’ancien Budget reste affiché ; tes dépenses et ton budget ne changent pas.",
+      hintOn:"Aperçu activé pour les essais. Le nouveau Budget n’a pas encore d’écran : l’ancien reste affiché, avec tes dépenses et ton budget inchangés.",
+      synced:"Indisponible avec un compte synchronisé pour l’instant : tes données pourraient être écrasées par un autre appareil. L’aperçu ne fonctionne que sans compte connecté.",
+      loading:"Chargement de tes données en cours : réessaie dans un instant."},
+  en:{title:"New Budget (preview)",on:"On",off:"Off",
+      hintOff:"In preparation. The current Budget stays on screen; your expenses and budget do not change.",
+      hintOn:"Preview on for testing. The new Budget has no view yet: the current one stays on screen, with your expenses and budget unchanged.",
+      synced:"Not available with a synced account for now: another device could overwrite your data. The preview only works without a signed-in account.",
+      loading:"Your data is still loading: try again in a moment."},
+  es:{title:"Nuevo Presupuesto (vista previa)",on:"Activada",off:"Desactivada",
+      hintOff:"En preparación. El Presupuesto actual sigue en pantalla; tus gastos y tu presupuesto no cambian.",
+      hintOn:"Vista previa activada para pruebas. El nuevo Presupuesto aún no tiene vista propia: el actual sigue en pantalla, sin cambios en tus gastos ni en tu presupuesto.",
+      synced:"No disponible por ahora con una cuenta sincronizada: otro dispositivo podría sobrescribir tus datos. La vista previa solo funciona sin una cuenta conectada.",
+      loading:"Tus datos aún se están cargando: inténtalo de nuevo en un momento."},
+  it:{title:"Nuovo Budget (anteprima)",on:"Attiva",off:"Disattiva",
+      hintOff:"In preparazione. Il Budget attuale resta visibile; le tue spese e il tuo budget non cambiano.",
+      hintOn:"Anteprima attivata per le prove. Il nuovo Budget non ha ancora una sua schermata: resta visibile quello attuale, con spese e budget invariati.",
+      synced:"Per ora non disponibile con un account sincronizzato: un altro dispositivo potrebbe sovrascrivere i tuoi dati. L’anteprima funziona solo senza un account connesso.",
+      loading:"I tuoi dati sono ancora in caricamento: riprova tra un momento."},
+  de:{title:"Neues Budget (Vorschau)",on:"An",off:"Aus",
+      hintOff:"In Vorbereitung. Das bisherige Budget bleibt sichtbar; deine Ausgaben und dein Budget ändern sich nicht.",
+      hintOn:"Vorschau zum Testen aktiv. Das neue Budget hat noch keine eigene Ansicht: das bisherige bleibt sichtbar, Ausgaben und Budget unverändert.",
+      synced:"Mit einem synchronisierten Konto vorerst nicht verfügbar: ein anderes Gerät könnte deine Daten überschreiben. Die Vorschau funktioniert nur ohne angemeldetes Konto.",
+      loading:"Deine Daten werden noch geladen: versuche es gleich noch einmal."}
+};
+function bv2SettingsHtml(){   /* place sous les taux de change, dans le groupe « Fonctionnement », separee par un filet */
+  const T=BV2_TXT[lang()]||BV2_TXT.fr, synced=bv2SyncedAccount(), on=bv2PreviewWanted()&&!synced;
+  const dis=synced?' disabled aria-disabled="true" style="min-height:44px;opacity:.45;cursor:not-allowed"':' style="min-height:44px"';   /* zones tactiles >= 44 px */
+  return `<div style="height:1px;background:var(--line-soft,#EEF1F7);margin:18px 0 14px"></div><div class="set-subt" id="setBv2Lbl" style="margin-bottom:8px">${T.title}</div>
+    <div class="seg" role="group" aria-labelledby="setBv2Lbl"><button type="button" data-bv2="on" class="${on?'on':''}" aria-pressed="${on}"${dis}>${T.on}</button><button type="button" data-bv2="off" class="${on?'':'on'}" aria-pressed="${!on}"${dis}>${T.off}</button></div>
+    <div class="about" id="setBv2Hint" style="margin-top:7px">${synced?T.synced:(on?T.hintOn:T.hintOff)}</div>`; }
+function bv2BindSettings(body){
+  body.querySelectorAll("[data-bv2]").forEach(b=>b.onclick=()=>{ const r=bv2SetPreview(b.dataset.bv2==="on");
+    if(!r.ok){ const T=BV2_TXT[lang()]||BV2_TXT.fr; toast(r.code==="ESPACE_EN_CHARGEMENT"?T.loading:T.synced); } renderSettings(); }); }
+/* ===== fin BUDGET V2 -- B3.0 ===== */
 /* FUEL-R1 : table statique FUEL_BY_CC supprimee -- aucun prix carburant/energie non source, dans aucun pays. */
 /* FUEL-R1 : fuelPrice() (table statique) supprimee. */
 /* ============================================================
