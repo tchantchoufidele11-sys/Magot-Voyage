@@ -7926,6 +7926,216 @@ function bv2BindSettings(body){
   body.querySelectorAll("[data-bv2]").forEach(b=>b.onclick=()=>{ const r=bv2SetPreview(b.dataset.bv2==="on");
     if(!r.ok){ const T=BV2_TXT[lang()]||BV2_TXT.fr; toast(r.code==="ESPACE_EN_CHARGEMENT"?T.loading:T.synced); } renderSettings(); }); }
 /* ===== fin BUDGET V2 -- B3.0 ===== */
+/* ===== BUDGET V2 -- B3.1 ADAPTATEURS (spec B3 §13, B3.1-SPEC r3 accepte par GPT ; accord de Loic du 11 oct. 2026) =====
+   - Six fonctions : bv2Legs, bv2Nights, bv2Lines, bv2Fx, bv2Inputs, bv2Estimate. Aucun ecran, aucun geste, aucun reseau.
+   - Lecture seule : le voyage est lu sur une COPIE, y compris par les fonctions B2 gelees (budgetPlanningFuel,
+     _b2DayNeedsRoute, _b2PlannedGet) : normalizeLegs reecrit tr.legs, tr.dest, tr.lodging et tr.lodgingAddr (E18) ; sur la
+     copie, B2 rend la meme signature et lit les memes presentations en cache. Le vrai voyage n'est jamais modifie.
+   - Aucun candidat tire d'une table statique du V1 (HOTEL_NIGHTLY, PRICE_MEAL, ACT_COST, TAXI_*, FX) ni du seul priceLevel.
+   - Decisions de Loic (§13.8) : Q1-a, Q2-a, Q3-a, Q4-a, Q5-a, Q6-b ; A3-a, A10-a, A11-a, A12-a, A13-a ; A22-a, A23-a. */
+const BV2_VISIT_KINDS=["place","culture","nature","hike","beach","sport","relax"];   /* A13-a */
+const BV2_MAX_DAYS=366, BV2_MAX_TRAVELERS=99;   /* bornes de l'entree B1 (lecture stricte l. 113-114 du moteur) */
+const BV2_TAX_STATUS=["included","excluded","unknown"];
+const BV2_FX_SRC="open.er-api.com (Exchange Rate API)", BV2_FX_PARITY="parite fixe BEAC/BCEAO";
+const _bv2IdOk=s=>typeof s==="string"&&/^[A-Za-z0-9_.:-]{1,80}$/.test(s);
+const _bv2CurOf=tr=>(tr&&typeof tr.currency==="string"&&tr.currency)?tr.currency.toUpperCase():null;   /* JAMAIS de repli sur EUR (§13.2) : devise absente -> null, refusee par bv2Inputs */
+const _bv2InTable=c=>typeof c==="string"&&_bv2Has(MagotB1.CURRENCIES,c);   /* table fermee du B1 gele (BGN refuse, Q6) */
+
+/* ---------- decimaux exacts (chaines attendues par B1, jamais d'exposant) ---------- */
+function _bv2DecStr(x){   /* nombre JS >= 0 -> chaine decimale exacte de sa forme la plus courte ; null si invalide */
+  if(typeof x!=="number"||!Number.isFinite(x)||x<0) return null; const a=_b2Dec(x); if(!a) return null;
+  if(a.s===0) return a.n.toString(); const t=a.n.toString().padStart(a.s+1,"0");
+  return (t.slice(0,-a.s)+"."+t.slice(-a.s)).replace(/0+$/,"").replace(/\.$/,""); }
+function _bv2Mid(lo, hi){   /* milieu EXACT de deux nombres >= 0 (fourchette Google) */
+  const a=_b2Dec(lo), b=_b2Dec(hi); if(!a||!b) return null; const s=Math.max(a.s,b.s);
+  const n=a.n*(10n**BigInt(s-a.s))+b.n*(10n**BigInt(s-b.s));   /* somme a l'echelle s */
+  const q=n*5n, sc=s+1;   /* (somme / 2) = somme x 5 / 10 : echelle s+1, exact */
+  const t=q.toString().padStart(sc+1,"0"); return (t.slice(0,-sc)+"."+t.slice(-sc)).replace(/0+$/,"").replace(/\.$/,""); }
+function _bv2RateStr(num, den){   /* num / den (decimaux {n,s} > 0) a 10 decimales au plus, demi-unite la plus proche ; null si 0 apres arrondi */
+  const N=num.n*(10n**BigInt(den.s))*(10n**10n), D=den.n*(10n**BigInt(num.s)); if(D===0n) return null;
+  const q=(2n*N+D)/(2n*D); if(q===0n) return null;   /* garde §13.4 : un taux nul ferait tomber toute l'entree B1 (l. 120) */
+  const t=q.toString().padStart(11,"0"); return (t.slice(0,-10)+"."+t.slice(-10)).replace(/0+$/,"").replace(/\.$/,""); }
+
+/* ---------- etapes et nuits (copie, jamais le vrai voyage) ---------- */
+function _bv2Copy(tr){ try{ return structuredClone(tr); }catch(_e){ return bv2Clone(tr); } }
+function bv2Legs(tr){   /* etapes normalisees sur une COPIE ; cle stable : hotel.main pour une seule etape (Q4-a) */
+  const cp=_bv2Copy(tr), legs=normalizeLegs(cp), D=Math.max(1,tripDays(cp).length);
+  const realIds=new Set((Array.isArray(tr&&tr.legs)?tr.legs:[]).filter(l=>l&&l.id).map(l=>String(l.id)));
+  const out=legs.map((l,k)=>{ let key, unstable=false;
+    if(legs.length===1) key="main";
+    else if(l.id&&realIds.has(String(l.id))&&_bv2IdOk("hotel."+l.id)) key=String(l.id);
+    else { key="d"+l.dayFrom; unstable=true; }   /* identifiant absent du vrai voyage : cle de repli deterministe, declaree */
+    return { key, unstable, leg:l, index:k, dayFrom:l.dayFrom, dayTo:l.dayTo, nights:bv2Nights(l.dayFrom,l.dayTo,D) }; });
+  return { copy:cp, days:D, legs:out }; }
+function bv2Nights(dayFrom, dayTo, D){   /* nuit du jour d (0..D-2) = etape du jour d ; on change d'etape le jour dayFrom de la suivante (l. 5364) */
+  return Math.max(0, Math.min(dayTo, D-2)-dayFrom+1); }
+
+/* ---------- lignes B1 (§13.3) ---------- */
+function _bv2Edit(data, id){ const e=data&&data.edits&&_bv2Has(data.edits,id)?data.edits[id]:null; return _bv2Obj(e)?e:null; }
+function _bv2UserOf(edit){ return (edit&&_bv2Obj(edit.user)&&Object.keys(edit.user).length)?bv2Clone(edit.user):null; }
+function _bv2Priced(u){ return !!(u&&(u.total!==undefined||u.unitPrice!==undefined||u.zero!==undefined)); }
+function _bv2WithTaxStatus(u, st){   /* §7.3 : le statut de taxe garde cote V2 part avec le prix de l'hotel */
+  if(!u||BV2_TAX_STATUS.indexOf(st)<0) return u;
+  for(const k of ["total","unitPrice","zero"]) if(_bv2Obj(u[k])&&u[k].touristTaxStatus===undefined) u[k].touristTaxStatus=st;
+  return u; }
+function _bv2MoneyCurrencies(u){ const o=[]; if(!u) return o; for(const k of ["total","unitPrice"]) if(_bv2Obj(u[k])&&typeof u[k].currency==="string") o.push(u[k].currency); return o; }
+function bv2Lines(tr){   /* adaptateurs voyage -> lignes B1 + meta par ligne (saisies retenues, etats d'affichage) ; n'ecrit rien */
+  const st=bv2Store(tr), data=st.readOnly?bv2Default():st.data, cur=_bv2CurOf(tr); if(!_bv2InTable(cur)) return { lines:[], meta:{}, notes:["DEVISE_VOYAGE_NON_PRISE_EN_CHARGE"], travelers:null, days:0 };
+  const T=(Number.isInteger(tr&&tr.travelers)&&tr.travelers>=1&&tr.travelers<=BV2_MAX_TRAVELERS)?tr.travelers:null;
+  const L=bv2Legs(tr), cp=L.copy, D=L.days, lines=[], meta={}, notes=[];
+  if(st.readOnly) notes.push("BUDGETV2_LECTURE_SEULE:"+(st.reason||""));
+  const add=(line, user, m)=>{   /* invariant de transmission (§7.1, §13.3) : une saisie non transmissible est gardee, jamais envoyee */
+    const held=[]; let u=user;
+    if(u&&line.applicable===false){ held.push("LIGNE_NON_CONCERNEE"); u=null; }
+    if(u&&_bv2Priced(u)&&Array.isArray(line.factors)&&line.factors.some(f=>{ const o=_bv2Obj(u.factors)&&u.factors[f.key]!==undefined?u.factors[f.key]:f.value; return /^0+(\.0+)?$/.test(String(o)); })){ held.push("QUANTITE_NULLE"); u=null; }   /* facteur effectif = saisie, sinon valeur auto (B1 quantityOf) */
+    if(u&&m&&m.taxBlocked&&_bv2Priced(u)){ held.push(m.taxBlocked); u=null; }
+    if(u&&_bv2MoneyCurrencies(u).some(c=>!_bv2InTable(c))){ held.push("DEVISE_RETIREE"); u=null; }
+    if(u) line.user=u;
+    lines.push(line); meta[line.id]=Object.assign({held}, m||{}); delete meta[line.id].taxBlocked; return line; };
+  const plane=tr&&(tr.transport==="plane"||tr.transport==="boat");
+  /* carburant (pont B2 gele) */
+  const ref=budgetPlanningFuel(cp), car=!!ref.applicable;   /* B2 lu sur la copie : meme signature, memes presentations en cache (verifie), aucune ecriture dans le vrai voyage */
+  if(car){ const e=_bv2Edit(data,"fuel"); let u=null; const m={fuelState:ref.state};
+    const conso=e&&e.conso!=null?Number(e.conso):NaN;
+    if(Number.isFinite(conso)&&conso>0){ const h=budgetFuelHypothesis(ref, conso); if(h.b1User) u=h.b1User; else m.hypothesis="INDISPONIBLE"; }
+    if(e&&e.user) m.reservedA22=true;   /* A22-a : montant fixe par l'utilisateur reserve, ecran reporte ; jamais transmis en B3.1 */
+    add({id:"fuel", type:"fuel", candidates:ref.b1?[ref.b1]:[]}, u, m); }
+  /* hebergement et taxe : une ligne par etape (Q1-a), cle main pour une seule etape (Q4-a) */
+  for(const g of L.legs){ const hid="hotel."+g.key, tid="tax."+g.key, he=_bv2Edit(data,hid), te=_bv2Edit(data,tid);
+    const roomsAuto=T?Math.min(T,Math.max(1,Math.ceil(T/2))):1, v1Rooms=(Number.isInteger(tr&&tr.rooms)&&tr.rooms>=1)?tr.rooms:null;
+    const taxStatus=he&&BV2_TAX_STATUS.indexOf(he.taxStatus)>=0?he.taxStatus:null;
+    let hu=_bv2UserOf(he), hsrc=hu?"v2":null;
+    if(!hu){ const p=+g.leg.lodgingPrice; if(p>0&&Number.isFinite(p)){ const a=_bv2DecStr(p), lc=String(g.leg.currency||cur).toUpperCase();
+        if(a) { hu={ total:{ amount:a, currency:lc, basis:"typed", touristTaxStatus:taxStatus||"unknown" } }; hsrc="v1"; } } }   /* §9 : lodgingPrice lu, jamais reecrit */
+    if(!he&&v1Rooms){ hu=hu||{}; hu.factors={rooms:String(v1Rooms)}; hsrc=hsrc||"v1"; }   /* §9 : tr.rooms -> facteur modifie */
+    hu=_bv2WithTaxStatus(hu, taxStatus);
+    const hApplicable=g.nights>0;
+    const hline={ id:hid, type:"hotel", unit:"chambre_nuit", factors:[{key:"nights",value:String(g.nights),unit:"nuit"},{key:"rooms",value:String(roomsAuto),unit:"chambre"}] };
+    if(!hApplicable) hline.applicable=false;
+    add(hline, hu, { legKey:g.key, nights:g.nights, unstableKey:g.unstable, source:hsrc, roomsHypothesis:!v1Rooms&&!(hu&&hu.factors&&hu.factors.rooms), breakfastIncluded:!!(he&&he.breakfastIncluded===true) });
+    const transmitted=hline.user||null, hStatus=!hApplicable?"not_applicable":(()=>{ const mm=transmitted&&(transmitted.total||transmitted.unitPrice||transmitted.zero); return (mm&&mm.touristTaxStatus)||"unknown"; })();
+    const notTaxable=!!(te&&te.notTaxable===true);   /* Q1-a : « aucun sejour taxable », declaration explicite ; un hebergement gratuit ne l'implique pas */
+    const persons=(te&&Number.isInteger(te.persons)&&te.persons>=0)?te.persons:(data.taxPersons&&Number.isInteger(data.taxPersons.value)?data.taxPersons.value:null);
+    const tline={ id:tid, type:"tourist_tax", hotelLineId:hid, unit:"personne_nuit",
+      factors:persons==null?null:[{key:"nights",value:String(g.nights),unit:"nuit"},{key:"persons",value:String(persons),unit:"personne"}] };
+    if(!hApplicable||notTaxable) tline.applicable=false;
+    add(tline, _bv2UserOf(te), { legKey:g.key, notTaxable, personsConfirmed:persons!=null,
+      taxBlocked:(hStatus==="included"?"TAXE_INCLUSE":(hStatus==="not_applicable"?"SANS_SEJOUR":null)) }); }
+  /* transport principal, acces et transferts (A12-a, Q3-a) */
+  if(plane){
+    { const e=_bv2Edit(data,"ticket.main"); let u=_bv2UserOf(e), src=u?"v2":null;
+      if(!u){ const p=+tr.ticketPrice; if(p>0&&Number.isFinite(p)){ const a=_bv2DecStr(p); if(a){ u={total:{amount:a, currency:cur, basis:"booking"}}; src="v1"; } } }
+      add({id:"ticket.main", type:"ticket"}, u, {source:src}); }
+    add({id:"ticket.hub", type:"ticket"}, _bv2UserOf(_bv2Edit(data,"ticket.hub")), {hubMissing:!tr.depHub});
+    if(tr.hubRoundTrip===true) add({id:"ticket.hub.back", type:"ticket"}, _bv2UserOf(_bv2Edit(data,"ticket.hub.back")), {});
+    const mode=tr.arrHubMode||null;
+    if(mode!=="walk"){ const taxi=mode==="taxi", base=taxi?"taxi.arr":"transit.arr", type=taxi?"taxi":"transit", unit=taxi?"km":"titre";
+      const e=_bv2Edit(data,base); let u=_bv2UserOf(e), src=u?"v2":null;
+      if(!u&&(mode==="shuttle"||mode==="transit")){ const c=tr.arrHubManualCost;
+        if(typeof c==="number"&&Number.isFinite(c)&&c>=0){ u=c>0?{total:{amount:_bv2DecStr(c), currency:cur, basis:"typed"}}:{zero:{basis:"typed"}}; src="v1"; } }
+      add({id:base, type, unit, factors:null}, u, {source:src, modeMissing:!mode, hubMissing:!tr.arrHub});
+      if(tr.arrHubRoundTrip===true) add({id:base+".back", type, unit, factors:null}, _bv2UserOf(_bv2Edit(data,base+".back")),
+        {v1CoversReturn:src==="v1"?"A_CONFIRMER":null});   /* le V1 comptait le prix manuel une fois (l. 21783) : jamais compte deux fois, jamais 0 en silence */
+    } }
+  /* peages (A17, trois etats) et stationnement (A10-a) : trajet en voiture */
+  if(car){ let routeDays=0, unchecked=0, shortParts=0, detected=false;
+    for(let i=0;i<D;i++){ if(!_b2DayNeedsRoute(cp,i)) continue; routeDays++;
+      const g=_b2PlannedGet(cp,i), p=g&&g.presentation;
+      if(!p){ unchecked++; continue; }
+      let full=p.complete===true&&!!p.meta&&p.meta.stale===false&&p.meta.degraded===false&&p.meta.uiCacheSafe===true;
+      for(const mv of (p.moves||[])) for(const part of ((mv&&mv.parts)||[])){
+        if(part&&part.toll&&part.toll.has) detected=true;
+        if(part&&part.mode==="DRIVE"&&!(part.drivable&&!part.gap&&(part.distanceMeters||0)>5000&&part.fromPoint&&part.toPoint)){ full=false; shortParts++; } }   /* predicat P6d recopie (l. 19909-19915) */
+      if(!full) unchecked++; }
+    const tu=_bv2UserOf(_bv2Edit(data,"toll")), state=detected?"detected":(unchecked?"to_check":"none_checked");
+    const tl={id:"toll", type:"toll"}; if(state==="none_checked"&&!tu) tl.applicable=false;   /* saisie prioritaire (r3) : toujours applicable avec sa saisie */
+    add(tl, tu, {tollState:state, routeDays, uncheckedDays:unchecked, shortParts});
+    add({id:"parking", type:"parking", unit:"jour", factors:null}, _bv2UserOf(_bv2Edit(data,"parking")), {}); }
+  /* repas (Q2-a) et visites (A13-a, Q5-a, A23-a) */
+  const plan=Array.isArray(cp.plan)?cp.plan.filter(x=>x&&typeof x==="object"&&Number.isInteger(x.day)&&x.day>=0&&x.day<D):[];
+  const places=Array.isArray(cp.places)?cp.places:[]; const placeOf=id=>id?places.find(p=>p&&p.id===id)||null:null;
+  const trav=T?[{key:"travelers",value:String(T),unit:"personne"}]:null;
+  const legOfNight=d=>L.legs.find(g=>d>=g.dayFrom&&d<=g.dayTo)||null;
+  const mealDays=new Set(), lunchDays=new Set();
+  const lineIdOf=(prefix, it)=>{ const id=prefix+"."+it.id; if(_bv2IdOk(id)) return id; const alt=prefix+".i"+plan.indexOf(it); notes.push("ID_ILLISIBLE:"+alt); return alt; };   /* identifiant impossible pour B1 : ligne de REMPLACEMENT stable (rang dans le Planning), jamais un poste ignore (audit GPT B3.1, P1) */
+  for(const it of plan.filter(x=>x.kind==="meal")){ mealDays.add(it.day); if(it.meal==="lunch") lunchDays.add(it.day);
+    const id=lineIdOf("meal", it);
+    const cands=[], pl=placeOf(it.placeId), pr=it.priceRange;
+    if(it.meal==="breakfast"&&it.day>=1){ const g=legOfNight(it.day-1), he=g?_bv2Edit(data,"hotel."+g.key):null;
+      if(he&&he.breakfastIncluded===true) cands.push({kind:"included", reason:"breakfast_included"}); }
+    if(_bv2Obj(pr)&&typeof pr.lo==="number"&&typeof pr.hi==="number"&&pr.hi>0&&pr.lo>=0&&pr.lo<=pr.hi&&_bv2InTable(String(pr.cur||"").toUpperCase())){
+      const c={kind:"place_price", low:_bv2DecStr(pr.lo), central:_bv2Mid(pr.lo,pr.hi), high:_bv2DecStr(pr.hi), currency:String(pr.cur).toUpperCase(), sourceName:"Google"};
+      if(pl&&typeof pl.mapsUri==="string"&&pl.mapsUri.length>0&&pl.mapsUri.length<=300) c.link=pl.mapsUri;
+      if(c.low&&c.central&&c.high) cands.push(c); }
+    add({id, type:"meal", unit:"personne", factors:trav, candidates:cands}, _bv2UserOf(_bv2Edit(data,id)), {day:it.day, meal:it.meal||null, replacementId:!id.startsWith("meal."+it.id)}); }
+  for(let n=0;n<D;n++){ if(mealDays.has(n)) continue; const id="meal.day."+n;
+    add({id, type:"meal", unit:"personne_jour", factors:trav}, _bv2UserOf(_bv2Edit(data,id)), {day:n, noSlot:true}); }   /* jour sans creneau repas (A21 etendu, Q2-a) */
+  const trans=new Set(); try{ for(const x of legTransitions(cp)) trans.add(x.day); }catch(_e){}
+  for(const n of mealDays){ if(lunchDays.has(n)) continue; let route=trans.has(n); if(!route){ try{ route=!!_dayLongDrive(cp,n); }catch(_e){ route=false; } }
+    if(!route) continue; const id="meal.route."+n;
+    add({id, type:"meal", unit:"personne", factors:trav}, _bv2UserOf(_bv2Edit(data,id)), {day:n, lunchOnTheRoad:true}); }   /* dejeuner des jours de trajet (Q2-a), sans doublon */
+  for(const it of plan.filter(x=>BV2_VISIT_KINDS.indexOf(x.kind)>=0)){ const id=lineIdOf("act", it);
+    const pl=placeOf(it.placeId), cands=[];
+    const free=it.price==="PRICE_LEVEL_FREE"||(pl&&pl.price==="PRICE_LEVEL_FREE");
+    if(free&&pl&&typeof pl.mapsUri==="string"&&pl.mapsUri.length>0&&pl.mapsUri.length<=300) cands.push({kind:"place_free", reason:"free", sourceName:"Google", link:pl.mapsUri});
+    add({id, type:"activity", unit:"personne", factors:trav, candidates:cands}, _bv2UserOf(_bv2Edit(data,id)), {day:it.day, kind:it.kind, freeWithoutLink:!!(free&&!cands.length), replacementId:!id.startsWith("act."+it.id)}); }
+  /* enveloppes */
+  for(const [k,e] of (Array.isArray(data.envelopes)?data.envelopes:[]).entries()){ let id="env."+e.id; if(!_bv2IdOk(id)){ id="env.i"+k; notes.push("ID_ILLISIBLE:"+id); }
+    add({id, type:"envelope"}, _bv2UserOf(_bv2Edit(data,id)), {label:e.label}); }
+  return { lines, meta, notes, travelers:T, days:D }; }
+
+/* ---------- taux de change (§7.1 regles 1 a 6, §13.4) ---------- */
+function bv2Fx(tr, currencies){   /* -> {fx:[...], missing:[...], reason} ; jamais FX statique, jamais fxRate V1, jamais une devise hors table B1 */
+  const tripCur=_bv2CurOf(tr), fr=S&&S.settings&&S.settings.fxRates, rates=fr&&_bv2Obj(fr.rates)?fr.rates:null, out={fx:[], missing:[], reason:null};
+  const want=Array.from(new Set(currencies.filter(c=>c!==tripCur&&_bv2InTable(c)))).sort();
+  if(!want.length) return out;
+  if(!rates){ out.reason="TAUX_ABSENTS"; out.missing=want; return out; }
+  if(!(Number.isInteger(fr.effectiveAt)&&fr.effectiveAt>0)){ out.reason="DATE_EFFECTIVE_INCONNUE"; out.missing=want; return out; }   /* jeu enregistre avant B3.1 : jamais transmis */
+  const date=new Date(fr.effectiveAt).toISOString().slice(0,10), fixed=["EUR","XAF","XOF"];
+  const decOf=c=>{ if(c==="EUR") return {n:1n,s:0}; const r=rates[c]; return (typeof r==="number"&&Number.isFinite(r)&&r>0)?_b2Dec(r):null; };
+  const rt=decOf(tripCur);
+  for(const c of want){ const rc=decOf(c); if(!rc||!rt){ out.missing.push(c); continue; }
+    const rate=_bv2RateStr(rt, rc); if(!rate){ out.missing.push(c); continue; }   /* 1 c = r[trip]/r[c] trip (base EUR) */
+    const both=fixed.indexOf(c)>=0&&fixed.indexOf(tripCur)>=0, one=["XAF","XOF"].indexOf(c)>=0||["XAF","XOF"].indexOf(tripCur)>=0;
+    out.fx.push({from:c, to:tripCur, rate, date, source:both?BV2_FX_PARITY:(one?BV2_FX_SRC+" ; "+BV2_FX_PARITY:BV2_FX_SRC)}); }
+  return out; }
+
+/* ---------- entree B1 complete (§13.2) ---------- */
+function _bv2LineCurrencies(l){ const o=_bv2MoneyCurrencies(l.user); for(const c of (l.candidates||[])) if(c&&typeof c.currency==="string") o.push(c.currency); return o; }
+function bv2Inputs(tr){
+  if(!tr) return {ok:false, code:"VOYAGE_ABSENT"};
+  const cur=_bv2CurOf(tr); if(!_bv2InTable(cur)) return {ok:false, code:"DEVISE_VOYAGE_NON_PRISE_EN_CHARGE"};
+  if(!(Number.isInteger(tr.travelers)&&tr.travelers>=1&&tr.travelers<=BV2_MAX_TRAVELERS)) return {ok:false, code:"VOYAGEURS_A_CONFIRMER"};
+  const D=tripDays(tr).length; if(D>BV2_MAX_DAYS) return {ok:false, code:"VOYAGE_TROP_LONG"};
+  const L=bv2Lines(tr); if(!L.lines.length) return {ok:false, code:"ERREUR_ADAPTATEUR", line:null};
+  const fx=bv2Fx(tr, [].concat(...L.lines.map(_bv2LineCurrencies)));
+  const st=bv2Store(tr), m=(st.readOnly?bv2Default():st.data).margin||{mode:"auto"};
+  const margin=m.mode==="amount"?{mode:"amount", amount:_b2MinorToDecStr(m.amountMinor,_b2Digits(cur))}:(m.mode==="percent"?{mode:"percent", percent:m.percent}:{mode:m.mode==="off"?"off":"auto"});
+  return {ok:true, input:{contract:MagotB1.CONTRACT, currency:cur, travelers:tr.travelers, days:D, fx:fx.fx, lines:L.lines, margin}, meta:L.meta, notes:L.notes, fxInfo:fx}; }
+
+/* ---------- estimation avec isolement des erreurs (§13.5) ---------- */
+function bv2Estimate(tr){   /* -> {ok:true, result, input, meta, dropped} ou {ok:false, code, line?} ; une ligne n'est JAMAIS retiree, seule une saisie */
+  let inp; try{ inp=bv2Inputs(tr); }catch(e){ try{ console.error("bv2Inputs",e); }catch(_e){} return {ok:false, code:"ERREUR_INTERNE"}; }   /* jamais d'exception jusqu'au rendu */
+  if(!inp.ok) return inp;
+  const base=inp.input, run=lines=>bv2Run(Object.assign({}, base, {lines}));
+  const r0=run(base.lines); if(r0.ok) return {ok:true, result:r0.result, input:base, meta:inp.meta, notes:inp.notes, fxInfo:inp.fxInfo, dropped:[]};
+  if(r0.code==="ERREUR_INTERNE") return {ok:false, code:"ERREUR_INTERNE"};
+  const dropped=[], clean=new Map(), strip=l=>{ const c=Object.assign({}, l); delete c.user; return c; };
+  const one=(l, deps)=>run(deps.concat([l]));
+  for(const l of base.lines){ if(l.type==="tourist_tax") continue;   /* passe A : lignes sans dependance */
+    let r=one(l,[]); if(r.ok){ clean.set(l.id,l); continue; }
+    if(l.user){ const s=strip(l); r=one(s,[]); if(r.ok){ clean.set(l.id,s); dropped.push({id:l.id, code:one(l,[]).code}); continue; } }
+    return {ok:false, code:"ERREUR_ADAPTATEUR", line:l.id}; }
+  for(const l of base.lines){ if(l.type!=="tourist_tax") continue;   /* passe B : taxes, avec leur hotel deja assaini */
+    const h=clean.get(l.hotelLineId); if(!h) return {ok:false, code:"ERREUR_ADAPTATEUR", line:l.id};
+    let r=one(l,[h]); if(r.ok){ clean.set(l.id,l); continue; }
+    if(l.user){ const s=strip(l); r=one(s,[h]); if(r.ok){ clean.set(l.id,s); dropped.push({id:l.id, code:one(l,[h]).code}); continue; } }
+    return {ok:false, code:"ERREUR_ADAPTATEUR", line:l.id}; }
+  const lines=base.lines.map(l=>clean.get(l.id)), r1=run(lines);
+  if(!r1.ok) return {ok:false, code:r1.code==="ERREUR_INTERNE"?"ERREUR_INTERNE":"ERREUR_ADAPTATEUR", line:null};   /* defaut entre lignes */
+  for(const d of dropped) if(inp.meta[d.id]) inp.meta[d.id].held=inp.meta[d.id].held.concat(["SAISIE_ILLISIBLE:"+d.code]);
+  return {ok:true, result:r1.result, input:Object.assign({}, base, {lines}), meta:inp.meta, notes:inp.notes, fxInfo:inp.fxInfo, dropped}; }
+/* ===== fin BUDGET V2 -- B3.1 ===== */
 /* FUEL-R1 : table statique FUEL_BY_CC supprimee -- aucun prix carburant/energie non source, dans aucun pays. */
 /* FUEL-R1 : fuelPrice() (table statique) supprimee. */
 /* ============================================================
@@ -21944,7 +22154,7 @@ function fxRate(cur){ cur=(cur||"EUR").toUpperCase(); const live=(S.settings&&S.
 function fxKnown(cur){ cur=(cur||"EUR").toUpperCase(); const live=(S.settings&&S.settings.fxRates&&S.settings.fxRates.rates)||null; return (live&&live[cur]!=null) || (FX[cur]!=null); }
 /* Devises rencontrées pendant un rendu dont le taux n'est pas fiable — vidé au début de renderBudget, lu pour l'avertissement « total partiel ». */
 const _fxMiss=new Set();
-async function refreshFxRates(){ try{ const res=await fetch("https://open.er-api.com/v6/latest/EUR"); const data=await res.json(); if(!data||data.result!=="success"||!data.rates) throw new Error("bad"); const rates=data.rates; rates.XAF=655.957; rates.XOF=655.957; S.settings.fxRates={rates,at:Date.now(),src:"open.er-api.com"}; saveState(); return true; }catch(e){ console.warn("fx",e); return false; } }
+async function refreshFxRates(){ try{ const res=await fetch("https://open.er-api.com/v6/latest/EUR"); const data=await res.json(); if(!data||data.result!=="success"||!data.rates) throw new Error("bad"); const rates=data.rates; rates.XAF=655.957; rates.XOF=655.957; S.settings.fxRates={rates,at:Date.now(),src:"open.er-api.com"}; { const _e=data.time_last_update_unix, _n=data.time_next_update_unix; if(Number.isInteger(_e)&&_e>0) S.settings.fxRates.effectiveAt=_e*1000; if(Number.isInteger(_n)&&_n>0) S.settings.fxRates.nextAt=_n*1000; }   /* B3.1 : date effective du fournisseur (§7.1 regle 6) ; le V1 lit toujours rates et at */ saveState(); return true; }catch(e){ console.warn("fx",e); return false; } }
 /* Facteurs de coût (source: Numbeo 2026, base France=1.0). [général (hébergement/activités), repas (resto)] */
 const CC_FAC={FR:[1.00,1.00],CH:[1.64,1.68],US:[1.02,1.10],ES:[0.76,0.83],IT:[0.91,0.98],TR:[0.58,0.56],MX:[0.63,0.66],GB:[1.00,1.10],DE:[1.01,1.01],JP:[0.70,0.46],GR:[0.80,0.89],TH:[0.56,0.38],AT:[1.05,1.08],AE:[0.82,0.85],SA:[0.65,0.52],PT:[0.72,0.69],MY:[0.50,0.38],HK:[1.11,0.77],NL:[1.08,1.23],IN:[0.28,0.24],CA:[0.93,0.97],PL:[0.70,0.73],HR:[0.77,0.84],BE:[1.01,1.22],IE:[1.04,1.16],CZ:[0.78,0.65],HU:[0.69,0.68],DK:[1.17,1.42],SE:[1.00,1.07],NO:[1.24,1.34],CN:[0.45,0.32],KR:[0.91,0.54],SG:[1.30,0.84],VN:[0.39,0.24],ID:[0.39,0.23],MA:[0.46,0.38],EG:[0.32,0.30],TN:[0.43,0.27],ZA:[0.55,0.54],BR:[0.44,0.39],AR:[0.61,0.72],DO:[0.56,0.54],CO:[0.47,0.41],PE:[0.49,0.43],AU:[1.00,0.99],NZ:[0.89,0.90],CM:[0.60,0.69],SN:[0.72,0.65],CI:[0.66,0.59],IS:[1.44,1.58],FI:[1.02,1.12],LU:[1.15,1.26],QA:[0.74,0.84]};
 function costFactor(cc){ cc=(cc||"").toUpperCase(); const v=CC_FAC[cc]; if(v) return {g:v[0],m:v[1],regional:false}; return {g:0.58,m:0.52,regional:true}; }
