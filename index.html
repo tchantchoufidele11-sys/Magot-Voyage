@@ -8804,7 +8804,7 @@ function bv2DetailGroups(tr, r){   /* PURE : par poste, groupes de lignes repas/
     for(const l of ls){ const m=r.meta[l.id]||{};
       if(l.type==="meal"||l.type==="activity"){ const up=_bv2LineUnitMinor(l, cur), q=l.quantity?l.quantity.value:null;
         const kind=l.type==="meal"?((m.meal&&E.meal[m.meal])||A.post.MEALS):A.post.ACTIVITIES;
-        const key=l.state==="UNKNOWN"?l.type+"|todo":[l.type, kind, l.state, l.editState, up?up.m+up.c:"", q, l.amounts.central].join("|");
+        const key=l.state==="UNKNOWN"?[l.type,"todo",kind].join("|"):[   /* audit GPT lot 4 (P2) : la categorie fait partie de la cle, meme a preciser */l.type, kind, l.state, l.editState, up?up.m+up.c:"", q, l.amounts.central].join("|");
         let g=byKey.get(key); if(!g){ g={key, label:kind, unknown:l.state==="UNKNOWN", unit:up, qty:q, lines:[], totalMinor:0, state:l.state, editState:l.editState}; byKey.set(key,g); groups.push(g); }
         g.lines.push(l.id); if(l.amounts.central!=null) g.totalMinor+=l.amounts.central; }
       else groups.push({key:l.id, label:_bv2ELineTitle(A,E,l,m,tr), unknown:l.state==="UNKNOWN", unit:_bv2LineUnitMinor(l, cur), qty:l.quantity?l.quantity.value:null, lines:[l.id], totalMinor:l.amounts.central, state:l.state, editState:l.editState}); }
@@ -8837,16 +8837,19 @@ function bv2ResumeKey(tr, oldKey, newKey, gesture){   /* onzieme fonction d'ecri
   const st=bv2Store(tr); if(st.readOnly) return {ok:false, code:st.reason||"LECTURE_SEULE"};
   const r=bv2Estimate(tr); if(!r.ok) return {ok:false, code:r.code}; if(_bv2Has(r.meta, oldKey)) return {ok:false, code:"LIGNE_EXISTANTE"};   /* l'ancienne cle a encore sa ligne : rien a reprendre */
   const nl=r.result.lines.find(l=>l.id===newKey); if(!nl) return {ok:false, code:"LIGNE_ABSENTE"};
+  if(nl.amounts&&nl.amounts.central!=null) return {ok:false, code:"PRIX_CIBLE_EXISTANT"};   /* audit GPT lot 4 (P1) : la cible a deja un montant (Budget V1, saisie, estimation) -> jamais remplace */
   const old=_bv2Edit(st.data, oldKey); if(!old) return {ok:false, code:"SAISIE_ABSENTE"};
-  const cur=_bv2Edit(st.data, newKey); if(cur&&_bv2UserOf(cur)&&_bv2UserOf(old)) return {ok:false, code:"SAISIES_CONCURRENTES"};   /* jamais ecraser un prix existant */
+  const cur=_bv2Edit(st.data, newKey); if(cur&&_bv2UserOf(cur)) return {ok:false, code:"SAISIES_CONCURRENTES"};   /* saisie de la cible, meme non appliquee au calcul : jamais remplacee */
   const patch={}; for(const k of BV2_E_FIELDS) if(k!=="bound"&&k!=="confirmRequired"&&k!=="at"&&old[k]!==undefined) patch[k]=old[k];
   if(!Object.keys(patch).length) return {ok:false, code:"SAISIE_VIDE"};
   const err=bv2EditPatchCheck(patch, _bv2CurOf(tr)); if(err) return {ok:false, code:err};
+  if(cur) for(const k of Object.keys(patch)) if(cur[k]!==undefined&&JSON.stringify(cur[k])!==JSON.stringify(patch[k])) return {ok:false, code:"SAISIES_CONCURRENTES"};   /* aucun choix de la cible (taxe, petit-dejeuner...) ecrase */
   const g=gesture||bv2Capture();
   return _bv2EMutate(tr, d=>{ const o=_bv2EApply(d.edits[newKey], patch); if(patch.user!==undefined) o.at=Date.now(); d.edits[newKey]=o; delete d.edits[oldKey]; }, g, null); }
 function _bv2EKeyTargets(tr, r, key){   /* lignes actuelles du meme type pour A19 */
   const m=/^(hotel|tax)\./.exec(key); if(!m||!r||!r.ok) return []; const A=_bv2A(), E=_bv2E();
-  return r.result.lines.filter(l=>l.id.startsWith(m[1]+".")&&l.id!==key&&l.state!=="NOT_APPLICABLE").map(l=>({id:l.id, title:_bv2ELineTitle(A,E,l,r.meta[l.id]||{},tr)})); }
+  const data=bv2Store(tr).data;
+  return r.result.lines.filter(l=>l.id.startsWith(m[1]+".")&&l.id!==key&&l.state!=="NOT_APPLICABLE"&&!(l.amounts&&l.amounts.central!=null)&&!_bv2UserOf(_bv2Edit(data,l.id))).map(   /* seulement les cibles que bv2ResumeKey accepterait */l=>({id:l.id, title:_bv2ELineTitle(A,E,l,r.meta[l.id]||{},tr)})); }
 
 /* ---------- B3.3b-3 : peages -- trois etats B3.1 (detecte / a verifier / aucun detecte), jamais une absence confirmee sans controle ou sans toi ---------- */
 function bv2TollText(meta, A){   /* PURE : texte d'etat du peage depuis meta.toll (B3.1) ; « aucun » seulement si TOUS les trajets sont controles */
@@ -9016,7 +9019,9 @@ function bv2AfterA(body, tr, r){
   const c=r.result.scenarios.central; if(c.complete!==true){ const un=r.result.lines.filter(l=>l.required&&l.state==="UNKNOWN"&&l.type!=="fuel"); if(un.length){ const posts=new Set(un.map(l=>l.post)); const b=document.createElement("button"); b.type="button"; b.className="btn gold bv2e-cta"; b.id="bv2ESpecify"; b.dataset.line=un[0].id;
       b.textContent=posts.size===1?_bv2Tx(E.specify1,{p:A.post[un[0].post]||un[0].post}):_bv2Tx(E.specify,{n:posts.size}); hero.appendChild(b); } }
   { const post=body.querySelector(".bv2-post"); const card=post&&post.closest(".bv2-card"); if(card&&!body.querySelector("#bv2EDetail")){ const b=document.createElement("button"); b.type="button"; b.className="btn"; b.id="bv2EDetail"; b.style.cssText="width:100%;margin-top:4px"; b.textContent=E.detOpen; card.insertAdjacentElement("afterend", b); } }
-  const held=bv2HeldList(tr, r); if(held.length&&!hero.querySelector(".held")){ const d=document.createElement("div"); d.className="held"; d.textContent=held.length===1?A.heldOne:_bv2Tx(A.held,{n:held.length}); hero.appendChild(d); }
+  const held=bv2HeldList(tr, r), pill=hero.querySelector(".held");   /* la pastille appartient a B3.2 (r.hasHeldEdits) ; B3.3 ne fait que completer le compte (metadonnees orphelines, registre) */
+  if(pill){ if(held.length!==r.heldEdits.length) pill.textContent=held.length===1?A.heldOne:_bv2Tx(A.held,{n:held.length}); }
+  else if(!r.hasHeldEdits&&held.length){ const d=document.createElement("div"); d.className="held"; d.textContent=held.length===1?A.heldOne:_bv2Tx(A.held,{n:held.length}); hero.appendChild(d); }
   if(!body.dataset.bv2e){ body.dataset.bv2e="1"; body.addEventListener("click", ev=>{ const t=currentTrip(); if(!t||!bv2PreviewActive()) return;
     const sp=ev.target.closest("#bv2ESpecify"); if(sp){ bv2OpenLine(t, sp.dataset.line); return; }
     const li=ev.target.closest(".bv2-hints li[data-line]"); if(li){ bv2OpenLine(t, li.dataset.line); return; }
