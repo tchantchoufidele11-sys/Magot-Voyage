@@ -8436,6 +8436,106 @@ function bv2ConfirmTravelers(tr, n){   /* geste Q (A26-a) : tr.travelers ecrit D
   if(!r||!r.ok){ if(J.had) tr.travelers=J.prev; else delete tr.travelers; }   /* reprise : etat initial exact */
   return r||{ok:false, code:"GESTE_ERREUR"}; }
 /* ===== fin BUDGET V2 -- B3.2 ===== */
+/* ===== BUDGET V2 -- MODE DEMONSTRATION (lecture seule, acces prive par #bv2demo ; demande de Loic du 13 oct. 2026) =====
+   - But : voir et essayer l'ecran A (B3.2 r4) depuis un iPhone avec un compte SYNCHRONISE, sans deconnexion.
+   - Ne touche NI bv2SyncedAccount, NI bv2PreviewActive, NI bv2Mutate : toutes les gardes restent telles quelles ; l'apercu V2 reste inactif,
+     l'onglet Budget reste le V1. La demo est un calque (#bv2Demo) qui appelle bv2RenderA sur des voyages de DEMONSTRATION construits en
+     memoire, jamais inseres dans S.trips : tout geste d'ecriture est refuse par bv2Mutate (VOYAGE_ABSENT, et COMPTE_SYNCHRONISE sur un compte).
+   - « Mon voyage (copie) » : copie profonde du voyage courant, voyageurs marques confirmes SUR LA COPIE, budgetAuto coupe SUR LA COPIE ;
+     l'original n'est jamais lu en ecriture. Le bouton de calcul des trajets (reseau, caches) est desactive dans la demo.
+   - Aucune ecriture : ni S, ni localStorage, ni IndexedDB, ni Supabase ; aucun reseau. Sortie : « Quitter » restaure le sous-titre V1.
+   - r2 (audit GPT r1) : calque au-dessus de l'ecran d'authentification (z-index 10000) ; hebergement sur une ORIGINE SEPAREE (le fragment
+     #bv2demo n'est qu'un declencheur, pas un controle d'acces) ; sur cette origine « Mon voyage (copie) » explique que les voyages reels
+     ne sont pas accessibles. */
+const BV2_DEMO_TXT={
+  fr:{bar:"Démo Budget V2 · lecture seule",quit:"Quitter",t1:"Lyon · complet",t2:"Alpes · à préciser",t3:"Mon voyage (copie)",note:"Démonstration : rien n'est enregistré. Les gestes sont désactivés ; ton compte et tes voyages ne changent pas.",noTrip:"Aucun voyage à copier ici : sur le site de démonstration, tes voyages réels ne sont pas accessibles (origine séparée, aucune session). Les deux voyages fictifs montrent l'écran complet et l'écran à préciser."},
+  en:{bar:"Budget V2 demo · read-only",quit:"Quit",t1:"Lyon · complete",t2:"Alps · to specify",t3:"My trip (copy)",note:"Demo: nothing is saved. Gestures are disabled; your account and trips do not change.",noTrip:"No trip to copy here: on the demo site your real trips are not accessible (separate origin, no session). The two sample trips show the complete and the to-specify screens."},
+  es:{bar:"Demo Presupuesto V2 · solo lectura",quit:"Salir",t1:"Lyon · completo",t2:"Alpes · por precisar",t3:"Mi viaje (copia)",note:"Demostración: nada se guarda. Los gestos están desactivados; tu cuenta y tus viajes no cambian.",noTrip:"Ningún viaje que copiar aquí: en el sitio de demostración tus viajes reales no son accesibles (origen separado, sin sesión). Los dos viajes ficticios muestran la pantalla completa y la pantalla por precisar."},
+  it:{bar:"Demo Budget V2 · sola lettura",quit:"Esci",t1:"Lione · completo",t2:"Alpi · da precisare",t3:"Il mio viaggio (copia)",note:"Dimostrazione: nulla viene salvato. I gesti sono disattivati; il tuo account e i tuoi viaggi non cambiano.",noTrip:"Nessun viaggio da copiare qui: sul sito dimostrativo i tuoi viaggi reali non sono accessibili (origine separata, nessuna sessione). I due viaggi fittizi mostrano la schermata completa e quella da precisare."},
+  de:{bar:"Demo Budget V2 · nur lesen",quit:"Beenden",t1:"Lyon · vollständig",t2:"Alpen · zu klären",t3:"Meine Reise (Kopie)",note:"Demo: nichts wird gespeichert. Gesten sind deaktiviert; dein Konto und deine Reisen ändern sich nicht.",noTrip:"Keine Reise zum Kopieren hier: auf der Demo-Seite sind deine echten Reisen nicht erreichbar (getrennte Origin, keine Sitzung). Die zwei Beispielreisen zeigen den vollständigen und den zu klärenden Bildschirm."}
+};
+const BV2_DEMO_CSS=`
+#bv2Demo{position:fixed;inset:0;z-index:10000;background:var(--bg);display:flex;flex-direction:column;overflow:hidden}
+#bv2Demo .bv2d-bar{display:flex;align-items:center;gap:10px;padding:max(10px,env(safe-area-inset-top)) 14px 8px;background:var(--surface,#fff);border-bottom:1px solid var(--line)}
+#bv2Demo .bv2d-bar b{flex:1;font:700 14px Inter,sans-serif;color:var(--ink);overflow-wrap:anywhere}#bv2Demo .bv2d-bar button{min-height:40px;border-radius:12px;border:1px solid var(--line);background:var(--surface,#fff);font:600 13px Inter,sans-serif;color:var(--ink);padding:0 12px}
+#bv2Demo .bv2d-tabs{display:flex;gap:6px;padding:8px 14px;overflow-x:auto;background:var(--surface,#fff);border-bottom:1px solid var(--line-soft)}#bv2Demo .bv2d-tabs button{flex:0 0 auto;min-height:40px;border-radius:999px;border:1px solid var(--line);background:var(--surface,#fff);font:600 13px Inter,sans-serif;color:var(--ink-2);padding:0 14px}
+#bv2Demo .bv2d-tabs button.on{background:var(--navy);color:#fff;border-color:var(--navy)}#bv2Demo .bv2d-note{font:500 12px Inter,sans-serif;color:var(--muted);padding:8px 16px 0}
+#bv2Demo .bv2d-body{flex:1;overflow-y:auto;padding:0 16px max(24px,env(safe-area-inset-bottom))}#bv2Demo .bv2d-body .bv2a button:not(#bv2OpenSettings):not(#bv2OpenPlan){pointer-events:none;opacity:.5}
+[data-theme="dark"] #bv2Demo .bv2d-bar,[data-theme="dark"] #bv2Demo .bv2d-tabs,[data-theme="dark"] #bv2Demo .bv2d-tabs button,[data-theme="dark"] #bv2Demo .bv2d-bar button{background:var(--surface,#131E33)}`;
+let _bv2DemoTab=1, _bv2DemoSub=null;
+function _bv2DemoT(){ return BV2_DEMO_TXT[lang()]||BV2_DEMO_TXT.fr; }
+function _bv2DemoDate(plus){ const d=new Date(todayISO()+"T00:00:00"); d.setDate(d.getDate()+plus); return d.toISOString().slice(0,10); }
+function bv2DemoTrips(){   /* voyages de demonstration, construits en memoire a chaque appel ; jamais dans S.trips */
+  const s=_bv2DemoDate(21), e3=_bv2DemoDate(24), e4=_bv2DemoDate(25);
+  const lyon={ id:"bv2demo-lyon", name:"Démo · Lyon", currency:"EUR", travelers:2, dateStart:s, dateEnd:e3, transport:"train", budgetAuto:false,
+    dest:{name:"Lyon",country:"France",cc:"FR",lat:45.76,lng:4.83}, legs:[], lodging:{name:"Hôtel des Célestins"}, lodgingPrice:285,
+    places:[{id:"pBouchon",name:"Le Bouchon des Filles",mapsUri:"https://maps.google.com/?cid=1"},{id:"pMusee",name:"Musée des Confluences",mapsUri:"https://maps.google.com/?cid=2"},{id:"pParc",name:"Parc de la Tête d'Or",price:"PRICE_LEVEL_FREE",mapsUri:"https://maps.google.com/?cid=3"},{id:"pCafe",name:"Café du Soleil",mapsUri:"https://maps.google.com/?cid=4"}],
+    plan:[ {id:"d0a",day:0,kind:"meal",meal:"lunch",placeId:"pCafe",bv2id:"kdemo01",priceRange:{lo:14,hi:22,cur:"EUR"},title:"Café du Soleil"},
+           {id:"d0b",day:0,kind:"meal",meal:"dinner",placeId:"pBouchon",bv2id:"kdemo02",priceRange:{lo:28,hi:40,cur:"EUR"},title:"Le Bouchon des Filles"},
+           {id:"d1a",day:1,kind:"meal",meal:"breakfast",bv2id:"kdemo03"},
+           {id:"d1b",day:1,kind:"culture",placeId:"pMusee",bv2id:"kdemo04",title:"Musée des Confluences"},
+           {id:"d1c",day:1,kind:"meal",meal:"lunch",placeId:"pCafe",bv2id:"kdemo05",priceRange:{lo:14,hi:22,cur:"EUR"},title:"Café du Soleil"},
+           {id:"d1d",day:1,kind:"meal",meal:"dinner",bv2id:"kdemo06"},
+           {id:"d2a",day:2,kind:"nature",placeId:"pParc",bv2id:"kdemo07",title:"Parc de la Tête d'Or"},
+           {id:"d2b",day:2,kind:"meal",meal:"lunch",placeId:"pBouchon",bv2id:"kdemo08",priceRange:{lo:28,hi:40,cur:"EUR"},title:"Le Bouchon des Filles"},
+           {id:"d2c",day:2,kind:"meal",meal:"dinner",placeId:"pCafe",bv2id:"kdemo09",priceRange:{lo:14,hi:22,cur:"EUR"},title:"Café du Soleil"},
+           {id:"d3a",day:3,kind:"meal",meal:"lunch",placeId:"pCafe",bv2id:"kdemo10",priceRange:{lo:14,hi:22,cur:"EUR"},title:"Café du Soleil"} ],
+    expenses:[],
+    budgetV2:{ v:1, travelersConfirmed:true, taxPersons:{value:2, confirmedAt:1760000000000}, edits:{
+      "hotel.main":{taxStatus:"excluded", breakfastIncluded:true}, "parking":{user:{zero:{basis:"typed"}}, at:1760000000000},
+      "tax.main":{user:{total:{amount:"13.80",currency:"EUR",basis:"typed"}}, at:1760000000000},
+      "meal.kdemo03":{user:{zero:{basis:"typed"}}, bound:{bv2id:"kdemo03",itemId:"d1a",day:1,kind:"meal",meal:"breakfast",placeId:null}, at:1760000000000},
+      "meal.kdemo06":{user:{unitPrice:{amount:"24",currency:"EUR",basis:"typed"}}, bound:{bv2id:"kdemo06",itemId:"d1d",day:1,kind:"meal",meal:"dinner",placeId:null}, at:1760000000000},
+      "act.kdemo04":{user:{unitPrice:{amount:"12",currency:"EUR",basis:"booking"}}, bound:{bv2id:"kdemo04",itemId:"d1b",day:1,kind:"culture",meal:null,placeId:"pMusee"}, at:1760000000000} } } };
+  const alpes={ id:"bv2demo-alpes", name:"Démo · Alpes", currency:"EUR", travelers:4, dateStart:s, dateEnd:e4, transport:"train", budgetAuto:false,
+    dest:{name:"Annecy",country:"France",cc:"FR",lat:45.9,lng:6.13}, legs:[], lodging:null,
+    places:[{id:"pLac",name:"Lac d'Annecy",price:"PRICE_LEVEL_FREE",mapsUri:"https://maps.google.com/?cid=5"},{id:"pChateau",name:"Château d'Annecy"}],
+    plan:[ {id:"a0",day:0,kind:"meal",meal:"dinner",bv2id:"kdemo21"},
+           {id:"a1",day:1,kind:"nature",placeId:"pLac",bv2id:"kdemo22",title:"Lac d'Annecy"},
+           {id:"a2",day:1,kind:"meal",meal:"lunch",bv2id:"kdemo23"},
+           {id:"a3",day:2,kind:"culture",placeId:"pChateau",bv2id:"kdemo24",title:"Château d'Annecy"},
+           {id:"a4",day:2,kind:"meal",meal:"dinner",bv2id:"kdemo25"},
+           {id:"a5",day:3,kind:"hike",title:"Semnoz",bv2id:"kdemo26"} ],
+    expenses:[],
+    budgetV2:{ v:1, travelersConfirmed:true, edits:{ "meal.kgone":{user:{unitPrice:{amount:"18",currency:"EUR",basis:"typed"}}, bound:{bv2id:"kgone",itemId:"old",day:0,kind:"meal",meal:"lunch",placeId:null}, at:1760000000000} } } };
+  return [lyon, alpes]; }
+function bv2DemoCopyCurrent(){   /* copie profonde du voyage courant ; l'original n'est jamais touche */
+  const tr=currentTrip(); if(!tr) return null; const c=bv2Clone(tr); c.budgetAuto=false;
+  const st=bv2Store(c); c.budgetV2=Object.assign(bv2Default(), st.readOnly?{}:st.data, {travelersConfirmed:true});   /* copie : Q n'est pas necessaire ; un budgetV2 illisible est remplace SUR LA COPIE seulement */
+  if(!(Number.isInteger(c.travelers)&&c.travelers>=1)) c.travelers=2;
+  return c; }
+function bv2DemoRender(){
+  const T=_bv2DemoT(), root=document.getElementById("bv2Demo"); if(!root) return; const body=root.querySelector(".bv2d-body");
+  root.querySelectorAll(".bv2d-tabs button").forEach(b=>b.classList.toggle("on", +b.dataset.t===_bv2DemoTab));
+  let tr=null; if(_bv2DemoTab===3) tr=bv2DemoCopyCurrent(); else tr=bv2DemoTrips()[_bv2DemoTab-1];
+  if(!tr){ body.innerHTML=`<div class="bv2a"><div class="bv2-card bv2-state"><h2>${escapeHtml(T.t3)}</h2><p>${escapeHtml(T.noTrip)}</p></div></div>`; return; }
+  const sub=document.querySelector("#view-budget .page-sub"); const subBefore=sub?sub.textContent:null;
+  bv2RenderA(body, tr);   /* rendu B3.2 r4 tel quel, sur un voyage hors S.trips : aucune ecriture possible */
+  if(sub&&subBefore!=null) sub.textContent=subBefore;   /* le sous-titre V1 de l'onglet Budget n'est pas modifie par la demo */
+  bv2CloseQ();
+  body.querySelectorAll(".b2-fuel-compute, #bv2FuelCompute").forEach(b=>{ b.onclick=null; b.disabled=true; });   /* aucun calcul de trajets (reseau, caches) depuis la demo */
+  const sb=body.querySelector("#bv2OpenSettings"); if(sb) sb.onclick=()=>{ bv2DemoClose(); openSettings(); };
+  const pb=body.querySelector("#bv2OpenPlan"); if(pb) pb.onclick=()=>{ bv2DemoClose(); switchTab("plan"); }; }
+function bv2DemoOpen(){
+  if(document.getElementById("bv2Demo")) { bv2DemoRender(); return; }
+  if(!document.getElementById("bv2dCss")){ const st=document.createElement("style"); st.id="bv2dCss"; st.textContent=BV2_DEMO_CSS; document.head.appendChild(st); }
+  const T=_bv2DemoT(), d=document.createElement("div"); d.id="bv2Demo"; d.setAttribute("role","dialog"); d.setAttribute("aria-label",T.bar);
+  d.innerHTML=`<div class="bv2d-bar"><b>${escapeHtml(T.bar)}</b><button type="button" id="bv2DemoQuit">${escapeHtml(T.quit)}</button></div>
+    <div class="bv2d-tabs"><button type="button" data-t="1">${escapeHtml(T.t1)}</button><button type="button" data-t="2">${escapeHtml(T.t2)}</button><button type="button" data-t="3">${escapeHtml(T.t3)}</button></div>
+    <div class="bv2d-note">${escapeHtml(T.note)}</div><div class="bv2d-body"></div>`;
+  document.body.appendChild(d);
+  d.querySelector("#bv2DemoQuit").onclick=bv2DemoClose;
+  d.querySelectorAll(".bv2d-tabs button").forEach(b=>b.onclick=()=>{ _bv2DemoTab=+b.dataset.t; bv2DemoRender(); });
+  bv2DemoRender(); }
+function bv2DemoClose(){ const d=document.getElementById("bv2Demo"); if(d) d.remove(); bv2CloseQ();
+  try{ if(/bv2demo/.test(location.hash)) history.replaceState(null, "", location.pathname+location.search); }catch(_e){}
+  try{ bv2SubRestore(); }catch(_e){} }
+function bv2DemoWanted(){ return /(^|[?&#])bv2demo(=1|$|&)/.test(location.search+" "+location.hash); }
+(function(){ const tick=n=>{ if(!bv2DemoWanted()) return;
+    if(typeof S!=="undefined"&&S&&!_storeHydrating&&document.getElementById("view-budget")) bv2DemoOpen(); else if(n<80) setTimeout(()=>tick(n+1), 250); };
+  setTimeout(()=>tick(0), 800);
+  window.addEventListener("hashchange", ()=>{ if(bv2DemoWanted()) tick(0); }); })();
+/* ===== fin BUDGET V2 -- MODE DEMONSTRATION ===== */
 /* FUEL-R1 : table statique FUEL_BY_CC supprimee -- aucun prix carburant/energie non source, dans aucun pays. */
 /* FUEL-R1 : fuelPrice() (table statique) supprimee. */
 /* ============================================================
