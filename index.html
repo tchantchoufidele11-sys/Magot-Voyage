@@ -8436,106 +8436,483 @@ function bv2ConfirmTravelers(tr, n){   /* geste Q (A26-a) : tr.travelers ecrit D
   if(!r||!r.ok){ if(J.had) tr.travelers=J.prev; else delete tr.travelers; }   /* reprise : etat initial exact */
   return r||{ok:false, code:"GESTE_ERREUR"}; }
 /* ===== fin BUDGET V2 -- B3.2 ===== */
-/* ===== BUDGET V2 -- MODE DEMONSTRATION (lecture seule, acces prive par #bv2demo ; demande de Loic du 13 oct. 2026) =====
-   - But : voir et essayer l'ecran A (B3.2 r4) depuis un iPhone avec un compte SYNCHRONISE, sans deconnexion.
-   - Ne touche NI bv2SyncedAccount, NI bv2PreviewActive, NI bv2Mutate : toutes les gardes restent telles quelles ; l'apercu V2 reste inactif,
-     l'onglet Budget reste le V1. La demo est un calque (#bv2Demo) qui appelle bv2RenderA sur des voyages de DEMONSTRATION construits en
-     memoire, jamais inseres dans S.trips : tout geste d'ecriture est refuse par bv2Mutate (VOYAGE_ABSENT, et COMPTE_SYNCHRONISE sur un compte).
-   - « Mon voyage (copie) » : copie profonde du voyage courant, voyageurs marques confirmes SUR LA COPIE, budgetAuto coupe SUR LA COPIE ;
-     l'original n'est jamais lu en ecriture. Le bouton de calcul des trajets (reseau, caches) est desactive dans la demo.
-   - Aucune ecriture : ni S, ni localStorage, ni IndexedDB, ni Supabase ; aucun reseau. Sortie : « Quitter » restaure le sous-titre V1.
-   - r2 (audit GPT r1) : calque au-dessus de l'ecran d'authentification (z-index 10000) ; hebergement sur une ORIGINE SEPAREE (le fragment
-     #bv2demo n'est qu'un declencheur, pas un controle d'acces) ; sur cette origine « Mon voyage (copie) » explique que les voyages reels
-     ne sont pas accessibles. */
-const BV2_DEMO_TXT={
-  fr:{bar:"Démo Budget V2 · lecture seule",quit:"Quitter",t1:"Lyon · complet",t2:"Alpes · à préciser",t3:"Mon voyage (copie)",note:"Démonstration : rien n'est enregistré. Les gestes sont désactivés ; ton compte et tes voyages ne changent pas.",noTrip:"Aucun voyage à copier ici : sur le site de démonstration, tes voyages réels ne sont pas accessibles (origine séparée, aucune session). Les deux voyages fictifs montrent l'écran complet et l'écran à préciser."},
-  en:{bar:"Budget V2 demo · read-only",quit:"Quit",t1:"Lyon · complete",t2:"Alps · to specify",t3:"My trip (copy)",note:"Demo: nothing is saved. Gestures are disabled; your account and trips do not change.",noTrip:"No trip to copy here: on the demo site your real trips are not accessible (separate origin, no session). The two sample trips show the complete and the to-specify screens."},
-  es:{bar:"Demo Presupuesto V2 · solo lectura",quit:"Salir",t1:"Lyon · completo",t2:"Alpes · por precisar",t3:"Mi viaje (copia)",note:"Demostración: nada se guarda. Los gestos están desactivados; tu cuenta y tus viajes no cambian.",noTrip:"Ningún viaje que copiar aquí: en el sitio de demostración tus viajes reales no son accesibles (origen separado, sin sesión). Los dos viajes ficticios muestran la pantalla completa y la pantalla por precisar."},
-  it:{bar:"Demo Budget V2 · sola lettura",quit:"Esci",t1:"Lione · completo",t2:"Alpi · da precisare",t3:"Il mio viaggio (copia)",note:"Dimostrazione: nulla viene salvato. I gesti sono disattivati; il tuo account e i tuoi viaggi non cambiano.",noTrip:"Nessun viaggio da copiare qui: sul sito dimostrativo i tuoi viaggi reali non sono accessibili (origine separata, nessuna sessione). I due viaggi fittizi mostrano la schermata completa e quella da precisare."},
-  de:{bar:"Demo Budget V2 · nur lesen",quit:"Beenden",t1:"Lyon · vollständig",t2:"Alpen · zu klären",t3:"Meine Reise (Kopie)",note:"Demo: nichts wird gespeichert. Gesten sind deaktiviert; dein Konto und deine Reisen ändern sich nicht.",noTrip:"Keine Reise zum Kopieren hier: auf der Demo-Seite sind deine echten Reisen nicht erreichbar (getrennte Origin, keine Sitzung). Die zwei Beispielreisen zeigen den vollständigen und den zu klärenden Bildschirm."}
+/* ===== BUDGET V2 -- B3.3a GESTES, IDENTITE, C' ET H (B3.3-SPEC r3 ; audits GPT r1/r2 ; arbitrages de Loic A33-a, A34-a, A35-a, A36-b, A37-a, 13 oct. 2026) =====
+   - Couche d'ECRITURE du Budget V2 : neuf fonctions, toutes synchrones, toutes par bv2Mutate (B3.0), toutes precedees de bv2EditTargetCheck
+     (apercu actif ET voyage selectionne) : bv2EditSet, bv2EditClear, bv2TaxPersonsSet, bv2ItemEdit (G2), bv2ConflictSignal (G1),
+     bv2ConflictResolve (G3), bv2RegistryRepair (R-1), bv2EditConfirm (R-3, et « garder pour le nouveau lieu » ID-12), bv2ResumeOrphan (A36-b).
+   - Validation B3.3 AVANT le geste (cle, patch, user conforme a readUser : une seule de unitPrice / total / zero, montant decimal de la devise,
+     devise de la table B1, basis, statut de taxe, personnes 0..99, aucune cle prefixee _) ; refus nomme SAISIE_INVALIDE:<champ> sans bv2Mutate.
+   - Identite (contrat r5, §13.11) : jeton it.bv2id = 'k'+uid(), ecrit DANS le geste sur l'objet reel du Planning, journal {obj,key,had,prev}
+     rejoue a l'envers sur tout echec ; unicite du jeton controlee partout (plan, cles edits, bound, registre, depenses) ; 8 tirages.
+   - Ecrans : C' (mini-page d'une ligne) et H (« Valeurs sans ligne » = heldEdits + metadonnees orphelines + registre, lecture seule) dans un
+     panneau bas propre (#bv2ESheet, patron Q). Accroches dans A par le crochet bv2AfterA (B3.2 r4) : DOM seulement, aucune ecriture.
+   - Hors perimetre (B3.3b) : ecran B, C poste, saisie groupee, carburant (conso), peages trois etats, A19. Aucun reseau. Aucune zone gelee touchee. */
+const BV2_E_TXT={
+  fr:{line:"Ligne",yes:"Oui",no:"Non",state:{MAGOT:"Estimation Magot",MODIFIED:"Modifié par toi",CONFIRMED:"Confirmé"},src:{user:"ta saisie",communaute_magot:"communauté Magot",planning:"Planning",route:"trajet",Google:"établissement (Google)",openstreetmap:"OpenStreetMap",hebergement:"inclus dans l'hôtel",none:"aucune source"},types:{hotel:"Hôtel",tourist_tax:"Taxe de séjour",toll:"Péages",parking:"Stationnement",ticket:"Billets",transit:"Transfert",taxi:"Taxi",fuel:"Carburant",envelope:"Enveloppe"},
+      low:"bas",mid:"central",high:"prudent",magot:"Magot : {x}",gap:"écart {x}",qty:"Quantité",perUnit:"Prix par {u}",total:"Total",free:"Gratuit",save:"Enregistrer",amountPh:"Montant",
+      back:"Revenir à Magot ({x})",backUnknown:"Revenir à « à préciser »",taxQ:"Ton prix inclut-il la taxe de séjour ?",taxInc:"Incluse",taxExc:"En plus",taxUnk:"Je ne sais pas",breakfast:"Petit-déjeuner inclus",
+      persons:"Combien de personnes paient la taxe ?",confirm:"Confirmer",noneTaxable:"Personne n'est assujetti",taxTotal:"Montant total de la taxe",fuelLater:"Le carburant se règle dans un prochain lot (hypothèse de consommation).",
+      hTitle:"Valeurs sans ligne",hEmpty:"Aucune valeur en attente.",del:"Supprimer",resume:"Reprendre sur…",resumeOn:"Reprendre sur « {t} »",keep:"Garder pour cet élément",erase:"Effacer",repair:"Réparer le registre",chooseThis:"Garder celle-ci",pickHolder:"C'est celui-ci",open:"Ouvrir la ligne",keepPlace:"Garder pour le nouveau lieu",
+      specify:"Préciser les {n} postes",specify1:"Préciser « {p} »",pending:"Voir les valeurs en attente",fail:"Impossible d'enregistrer ({c}).",invalid:"Montant invalide",saved:"Enregistré",
+      units:{chambre_nuit:"nuit",personne:"personne",personne_nuit:"personne et nuit",personne_jour:"personne et jour",km:"km",titre:"titre",jour:"jour"},factors:{nights:"nuits",rooms:"chambres",persons:"personnes",travelers:"voyageurs"},day:"jour {d}",
+      meal:{breakfast:"Petit-déjeuner",lunch:"Déjeuner",dinner:"Dîner"},
+      reasons:{IDENTITE_ABSENTE:"L'élément du Planning n'existe plus",SANS_LIGNE:"Aucune ligne ne correspond plus à cette valeur",IDENTITE_DUPLIQUEE:"Deux éléments portent la même identité",IDENTITE_CONFLIT:"Identité en conflit, à résoudre",REGISTRE_ILLISIBLE:"Registre des identités illisible : réparation nécessaire",
+        CONFIRMATION_REQUISE:"À confirmer après la réparation du registre",SAISIES_CONCURRENTES:"Deux saisies visent le même élément",IDENTITE_INCOHERENTE:"Saisie incohérente (clé et rattachement différents)",LIEU_CHANGE:"Le lieu de cet élément a changé",SANS_JETON:"Élément sans identité : saisie à reprendre",ID_ABSENT:"Élément sans identifiant",ID_AMBIGU:"Identifiant ambigu",
+        LIGNE_NON_CONCERNEE:"La ligne ne s'applique plus",QUANTITE_NULLE:"Quantité nulle",TAXE_INCLUSE:"Taxe incluse dans le prix de l'hôtel",SANS_SEJOUR:"Aucune nuit sur cette étape",DEVISE_RETIREE:"Devise plus prise en charge",SAISIE_ILLISIBLE:"Saisie illisible ({c})",BUDGETV2_LECTURE_SEULE:"Budget V2 en lecture seule ({c})",RESERVE_A22:"Montant carburant réservé à un prochain lot",PROVENANCE_ENVELOPPE:"Enveloppe non reconnue",METADONNEES_ORPHELINES:"Choix sans ligne (taxe, petit-déjeuner, personnes)"}},
+  en:{line:"Line",yes:"Yes",no:"No",state:{MAGOT:"Magot estimate",MODIFIED:"Edited by you",CONFIRMED:"Confirmed"},src:{user:"your entry",communaute_magot:"Magot community",planning:"Planning",route:"route",Google:"venue (Google)",openstreetmap:"OpenStreetMap",hebergement:"included in the hotel",none:"no source"},types:{hotel:"Hotel",tourist_tax:"Tourist tax",toll:"Tolls",parking:"Parking",ticket:"Tickets",transit:"Transfer",taxi:"Taxi",fuel:"Fuel",envelope:"Envelope"},
+      low:"low",mid:"central",high:"cautious",magot:"Magot: {x}",gap:"gap {x}",qty:"Quantity",perUnit:"Price per {u}",total:"Total",free:"Free",save:"Save",amountPh:"Amount",
+      back:"Back to Magot ({x})",backUnknown:"Back to “to specify”",taxQ:"Does your price include the tourist tax?",taxInc:"Included",taxExc:"Extra",taxUnk:"I don't know",breakfast:"Breakfast included",
+      persons:"How many people pay the tax?",confirm:"Confirm",noneTaxable:"Nobody is liable",taxTotal:"Total tax amount",fuelLater:"Fuel is set in a later lot (consumption assumption).",
+      hTitle:"Values without a line",hEmpty:"No pending value.",del:"Delete",resume:"Resume on…",resumeOn:"Resume on “{t}”",keep:"Keep for this item",erase:"Erase",repair:"Repair the registry",chooseThis:"Keep this one",pickHolder:"This one",open:"Open the line",keepPlace:"Keep for the new place",
+      specify:"Specify the {n} items",specify1:"Specify “{p}”",pending:"See pending values",fail:"Cannot save ({c}).",invalid:"Invalid amount",saved:"Saved",
+      units:{chambre_nuit:"night",personne:"person",personne_nuit:"person and night",personne_jour:"person and day",km:"km",titre:"ticket",jour:"day"},factors:{nights:"nights",rooms:"rooms",persons:"people",travelers:"travellers"},day:"day {d}",
+      meal:{breakfast:"Breakfast",lunch:"Lunch",dinner:"Dinner"},
+      reasons:{IDENTITE_ABSENTE:"The Planning item no longer exists",SANS_LIGNE:"No line matches this value any more",IDENTITE_DUPLIQUEE:"Two items share the same identity",IDENTITE_CONFLIT:"Identity conflict, to resolve",REGISTRE_ILLISIBLE:"Identity registry unreadable: repair needed",
+        CONFIRMATION_REQUISE:"To confirm after the registry repair",SAISIES_CONCURRENTES:"Two entries target the same item",IDENTITE_INCOHERENTE:"Inconsistent entry (key and binding differ)",LIEU_CHANGE:"The place of this item has changed",SANS_JETON:"Item without identity: entry to resume",ID_ABSENT:"Item without identifier",ID_AMBIGU:"Ambiguous identifier",
+        LIGNE_NON_CONCERNEE:"The line no longer applies",QUANTITE_NULLE:"Zero quantity",TAXE_INCLUSE:"Tax included in the hotel price",SANS_SEJOUR:"No night on this stop",DEVISE_RETIREE:"Currency no longer supported",SAISIE_ILLISIBLE:"Unreadable entry ({c})",BUDGETV2_LECTURE_SEULE:"Budget V2 read-only ({c})",RESERVE_A22:"Fuel amount reserved for a later lot",PROVENANCE_ENVELOPPE:"Envelope not recognised",METADONNEES_ORPHELINES:"Choices without a line (tax, breakfast, people)"}}
 };
-const BV2_DEMO_CSS=`
-#bv2Demo{position:fixed;inset:0;z-index:10000;background:var(--bg);display:flex;flex-direction:column;overflow:hidden}
-#bv2Demo .bv2d-bar{display:flex;align-items:center;gap:10px;padding:max(10px,env(safe-area-inset-top)) 14px 8px;background:var(--surface,#fff);border-bottom:1px solid var(--line)}
-#bv2Demo .bv2d-bar b{flex:1;font:700 14px Inter,sans-serif;color:var(--ink);overflow-wrap:anywhere}#bv2Demo .bv2d-bar button{min-height:40px;border-radius:12px;border:1px solid var(--line);background:var(--surface,#fff);font:600 13px Inter,sans-serif;color:var(--ink);padding:0 12px}
-#bv2Demo .bv2d-tabs{display:flex;gap:6px;padding:8px 14px;overflow-x:auto;background:var(--surface,#fff);border-bottom:1px solid var(--line-soft)}#bv2Demo .bv2d-tabs button{flex:0 0 auto;min-height:40px;border-radius:999px;border:1px solid var(--line);background:var(--surface,#fff);font:600 13px Inter,sans-serif;color:var(--ink-2);padding:0 14px}
-#bv2Demo .bv2d-tabs button.on{background:var(--navy);color:#fff;border-color:var(--navy)}#bv2Demo .bv2d-note{font:500 12px Inter,sans-serif;color:var(--muted);padding:8px 16px 0}
-#bv2Demo .bv2d-body{flex:1;overflow-y:auto;padding:0 16px max(24px,env(safe-area-inset-bottom))}#bv2Demo .bv2d-body .bv2a button:not(#bv2OpenSettings):not(#bv2OpenPlan){pointer-events:none;opacity:.5}
-[data-theme="dark"] #bv2Demo .bv2d-bar,[data-theme="dark"] #bv2Demo .bv2d-tabs,[data-theme="dark"] #bv2Demo .bv2d-tabs button,[data-theme="dark"] #bv2Demo .bv2d-bar button{background:var(--surface,#131E33)}`;
-let _bv2DemoTab=1, _bv2DemoSub=null;
-function _bv2DemoT(){ return BV2_DEMO_TXT[lang()]||BV2_DEMO_TXT.fr; }
-function _bv2DemoDate(plus){ const d=new Date(todayISO()+"T00:00:00"); d.setDate(d.getDate()+plus); return d.toISOString().slice(0,10); }
-function bv2DemoTrips(){   /* voyages de demonstration, construits en memoire a chaque appel ; jamais dans S.trips */
-  const s=_bv2DemoDate(21), e3=_bv2DemoDate(24), e4=_bv2DemoDate(25);
-  const lyon={ id:"bv2demo-lyon", name:"Démo · Lyon", currency:"EUR", travelers:2, dateStart:s, dateEnd:e3, transport:"train", budgetAuto:false,
-    dest:{name:"Lyon",country:"France",cc:"FR",lat:45.76,lng:4.83}, legs:[], lodging:{name:"Hôtel des Célestins"}, lodgingPrice:285,
-    places:[{id:"pBouchon",name:"Le Bouchon des Filles",mapsUri:"https://maps.google.com/?cid=1"},{id:"pMusee",name:"Musée des Confluences",mapsUri:"https://maps.google.com/?cid=2"},{id:"pParc",name:"Parc de la Tête d'Or",price:"PRICE_LEVEL_FREE",mapsUri:"https://maps.google.com/?cid=3"},{id:"pCafe",name:"Café du Soleil",mapsUri:"https://maps.google.com/?cid=4"}],
-    plan:[ {id:"d0a",day:0,kind:"meal",meal:"lunch",placeId:"pCafe",bv2id:"kdemo01",priceRange:{lo:14,hi:22,cur:"EUR"},title:"Café du Soleil"},
-           {id:"d0b",day:0,kind:"meal",meal:"dinner",placeId:"pBouchon",bv2id:"kdemo02",priceRange:{lo:28,hi:40,cur:"EUR"},title:"Le Bouchon des Filles"},
-           {id:"d1a",day:1,kind:"meal",meal:"breakfast",bv2id:"kdemo03"},
-           {id:"d1b",day:1,kind:"culture",placeId:"pMusee",bv2id:"kdemo04",title:"Musée des Confluences"},
-           {id:"d1c",day:1,kind:"meal",meal:"lunch",placeId:"pCafe",bv2id:"kdemo05",priceRange:{lo:14,hi:22,cur:"EUR"},title:"Café du Soleil"},
-           {id:"d1d",day:1,kind:"meal",meal:"dinner",bv2id:"kdemo06"},
-           {id:"d2a",day:2,kind:"nature",placeId:"pParc",bv2id:"kdemo07",title:"Parc de la Tête d'Or"},
-           {id:"d2b",day:2,kind:"meal",meal:"lunch",placeId:"pBouchon",bv2id:"kdemo08",priceRange:{lo:28,hi:40,cur:"EUR"},title:"Le Bouchon des Filles"},
-           {id:"d2c",day:2,kind:"meal",meal:"dinner",placeId:"pCafe",bv2id:"kdemo09",priceRange:{lo:14,hi:22,cur:"EUR"},title:"Café du Soleil"},
-           {id:"d3a",day:3,kind:"meal",meal:"lunch",placeId:"pCafe",bv2id:"kdemo10",priceRange:{lo:14,hi:22,cur:"EUR"},title:"Café du Soleil"} ],
+BV2_E_TXT.es={line:"Línea",yes:"Sí",no:"No",state:{MAGOT:"Estimación Magot",MODIFIED:"Modificado por ti",CONFIRMED:"Confirmado"},src:{user:"tu dato",communaute_magot:"comunidad Magot",planning:"Planning",route:"trayecto",Google:"establecimiento (Google)",openstreetmap:"OpenStreetMap",hebergement:"incluido en el hotel",none:"sin fuente"},types:{hotel:"Hotel",tourist_tax:"Tasa turística",toll:"Peajes",parking:"Aparcamiento",ticket:"Billetes",transit:"Traslado",taxi:"Taxi",fuel:"Combustible",envelope:"Sobre"},
+  low:"bajo",mid:"central",high:"prudente",magot:"Magot: {x}",gap:"diferencia {x}",qty:"Cantidad",perUnit:"Precio por {u}",total:"Total",free:"Gratis",save:"Guardar",amountPh:"Importe",
+  back:"Volver a Magot ({x})",backUnknown:"Volver a « por precisar »",taxQ:"¿Tu precio incluye la tasa turística?",taxInc:"Incluida",taxExc:"Aparte",taxUnk:"No lo sé",breakfast:"Desayuno incluido",
+  persons:"¿Cuántas personas pagan la tasa?",confirm:"Confirmar",noneTaxable:"Nadie está sujeto",taxTotal:"Importe total de la tasa",fuelLater:"El combustible se ajusta en un próximo lote (hipótesis de consumo).",
+  hTitle:"Valores sin línea",hEmpty:"Ningún valor pendiente.",del:"Eliminar",resume:"Retomar en…",resumeOn:"Retomar en « {t} »",keep:"Conservar para este elemento",erase:"Borrar",repair:"Reparar el registro",chooseThis:"Conservar esta",pickHolder:"Es este",open:"Abrir la línea",keepPlace:"Conservar para el nuevo lugar",
+  specify:"Precisar las {n} partidas",specify1:"Precisar « {p} »",pending:"Ver los valores pendientes",fail:"No se puede guardar ({c}).",invalid:"Importe no válido",saved:"Guardado",
+  units:{chambre_nuit:"noche",personne:"persona",personne_nuit:"persona y noche",personne_jour:"persona y día",km:"km",titre:"billete",jour:"día"},factors:{nights:"noches",rooms:"habitaciones",persons:"personas",travelers:"viajeros"},day:"día {d}",
+  meal:{breakfast:"Desayuno",lunch:"Almuerzo",dinner:"Cena"},
+  reasons:{IDENTITE_ABSENTE:"El elemento del Planning ya no existe",SANS_LIGNE:"Ninguna línea corresponde ya a este valor",IDENTITE_DUPLIQUEE:"Dos elementos comparten la misma identidad",IDENTITE_CONFLIT:"Identidad en conflicto, por resolver",REGISTRE_ILLISIBLE:"Registro de identidades ilegible: reparación necesaria",
+    CONFIRMATION_REQUISE:"Por confirmar tras la reparación del registro",SAISIES_CONCURRENTES:"Dos datos apuntan al mismo elemento",IDENTITE_INCOHERENTE:"Dato incoherente (clave y vínculo distintos)",LIEU_CHANGE:"El lugar de este elemento ha cambiado",SANS_JETON:"Elemento sin identidad: dato por retomar",ID_ABSENT:"Elemento sin identificador",ID_AMBIGU:"Identificador ambiguo",
+    LIGNE_NON_CONCERNEE:"La línea ya no aplica",QUANTITE_NULLE:"Cantidad nula",TAXE_INCLUSE:"Tasa incluida en el precio del hotel",SANS_SEJOUR:"Ninguna noche en esta etapa",DEVISE_RETIREE:"Moneda ya no admitida",SAISIE_ILLISIBLE:"Dato ilegible ({c})",BUDGETV2_LECTURE_SEULE:"Presupuesto V2 en solo lectura ({c})",RESERVE_A22:"Importe de combustible reservado a un próximo lote",PROVENANCE_ENVELOPPE:"Sobre no reconocido",METADONNEES_ORPHELINES:"Elecciones sin línea (tasa, desayuno, personas)"}};
+BV2_E_TXT.it={line:"Riga",yes:"Sì",no:"No",state:{MAGOT:"Stima Magot",MODIFIED:"Modificato da te",CONFIRMED:"Confermato"},src:{user:"il tuo dato",communaute_magot:"comunità Magot",planning:"Planning",route:"tragitto",Google:"locale (Google)",openstreetmap:"OpenStreetMap",hebergement:"incluso nell'hotel",none:"nessuna fonte"},types:{hotel:"Hotel",tourist_tax:"Tassa di soggiorno",toll:"Pedaggi",parking:"Parcheggio",ticket:"Biglietti",transit:"Trasferimento",taxi:"Taxi",fuel:"Carburante",envelope:"Busta"},
+  low:"basso",mid:"centrale",high:"prudente",magot:"Magot: {x}",gap:"scarto {x}",qty:"Quantità",perUnit:"Prezzo per {u}",total:"Totale",free:"Gratuito",save:"Salva",amountPh:"Importo",
+  back:"Torna a Magot ({x})",backUnknown:"Torna a « da precisare »",taxQ:"Il prezzo include la tassa di soggiorno?",taxInc:"Inclusa",taxExc:"A parte",taxUnk:"Non lo so",breakfast:"Colazione inclusa",
+  persons:"Quante persone pagano la tassa?",confirm:"Conferma",noneTaxable:"Nessuno è soggetto",taxTotal:"Importo totale della tassa",fuelLater:"Il carburante si imposta in un prossimo lotto (ipotesi di consumo).",
+  hTitle:"Valori senza riga",hEmpty:"Nessun valore in attesa.",del:"Elimina",resume:"Riprendi su…",resumeOn:"Riprendi su « {t} »",keep:"Mantieni per questo elemento",erase:"Cancella",repair:"Ripara il registro",chooseThis:"Mantieni questa",pickHolder:"È questo",open:"Apri la riga",keepPlace:"Mantieni per il nuovo luogo",
+  specify:"Precisa le {n} voci",specify1:"Precisa « {p} »",pending:"Vedi i valori in attesa",fail:"Impossibile salvare ({c}).",invalid:"Importo non valido",saved:"Salvato",
+  units:{chambre_nuit:"notte",personne:"persona",personne_nuit:"persona e notte",personne_jour:"persona e giorno",km:"km",titre:"biglietto",jour:"giorno"},factors:{nights:"notti",rooms:"camere",persons:"persone",travelers:"viaggiatori"},day:"giorno {d}",
+  meal:{breakfast:"Colazione",lunch:"Pranzo",dinner:"Cena"},
+  reasons:{IDENTITE_ABSENTE:"L'elemento del Planning non esiste più",SANS_LIGNE:"Nessuna riga corrisponde più a questo valore",IDENTITE_DUPLIQUEE:"Due elementi hanno la stessa identità",IDENTITE_CONFLIT:"Identità in conflitto, da risolvere",REGISTRE_ILLISIBLE:"Registro delle identità illeggibile: riparazione necessaria",
+    CONFIRMATION_REQUISE:"Da confermare dopo la riparazione del registro",SAISIES_CONCURRENTES:"Due dati puntano allo stesso elemento",IDENTITE_INCOHERENTE:"Dato incoerente (chiave e collegamento diversi)",LIEU_CHANGE:"Il luogo di questo elemento è cambiato",SANS_JETON:"Elemento senza identità: dato da riprendere",ID_ABSENT:"Elemento senza identificativo",ID_AMBIGU:"Identificativo ambiguo",
+    LIGNE_NON_CONCERNEE:"La riga non si applica più",QUANTITE_NULLE:"Quantità nulla",TAXE_INCLUSE:"Tassa inclusa nel prezzo dell'hotel",SANS_SEJOUR:"Nessuna notte in questa tappa",DEVISE_RETIREE:"Valuta non più supportata",SAISIE_ILLISIBLE:"Dato illeggibile ({c})",BUDGETV2_LECTURE_SEULE:"Budget V2 in sola lettura ({c})",RESERVE_A22:"Importo carburante riservato a un prossimo lotto",PROVENANCE_ENVELOPPE:"Busta non riconosciuta",METADONNEES_ORPHELINES:"Scelte senza riga (tassa, colazione, persone)"}};
+BV2_E_TXT.de={line:"Zeile",yes:"Ja",no:"Nein",state:{MAGOT:"Magot-Schätzung",MODIFIED:"Von dir geändert",CONFIRMED:"Bestätigt"},src:{user:"deine Eingabe",communaute_magot:"Magot-Community",planning:"Planning",route:"Strecke",Google:"Betrieb (Google)",openstreetmap:"OpenStreetMap",hebergement:"im Hotel enthalten",none:"keine Quelle"},types:{hotel:"Hotel",tourist_tax:"Kurtaxe",toll:"Maut",parking:"Parken",ticket:"Tickets",transit:"Transfer",taxi:"Taxi",fuel:"Kraftstoff",envelope:"Umschlag"},
+  low:"niedrig",mid:"zentral",high:"vorsichtig",magot:"Magot: {x}",gap:"Abweichung {x}",qty:"Menge",perUnit:"Preis pro {u}",total:"Gesamt",free:"Kostenlos",save:"Speichern",amountPh:"Betrag",
+  back:"Zurück zu Magot ({x})",backUnknown:"Zurück zu „zu klären“",taxQ:"Enthält dein Preis die Kurtaxe?",taxInc:"Enthalten",taxExc:"Zusätzlich",taxUnk:"Weiß ich nicht",breakfast:"Frühstück inklusive",
+  persons:"Wie viele Personen zahlen die Taxe?",confirm:"Bestätigen",noneTaxable:"Niemand ist pflichtig",taxTotal:"Gesamtbetrag der Taxe",fuelLater:"Kraftstoff wird in einem späteren Los festgelegt (Verbrauchsannahme).",
+  hTitle:"Werte ohne Zeile",hEmpty:"Kein offener Wert.",del:"Löschen",resume:"Übernehmen auf…",resumeOn:"Übernehmen auf „{t}“",keep:"Für dieses Element behalten",erase:"Entfernen",repair:"Register reparieren",chooseThis:"Diese behalten",pickHolder:"Dieses hier",open:"Zeile öffnen",keepPlace:"Für den neuen Ort behalten",
+  specify:"Die {n} Posten klären",specify1:"„{p}“ klären",pending:"Offene Werte ansehen",fail:"Speichern nicht möglich ({c}).",invalid:"Ungültiger Betrag",saved:"Gespeichert",
+  units:{chambre_nuit:"Nacht",personne:"Person",personne_nuit:"Person und Nacht",personne_jour:"Person und Tag",km:"km",titre:"Fahrschein",jour:"Tag"},factors:{nights:"Nächte",rooms:"Zimmer",persons:"Personen",travelers:"Reisende"},day:"Tag {d}",
+  meal:{breakfast:"Frühstück",lunch:"Mittagessen",dinner:"Abendessen"},
+  reasons:{IDENTITE_ABSENTE:"Das Planning-Element existiert nicht mehr",SANS_LIGNE:"Keine Zeile passt mehr zu diesem Wert",IDENTITE_DUPLIQUEE:"Zwei Elemente teilen dieselbe Identität",IDENTITE_CONFLIT:"Identitätskonflikt, zu lösen",REGISTRE_ILLISIBLE:"Identitätsregister unlesbar: Reparatur nötig",
+    CONFIRMATION_REQUISE:"Nach der Registerreparatur zu bestätigen",SAISIES_CONCURRENTES:"Zwei Eingaben zielen auf dasselbe Element",IDENTITE_INCOHERENTE:"Widersprüchliche Eingabe (Schlüssel und Bindung verschieden)",LIEU_CHANGE:"Der Ort dieses Elements hat sich geändert",SANS_JETON:"Element ohne Identität: Eingabe zu übernehmen",ID_ABSENT:"Element ohne Kennung",ID_AMBIGU:"Mehrdeutige Kennung",
+    LIGNE_NON_CONCERNEE:"Die Zeile gilt nicht mehr",QUANTITE_NULLE:"Menge null",TAXE_INCLUSE:"Taxe im Hotelpreis enthalten",SANS_SEJOUR:"Keine Nacht auf dieser Etappe",DEVISE_RETIREE:"Währung nicht mehr unterstützt",SAISIE_ILLISIBLE:"Unlesbare Eingabe ({c})",BUDGETV2_LECTURE_SEULE:"Budget V2 schreibgeschützt ({c})",RESERVE_A22:"Kraftstoffbetrag einem späteren Los vorbehalten",PROVENANCE_ENVELOPPE:"Umschlag nicht erkannt",METADONNEES_ORPHELINES:"Angaben ohne Zeile (Taxe, Frühstück, Personen)"}};
+function _bv2E(){ return BV2_E_TXT[lang()]||BV2_E_TXT.fr; }
+const BV2_E_BASIS=["typed","booking","fuel_consumption"];
+const BV2_E_FIELDS=["user","taxStatus","breakfastIncluded","persons","notTaxable","conso","bound","confirmRequired","at"];   /* champs lus par B3.1 (+ at : date de la saisie) ; rien d'autre n'est ecrit */
+const BV2_E_IDKEY=/^(meal|act)\.(k[0-9a-z]{1,30})$/;   /* cle identitaire (sans suffixe .dN : jamais ecrit par B3.3) */
+
+/* ---------- validation B3.3 (avant tout geste ; B1 et B3.1 restent la derniere defense) ---------- */
+function _bv2EAmountOk(a, cur){ if(typeof a!=="string"||!_bv2InTable(cur)) return false; const d=_b2Digits(cur); const m=/^(\d{1,12})(?:\.(\d{1,10}))?$/.exec(a); return !!m&&(!m[2]||m[2].length<=d); }
+function _bv2EMoneyOk(m, cur, what){   /* -> null ou code ; readMoney (B1) : amount, currency, basis, touristTaxStatus */
+  if(!_bv2Obj(m)) return "SAISIE_INVALIDE:"+what;
+  for(const k of Object.keys(m)) if(["amount","currency","basis","touristTaxStatus"].indexOf(k)<0) return "SAISIE_INVALIDE:"+what+"."+k;
+  if(!_bv2EAmountOk(m.amount, m.currency)) return "SAISIE_INVALIDE:"+what+".amount";
+  if(m.basis!==undefined&&BV2_E_BASIS.indexOf(m.basis)<0) return "SAISIE_INVALIDE:"+what+".basis";
+  if(m.touristTaxStatus!==undefined&&BV2_TAX_STATUS.indexOf(m.touristTaxStatus)<0) return "SAISIE_INVALIDE:"+what+".touristTaxStatus";
+  return null; }
+function bv2EditUserCheck(u, cur){   /* -> null ou code ; forme readUser : une seule de unitPrice / total / zero ; factors = entiers ou decimaux (<= 3) */
+  if(!_bv2Obj(u)) return "SAISIE_INVALIDE:user";
+  if(!_bv2NoUnderscore(u)) return "SAISIE_INVALIDE:user._";
+  const ks=Object.keys(u); if(!ks.length) return "SAISIE_INVALIDE:user.vide";
+  for(const k of ks) if(["factors","unitPrice","total","zero"].indexOf(k)<0) return "SAISIE_INVALIDE:user."+k;
+  if(["unitPrice","total","zero"].filter(k=>u[k]!==undefined).length>1) return "SAISIE_INVALIDE:user.exclusif";   /* §3.2 : les trois facons sont exclusives (B3.1 : SAISIES_CONCURRENTES) */
+  if(u.factors!==undefined){ if(!_bv2Obj(u.factors)||!Object.keys(u.factors).length) return "SAISIE_INVALIDE:user.factors";
+    for(const [k,v] of Object.entries(u.factors)) if(!/^[a-z_]{1,30}$/.test(k)||typeof v!=="string"||!/^\d{1,12}(\.\d{1,3})?$/.test(v)) return "SAISIE_INVALIDE:user.factors."+k; }
+  for(const k of ["unitPrice","total"]) if(u[k]!==undefined){ const e=_bv2EMoneyOk(u[k], cur, "user."+k); if(e) return e; }
+  if(u.zero!==undefined){ const z=u.zero; if(!_bv2Obj(z)) return "SAISIE_INVALIDE:user.zero";
+    for(const k of Object.keys(z)) if(["basis","touristTaxStatus"].indexOf(k)<0) return "SAISIE_INVALIDE:user.zero."+k;
+    if(z.basis!==undefined&&["typed","booking"].indexOf(z.basis)<0) return "SAISIE_INVALIDE:user.zero.basis";
+    if(z.touristTaxStatus!==undefined&&BV2_TAX_STATUS.indexOf(z.touristTaxStatus)<0) return "SAISIE_INVALIDE:user.zero.touristTaxStatus"; }
+  return null; }
+function bv2EditPatchCheck(patch, cur){   /* -> null ou code ; undefined = retirer le champ */
+  if(!_bv2Obj(patch)||!Object.keys(patch).length) return "SAISIE_INVALIDE:patch";
+  if(!_bv2NoUnderscore(patch)) return "SAISIE_INVALIDE:patch._";
+  for(const [k,v] of Object.entries(patch)){ if(BV2_E_FIELDS.indexOf(k)<0) return "SAISIE_INVALIDE:"+k; if(v===undefined) continue;
+    if(k==="user"){ const e=bv2EditUserCheck(v, cur); if(e) return e; }
+    else if(k==="taxStatus"){ if(BV2_TAX_STATUS.indexOf(v)<0) return "SAISIE_INVALIDE:taxStatus"; }
+    else if(k==="breakfastIncluded"||k==="notTaxable"||k==="confirmRequired"){ if(typeof v!=="boolean") return "SAISIE_INVALIDE:"+k; }
+    else if(k==="persons"){ if(!Number.isInteger(v)||v<0||v>99) return "SAISIE_INVALIDE:persons"; }
+    else if(k==="conso"){ if(typeof v!=="number"||!Number.isFinite(v)||v<=0||v>99) return "SAISIE_INVALIDE:conso"; }
+    else if(k==="at"){ if(!Number.isInteger(v)||v<=0) return "SAISIE_INVALIDE:at"; }
+    else if(k==="bound"){ if(!_bv2Obj(v)||typeof v.bv2id!=="string"||!BV2_TOKEN.test(v.bv2id)) return "SAISIE_INVALIDE:bound"; } }
+  return null; }
+const _bv2EKeyOk=k=>typeof k==="string"&&/^[A-Za-z0-9_.:-]{1,80}$/.test(k)&&k.charAt(0)!=="_";
+
+/* ---------- cible du geste (P1 audit r1) et journal de reprise ---------- */
+function bv2EditTargetCheck(tr){   /* apercu actif ET voyage selectionne ; bv2Mutate ne verifie que l'appartenance a S.trips */
+  if(!bv2PreviewActive()) return {ok:false, code:"APERCU_INACTIF"};
+  if(!tr||tr!==currentTrip()) return {ok:false, code:"VOYAGE_CHANGE"};
+  return {ok:true}; }
+function _bv2EUndo(J){ for(let i=J.length-1;i>=0;i--){ const e=J[i]; try{ if(e.had) e.obj[e.key]=e.prev; else delete e.obj[e.key]; }catch(_e){} } J.length=0; }
+function _bv2EMutate(tr, fn, g, J){   /* bv2Mutate + reprise exacte du journal sur tout echec (y compris exception) */
+  let r; try{ r=bv2Mutate(tr, fn, g); }catch(_e){ r={ok:false, code:"GESTE_ERREUR"}; }
+  if(!r||!r.ok){ if(J) _bv2EUndo(J); return r||{ok:false, code:"GESTE_ERREUR"}; }
+  return r; }
+function _bv2ESetToken(it, tok, J){   /* ecriture du jeton DANS le geste, journalisee ; {bv2id:null} / {bv2id:"INVALID"} compris (audit r1 P2) */
+  if(_bv2TokOf(it)!==tok){ J.push({obj:it, key:"bv2id", had:Object.prototype.hasOwnProperty.call(it,"bv2id"), prev:it.bv2id}); it.bv2id=tok; } }
+function _bv2EApply(e, patch){ const o=Object.assign({}, _bv2Obj(e)?e:{}); for(const [k,v] of Object.entries(patch)){ if(v===undefined) delete o[k]; else o[k]=bv2Clone(v); } return o; }
+const _bv2EPrefixOf=it=>it&&it.kind==="meal"?"meal":(it&&BV2_VISIT_KINDS.indexOf(it.kind)>=0?"act":null);
+const _bv2EBound=(it, tok)=>({bv2id:tok, itemId:it.id==null?null:String(it.id), day:it.day, kind:it.kind||null, meal:it.meal||null, placeId:typeof it.placeId==="string"?it.placeId:null});
+
+/* ---------- identite : porteurs, unicite, nouveau jeton (T16) ---------- */
+function _bv2EHolders(tr){ const h=new Map(); for(const it of (Array.isArray(tr&&tr.plan)?tr.plan:[])){ const t=_bv2TokOf(it); if(t) h.set(t,(h.get(t)||[]).concat([it])); } return h; }
+function _bv2ERegState(data){ const r=_bv2Obj(data&&data.notices)?data.notices.identityConflicts:undefined; return r===undefined?"absent":(_bv2Obj(r)?"ok":"illisible"); }
+function _bv2ETokenKnown(tr, data, tok){   /* connu quelque part : plan, cles edits, bound, registre, depenses (lineId) */
+  if(_bv2EHolders(tr).has(tok)) return true;
+  for(const it of (Array.isArray(tr&&tr.plan)?tr.plan:[])) if(it&&it.bv2id===tok) return true;
+  const ed=_bv2Obj(data.edits)?data.edits:{};
+  for(const [k,e] of Object.entries(ed)){ if(k.indexOf("."+tok)>=0) return true; if(_bv2Obj(e)&&_bv2Obj(e.bound)&&e.bound.bv2id===tok) return true; }
+  const reg=_bv2Obj(data.notices)&&_bv2Obj(data.notices.identityConflicts)?data.notices.identityConflicts:{}; if(_bv2Has(reg,tok)) return true;
+  for(const x of Object.values(_bv2Obj(data.expenses)?data.expenses:{})) if(_bv2Obj(x)&&typeof x.lineId==="string"&&x.lineId.indexOf("."+tok)>=0) return true;
+  return false; }
+function _bv2ENewToken(tr, data, taken){ for(let i=0;i<8;i++){ const t="k"+uid(); if(BV2_TOKEN.test(t)&&!_bv2ETokenKnown(tr, data, t)&&!(taken&&taken.has(t))) return t; } return null; }   /* T16 : 8 tirages puis JETON_INDISPONIBLE */
+
+/* ---------- les neuf fonctions d'ecriture ---------- */
+function bv2EditSet(tr, key, patch, gesture){   /* pose / retire des champs de edits[key] ; patch valide AVANT bv2Mutate */
+  const tc=bv2EditTargetCheck(tr); if(!tc.ok) return tc;
+  if(!_bv2EKeyOk(key)) return {ok:false, code:"SAISIE_INVALIDE:key"};
+  const err=bv2EditPatchCheck(patch, _bv2CurOf(tr)); if(err) return {ok:false, code:err};
+  if(key==="fuel"&&patch.user!==undefined) return {ok:false, code:"SAISIE_INVALIDE:user"};   /* A22-a : carburant = conso seulement, user reserve */
+  if(/^(fuel|toll|ticket\.|env\.)/.test(key)&&_bv2Obj(patch.user)&&patch.user.unitPrice!==undefined) return {ok:false, code:"SAISIE_INVALIDE:user.unitPrice"};   /* lignes AMOUNT (B1 PRIX_UNITAIRE_SUR_MONTANT) */
+  const g=gesture||bv2Capture();
+  return _bv2EMutate(tr, d=>{ const o=_bv2EApply(d.edits[key], patch); if(patch.user!==undefined||patch.conso!==undefined) o.at=Date.now();
+    if(Object.keys(o).length) d.edits[key]=o; else delete d.edits[key]; }, g, null); }
+function bv2EditClear(tr, key, fields, gesture){   /* fields : tableau de champs a retirer (A35-a : « Revenir a Magot » = ["user"]) ; null = retirer edits[key] entier */
+  const tc=bv2EditTargetCheck(tr); if(!tc.ok) return tc;
+  if(!_bv2EKeyOk(key)) return {ok:false, code:"SAISIE_INVALIDE:key"};
+  if(fields!=null&&(!Array.isArray(fields)||!fields.length||fields.some(f=>BV2_E_FIELDS.indexOf(f)<0))) return {ok:false, code:"SAISIE_INVALIDE:fields"};
+  const g=gesture||bv2Capture();
+  return _bv2EMutate(tr, d=>{ if(!_bv2Has(d.edits,key)) return false;
+    if(fields==null){ delete d.edits[key]; return; }
+    const o=Object.assign({}, d.edits[key]); for(const f of fields) delete o[f]; if(fields.indexOf("user")>=0) delete o.at;
+    if(Object.keys(o).length) d.edits[key]=o; else delete d.edits[key]; }, g, null); }
+function bv2TaxPersonsSet(tr, n, gesture){   /* A20 : rien n'est compte avant « Confirmer » ; 0 permis ; null = retirer */
+  const tc=bv2EditTargetCheck(tr); if(!tc.ok) return tc;
+  if(n!==null&&(!Number.isInteger(n)||n<0||n>99)) return {ok:false, code:"SAISIE_INVALIDE:persons"};
+  const g=gesture||bv2Capture();
+  return _bv2EMutate(tr, d=>{ d.taxPersons=n===null?null:{value:n, confirmedAt:Date.now()}; }, g, null); }
+function bv2ConflictSignal(tr, gesture){   /* G1 : tout jeton porte >= 2 fois -> registre ; aucun prix ; registre illisible -> refus (R-1 d'abord) */
+  const tc=bv2EditTargetCheck(tr); if(!tc.ok) return tc;
+  const st=bv2Store(tr); if(st.readOnly) return {ok:false, code:st.reason||"LECTURE_SEULE"};
+  if(_bv2ERegState(st.data)==="illisible") return {ok:false, code:"REGISTRE_ILLISIBLE"};
+  const dups=[]; for(const [t,its] of _bv2EHolders(tr)) if(its.length>1) dups.push([t,its.length]);
+  const reg=_bv2Obj(st.data.notices)&&_bv2Obj(st.data.notices.identityConflicts)?st.data.notices.identityConflicts:{};
+  const missing=dups.filter(([t,n])=>!_bv2Has(reg,t)||!_bv2Obj(reg[t])||reg[t].holders!==n);
+  if(!missing.length) return {ok:true, conflicts:dups.map(x=>x[0]), written:false};
+  const g=gesture||bv2Capture(), at=Date.now();
+  const r=_bv2EMutate(tr, d=>{ const n=Object.assign({}, d.notices); const rg=Object.assign({}, _bv2Obj(n.identityConflicts)?n.identityConflicts:{});
+    for(const [t,c] of missing) rg[t]={at, holders:c}; n.identityConflicts=rg; d.notices=n; }, g, null);
+  return r.ok?Object.assign(r,{conflicts:dups.map(x=>x[0]), written:true}):r; }
+function bv2ItemEdit(tr, it, patch, gesture){   /* G2 : saisie sur un element du Planning = jeton + edits['<prefix>.k<tok>'] dans le meme geste */
+  const tc=bv2EditTargetCheck(tr); if(!tc.ok) return tc;
+  if(!it||!Array.isArray(tr.plan)||tr.plan.indexOf(it)<0) return {ok:false, code:"ELEMENT_ABSENT"};
+  const prefix=_bv2EPrefixOf(it); if(!prefix) return {ok:false, code:"TYPE_NON_PRIS_EN_CHARGE"};
+  const err=bv2EditPatchCheck(patch, _bv2CurOf(tr)); if(err) return {ok:false, code:err};
+  if(patch.bound!==undefined) return {ok:false, code:"SAISIE_INVALIDE:bound"};   /* le rattachement est ecrit par G2, jamais fourni */
+  const st=bv2Store(tr); if(st.readOnly) return {ok:false, code:st.reason||"LECTURE_SEULE"};
+  if(_bv2ERegState(st.data)==="illisible") return {ok:false, code:"REGISTRE_ILLISIBLE"};
+  const g=gesture||bv2Capture(); let tok=_bv2TokOf(it);
+  if(tok){ const h=_bv2EHolders(tr).get(tok)||[]; if(h.length>1){ bv2ConflictSignal(tr, g); return {ok:false, code:"IDENTITE_DUPLIQUEE"}; }   /* G1 d'abord, puis refus : jamais de departage automatique */
+    const reg=_bv2Obj(st.data.notices)&&_bv2Obj(st.data.notices.identityConflicts)?st.data.notices.identityConflicts:{}; if(_bv2Has(reg,tok)) return {ok:false, code:"IDENTITE_CONFLIT"}; }
+  else { tok=_bv2ENewToken(tr, st.data); if(!tok) return {ok:false, code:"JETON_INDISPONIBLE"}; }
+  const key=prefix+"."+tok, J=[];
+  return _bv2EMutate(tr, d=>{ _bv2ESetToken(it, tok, J);
+    const o=_bv2EApply(d.edits[key], patch); o.bound=_bv2EBound(it, tok); if(patch.user!==undefined) o.at=Date.now(); d.edits[key]=o; }, g, J); }
+function bv2ConflictResolve(tr, tok, keepIt, gesture){   /* G3 : keepIt garde le jeton, les autres porteurs en recoivent un neuf ; reg[tok] retire */
+  const tc=bv2EditTargetCheck(tr); if(!tc.ok) return tc;
+  if(typeof tok!=="string"||!BV2_TOKEN.test(tok)) return {ok:false, code:"SAISIE_INVALIDE:tok"};
+  const st=bv2Store(tr); if(st.readOnly) return {ok:false, code:st.reason||"LECTURE_SEULE"};
+  if(_bv2ERegState(st.data)==="illisible") return {ok:false, code:"REGISTRE_ILLISIBLE"};
+  const holders=_bv2EHolders(tr).get(tok)||[]; if(holders.indexOf(keepIt)<0) return {ok:false, code:"ELEMENT_ABSENT"};
+  const others=holders.filter(x=>x!==keepIt), taken=new Set(), news=[];
+  for(const o of others){ const t=_bv2ENewToken(tr, st.data, taken); if(!t) return {ok:false, code:"JETON_INDISPONIBLE"}; taken.add(t); news.push([o,t]); }
+  const g=gesture||bv2Capture(), J=[];
+  return _bv2EMutate(tr, d=>{ for(const [o,t] of news) _bv2ESetToken(o, t, J);
+    if(_bv2Obj(d.notices)&&_bv2Obj(d.notices.identityConflicts)){ const n=Object.assign({}, d.notices), rg=Object.assign({}, n.identityConflicts); delete rg[tok]; n.identityConflicts=rg; d.notices=n; } }, g, J); }
+function bv2RegistryRepair(tr, gesture){   /* R-1 : registre reconstruit des conflits observables ; TOUTE saisie identitaire recoit confirmRequired (R-2) ; conservateur */
+  const tc=bv2EditTargetCheck(tr); if(!tc.ok) return tc;
+  const st=bv2Store(tr); if(st.readOnly) return {ok:false, code:st.reason||"LECTURE_SEULE"};
+  const g=gesture||bv2Capture(), at=Date.now(), dups=[]; for(const [t,its] of _bv2EHolders(tr)) if(its.length>1) dups.push([t,its.length]);
+  return _bv2EMutate(tr, d=>{ const n=Object.assign({}, d.notices); const rg={}; for(const [t,c] of dups) rg[t]={at, holders:c}; n.identityConflicts=rg; n.identityRepairedAt=at; d.notices=n;
+    for(const k of Object.keys(d.edits)) if(BV2_E_IDKEY.test(k)&&_bv2Obj(d.edits[k])) d.edits[k]=Object.assign({}, d.edits[k], {confirmRequired:true}); }, g, null); }
+function bv2EditConfirm(tr, key, opts, gesture){   /* R-3 : porteur unique, registre lisible, hors conflit -> confirmRequired retire, bound reecrit sur le porteur ; opts.rebindPlace (ID-12, Q7-a) */
+  const tc=bv2EditTargetCheck(tr); if(!tc.ok) return tc;
+  const m=BV2_E_IDKEY.exec(key||""); if(!m) return {ok:false, code:"SAISIE_INVALIDE:key"}; const tok=m[2];
+  const st=bv2Store(tr); if(st.readOnly) return {ok:false, code:st.reason||"LECTURE_SEULE"};
+  if(_bv2ERegState(st.data)==="illisible") return {ok:false, code:"REGISTRE_ILLISIBLE"};
+  const holders=_bv2EHolders(tr).get(tok)||[]; if(holders.length!==1) return {ok:false, code:holders.length?"IDENTITE_DUPLIQUEE":"IDENTITE_ABSENTE"};
+  const reg=_bv2Obj(st.data.notices)&&_bv2Obj(st.data.notices.identityConflicts)?st.data.notices.identityConflicts:{}; if(_bv2Has(reg,tok)) return {ok:false, code:"IDENTITE_CONFLIT"};
+  if(_bv2EPrefixOf(holders[0])!==m[1]) return {ok:false, code:"IDENTITE_INCOHERENTE"};
+  const it=holders[0], g=gesture||bv2Capture();
+  return _bv2EMutate(tr, d=>{ if(!_bv2Obj(d.edits[key])) return false; const o=Object.assign({}, d.edits[key]); delete o.confirmRequired;
+    const b=_bv2EBound(it, tok); if(!(opts&&opts.rebindPlace)&&_bv2Obj(o.bound)&&typeof o.bound.placeId==="string"&&o.bound.placeId.length&&o.bound.placeId!==b.placeId) return false;   /* lieu change : seulement avec rebindPlace (jamais en silence) */
+    o.bound=b; d.edits[key]=o; }, g, null); }
+function bv2ResumeOrphan(tr, oldKey, it, gesture){   /* A36-b : reprise d'une saisie orpheline sur un element, UN SEUL bv2Mutate (jeton + nouvelle cle + suppression de l'ancienne) */
+  const target=bv2EditTargetCheck(tr); if(!target.ok) return target;
+  if(!tr.plan||!tr.plan.includes(it)) return {ok:false, code:"ELEMENT_ABSENT"};
+  const g=gesture||bv2Capture();
+  const prefix=_bv2EPrefixOf(it); if(!prefix) return {ok:false, code:"TYPE_NON_PRIS_EN_CHARGE"};
+  if(!_bv2EKeyOk(oldKey)||oldKey.split(".")[0]!==prefix) return {ok:false, code:"SAISIE_INVALIDE:key"};   /* repas -> repas, visite -> visite */
+  const st=bv2Store(tr); if(st.readOnly) return {ok:false, code:st.reason||"LECTURE_SEULE"};
+  if(_bv2ERegState(st.data)==="illisible") return {ok:false, code:"REGISTRE_ILLISIBLE"};
+  const old=_bv2Edit(st.data, oldKey); if(!old) return {ok:false, code:"SAISIE_ABSENTE"};
+  const patch={}; for(const k of BV2_E_FIELDS) if(k!=="bound"&&k!=="confirmRequired"&&k!=="at"&&old[k]!==undefined) patch[k]=old[k];
+  if(!Object.keys(patch).length) return {ok:false, code:"SAISIE_VIDE"};
+  const err=bv2EditPatchCheck(patch, _bv2CurOf(tr)); if(err) return {ok:false, code:err};   /* la destination est validee AVANT toute suppression */
+  let tok=_bv2TokOf(it);
+  if(tok){ const h=_bv2EHolders(tr).get(tok)||[]; if(h.length>1) return {ok:false, code:"IDENTITE_DUPLIQUEE"}; const reg=_bv2Obj(st.data.notices)&&_bv2Obj(st.data.notices.identityConflicts)?st.data.notices.identityConflicts:{}; if(_bv2Has(reg,tok)) return {ok:false, code:"IDENTITE_CONFLIT"}; }
+  else { tok=_bv2ENewToken(tr, st.data); if(!tok) return {ok:false, code:"JETON_INDISPONIBLE"}; }
+  const newKey=prefix+"."+tok; if(newKey===oldKey) return {ok:false, code:"SAISIE_INVALIDE:key"};
+  if(_bv2Has(st.data.edits,newKey)&&_bv2UserOf(st.data.edits[newKey])&&_bv2UserOf(old)) return {ok:false, code:"SAISIES_CONCURRENTES"};   /* l'element a deja un prix : choisir dans H, jamais ecraser */
+  const J=[];
+  return _bv2EMutate(tr, d=>{ _bv2ESetToken(it, tok, J);
+    const o=_bv2EApply(d.edits[newKey], patch); o.bound=_bv2EBound(it, tok); o.at=Date.now(); d.edits[newKey]=o;
+    delete d.edits[oldKey]; }, g, J); }   /* l'ancienne saisie n'est supprimee qu'apres la destination, dans le meme brouillon : echec = rien */
+
+/* ---------- aides de saisie (C') ---------- */
+function bv2EditUserWith(prev, mode, money){   /* user conforme §3.2 : conserve factors, pose exactement une facon (unitPrice | total | zero), efface les deux autres */
+  const u={}; if(_bv2Obj(prev)&&_bv2Obj(prev.factors)&&Object.keys(prev.factors).length) u.factors=bv2Clone(prev.factors);
+  if(mode==="unitPrice"||mode==="total") u[mode]=Object.assign({basis:"typed"}, money); else if(mode==="zero") u.zero=Object.assign({basis:"typed"}, money||{});
+  return u; }
+function bv2EditAmountStr(txt, cur){   /* saisie libre -> chaine decimale de la devise, ou null */
+  if(typeof txt!=="string") return null; let s=txt.trim().replace(/\s/g,"").replace(",","."); if(!/^\d{1,12}(\.\d{1,10})?$/.test(s)) return null;
+  const d=_b2Digits(cur); if(d==null) return null; const m=/^(\d+)(?:\.(\d+))?$/.exec(s); let f=(m[2]||"").replace(/0+$/,""); if(f.length>d) return null;
+  return m[1].replace(/^0+(?=\d)/,"")+(f?"."+f:""); }
+
+/* ---------- H : projection en lecture seule (heldEdits + metadonnees orphelines + registre) ---------- */
+function bv2HeldList(tr, r){   /* -> [{key, reason, code, user, item?, tok?}] ; AUCUNE ecriture */
+  const out=[], seen=new Set(), st=bv2Store(tr), data=st.data, meta=(r&&r.meta)||{};
+  const held=(r&&r.heldEdits)||[]; for(const h of held){ if(seen.has(h.key)) continue; seen.add(h.key); out.push({key:h.key, reason:h.reason.split(":")[0], code:h.reason.indexOf(":")>0?h.reason.slice(h.reason.indexOf(":")+1):"", meta:meta[h.key]||null}); }
+  if(!st.readOnly){ for(const k of Object.keys(_bv2Obj(data.edits)?data.edits:{})){ if(seen.has(k)||_bv2Has(meta,k)||!_bv2Obj(data.edits[k])) continue; seen.add(k); out.push({key:k, reason:"METADONNEES_ORPHELINES", code:"", meta:null}); }   /* audit r1 P2 : sans user, hors heldEdits */
+    const rs=_bv2ERegState(data); if(rs==="illisible"&&!out.some(x=>x.reason==="REGISTRE_ILLISIBLE")) out.push({key:"budgetV2.notices.identityConflicts", reason:"REGISTRE_ILLISIBLE", code:"", meta:null});
+    if(rs==="ok") for(const t of Object.keys(data.notices.identityConflicts)) if(!out.some(x=>x.tok===t)) out.push({key:"registre."+t, reason:"IDENTITE_CONFLIT", code:"", meta:null, tok:t}); }
+  for(const x of out){ const m=BV2_E_IDKEY.exec(x.key.replace(/\.d\d+$/,"")); if(m&&!x.tok) x.tok=m[2]; const e=_bv2Edit(data,x.key); x.user=e?_bv2UserOf(e):null; x.edit=e; }
+  return out; }
+
+/* ---------- panneau bas commun C' / H (#bv2ESheet, patron Q ; #expFilterSheet et #bv2QSheet intacts) ---------- */
+let _bv2ETrip=null, _bv2EKind=null, _bv2ELine=null;
+const BV2_E_CSS=`
+#bv2ESheet.botsheet{inset:auto;left:0;right:0;bottom:0;top:auto;height:auto;max-height:88vh;display:none;flex-direction:column;z-index:3200;background:var(--bg);border-top-left-radius:22px;border-top-right-radius:22px;box-shadow:var(--shadow-lg);transition:transform .25s ease}
+#bv2ESheet.botsheet.show{display:flex;animation:slideup .3s ease both}#bv2ESheet .bv2e-grip{width:40px;height:5px;border-radius:3px;background:var(--line);margin:8px auto 2px}#bv2ESheet .sh-head{display:flex;align-items:center;justify-content:space-between;padding:8px 18px 4px}
+#bv2ESheet .sh-head h2{font:700 17px Inter,sans-serif;color:var(--ink);margin:0;overflow-wrap:anywhere}#bv2ESheet .bv2e-x{border:0;background:transparent;font-size:22px;line-height:1;color:var(--muted);width:var(--tap);height:var(--tap)}
+#bv2ESheet .bv2e-body{padding:6px 18px 26px;overflow-y:auto}#bv2ESheet .bv2e-row{display:flex;align-items:center;gap:10px;margin:10px 0}#bv2ESheet .bv2e-row label{font:600 13px Inter,sans-serif;color:var(--ink-2);flex:1}
+#bv2ESheet .bv2e-k{font:600 12px Inter,sans-serif;color:var(--muted);text-transform:uppercase;letter-spacing:.3px;margin-top:14px}#bv2ESheet .bv2e-v{font:600 14px Inter,sans-serif;color:var(--ink);margin-top:3px;overflow-wrap:anywhere}
+#bv2ESheet .bv2e-range{display:grid;grid-template-columns:1fr 1.25fr 1fr;gap:8px;margin:8px 0}#bv2ESheet .bv2e-range div{border:1px solid var(--line);border-radius:12px;padding:8px 6px;text-align:center;font:600 13px Inter,sans-serif;color:var(--ink)}#bv2ESheet .bv2e-range div.mid{border-color:var(--gold);background:var(--gold-soft)}#bv2ESheet .bv2e-rk{display:block;font:600 11px Inter,sans-serif;color:var(--muted);text-transform:uppercase;letter-spacing:.3px;margin-bottom:3px}
+#bv2ESheet input.bv2e-in{flex:1;min-width:0;height:44px;border:1px solid var(--line);border-radius:12px;padding:0 12px;font:600 16px Inter,sans-serif;color:var(--ink);background:var(--surface,#fff)}
+#bv2ESheet .bv2e-cnt{display:flex;align-items:center;gap:10px}#bv2ESheet .bv2e-cnt button{width:44px;height:44px;border-radius:50%;border:1px solid var(--line);background:var(--surface,#fff);font:700 20px Inter,sans-serif;color:var(--ink)}#bv2ESheet .bv2e-cnt b{font:700 20px Inter,sans-serif;color:var(--ink);min-width:32px;text-align:center}
+#bv2ESheet .seg button{min-height:40px}#bv2ESheet .btn{min-height:44px;margin-top:8px}#bv2ESheet .btn.sm{min-height:40px;font-size:13px;padding:0 12px}#bv2ESheet .bv2e-item{border:1px solid var(--line);border-radius:14px;padding:10px 12px;margin:10px 0}#bv2ESheet .bv2e-item .r{font:600 13px Inter,sans-serif;color:var(--danger)}#bv2ESheet .bv2e-item .k{font:500 12px Inter,sans-serif;color:var(--muted);overflow-wrap:anywhere}#bv2ESheet .bv2e-item .acts{display:flex;flex-wrap:wrap;gap:8px;margin-top:6px}
+#bv2ESheet .bv2e-pill{display:inline-block;border-radius:999px;padding:2px 8px;font:600 11px Inter,sans-serif;background:var(--gold-soft);color:var(--gold-d)}#bv2ESheet .bv2e-pill.ok{background:rgba(22,163,74,.12);color:var(--emerald)}
+#bv2EBackdrop{position:fixed;inset:0;z-index:3199;background:rgba(10,19,38,.38);opacity:0;pointer-events:none;transition:opacity .2s}#bv2EBackdrop.show{opacity:1;pointer-events:auto}
+.bv2a .bv2-range>div>div{border:0;padding:0;background:none;border-radius:0}   /* fourchette A : cadres imbriques herites de B3.2 (selecteur trop large), corrige ici sans toucher au bloc gele */
+.bv2a .bv2-hints li[data-line],.bv2a .bv2-post[data-post]{cursor:pointer}.bv2a .bv2-hero .held{cursor:pointer}.bv2a .bv2e-cta{margin-top:12px;width:100%}`;
+function _bv2ECssOnce(){ if(document.getElementById("bv2eCss")) return; const st=document.createElement("style"); st.id="bv2eCss"; st.textContent=BV2_E_CSS; document.head.appendChild(st); }
+function _bv2EEnsure(){ if(document.getElementById("bv2ESheet")) return;
+  _bv2ECssOnce();
+  const bd=document.createElement("div"); bd.id="bv2EBackdrop"; document.body.appendChild(bd);
+  const s=document.createElement("div"); s.id="bv2ESheet"; s.className="sheet botsheet"; s.setAttribute("role","dialog"); s.setAttribute("aria-modal","true"); s.setAttribute("aria-labelledby","bv2ETitle");
+  s.innerHTML=`<div class="bv2e-grip" id="bv2EGrip"></div><div class="sh-head"><h2 id="bv2ETitle"></h2><button type="button" class="bv2e-x" id="bv2EClose" aria-label="Fermer">✕</button></div><div class="bv2e-body" id="bv2EBody"></div>`;
+  document.body.appendChild(s); bv2BindSheet(s, document.getElementById("bv2EGrip"), s.querySelector(".sh-head"), bd, document.getElementById("bv2EClose"), bv2CloseE); }
+function _bv2EShow(title, html){ _bv2EEnsure(); document.getElementById("bv2ETitle").textContent=title; document.getElementById("bv2EBody").innerHTML=html;
+  const s=document.getElementById("bv2ESheet"); s.style.transform=""; s.classList.add("show"); document.getElementById("bv2EBackdrop").classList.add("show"); }
+function bv2CloseE(){ const s=document.getElementById("bv2ESheet"), bd=document.getElementById("bv2EBackdrop"); if(s){ s.classList.remove("show"); s.style.transform=""; } if(bd) bd.classList.remove("show"); _bv2ETrip=null; _bv2EKind=null; _bv2ELine=null; }
+function _bv2EAfter(r, reopen){   /* apres un geste : message, re-rendu de A, puis du panneau */
+  const E=_bv2E(); if(!r||!r.ok){ if(r&&(r.code==="VOYAGE_CHANGE"||r.code==="APERCU_INACTIF")){ bv2CloseE(); return false; } toast(_bv2Tx(E.fail,{c:(r&&r.code)||"?"})); return false; }
+  try{ renderBudget(); }catch(_e){} if(reopen) reopen(); return true; }
+function _bv2EGuard(){ return _bv2ETrip&&bv2PreviewActive()&&_bv2ETrip===currentTrip()?_bv2ETrip:(bv2CloseE(), null); }   /* panneau perime : fermeture, aucune ecriture */
+
+/* ---------- C' : mini-page d'une ligne ---------- */
+function _bv2ELineTitle(A, E, l, m, tr){ let t=A.post[l.post]||l.post; const it=_bv2ItemOf(tr, l.id);
+  if(E.types[l.type]) t=E.types[l.type];
+  if(l.type==="meal") t=(E.meal[(m&&m.meal)||(it&&it.meal)]||A.post.MEALS);
+  if(l.type==="activity") t=(it&&typeof it.title==="string"&&it.title.trim())?it.title.trim().slice(0,60):A.post.ACTIVITIES;
+  if(l.type==="envelope"&&m&&m.label) t=String(m.label).slice(0,40);
+  const parts=[t]; if(m&&Number.isInteger(m.day)) parts.push(_bv2Tx(E.day,{d:m.day+1})); if(m&&m.legKey&&m.legKey!=="main"){ try{ const L=bv2Legs(tr).legs.find(g=>g.key===m.legKey); const n=L&&L.leg&&L.leg.dest&&L.leg.dest.name; if(n) parts.push(String(n).slice(0,40)); }catch(_e){} }
+  if(l.type==="meal"&&it&&typeof it.title==="string"&&it.title.trim()) parts.push(it.title.trim().slice(0,40));
+  return parts.join(" · "); }
+function bv2OpenLine(tr, lineId){   /* C' ; lecture depuis bv2Estimate ; aucun geste au rendu */
+  if(!tr||!bv2PreviewActive()||tr!==currentTrip()) return false; const r=bv2Estimate(tr); if(!r.ok) return false;
+  const l=r.result.lines.find(x=>x.id===lineId); if(!l) return false; const m=r.meta[lineId]||{}, A=_bv2A(), E=_bv2E(), cur=r.result.currency, st=bv2Store(tr), ed=_bv2Edit(st.data, lineId), ro=st.readOnly;
+  _bv2ETrip=tr; _bv2EKind="line"; _bv2ELine=lineId;
+  const f=x=>_bv2Esc(_bv2Fmt(x, cur)), srcName=l.state==="UNKNOWN"?A.toSpecify:(l.source&&l.source.kind==="user"?E.src.user:(l.source&&E.src[l.source.name]||(l.source&&l.source.name)||E.src.none));
+  let h=`<div class="bv2e-k">${_bv2Esc(E.state[l.editState]||l.editState)}</div><div class="bv2e-v">${_bv2Esc(srcName)}${ed&&Number.isInteger(ed.at)?" · "+_bv2Esc(new Date(ed.at).toLocaleDateString(lang())):""}</div>`;
+  h+=`<div class="bv2e-range"><div><span class="bv2e-rk">${_bv2Esc(E.low)}</span>${f(l.amounts.low)}</div><div class="mid"><span class="bv2e-rk">${_bv2Esc(E.mid)}</span>${f(l.amounts.central)}</div><div><span class="bv2e-rk">${_bv2Esc(E.high)}</span>${f(l.amounts.high)}</div></div>`;
+  if(l.magot&&l.magot.centralMinor!=null) h+=`<div class="bv2e-v">${_bv2Esc(_bv2Tx(E.magot,{x:_bv2Fmt(l.magot.centralMinor,cur)}))}${l.gapMinor!=null?" · "+_bv2Esc(_bv2Tx(E.gap,{x:(l.gapMinor>0?"+":"")+_bv2Fmt(l.gapMinor,cur)})):""}</div>`;
+  if(ro){ _bv2EShow(_bv2ELineTitle(A,E,l,m,tr), h+`<div class="bv2e-v">${_bv2Esc(_bv2Tx(A.readOnly,{r:st.reason||""}))}</div>`); return true; }
+  if(l.type==="fuel"){ _bv2EShow(_bv2ELineTitle(A,E,l,m,tr), h+`<div class="bv2e-v">${_bv2Esc(E.fuelLater)}</div>`); return true; }
+  const idLine=/^(meal|act)\./.test(l.id), item=idLine?_bv2ItemOf(tr,l.id):null, reserved=/^meal\.(day|route)\.\d+$/.test(l.id);
+  const canWrite=!idLine||reserved||(item&&(!m.heldReason||m.heldReason==="SANS_JETON"));   /* element sans identite fiable (x<rang>, ambigu) : aucune saisie (ID-5), H explique */
+  const write=(patch)=>{ const t=_bv2EGuard(); if(!t) return {ok:false, code:"VOYAGE_CHANGE"}; const g=bv2Capture();
+    return (idLine&&!reserved)?bv2ItemEdit(t, item, patch, g):bv2EditSet(t, l.id, patch, g); };
+  const reopen=()=>{ const t=currentTrip(); if(t&&bv2PreviewActive()){ const rr=bv2Estimate(t); const nl=rr.ok&&(rr.result.lines.find(x=>x.id===lineId)||(item&&rr.result.lines.find(x=>_bv2ItemOf(t,x.id)===item))); if(nl) bv2OpenLine(t, nl.id); else bv2CloseE(); } };
+  const prevUser=ed?_bv2UserOf(ed):null, unitMode=l.type!=="toll"&&l.type!=="ticket"&&l.type!=="envelope";   /* lignes AMOUNT : jamais unitPrice (B1) */
+  if(canWrite&&l.quantity&&Array.isArray(l.quantity.factors)&&l.quantity.factors.length&&l.type!=="tourist_tax"){ h+=`<div class="bv2e-k">${_bv2Esc(E.qty)}</div>`;
+    for(const fc of l.quantity.factors) h+=`<div class="bv2e-row"><label>${_bv2Esc(E.factors[fc.key]||fc.key)}</label><div class="bv2e-cnt"><button type="button" data-f="${_bv2Esc(fc.key)}" data-d="-1" aria-label="-">−</button><b>${_bv2Esc(fc.value)}</b><button type="button" data-f="${_bv2Esc(fc.key)}" data-d="1" aria-label="+">+</button></div></div>`; }
+  if(canWrite&&l.type!=="tourist_tax"){ const u=l.unit?(E.units[l.unit]||l.unit):null;
+    if(unitMode&&u) h+=`<div class="bv2e-k">${_bv2Esc(_bv2Tx(E.perUnit,{u}))}</div><div class="bv2e-row"><input class="bv2e-in" id="bv2EUnit" inputmode="decimal" placeholder="${_bv2Esc(E.amountPh)}" value="${prevUser&&prevUser.unitPrice?_bv2Esc(prevUser.unitPrice.amount):""}"><span>${_bv2Esc(cur)}</span><button type="button" class="btn sm gold" id="bv2EUnitOk">${_bv2Esc(E.save)}</button></div>`;
+    h+=`<div class="bv2e-k">${_bv2Esc(E.total)}</div><div class="bv2e-row"><input class="bv2e-in" id="bv2ETotal" inputmode="decimal" placeholder="${_bv2Esc(E.amountPh)}" value="${prevUser&&prevUser.total?_bv2Esc(prevUser.total.amount):""}"><span>${_bv2Esc(cur)}</span><button type="button" class="btn sm gold" id="bv2ETotalOk">${_bv2Esc(E.save)}</button></div>`;
+    h+=`<div class="bv2e-row"><button type="button" class="btn sm" id="bv2EZero" style="flex:1">${_bv2Esc(E.free)}</button>${prevUser&&(prevUser.total||prevUser.unitPrice||prevUser.zero)?`<button type="button" class="btn sm" id="bv2EBack" style="flex:1">${_bv2Esc(l.magot&&l.magot.centralMinor!=null?_bv2Tx(E.back,{x:_bv2Fmt(l.magot.centralMinor,cur)}):E.backUnknown)}</button>`:""}</div>`; }
+  if(l.type==="hotel"){ const ts=ed&&BV2_TAX_STATUS.indexOf(ed.taxStatus)>=0?ed.taxStatus:null;
+    h+=`<div class="bv2e-k">${_bv2Esc(E.taxQ)}</div><div class="seg" role="group">${[["included",E.taxInc],["excluded",E.taxExc],["unknown",E.taxUnk]].map(([v,t])=>`<button type="button" data-tax="${v}" class="${ts===v?"on":""}" aria-pressed="${ts===v}">${_bv2Esc(t)}</button>`).join("")}</div>`;
+    h+=`<div class="bv2e-row"><label>${_bv2Esc(E.breakfast)}</label><div class="seg" role="group"><button type="button" data-bf="1" class="${ed&&ed.breakfastIncluded===true?"on":""}">${_bv2Esc(E.yes)}</button><button type="button" data-bf="0" class="${!(ed&&ed.breakfastIncluded===true)?"on":""}">${_bv2Esc(E.no)}</button></div></div>`; }
+  if(l.type==="tourist_tax"&&canWrite){ const te=ed, tp=st.data.taxPersons, n=(te&&Number.isInteger(te.persons))?te.persons:(tp&&Number.isInteger(tp.value)?tp.value:(Number.isInteger(tr.travelers)?tr.travelers:1));
+    h+=`<div class="bv2e-k">${_bv2Esc(E.persons)}</div><div class="bv2e-row"><div class="bv2e-cnt"><button type="button" id="bv2EPm" aria-label="-">−</button><b id="bv2EPv">${n}</b><button type="button" id="bv2EPp" aria-label="+">+</button></div><button type="button" class="btn sm gold" id="bv2EPOk">${_bv2Esc(E.confirm)}</button></div>`;
+    h+=`<div class="bv2e-row"><label>${_bv2Esc(E.noneTaxable)}</label><div class="seg" role="group"><button type="button" data-nt="1" class="${te&&te.notTaxable===true?"on":""}">${_bv2Esc(E.yes)}</button><button type="button" data-nt="0" class="${!(te&&te.notTaxable===true)?"on":""}">${_bv2Esc(E.no)}</button></div></div>`;
+    h+=`<div class="bv2e-k">${_bv2Esc(E.taxTotal)}</div><div class="bv2e-row"><input class="bv2e-in" id="bv2ETotal" inputmode="decimal" placeholder="${_bv2Esc(E.amountPh)}" value="${prevUser&&prevUser.total?_bv2Esc(prevUser.total.amount):""}"><span>${_bv2Esc(cur)}</span><button type="button" class="btn sm gold" id="bv2ETotalOk">${_bv2Esc(E.save)}</button></div>`;
+    if(prevUser) h+=`<button type="button" class="btn sm" id="bv2EBack">${_bv2Esc(E.backUnknown)}</button>`; }
+  if(!canWrite&&m.heldReason) h+=`<div class="bv2e-v">${_bv2Esc(_bv2Tx(E.reasons[m.heldReason]||m.heldReason,{c:""}))}</div>`;
+  _bv2EShow(_bv2ELineTitle(A,E,l,m,tr), h); const B=document.getElementById("bv2EBody");
+  const taxOf=()=>{ const e2=_bv2Edit(bv2Store(tr).data, l.id); return l.type==="hotel"&&e2&&BV2_TAX_STATUS.indexOf(e2.taxStatus)>=0?{touristTaxStatus:e2.taxStatus}:{}; };   /* §7.3 : statut recopie dans le user ecrit */
+  const money=(id)=>{ const a=bv2EditAmountStr(B.querySelector("#"+id).value, cur); if(a==null){ toast(E.invalid); return null; } return Object.assign({amount:a, currency:cur}, taxOf()); };
+  B.querySelectorAll("[data-f]").forEach(b=>b.onclick=()=>{ const fc=l.quantity.factors.find(x=>x.key===b.dataset.f); const v=Math.max(0, Math.min(999, (parseInt(fc.value,10)||0)+(+b.dataset.d)));
+    const u=prevUser?bv2Clone(prevUser):{}; u.factors=Object.assign({}, u.factors||{}, {[fc.key]:String(v)}); _bv2EAfter(write({user:u}), reopen); });
+  const uok=B.querySelector("#bv2EUnitOk"); if(uok) uok.onclick=()=>{ const mo=money("bv2EUnit"); if(mo) _bv2EAfter(write({user:bv2EditUserWith(prevUser,"unitPrice",mo)}), reopen); };
+  const tok_=B.querySelector("#bv2ETotalOk"); if(tok_) tok_.onclick=()=>{ const mo=money("bv2ETotal"); if(mo) _bv2EAfter(write({user:bv2EditUserWith(prevUser,"total",mo)}), reopen); };
+  const z=B.querySelector("#bv2EZero"); if(z) z.onclick=()=>_bv2EAfter(write({user:bv2EditUserWith(prevUser,"zero",taxOf())}), reopen);
+  const bk=B.querySelector("#bv2EBack"); if(bk) bk.onclick=()=>{ const t=_bv2EGuard(); if(!t) return; _bv2EAfter(bv2EditClear(t, l.id, ["user"], bv2Capture()), reopen); };   /* A35-a : user seul, taxStatus / breakfast / persons gardes */
+  B.querySelectorAll("[data-tax]").forEach(b=>b.onclick=()=>{ const t=_bv2EGuard(); if(!t) return; const v=b.dataset.tax; const p={taxStatus:v}; if(prevUser){ const u=bv2Clone(prevUser); for(const k of ["total","unitPrice","zero"]) if(_bv2Obj(u[k])) u[k].touristTaxStatus=v; p.user=u; } _bv2EAfter(bv2EditSet(t, l.id, p, bv2Capture()), reopen); });
+  B.querySelectorAll("[data-bf]").forEach(b=>b.onclick=()=>{ const t=_bv2EGuard(); if(!t) return; _bv2EAfter(bv2EditSet(t, l.id, {breakfastIncluded:b.dataset.bf==="1"?true:undefined}, bv2Capture()), reopen); });
+  B.querySelectorAll("[data-nt]").forEach(b=>b.onclick=()=>{ const t=_bv2EGuard(); if(!t) return; _bv2EAfter(bv2EditSet(t, l.id, {notTaxable:b.dataset.nt==="1"?true:undefined}, bv2Capture()), reopen); });
+  const pm=B.querySelector("#bv2EPm"), pp=B.querySelector("#bv2EPp"), pv=B.querySelector("#bv2EPv"), pok=B.querySelector("#bv2EPOk");
+  if(pm){ pm.onclick=()=>{ pv.textContent=String(Math.max(0,(+pv.textContent)-1)); }; pp.onclick=()=>{ pv.textContent=String(Math.min(99,(+pv.textContent)+1)); };
+    pok.onclick=()=>{ const t=_bv2EGuard(); if(!t) return; const n=+pv.textContent, tp=bv2Store(t).data.taxPersons, g=bv2Capture();
+      const r2=(!tp)?bv2TaxPersonsSet(t, n, g):(n===tp.value?bv2EditClear(t, l.id, ["persons"], g):bv2EditSet(t, l.id, {persons:n}, g));   /* A20 : premier « Confirmer » = taxPersons du voyage ; ensuite exception par etape si different */
+      _bv2EAfter(r2.ok||r2.code!=="ANNULE"?r2:{ok:true}, reopen); }; }
+  return true; }
+
+/* ---------- H : « Valeurs sans ligne » ---------- */
+function _bv2ECandidates(tr, x){   /* elements sans jeton du meme type (et du meme jour si connu) pour « Reprendre sur… » */
+  const prefix=x.key.split(".")[0]; if(prefix!=="meal"&&prefix!=="act") return [];
+  const day=x.edit&&_bv2Obj(x.edit.bound)&&Number.isInteger(x.edit.bound.day)?x.edit.bound.day:null, meal=x.edit&&_bv2Obj(x.edit.bound)?x.edit.bound.meal:null;
+  const all=(Array.isArray(tr.plan)?tr.plan:[]).filter(it=>it&&_bv2EPrefixOf(it)===prefix&&!_bv2TokOf(it)&&(it.bv2id==null));
+  const same=all.filter(it=>(day==null||it.day===day)&&(prefix!=="meal"||!meal||it.meal===meal)); return (same.length?same:all).slice(0,4); }
+function bv2OpenHeld(tr){   /* H ; projection bv2HeldList, aucune ecriture au rendu */
+  if(!tr||!bv2PreviewActive()||tr!==currentTrip()) return false; const r=bv2Estimate(tr), A=_bv2A(), E=_bv2E(), cur=_bv2CurOf(tr)||"EUR", list=bv2HeldList(tr, r.ok?r:null), st=bv2Store(tr);
+  _bv2ETrip=tr; _bv2EKind="held"; _bv2ELine=null; let h="";
+  if(!list.length) h=`<div class="bv2e-v">${_bv2Esc(E.hEmpty)}</div>`;
+  const amount=u=>{ const mm=u&&(u.total||u.unitPrice); if(mm&&_bv2InTable(mm.currency)){ const mi=bv2ToMinor(Number(mm.amount), mm.currency); return mi==null?mm.amount+" "+mm.currency:_bv2Fmt(mi, mm.currency); } return u&&u.zero?E.free:""; };
+  list.forEach((x,i)=>{ const txt=_bv2Tx(E.reasons[x.reason]||x.reason,{c:x.code}); const acts=[]; const ro=st.readOnly||x.reason==="BUDGETV2_LECTURE_SEULE";
+    if(!ro){ switch(x.reason){
+      case "IDENTITE_ABSENTE": case "SANS_LIGNE": case "METADONNEES_ORPHELINES": case "ID_ABSENT": case "ID_AMBIGU": case "PROVENANCE_ENVELOPPE":
+        _bv2ECandidates(tr,x).forEach((it,k)=>acts.push(["resume",k,_bv2Tx(E.resumeOn,{t:(typeof it.title==="string"&&it.title.trim())?it.title.trim().slice(0,30):((E.meal[it.meal]||it.kind)+" · "+_bv2Tx(E.day,{d:it.day+1}))})])); acts.push(["del",0,E.del]); break;
+      case "SANS_JETON": { const it=_bv2ItemOf(tr,x.key); if(it&&!_bv2TokOf(it)) acts.push(["resume1",0,E.keep]); acts.push(["del",0,E.del]); break; }
+      case "IDENTITE_DUPLIQUEE": case "IDENTITE_CONFLIT": { const hs=x.tok?(_bv2EHolders(tr).get(x.tok)||[]):[]; hs.forEach((it,k)=>acts.push(["pick",k,E.pickHolder+" : "+((typeof it.title==="string"&&it.title.trim())?it.title.trim().slice(0,30):_bv2Tx(E.day,{d:it.day+1}))])); if(x.edit) acts.push(["del",0,E.erase]); break; }
+      case "REGISTRE_ILLISIBLE": acts.push(["repair",0,E.repair]); break;
+      case "CONFIRMATION_REQUISE": acts.push(["confirm",0,E.keep],["del",0,E.erase]); break;
+      case "LIEU_CHANGE": acts.push(["rebind",0,E.keepPlace],["del",0,E.erase]); break;
+      case "SAISIES_CONCURRENTES": acts.push(["choose",0,E.chooseThis],["del",0,E.erase]); break;
+      case "IDENTITE_INCOHERENTE": acts.push(["del",0,E.erase]); break;
+      case "SAISIE_ILLISIBLE": case "LIGNE_NON_CONCERNEE": case "QUANTITE_NULLE": case "TAXE_INCLUSE": case "SANS_SEJOUR": case "DEVISE_RETIREE": case "RESERVE_A22": acts.push(["open",0,E.open],["del",0,E.del]); break;
+      default: acts.push(["del",0,E.del]); } }
+    h+=`<div class="bv2e-item" data-i="${i}"><div class="r">${_bv2Esc(txt)}</div><div class="k">${_bv2Esc(x.key)}${x.user?" · "+_bv2Esc(amount(x.user)):""}</div><div class="acts">${acts.map(([a,k,t])=>`<button type="button" class="btn sm${a==="del"?"":" gold"}" data-a="${a}" data-k="${k}">${_bv2Esc(t)}</button>`).join("")}</div></div>`; });
+  _bv2EShow(E.hTitle, h); const B=document.getElementById("bv2EBody"), reopen=()=>{ const t=currentTrip(); if(t&&bv2PreviewActive()) bv2OpenHeld(t); };
+  B.querySelectorAll("[data-a]").forEach(b=>b.onclick=()=>{ const t=_bv2EGuard(); if(!t) return; const x=list[+b.closest(".bv2e-item").dataset.i], k=+b.dataset.k, g=bv2Capture(); let r2;
+    switch(b.dataset.a){
+      case "del": r2=bv2EditClear(t, x.key, null, g); break;
+      case "resume": { const it=_bv2ECandidates(t,x)[k]; r2=it?bv2ResumeOrphan(t, x.key, it, g):{ok:false, code:"ELEMENT_ABSENT"}; break; }
+      case "resume1": { const it=_bv2ItemOf(t,x.key); r2=it?bv2ResumeOrphan(t, x.key, it, g):{ok:false, code:"ELEMENT_ABSENT"}; break; }
+      case "pick": { const hs=_bv2EHolders(t).get(x.tok)||[]; if(hs.length>1){ const s1=bv2ConflictSignal(t, g); if(!s1.ok){ r2=s1; break; } }   /* G1 avant G3 */
+        r2=hs[k]?bv2ConflictResolve(t, x.tok, hs[k], g):{ok:false, code:"ELEMENT_ABSENT"}; break; }
+      case "repair": r2=bv2RegistryRepair(t, g); break;
+      case "confirm": r2=bv2EditConfirm(t, x.key, null, g); break;
+      case "rebind": r2=bv2EditConfirm(t, x.key, {rebindPlace:true}, g); break;
+      case "choose": { const others=bv2HeldList(t, bv2Estimate(t)).filter(y=>y.reason==="SAISIES_CONCURRENTES"&&y.tok===x.tok&&y.key!==x.key); r2={ok:true}; for(const o of others){ r2=bv2EditClear(t, o.key, null, g); if(!r2.ok) break; } break; }
+      case "open": bv2CloseE(); bv2OpenLine(t, x.key); return;
+      default: r2={ok:false, code:"GESTE_INCONNU"}; }
+    _bv2EAfter(r2, reopen); });
+  return true; }
+
+/* ---------- accroches dans A (crochet bv2AfterA de B3.2 r4) : DOM et interactions seulement, AUCUNE ecriture ---------- */
+function bv2AfterA(body, tr, r){
+  _bv2ECssOnce();
+  if(_bv2ETrip&&_bv2ETrip!==tr) bv2CloseE();   /* panneau d'un autre voyage : ferme, comme bv2CloseQ (P1) */
+  const E=_bv2E(), A=_bv2A(), hero=body.querySelector(".bv2-hero"); if(!hero||!r||!r.ok) return;
+  const c=r.result.scenarios.central; if(c.complete!==true){ const un=r.result.lines.filter(l=>l.required&&l.state==="UNKNOWN"&&l.type!=="fuel"); if(un.length){ const posts=new Set(un.map(l=>l.post)); const b=document.createElement("button"); b.type="button"; b.className="btn gold bv2e-cta"; b.id="bv2ESpecify"; b.dataset.line=un[0].id;
+      b.textContent=posts.size===1?_bv2Tx(E.specify1,{p:A.post[un[0].post]||un[0].post}):_bv2Tx(E.specify,{n:posts.size}); hero.appendChild(b); } }
+  const held=bv2HeldList(tr, r); if(held.length&&!hero.querySelector(".held")){ const d=document.createElement("div"); d.className="held"; d.textContent=held.length===1?A.heldOne:_bv2Tx(A.held,{n:held.length}); hero.appendChild(d); }
+  if(!body.dataset.bv2e){ body.dataset.bv2e="1"; body.addEventListener("click", ev=>{ const t=currentTrip(); if(!t||!bv2PreviewActive()) return;
+    const sp=ev.target.closest("#bv2ESpecify"); if(sp){ bv2OpenLine(t, sp.dataset.line); return; }
+    const li=ev.target.closest(".bv2-hints li[data-line]"); if(li){ bv2OpenLine(t, li.dataset.line); return; }
+    const hd=ev.target.closest(".bv2-hero .held"); if(hd){ bv2OpenHeld(t); return; }
+    const po=ev.target.closest(".bv2-post[data-post]"); if(po){ const rr=bv2Estimate(t); if(!rr.ok) return; const ls=rr.result.lines.filter(l=>l.post===po.dataset.post); const l=ls.find(x=>x.state==="UNKNOWN"&&x.required)||ls[0]; if(l) bv2OpenLine(t, l.id); } }); }
+  if(tr&&tr.sample===true&&/^essai-/.test(String(tr.id))&&!body.querySelector("#bv2SampleRemove")){ const root=body.querySelector(".bv2a"); if(root){ const b=document.createElement("button"); b.type="button"; b.className="btn"; b.id="bv2SampleRemove"; b.style.cssText="width:100%;margin-top:14px"; b.textContent=_bv2ST().remove; b.onclick=()=>{ const r=bv2SampleRemove(); if(r.ok) toast(_bv2ST().removed); }; root.appendChild(b); } }
+  if(_bv2ETrip===tr&&_bv2EKind==="held"&&!held.length) bv2CloseE(); }
+
+/* ---------- voyages d'essai pour la PREPRODUCTION (directive de Loic, 13 oct. 2026) ----------
+   Ouvrir l'application avec « ?essai » (ex. https://<preprod>/?essai) : dans l'espace INVITE seulement (aucun compte connecte, aucune synchronisation
+   possible, bv2SyncedAccount() faux), une confirmation propose d'ajouter deux voyages d'essai et d'activer l'apercu du nouveau Budget. Les voyages
+   sont enregistres comme n'importe quel voyage invite (saveState) : on peut donc verifier qu'une saisie survit au rechargement. « ?essai=retirer »
+   ou le lien en bas de l'ecran A les retire. Sur un compte synchronise : rien ne se passe (aucune proposition, aucune ecriture). */
+const BV2_SAMPLE_TXT={
+  fr:{ask:"Ajouter deux voyages d'essai (Annecy, Lyon) et activer l'aperçu du nouveau Budget ? Ils restent sur cet appareil, dans l'espace sans compte.",ok:"Ajouter",remove:"Retirer les voyages d'essai",removed:"Voyages d'essai retirés",synced:"Voyages d'essai indisponibles avec un compte connecté."},
+  en:{ask:"Add two sample trips (Annecy, Lyon) and turn on the new Budget preview? They stay on this device, in the no-account space.",ok:"Add",remove:"Remove sample trips",removed:"Sample trips removed",synced:"Sample trips are not available with a signed-in account."},
+  es:{ask:"¿Añadir dos viajes de prueba (Annecy, Lyon) y activar la vista previa del nuevo Presupuesto? Se quedan en este dispositivo, en el espacio sin cuenta.",ok:"Añadir",remove:"Quitar los viajes de prueba",removed:"Viajes de prueba quitados",synced:"Viajes de prueba no disponibles con una cuenta conectada."},
+  it:{ask:"Aggiungere due viaggi di prova (Annecy, Lione) e attivare l'anteprima del nuovo Budget? Restano su questo dispositivo, nello spazio senza account.",ok:"Aggiungi",remove:"Rimuovi i viaggi di prova",removed:"Viaggi di prova rimossi",synced:"Viaggi di prova non disponibili con un account connesso."},
+  de:{ask:"Zwei Testreisen (Annecy, Lyon) hinzufügen und die Vorschau des neuen Budgets einschalten? Sie bleiben auf diesem Gerät, im Bereich ohne Konto.",ok:"Hinzufügen",remove:"Testreisen entfernen",removed:"Testreisen entfernt",synced:"Testreisen sind mit angemeldetem Konto nicht verfügbar."}};
+function _bv2ST(){ return BV2_SAMPLE_TXT[lang()]||BV2_SAMPLE_TXT.fr; }
+function _bv2SampleDay(plus){ const d=new Date(todayISO()+"T00:00:00"); d.setDate(d.getDate()+plus); return d.toISOString().slice(0,10); }
+function bv2SampleTrips(){   /* voyages d'ESSAI (preproduction) ; jetons kdemo.. poses d'avance sur les elements deja chiffres */
+  const s=_bv2SampleDay(21);
+  const alpes={ id:"essai-annecy", sample:true, name:"Essai · Week-end à Annecy", emoji:"🏔️", currency:"EUR", travelers:4, dateStart:s, dateEnd:_bv2SampleDay(25), transport:"train", budgetAuto:false, budget:0,
+    dest:{name:"Annecy",country:"France",cc:"FR",lat:45.8992,lng:6.1294}, legs:[], lodging:null, catBudgets:{},
+    places:[{id:"pLac",name:"Lac d'Annecy",price:"PRICE_LEVEL_FREE",mapsUri:"https://maps.google.com/?q=Lac+d%27Annecy"},{id:"pChateau",name:"Château d'Annecy"},{id:"pBistrot",name:"Bistrot du Lac"}],
+    plan:[ {id:"a0",day:0,time:"19:30",kind:"meal",meal:"dinner",title:"Bistrot du Lac",placeId:"pBistrot"},
+           {id:"a1",day:1,time:"10:00",kind:"nature",placeId:"pLac",title:"Lac d'Annecy"},
+           {id:"a2",day:1,time:"12:30",kind:"meal",meal:"lunch",title:"Déjeuner en vieille ville"},
+           {id:"a3",day:2,time:"10:00",kind:"culture",placeId:"pChateau",title:"Château d'Annecy"},
+           {id:"a4",day:2,time:"19:30",kind:"meal",meal:"dinner",title:"Fondue"},
+           {id:"a5",day:3,time:"09:00",kind:"hike",title:"Randonnée au Semnoz"} ],
+    expenses:[], budgetV2:{ v:1, travelersConfirmed:true } };
+  const lyon={ id:"essai-lyon", sample:true, name:"Essai · Lyon gourmand", emoji:"🍷", currency:"EUR", travelers:2, dateStart:_bv2SampleDay(40), dateEnd:_bv2SampleDay(43), transport:"train", budgetAuto:false, budget:0,
+    dest:{name:"Lyon",country:"France",cc:"FR",lat:45.764,lng:4.8357}, legs:[], lodging:{name:"Hôtel des Célestins"}, lodgingPrice:285, catBudgets:{},
+    places:[{id:"pBouchon",name:"Le Bouchon des Filles",mapsUri:"https://maps.google.com/?q=Bouchon+des+Filles"},{id:"pMusee",name:"Musée des Confluences"},{id:"pParc",name:"Parc de la Tête d'Or",price:"PRICE_LEVEL_FREE",mapsUri:"https://maps.google.com/?q=Parc+Tete+d+Or"},{id:"pCafe",name:"Café du Soleil",mapsUri:"https://maps.google.com/?q=Cafe+du+Soleil+Lyon"}],
+    plan:[ {id:"l0a",day:0,time:"12:30",kind:"meal",meal:"lunch",placeId:"pCafe",bv2id:"kdemo01",priceRange:{lo:14,hi:22,cur:"EUR"},title:"Café du Soleil"},
+           {id:"l0b",day:0,time:"20:00",kind:"meal",meal:"dinner",placeId:"pBouchon",bv2id:"kdemo02",priceRange:{lo:28,hi:40,cur:"EUR"},title:"Le Bouchon des Filles"},
+           {id:"l1a",day:1,time:"08:30",kind:"meal",meal:"breakfast",bv2id:"kdemo03",title:"Petit-déjeuner"},
+           {id:"l1b",day:1,time:"10:00",kind:"culture",placeId:"pMusee",bv2id:"kdemo04",title:"Musée des Confluences"},
+           {id:"l1c",day:1,time:"12:30",kind:"meal",meal:"lunch",placeId:"pCafe",bv2id:"kdemo05",priceRange:{lo:14,hi:22,cur:"EUR"},title:"Café du Soleil"},
+           {id:"l1d",day:1,time:"20:00",kind:"meal",meal:"dinner",bv2id:"kdemo06",title:"Dîner"},
+           {id:"l2a",day:2,time:"10:00",kind:"nature",placeId:"pParc",bv2id:"kdemo07",title:"Parc de la Tête d'Or"},
+           {id:"l2b",day:2,time:"12:30",kind:"meal",meal:"lunch",placeId:"pBouchon",bv2id:"kdemo08",priceRange:{lo:28,hi:40,cur:"EUR"},title:"Le Bouchon des Filles"},
+           {id:"l2c",day:2,time:"20:00",kind:"meal",meal:"dinner",placeId:"pCafe",bv2id:"kdemo09",priceRange:{lo:14,hi:22,cur:"EUR"},title:"Café du Soleil"},
+           {id:"l3a",day:3,time:"12:30",kind:"meal",meal:"lunch",placeId:"pCafe",bv2id:"kdemo10",priceRange:{lo:14,hi:22,cur:"EUR"},title:"Café du Soleil"} ],
     expenses:[],
     budgetV2:{ v:1, travelersConfirmed:true, taxPersons:{value:2, confirmedAt:1760000000000}, edits:{
       "hotel.main":{taxStatus:"excluded", breakfastIncluded:true}, "parking":{user:{zero:{basis:"typed"}}, at:1760000000000},
       "tax.main":{user:{total:{amount:"13.80",currency:"EUR",basis:"typed"}}, at:1760000000000},
-      "meal.kdemo03":{user:{zero:{basis:"typed"}}, bound:{bv2id:"kdemo03",itemId:"d1a",day:1,kind:"meal",meal:"breakfast",placeId:null}, at:1760000000000},
-      "meal.kdemo06":{user:{unitPrice:{amount:"24",currency:"EUR",basis:"typed"}}, bound:{bv2id:"kdemo06",itemId:"d1d",day:1,kind:"meal",meal:"dinner",placeId:null}, at:1760000000000},
-      "act.kdemo04":{user:{unitPrice:{amount:"12",currency:"EUR",basis:"booking"}}, bound:{bv2id:"kdemo04",itemId:"d1b",day:1,kind:"culture",meal:null,placeId:"pMusee"}, at:1760000000000} } } };
-  const alpes={ id:"bv2demo-alpes", name:"Démo · Alpes", currency:"EUR", travelers:4, dateStart:s, dateEnd:e4, transport:"train", budgetAuto:false,
-    dest:{name:"Annecy",country:"France",cc:"FR",lat:45.9,lng:6.13}, legs:[], lodging:null,
-    places:[{id:"pLac",name:"Lac d'Annecy",price:"PRICE_LEVEL_FREE",mapsUri:"https://maps.google.com/?cid=5"},{id:"pChateau",name:"Château d'Annecy"}],
-    plan:[ {id:"a0",day:0,kind:"meal",meal:"dinner",bv2id:"kdemo21"},
-           {id:"a1",day:1,kind:"nature",placeId:"pLac",bv2id:"kdemo22",title:"Lac d'Annecy"},
-           {id:"a2",day:1,kind:"meal",meal:"lunch",bv2id:"kdemo23"},
-           {id:"a3",day:2,kind:"culture",placeId:"pChateau",bv2id:"kdemo24",title:"Château d'Annecy"},
-           {id:"a4",day:2,kind:"meal",meal:"dinner",bv2id:"kdemo25"},
-           {id:"a5",day:3,kind:"hike",title:"Semnoz",bv2id:"kdemo26"} ],
-    expenses:[],
-    budgetV2:{ v:1, travelersConfirmed:true, edits:{ "meal.kgone":{user:{unitPrice:{amount:"18",currency:"EUR",basis:"typed"}}, bound:{bv2id:"kgone",itemId:"old",day:0,kind:"meal",meal:"lunch",placeId:null}, at:1760000000000} } } };
-  return [lyon, alpes]; }
-function bv2DemoCopyCurrent(){   /* copie profonde du voyage courant ; l'original n'est jamais touche */
-  const tr=currentTrip(); if(!tr) return null; const c=bv2Clone(tr); c.budgetAuto=false;
-  const st=bv2Store(c); c.budgetV2=Object.assign(bv2Default(), st.readOnly?{}:st.data, {travelersConfirmed:true});   /* copie : Q n'est pas necessaire ; un budgetV2 illisible est remplace SUR LA COPIE seulement */
-  if(!(Number.isInteger(c.travelers)&&c.travelers>=1)) c.travelers=2;
-  return c; }
-function bv2DemoRender(){
-  const T=_bv2DemoT(), root=document.getElementById("bv2Demo"); if(!root) return; const body=root.querySelector(".bv2d-body");
-  root.querySelectorAll(".bv2d-tabs button").forEach(b=>b.classList.toggle("on", +b.dataset.t===_bv2DemoTab));
-  let tr=null; if(_bv2DemoTab===3) tr=bv2DemoCopyCurrent(); else tr=bv2DemoTrips()[_bv2DemoTab-1];
-  if(!tr){ body.innerHTML=`<div class="bv2a"><div class="bv2-card bv2-state"><h2>${escapeHtml(T.t3)}</h2><p>${escapeHtml(T.noTrip)}</p></div></div>`; return; }
-  const sub=document.querySelector("#view-budget .page-sub"); const subBefore=sub?sub.textContent:null;
-  bv2RenderA(body, tr);   /* rendu B3.2 r4 tel quel, sur un voyage hors S.trips : aucune ecriture possible */
-  if(sub&&subBefore!=null) sub.textContent=subBefore;   /* le sous-titre V1 de l'onglet Budget n'est pas modifie par la demo */
-  bv2CloseQ();
-  body.querySelectorAll(".b2-fuel-compute, #bv2FuelCompute").forEach(b=>{ b.onclick=null; b.disabled=true; });   /* aucun calcul de trajets (reseau, caches) depuis la demo */
-  const sb=body.querySelector("#bv2OpenSettings"); if(sb) sb.onclick=()=>{ bv2DemoClose(); openSettings(); };
-  const pb=body.querySelector("#bv2OpenPlan"); if(pb) pb.onclick=()=>{ bv2DemoClose(); switchTab("plan"); }; }
-function bv2DemoOpen(){
-  if(document.getElementById("bv2Demo")) { bv2DemoRender(); return; }
-  if(!document.getElementById("bv2dCss")){ const st=document.createElement("style"); st.id="bv2dCss"; st.textContent=BV2_DEMO_CSS; document.head.appendChild(st); }
-  const T=_bv2DemoT(), d=document.createElement("div"); d.id="bv2Demo"; d.setAttribute("role","dialog"); d.setAttribute("aria-label",T.bar);
-  d.innerHTML=`<div class="bv2d-bar"><b>${escapeHtml(T.bar)}</b><button type="button" id="bv2DemoQuit">${escapeHtml(T.quit)}</button></div>
-    <div class="bv2d-tabs"><button type="button" data-t="1">${escapeHtml(T.t1)}</button><button type="button" data-t="2">${escapeHtml(T.t2)}</button><button type="button" data-t="3">${escapeHtml(T.t3)}</button></div>
-    <div class="bv2d-note">${escapeHtml(T.note)}</div><div class="bv2d-body"></div>`;
-  document.body.appendChild(d);
-  d.querySelector("#bv2DemoQuit").onclick=bv2DemoClose;
-  d.querySelectorAll(".bv2d-tabs button").forEach(b=>b.onclick=()=>{ _bv2DemoTab=+b.dataset.t; bv2DemoRender(); });
-  bv2DemoRender(); }
-function bv2DemoClose(){ const d=document.getElementById("bv2Demo"); if(d) d.remove(); bv2CloseQ();
-  try{ if(/bv2demo/.test(location.hash)) history.replaceState(null, "", location.pathname+location.search); }catch(_e){}
-  try{ bv2SubRestore(); }catch(_e){} }
-function bv2DemoWanted(){ return /(^|[?&#])bv2demo(=1|$|&)/.test(location.search+" "+location.hash); }
-(function(){ const tick=n=>{ if(!bv2DemoWanted()) return;
-    if(typeof S!=="undefined"&&S&&!_storeHydrating&&document.getElementById("view-budget")) bv2DemoOpen(); else if(n<80) setTimeout(()=>tick(n+1), 250); };
-  setTimeout(()=>tick(0), 800);
-  window.addEventListener("hashchange", ()=>{ if(bv2DemoWanted()) tick(0); }); })();
-/* ===== fin BUDGET V2 -- MODE DEMONSTRATION ===== */
+      "meal.kdemo03":{user:{zero:{basis:"typed"}}, bound:{bv2id:"kdemo03",itemId:"l1a",day:1,kind:"meal",meal:"breakfast",placeId:null}, at:1760000000000},
+      "meal.kdemo06":{user:{unitPrice:{amount:"24",currency:"EUR",basis:"typed"}}, bound:{bv2id:"kdemo06",itemId:"l1d",day:1,kind:"meal",meal:"dinner",placeId:null}, at:1760000000000},
+      "act.kdemo04":{user:{unitPrice:{amount:"12",currency:"EUR",basis:"booking"}}, bound:{bv2id:"kdemo04",itemId:"l1b",day:1,kind:"culture",meal:null,placeId:"pMusee"}, at:1760000000000},
+      "meal.kgone":{user:{unitPrice:{amount:"18",currency:"EUR",basis:"typed"}}, bound:{bv2id:"kgone",itemId:"old",day:0,kind:"meal",meal:"lunch",placeId:null}, at:1760000000000} } } };
+  return [alpes, lyon]; }
+function bv2SampleAdd(){   /* espace invite seulement ; ecriture V1 ordinaire (comme la creation d'un voyage) */
+  if(bv2SyncedAccount()) return {ok:false, code:"COMPTE_SYNCHRONISE"};
+  if(_storeHydrating) return {ok:false, code:"ESPACE_EN_CHARGEMENT"};
+  const p=bv2SetPreview(true); if(!p.ok) return p;
+  const add=bv2SampleTrips().filter(t=>!S.trips.some(x=>x.id===t.id)); for(const t of add) S.trips.push(t);
+  S.currentTripId="essai-annecy"; saveState(); try{ switchTab("budget"); }catch(_e){} return {ok:true, added:add.length}; }
+function bv2SampleRemove(){
+  if(bv2SyncedAccount()) return {ok:false, code:"COMPTE_SYNCHRONISE"};
+  if(_storeHydrating) return {ok:false, code:"ESPACE_EN_CHARGEMENT"};
+  const n0=S.trips.length; S.trips=S.trips.filter(t=>!(t&&t.sample===true&&/^essai-/.test(String(t.id))));
+  if(/^essai-/.test(String(S.currentTripId))) S.currentTripId=S.trips.length?S.trips[0].id:null;
+  saveState(); try{ renderBudget(); }catch(_e){} return {ok:true, removed:n0-S.trips.length}; }
+function _bv2SampleWanted(){ const m=/[?&]essai(=([^&#]*))?/.exec(location.search); return m?(m[2]||"ajouter"):null; }
+(function(){ const run=n=>{ const w=_bv2SampleWanted(); if(!w) return;
+    if(typeof S!=="object"||!S||!Array.isArray(S.trips)||_storeHydrating||!document.getElementById("view-budget")){ if(n<120) setTimeout(()=>run(n+1), 150); return; }
+    try{ history.replaceState(null, "", location.pathname+location.hash); }catch(_e){}   /* le parametre ne rejoue pas au rechargement */
+    const T=_bv2ST(); if(bv2SyncedAccount()){ toast(T.synced); return; }
+    if(w==="retirer"){ const r=bv2SampleRemove(); if(r.ok) toast(T.removed); return; }
+    if(typeof askConfirm==="function") askConfirm(T.ask, T.ok, ()=>{ const r=bv2SampleAdd(); if(!r.ok) toast(T.synced); }); };
+  if(document.readyState==="complete") setTimeout(()=>run(0), 300); else window.addEventListener("load", ()=>setTimeout(()=>run(0), 300)); })();
+/* ===== fin BUDGET V2 -- B3.3a ===== */
 /* FUEL-R1 : table statique FUEL_BY_CC supprimee -- aucun prix carburant/energie non source, dans aucun pays. */
 /* FUEL-R1 : fuelPrice() (table statique) supprimee. */
 /* ============================================================
