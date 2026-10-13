@@ -5741,7 +5741,8 @@ async function inspLoad(){
   _inspBusy=false;
 }
 function openSettings(){ renderSettings(); document.getElementById("settingsSheet").classList.add("show"); }
-function closeSettings(){ document.getElementById("settingsSheet").classList.remove("show"); }
+function closeSettings(){ document.getElementById("settingsSheet").classList.remove("show");
+  if(currentTab==="budget"){ try{ bv2SubRestore(); renderBudget(); }catch(_e){} } }   /* B3.2 (A30-4) : le rendu suit l'option a la fermeture, dans les deux sens */
 /* ===================== PRÉFÉRENCES (mémoire de Fidèle) ===================== */
 const PREFS_SCHEMA=[
   { key:"style", type:"single", options:["solo","couple","family","friends"] },
@@ -7932,12 +7933,14 @@ function bv2BindSettings(body){
      _b2DayNeedsRoute, _b2PlannedGet) : normalizeLegs reecrit tr.legs, tr.dest, tr.lodging et tr.lodgingAddr (E18) ; sur la
      copie, B2 rend la meme signature et lit les memes presentations en cache. Le vrai voyage n'est jamais modifie.
    - Aucun candidat tire d'une table statique du V1 (HOTEL_NIGHTLY, PRICE_MEAL, ACT_COST, TAXI_*, FX) ni du seul priceLevel.
-   - Decisions de Loic (§13.8) : Q1-a, Q2-a, Q3-a, Q4-a, Q5-a, Q6-b ; A3-a, A10-a, A11-a, A12-a, A13-a ; A22-a, A23-a. */
+   - Decisions de Loic (§13.8) : Q1-a, Q2-a, Q3-a, Q4-a, Q5-a, Q6-b ; A3-a, A10-a, A11-a, A12-a, A13-a ; A22-a, A23-a ; A24-a, Q7-a (12 oct. 2026, contrat d'identite r5). */
 const BV2_VISIT_KINDS=["place","culture","nature","hike","beach","sport","relax"];   /* A13-a */
 const BV2_MAX_DAYS=366, BV2_MAX_TRAVELERS=99;   /* bornes de l'entree B1 (lecture stricte l. 113-114 du moteur) */
 const BV2_TAX_STATUS=["included","excluded","unknown"];
 const BV2_FX_SRC="open.er-api.com (Exchange Rate API)", BV2_FX_PARITY="parite fixe BEAC/BCEAO";
 const _bv2IdOk=s=>typeof s==="string"&&/^[A-Za-z0-9_.:-]{1,80}$/.test(s);
+function _bv2Fnv(str, seed){ let h=(seed>>>0)||0x811c9dc5; for(let i=0;i<str.length;i++){ h^=str.charCodeAt(i); h=Math.imul(h,0x01000193)>>>0; } return h.toString(16).padStart(8,"0"); }   /* FNV-1a 32 bits, graine parametrable */
+function _bv2Fnv64(str){ return _bv2Fnv(str,0x811c9dc5)+_bv2Fnv(str,0x9747b28c); }   /* empreinte 64 bits (deux graines) d'un identifiant illisible ; l'ambiguite residuelle est de toute facon detectee par le compte des porteurs */
 const _bv2CurOf=tr=>(tr&&typeof tr.currency==="string"&&tr.currency)?tr.currency.toUpperCase():null;   /* JAMAIS de repli sur EUR (§13.2) : devise absente -> null, refusee par bv2Inputs */
 const _bv2InTable=c=>typeof c==="string"&&_bv2Has(MagotB1.CURRENCIES,c);   /* table fermee du B1 gele (BGN refuse, Q6) */
 
@@ -7974,6 +7977,15 @@ function bv2Nights(dayFrom, dayTo, D){   /* nuit du jour d (0..D-2) = etape du j
 function _bv2Edit(data, id){ const e=data&&data.edits&&_bv2Has(data.edits,id)?data.edits[id]:null; return _bv2Obj(e)?e:null; }
 function _bv2UserOf(edit){ return (edit&&_bv2Obj(edit.user)&&Object.keys(edit.user).length)?bv2Clone(edit.user):null; }
 function _bv2Priced(u){ return !!(u&&(u.total!==undefined||u.unitPrice!==undefined||u.zero!==undefined)); }
+/* Identite persistante (contrat B3.1/B3.3 r5, accepte par GPT ; A24-a et Q7-a de Loic, 12 oct. 2026). Une caracteristique (id du Planning, jour,
+   type, lieu) ne prouve jamais l'identite d'un element : deux elements distincts peuvent toutes les partager. Seul le jeton it.bv2id, pose par B3.3
+   sur l'element a la premiere saisie et jamais recalcule, identifie un element. B3.1 LIT : une saisie identitaire (cle meal.k<jeton> / act.k<jeton>)
+   n'est appliquee que si (ID-4) exactement UN element du voyage porte le jeton, (ID-10) le jeton n'est pas dans le registre des conflits et le registre
+   est lisible, (ID-8) bound.bv2id est egal au jeton de la cle, (R-2) confirmRequired n'est pas pose, (ID-11) une seule saisie revendique le jeton,
+   (ID-12, Q7-a) le lieu d'origine, s'il etait renseigne, est toujours celui de l'element. Sinon : en attente, raison nommee, jamais transferee.
+   Un element SANS jeton n'accepte aucune saisie (ID-5) : sa ligne existe pour compter, pas pour rattacher. */
+const BV2_TOKEN=/^k[0-9a-z]{1,30}$/;   /* 'k'+uid() (base 36) ; espace de noms reserve (ID-8) */
+const _bv2TokOf=it=>(it&&typeof it.bv2id==="string"&&BV2_TOKEN.test(it.bv2id))?it.bv2id:null;
 function _bv2WithTaxStatus(u, st){   /* §7.3 : le statut de taxe garde cote V2 part avec le prix de l'hotel */
   if(!u||BV2_TAX_STATUS.indexOf(st)<0) return u;
   for(const k of ["total","unitPrice","zero"]) if(_bv2Obj(u[k])&&u[k].touristTaxStatus===undefined) u[k].touristTaxStatus=st;
@@ -7983,7 +7995,7 @@ function bv2Lines(tr){   /* adaptateurs voyage -> lignes B1 + meta par ligne (sa
   const st=bv2Store(tr), data=st.readOnly?bv2Default():st.data, cur=_bv2CurOf(tr); if(!_bv2InTable(cur)) return { lines:[], meta:{}, notes:["DEVISE_VOYAGE_NON_PRISE_EN_CHARGE"], travelers:null, days:0 };
   const T=(Number.isInteger(tr&&tr.travelers)&&tr.travelers>=1&&tr.travelers<=BV2_MAX_TRAVELERS)?tr.travelers:null;
   const L=bv2Legs(tr), cp=L.copy, D=L.days, lines=[], meta={}, notes=[];
-  if(st.readOnly) notes.push("BUDGETV2_LECTURE_SEULE:"+(st.reason||""));
+  const storeReadOnly=!!st.readOnly; if(storeReadOnly) notes.push("BUDGETV2_LECTURE_SEULE:"+(st.reason||""));
   const add=(line, user, m)=>{   /* invariant de transmission (§7.1, §13.3) : une saisie non transmissible est gardee, jamais envoyee */
     const held=[]; let u=user;
     if(u&&line.applicable===false){ held.push("LIGNE_NON_CONCERNEE"); u=null; }
@@ -7998,7 +8010,7 @@ function bv2Lines(tr){   /* adaptateurs voyage -> lignes B1 + meta par ligne (sa
   if(car){ const e=_bv2Edit(data,"fuel"); let u=null; const m={fuelState:ref.state};
     const conso=e&&e.conso!=null?Number(e.conso):NaN;
     if(Number.isFinite(conso)&&conso>0){ const h=budgetFuelHypothesis(ref, conso); if(h.b1User) u=h.b1User; else m.hypothesis="INDISPONIBLE"; }
-    if(e&&e.user) m.reservedA22=true;   /* A22-a : montant fixe par l'utilisateur reserve, ecran reporte ; jamais transmis en B3.1 */
+    if(e&&_bv2UserOf(e)){ m.reservedA22=true; hold("fuel","RESERVE_A22"); }   /* A22-a : montant fixe par l'utilisateur reserve, ecran reporte ; jamais transmis en B3.1, visible en attente */
     add({id:"fuel", type:"fuel", candidates:ref.b1?[ref.b1]:[]}, u, m); }
   /* hebergement et taxe : une ligne par etape (Q1-a), cle main pour une seule etape (Q4-a) */
   for(const g of L.legs){ const hid="hotel."+g.key, tid="tax."+g.key, he=_bv2Edit(data,hid), te=_bv2Edit(data,tid);
@@ -8057,9 +8069,57 @@ function bv2Lines(tr){   /* adaptateurs voyage -> lignes B1 + meta par ligne (sa
   const trav=T?[{key:"travelers",value:String(T),unit:"personne"}]:null;
   const legOfNight=d=>L.legs.find(g=>d>=g.dayFrom&&d<=g.dayTo)||null;
   const mealDays=new Set(), lunchDays=new Set();
-  const lineIdOf=(prefix, it)=>{ const id=prefix+"."+it.id; if(_bv2IdOk(id)) return id; const alt=prefix+".i"+plan.indexOf(it); notes.push("ID_ILLISIBLE:"+alt); return alt; };   /* identifiant impossible pour B1 : ligne de REMPLACEMENT stable (rang dans le Planning), jamais un poste ignore (audit GPT B3.1, P1) */
-  for(const it of plan.filter(x=>x.kind==="meal")){ mealDays.add(it.day); if(it.meal==="lunch") lunchDays.add(it.day);
-    const id=lineIdOf("meal", it);
+  /* Identifiants de ligne (audits GPT B3.1 r1, r2, r3) : un poste n'est JAMAIS ignore, et une saisie n'est JAMAIS transferee a un autre element.
+     Resolution en DEUX passes sur tout le voyage : (1) cle candidate de chaque element ; (2) toute cle candidate portee par PLUS D'UN element
+     est AMBIGUE pour TOUS ses porteurs (pas seulement les suivants) : lignes distinctes .d2, .d3..., et aucune saisie acceptee par aucun d'eux.
+     - identifiant du Planning valide pour B1 -> prefix.<id> ; s'il coincide avec une cle automatique RESERVEE (day.<n>, route.<n>, x<n>, h<...>, ou
+       se termine par .d<n>), il passe par l'empreinte : une cle automatique n'est jamais reattribuee a un element du Planning ;
+     - identifiant present mais illisible (chaine non vide ou nombre) -> prefix.h<empreinte 64 bits du texte> : derive de l'IDENTITE, pas de la position ;
+     - identifiant absent, nul ou vide -> prefix.x<rang> : aucune identite fiable, la ligne existe (« a preciser ») mais n'accepte AUCUNE saisie.
+     Une saisie enregistree sur une cle ambigue ou non fiable reste dans budgetV2.edits, non rattachee (heldEdit), jusqu'a une resolution explicite. */
+  const RESERVED=/^(day\.\d+|route\.\d+|x\d+|h[0-9a-f]{16}|k[0-9a-z]+)$|\.d\d+$/;
+  const candKey=(prefix, it)=>{ const raw=it.id; const has=(typeof raw==="string"&&raw.length>0)||(typeof raw==="number"&&Number.isFinite(raw));
+    if(!has) return {key:null, has:false};
+    const txt=String(raw); if(_bv2IdOk(prefix+"."+txt)&&txt.length<=64&&!RESERVED.test(txt)) return {key:prefix+"."+txt, has:true, exact:true};
+    return {key:prefix+".h"+_bv2Fnv64(txt), has:true, exact:false}; };
+  const makeResolver=(prefix, items)=>{ const cands=items.map(it=>it?candKey(prefix,it):{skip:true}); const count=new Map();
+    for(const c of cands) if(c.key) count.set(c.key,(count.get(c.key)||0)+1);
+    const used=new Map();
+    return rank=>{ const c=cands[rank]; let id, trusted; if(c.skip) return null;
+      if(!c.has){ id=prefix+".x"+rank; trusted=false; notes.push("ID_ABSENT:"+id); }
+      else { id=c.key; trusted=count.get(c.key)===1; if(!c.exact) notes.push("ID_ILLISIBLE:"+id);
+        if(!trusted){ const n=(used.get(c.key)||0)+1; used.set(c.key,n); if(n>1) id=c.key+".d"+n; notes.push("ID_AMBIGU:"+id); } }
+      return {id, trusted, replacement:!(c.has&&c.exact)}; }; };
+  /* --- identite persistante (voir _bv2TokOf) : porteurs de chaque jeton sur TOUT le Planning (meme hors jours valides), registre a trois etats, revendications --- */
+  const allPlan=Array.isArray(cp.plan)?cp.plan.filter(x=>x&&typeof x==="object"):[], holders=new Map();
+  for(const it of allPlan){ const t=_bv2TokOf(it); if(t) holders.set(t,(holders.get(t)||0)+1); else if(it.bv2id!=null) notes.push("JETON_ILLISIBLE"); }
+  const regRaw=_bv2Obj(data.notices)?data.notices.identityConflicts:undefined, regState=regRaw===undefined?"absent":(_bv2Obj(regRaw)?"ok":"illisible");
+  const conflicts=new Set(regState==="ok"?Object.keys(regRaw):[]); if(regState==="illisible") notes.push("REGISTRE_ILLISIBLE");   /* ID-10 : present mais illisible = conflit global, jamais « ignore » */
+  const claims=new Map(), edAll=_bv2Obj(data.edits)?data.edits:{};
+  for(const k of Object.keys(edAll)){ const e=edAll[k]; if(!_bv2Obj(e)||!_bv2UserOf(e)) continue; const m=/^(?:meal|act)\.(k[0-9a-z]{1,30})(?:\.d\d+)?$/.exec(k);
+    const bt=_bv2Obj(e.bound)&&typeof e.bound.bv2id==="string"?e.bound.bv2id:null;
+    for(const t of new Set([m?m[1]:null, bt].filter(Boolean))) claims.set(t,(claims.get(t)||0)+1); }   /* ID-11 : toute saisie qui revendique un jeton, par sa cle ou par son bound */
+  const heldEdits=[], hold=(key, reason)=>{ heldEdits.push({key, reason}); };
+  const resolve=(prefix, items)=>{ const fb=makeResolver(prefix, items.map(it=>_bv2TokOf(it)?null:it)), used=new Map();
+    return rank=>{ const it=items[rank], tok=_bv2TokOf(it);
+      if(!tok){ const r=fb(rank); return {id:r.id, tok:null, trusted:false, replacement:r.replacement, reason:r.trusted?"SANS_JETON":(r.id.indexOf(".x")>0?"ID_ABSENT":"ID_AMBIGU")}; }   /* ID-5 : sans jeton, aucune saisie */
+      let id=prefix+"."+tok; const n=(used.get(tok)||0)+1; used.set(tok,n); if(n>1) id+=".d"+n;
+      const reason=regState==="illisible"?"REGISTRE_ILLISIBLE":(holders.get(tok)>1?"IDENTITE_DUPLIQUEE":(conflicts.has(tok)?"IDENTITE_CONFLIT":null));
+      if(reason) notes.push(reason+":"+id);
+      return {id, tok, trusted:!reason, replacement:false, reason}; }; };
+  const decide=(r, it, ed)=>{   /* -> {user, reason} : la saisie transmise, ou la raison nommee de sa mise en attente */
+    const u=_bv2UserOf(ed); if(!u) return {user:null, reason:null};
+    if(!r.trusted) return {user:null, reason:r.reason};
+    const b=_bv2Obj(ed.bound)?ed.bound:null; if(!b||b.bv2id!==r.tok) return {user:null, reason:"IDENTITE_INCOHERENTE"};   /* ID-8 : double controle cle / bound */
+    if(ed.confirmRequired===true) return {user:null, reason:"CONFIRMATION_REQUISE"};   /* R-2 : apres reparation du registre, confirmation individuelle dans H */
+    if((claims.get(r.tok)||0)>1) return {user:null, reason:"SAISIES_CONCURRENTES"};   /* ID-11 : jamais de departage automatique */
+    if(typeof b.placeId==="string"&&b.placeId.length>0&&it.placeId!==b.placeId) return {user:null, reason:"LIEU_CHANGE"};   /* ID-12, Q7-a : prix d'etablissement, lieu change ou disparu */
+    return {user:u, reason:null}; };
+  const idMeta=(r, it, d)=>({ replacementId:r.replacement, untrustedId:!r.trusted, bv2id:r.tok, provenance:!!d.user, heldEdit:!!d.reason, heldReason:d.reason||null });
+  const mealItems=plan.filter(x=>x.kind==="meal"), actItems=plan.filter(x=>BV2_VISIT_KINDS.indexOf(x.kind)>=0);
+  const mealId=resolve("meal", mealItems), actId=resolve("act", actItems);
+  for(const [rank,it] of mealItems.entries()){ mealDays.add(it.day); if(it.meal==="lunch") lunchDays.add(it.day);
+    const rid=mealId(rank), id=rid.id;
     const cands=[], pl=placeOf(it.placeId), pr=it.priceRange;
     if(it.meal==="breakfast"&&it.day>=1){ const g=legOfNight(it.day-1), he=g?_bv2Edit(data,"hotel."+g.key):null;
       if(he&&he.breakfastIncluded===true) cands.push({kind:"included", reason:"breakfast_included"}); }
@@ -8067,22 +8127,32 @@ function bv2Lines(tr){   /* adaptateurs voyage -> lignes B1 + meta par ligne (sa
       const c={kind:"place_price", low:_bv2DecStr(pr.lo), central:_bv2Mid(pr.lo,pr.hi), high:_bv2DecStr(pr.hi), currency:String(pr.cur).toUpperCase(), sourceName:"Google"};
       if(pl&&typeof pl.mapsUri==="string"&&pl.mapsUri.length>0&&pl.mapsUri.length<=300) c.link=pl.mapsUri;
       if(c.low&&c.central&&c.high) cands.push(c); }
-    add({id, type:"meal", unit:"personne", factors:trav, candidates:cands}, _bv2UserOf(_bv2Edit(data,id)), {day:it.day, meal:it.meal||null, replacementId:!id.startsWith("meal."+it.id)}); }
-  for(let n=0;n<D;n++){ if(mealDays.has(n)) continue; const id="meal.day."+n;
+    { const ed=_bv2Edit(data,id), d=decide(rid,it,ed); if(d.reason) hold(id, d.reason);
+    add({id, type:"meal", unit:"personne", factors:trav, candidates:cands}, d.user, Object.assign({day:it.day, meal:it.meal||null}, idMeta(rid,it,d))); } }
+  for(let n=0;n<D;n++){ if(mealDays.has(n)) continue; const id="meal.day."+n;   /* cle RESERVEE : aucun identifiant du Planning ne peut la prendre (candKey) */
     add({id, type:"meal", unit:"personne_jour", factors:trav}, _bv2UserOf(_bv2Edit(data,id)), {day:n, noSlot:true}); }   /* jour sans creneau repas (A21 etendu, Q2-a) */
   const trans=new Set(); try{ for(const x of legTransitions(cp)) trans.add(x.day); }catch(_e){}
   for(const n of mealDays){ if(lunchDays.has(n)) continue; let route=trans.has(n); if(!route){ try{ route=!!_dayLongDrive(cp,n); }catch(_e){ route=false; } }
     if(!route) continue; const id="meal.route."+n;
     add({id, type:"meal", unit:"personne", factors:trav}, _bv2UserOf(_bv2Edit(data,id)), {day:n, lunchOnTheRoad:true}); }   /* dejeuner des jours de trajet (Q2-a), sans doublon */
-  for(const it of plan.filter(x=>BV2_VISIT_KINDS.indexOf(x.kind)>=0)){ const id=lineIdOf("act", it);
+  for(const [rank,it] of actItems.entries()){ const rid=actId(rank), id=rid.id;
     const pl=placeOf(it.placeId), cands=[];
     const free=it.price==="PRICE_LEVEL_FREE"||(pl&&pl.price==="PRICE_LEVEL_FREE");
     if(free&&pl&&typeof pl.mapsUri==="string"&&pl.mapsUri.length>0&&pl.mapsUri.length<=300) cands.push({kind:"place_free", reason:"free", sourceName:"Google", link:pl.mapsUri});
-    add({id, type:"activity", unit:"personne", factors:trav, candidates:cands}, _bv2UserOf(_bv2Edit(data,id)), {day:it.day, kind:it.kind, freeWithoutLink:!!(free&&!cands.length), replacementId:!id.startsWith("act."+it.id)}); }
+    { const ed=_bv2Edit(data,id), d=decide(rid,it,ed); if(d.reason) hold(id, d.reason);
+    add({id, type:"activity", unit:"personne", factors:trav, candidates:cands}, d.user, Object.assign({day:it.day, kind:it.kind, freeWithoutLink:!!(free&&!cands.length)}, idMeta(rid,it,d))); } }
   /* enveloppes */
-  for(const [k,e] of (Array.isArray(data.envelopes)?data.envelopes:[]).entries()){ let id="env."+e.id; if(!_bv2IdOk(id)){ id="env.i"+k; notes.push("ID_ILLISIBLE:"+id); }
-    add({id, type:"envelope"}, _bv2UserOf(_bv2Edit(data,id)), {label:e.label}); }
-  return { lines, meta, notes, travelers:T, days:D }; }
+  const envItems=Array.isArray(data.envelopes)?data.envelopes:[], envId=makeResolver("env", envItems);
+  for(const [k,e] of envItems.entries()){ const {id, trusted, replacement}=envId(k);
+    { const ed=_bv2Edit(data,id), prov=trusted&&!!(ed&&_bv2Obj(ed.bound)&&String(ed.bound.envId)===String(e.id)), heldE=!prov&&!!_bv2UserOf(ed);
+    if(heldE) hold(id, trusted?"PROVENANCE_ENVELOPPE":"ID_AMBIGU");
+    add({id, type:"envelope"}, prov?_bv2UserOf(ed):null, {label:e.label, replacementId:replacement, untrustedId:!trusted, provenance:prov, heldEdit:heldE}); } }
+  /* saisies retenues par la transmission (add) et saisies sans ligne : toutes visibles pour H « Valeurs sans ligne », jamais appliquees */
+  for(const id of Object.keys(meta)) if(meta[id].held&&meta[id].held.length&&!heldEdits.some(h=>h.key===id)) hold(id, meta[id].held[0]);
+  for(const k of Object.keys(edAll)){ if(_bv2Has(meta,k)||!_bv2Obj(edAll[k])||!_bv2UserOf(edAll[k])) continue;
+    hold(k, /^(?:meal|act)\.k[0-9a-z]{1,30}(?:\.d\d+)?$/.test(k)?"IDENTITE_ABSENTE":"SANS_LIGNE"); }   /* ID-9 : saisie orpheline (jeton sans porteur) -> en attente, jamais purgee par B3.1 */
+  if(storeReadOnly) hold("budgetV2", "BUDGETV2_LECTURE_SEULE:"+(st.reason||""));   /* audit GPT r6 : un Budget V2 present mais illisible a peut-etre des saisies qu'on ne peut pas lire -> jamais « pret » ; donnees ni modifiees ni purgees */
+  return { lines, meta, notes, travelers:T, days:D, heldEdits, storeReadOnly }; }
 
 /* ---------- taux de change (§7.1 regles 1 a 6, §13.4) ---------- */
 function bv2Fx(tr, currencies){   /* -> {fx:[...], missing:[...], reason} ; jamais FX statique, jamais fxRate V1, jamais une devise hors table B1 */
@@ -8111,14 +8181,18 @@ function bv2Inputs(tr){
   const fx=bv2Fx(tr, [].concat(...L.lines.map(_bv2LineCurrencies)));
   const st=bv2Store(tr), m=(st.readOnly?bv2Default():st.data).margin||{mode:"auto"};
   const margin=m.mode==="amount"?{mode:"amount", amount:_b2MinorToDecStr(m.amountMinor,_b2Digits(cur))}:(m.mode==="percent"?{mode:"percent", percent:m.percent}:{mode:m.mode==="off"?"off":"auto"});
-  return {ok:true, input:{contract:MagotB1.CONTRACT, currency:cur, travelers:tr.travelers, days:D, fx:fx.fx, lines:L.lines, margin}, meta:L.meta, notes:L.notes, fxInfo:fx}; }
+  return {ok:true, input:{contract:MagotB1.CONTRACT, currency:cur, travelers:tr.travelers, days:D, fx:fx.fx, lines:L.lines, margin}, meta:L.meta, notes:L.notes, fxInfo:fx, heldEdits:L.heldEdits, storeReadOnly:L.storeReadOnly}; }
 
-/* ---------- estimation avec isolement des erreurs (§13.5) ---------- */
-function bv2Estimate(tr){   /* -> {ok:true, result, input, meta, dropped} ou {ok:false, code, line?} ; une ligne n'est JAMAIS retiree, seule une saisie */
+/* ---------- estimation avec isolement des erreurs (§13.5) ; deux completudes distinctes (T13/T14) ---------- */
+function _bv2Ready(result, inp, dropped){   /* result.scenarios.*.complete = completude de REFERENCE du B1 gele, jamais modifiee ; budgetReady = complete ET aucune saisie en attente */
+  const heldEdits=(inp.heldEdits||[]).concat(dropped.map(d=>({key:d.id, reason:"SAISIE_ILLISIBLE:"+d.code}))), hasHeldEdits=heldEdits.length>0;
+  const complete=!!(result&&result.scenarios&&result.scenarios.central&&result.scenarios.central.complete===true);
+  return {heldEdits, hasHeldEdits, storeReadOnly:!!inp.storeReadOnly, budgetReady:complete&&!hasHeldEdits&&!inp.storeReadOnly}; }   /* lecture seule du Budget V2 -> jamais pret, meme sans saisie lisible */
+function bv2Estimate(tr){   /* -> {ok:true, result, input, meta, dropped, heldEdits, hasHeldEdits, budgetReady} ou {ok:false, code, line?} ; une ligne n'est JAMAIS retiree, seule une saisie */
   let inp; try{ inp=bv2Inputs(tr); }catch(e){ try{ console.error("bv2Inputs",e); }catch(_e){} return {ok:false, code:"ERREUR_INTERNE"}; }   /* jamais d'exception jusqu'au rendu */
   if(!inp.ok) return inp;
   const base=inp.input, run=lines=>bv2Run(Object.assign({}, base, {lines}));
-  const r0=run(base.lines); if(r0.ok) return {ok:true, result:r0.result, input:base, meta:inp.meta, notes:inp.notes, fxInfo:inp.fxInfo, dropped:[]};
+  const r0=run(base.lines); if(r0.ok) return Object.assign({ok:true, result:r0.result, input:base, meta:inp.meta, notes:inp.notes, fxInfo:inp.fxInfo, dropped:[]}, _bv2Ready(r0.result, inp, []));
   if(r0.code==="ERREUR_INTERNE") return {ok:false, code:"ERREUR_INTERNE"};
   const dropped=[], clean=new Map(), strip=l=>{ const c=Object.assign({}, l); delete c.user; return c; };
   const one=(l, deps)=>run(deps.concat([l]));
@@ -8134,8 +8208,231 @@ function bv2Estimate(tr){   /* -> {ok:true, result, input, meta, dropped} ou {ok
   const lines=base.lines.map(l=>clean.get(l.id)), r1=run(lines);
   if(!r1.ok) return {ok:false, code:r1.code==="ERREUR_INTERNE"?"ERREUR_INTERNE":"ERREUR_ADAPTATEUR", line:null};   /* defaut entre lignes */
   for(const d of dropped) if(inp.meta[d.id]) inp.meta[d.id].held=inp.meta[d.id].held.concat(["SAISIE_ILLISIBLE:"+d.code]);
-  return {ok:true, result:r1.result, input:Object.assign({}, base, {lines}), meta:inp.meta, notes:inp.notes, fxInfo:inp.fxInfo, dropped}; }
+  return Object.assign({ok:true, result:r1.result, input:Object.assign({}, base, {lines}), meta:inp.meta, notes:inp.notes, fxInfo:inp.fxInfo, dropped}, _bv2Ready(r1.result, inp, dropped)); }
 /* ===== fin BUDGET V2 -- B3.1 ===== */
+/* ===== BUDGET V2 -- B3.2 VUE D'ENSEMBLE AVANT LE DEPART (B3.2-SPEC r4 + audit GPT ; arbitrages de Loic A25-a..A32-a, 12 oct. 2026) =====
+   - Ecran A (A1 estimation incomplete, A1' complete) en LECTURE SEULE depuis le seul retour de bv2Estimate ; panneau Q · Voyageurs ;
+     etats §6.9 ; aiguillage par l'option « Nouveau Budget (apercu) » (bv2PreviewActive, B3.0).
+   - Aucun bouton d'un lot futur (A28-a). Aucun reseau. Tout rendu passe par bv2RenderGuard ; une seule ecriture differee : gel budgetAuto (§7.4).
+   - Q est le seul geste : bv2Mutate + ecriture declaree de tr.travelers dans le geste, journal de reprise (A26-a, meme patron qu'ID-9).
+   - Neuf modifications d'une ligne dans le V1 hors zones gelees (A30-a), posees par construire-b32.py : voir RAPPORT.md. */
+const BV2_A_TXT={
+  fr:{sub:"Prépare ton voyage sereinement",est:"Estimation Magot",known:"{x} connus",oneMissing:"+ {p} à préciser",nMissing:"{n} postes à préciser",perDay:"{x}/jour · {n} voyageurs",
+      sharesStrong:"{p} % du montant confirmé ou au prix actuel",sharesLocal:"{p} % référence locale",sharesGeneral:"{p} % référence générale",rangeT:"Fourchette",rangeLow:"Scénario bas",rangeMid:"Estimation centrale",rangeHigh:"Scénario prudent",
+      rangeInc:"Fourchette incomplète · {n} postes sans borne",margin:"+ Marge de sécurité {p} % · {x}",marginWhy5:"proposée car au moins 70 % du montant est confirmé ou au prix actuel",marginWhy10:"proposée car moins de 70 % du montant est confirmé ou au prix actuel",
+      improve:"Rendre l'estimation plus juste",from:"D'où viennent les {x} ?",fromNone:"D'où vient l'estimation ?",toSpecify:"à préciser",known1:"connu",estimated1:"estimé",held:"{n} valeurs en attente",heldOne:"1 valeur en attente",
+      post:{ACCOMMODATION:"Hébergement",TRANSPORT:"Transport",MEALS:"Repas",ACTIVITIES:"Visites",PERSONAL:"Personnel"},
+      calc1:"{q} × {u}",calcN:"{n} lignes · {k} connues",fuelPending:"Carburant · calcul en cours",fuelNotComputed:"Trajets restant à calculer ({n} jours)",fuelCompute:"Calculer les trajets restants ({n} jours)",fuelIncomplete:"Carburant · prix indisponible · {n} pays sans prix",
+      tollDetected:"Péage détecté sur les trajets du Planning · prix à préciser",tollNone:"Aucun péage détecté · tous les trajets contrôlés",tollToCheck:"Péage à vérifier · {n} jours de route non contrôlés",tollShort:"Aucun péage détecté sur les portions contrôlées · {n} portions courtes non contrôlées",
+      fxAbsent:"Taux de change absent pour {c}",fxDate:"Date du taux inconnue pour {c}",offline:"Hors ligne",
+      noTrip:"Crée d'abord un voyage pour suivre son budget.",noDates:"Rien à estimer pour l'instant",noDatesSub:"Ajoute tes dates et tes étapes dans le Planning.",openPlan:"Ouvrir le Planning",
+      unavailable:"Estimation indisponible",curr:"devise non prise en charge ({c})",tooLong:"voyage de plus de 366 jours",error:"signale-le, le détail est dans la console",
+      readOnly:"Budget V2 non lisible sur cet appareil ({r}) · l'ancien Budget reste disponible en désactivant l'aperçu",openSettings:"Ouvrir les Réglages",
+      later:"Le nouveau Budget ne couvre pas encore le suivi pendant et après le voyage (prochains lots). Désactive l'aperçu dans Réglages pour retrouver l'ancien Budget.",
+      qTitle:"Combien de voyageurs ?",qOk:"C'est bon",qWait:"Confirme le nombre de voyageurs pour voir ton estimation.",qFail:"Impossible d'enregistrer pour l'instant ({c}).",
+      hintOn:"Aperçu activé : la vue d'ensemble avant le départ est disponible dans l'onglet Budget. L'ancien Budget reste accessible en désactivant l'aperçu.",
+      hint:{hotel:"Indique le prix de ton hôtel{w}",tourist_tax:"Ton prix inclut-il la taxe de séjour{w} ?",meal:"Budget repas{w} : combien par personne ?",activity:"Prix de la visite{w} ?",toll:"Péages : combien prévois-tu ?",parking:"Stationnement : combien par jour ?",ticket:"Prix de tes billets ?",transit:"Prix du transfert{w} ?",taxi:"Prix du taxi{w} ?",fuel:"Carburant : vérifie l'hypothèse",envelope:"Enveloppe{w} : quel montant ?",refine:"Affine « {l} » ({x}, référence)"},
+      where:{day:" du jour {d}",leg:" à {n}"}},
+  en:{sub:"Get your trip ready, stress-free",est:"Magot estimate",known:"{x} known",oneMissing:"+ {p} to specify",nMissing:"{n} items to specify",perDay:"{x}/day · {n} travellers",
+      sharesStrong:"{p}% of the amount confirmed or at current price",sharesLocal:"{p}% local reference",sharesGeneral:"{p}% general reference",rangeT:"Range",rangeLow:"Low scenario",rangeMid:"Central estimate",rangeHigh:"Cautious scenario",
+      rangeInc:"Incomplete range · {n} items without bounds",margin:"+ Safety margin {p}% · {x}",marginWhy5:"suggested because at least 70% of the amount is confirmed or at current price",marginWhy10:"suggested because less than 70% of the amount is confirmed or at current price",
+      improve:"Make the estimate more accurate",from:"Where do the {x} come from?",fromNone:"Where does the estimate come from?",toSpecify:"to specify",known1:"known",estimated1:"estimated",held:"{n} values pending",heldOne:"1 value pending",
+      post:{ACCOMMODATION:"Accommodation",TRANSPORT:"Transport",MEALS:"Meals",ACTIVITIES:"Visits",PERSONAL:"Personal"},
+      calc1:"{q} × {u}",calcN:"{n} lines · {k} known",fuelPending:"Fuel · computing",fuelNotComputed:"Routes still to compute ({n} days)",fuelCompute:"Compute remaining routes ({n} days)",fuelIncomplete:"Fuel · price unavailable · {n} countries without price",
+      tollDetected:"Toll detected on Planning routes · price to specify",tollNone:"No toll detected · all routes checked",tollToCheck:"Toll to check · {n} driving days not checked",tollShort:"No toll detected on checked sections · {n} short sections not checked",
+      fxAbsent:"Exchange rate missing for {c}",fxDate:"Rate date unknown for {c}",offline:"Offline",
+      noTrip:"Create a trip first to track its budget.",noDates:"Nothing to estimate yet",noDatesSub:"Add your dates and stops in the Planning.",openPlan:"Open the Planning",
+      unavailable:"Estimate unavailable",curr:"currency not supported ({c})",tooLong:"trip longer than 366 days",error:"please report it, details are in the console",
+      readOnly:"Budget V2 cannot be read on this device ({r}) · the old Budget stays available by turning the preview off",openSettings:"Open Settings",
+      later:"The new Budget does not cover the trip itself or its review yet (next lots). Turn the preview off in Settings to get the old Budget back.",
+      qTitle:"How many travellers?",qOk:"Done",qWait:"Confirm the number of travellers to see your estimate.",qFail:"Cannot save right now ({c}).",
+      hintOn:"Preview on: the pre-trip overview is available in the Budget tab. The old Budget stays accessible by turning the preview off.",
+      hint:{hotel:"Enter your hotel price{w}",tourist_tax:"Does your price include the tourist tax{w}?",meal:"Meal budget{w}: how much per person?",activity:"Visit price{w}?",toll:"Tolls: how much do you expect?",parking:"Parking: how much per day?",ticket:"Price of your tickets?",transit:"Transfer price{w}?",taxi:"Taxi price{w}?",fuel:"Fuel: check the assumption",envelope:"Envelope{w}: which amount?",refine:"Refine “{l}” ({x}, reference)"},
+      where:{day:" on day {d}",leg:" in {n}"}}
+};
+BV2_A_TXT.es={sub:"Prepara tu viaje con tranquilidad",est:"Estimación Magot",known:"{x} conocidos",oneMissing:"+ {p} por precisar",nMissing:"{n} partidas por precisar",perDay:"{x}/día · {n} viajeros",
+  sharesStrong:"{p} % del importe confirmado o a precio actual",sharesLocal:"{p} % referencia local",sharesGeneral:"{p} % referencia general",rangeT:"Horquilla",rangeLow:"Escenario bajo",rangeMid:"Estimación central",rangeHigh:"Escenario prudente",
+  rangeInc:"Horquilla incompleta · {n} partidas sin límite",margin:"+ Margen de seguridad {p} % · {x}",marginWhy5:"propuesto porque al menos el 70 % del importe está confirmado o a precio actual",marginWhy10:"propuesto porque menos del 70 % del importe está confirmado o a precio actual",
+  improve:"Afinar la estimación",from:"¿De dónde salen los {x}?",fromNone:"¿De dónde sale la estimación?",toSpecify:"por precisar",known1:"conocido",estimated1:"estimado",held:"{n} valores pendientes",heldOne:"1 valor pendiente",
+  post:{ACCOMMODATION:"Alojamiento",TRANSPORT:"Transporte",MEALS:"Comidas",ACTIVITIES:"Visitas",PERSONAL:"Personal"},
+  calc1:"{q} × {u}",calcN:"{n} líneas · {k} conocidas",fuelPending:"Combustible · calculando",fuelNotComputed:"Trayectos por calcular ({n} días)",fuelCompute:"Calcular los trayectos restantes ({n} días)",fuelIncomplete:"Combustible · precio no disponible · {n} países sin precio",
+  tollDetected:"Peaje detectado en los trayectos del Planning · precio por precisar",tollNone:"Ningún peaje detectado · todos los trayectos comprobados",tollToCheck:"Peaje por comprobar · {n} días de ruta sin comprobar",tollShort:"Ningún peaje detectado en los tramos comprobados · {n} tramos cortos sin comprobar",
+  fxAbsent:"Falta el tipo de cambio para {c}",fxDate:"Fecha del tipo de cambio desconocida para {c}",offline:"Sin conexión",
+  noTrip:"Crea primero un viaje para seguir su presupuesto.",noDates:"Nada que estimar por ahora",noDatesSub:"Añade tus fechas y etapas en el Planning.",openPlan:"Abrir el Planning",
+  unavailable:"Estimación no disponible",curr:"moneda no admitida ({c})",tooLong:"viaje de más de 366 días",error:"avísanos, el detalle está en la consola",
+  readOnly:"Presupuesto V2 ilegible en este dispositivo ({r}) · el antiguo sigue disponible desactivando la vista previa",openSettings:"Abrir Ajustes",
+  later:"El nuevo Presupuesto aún no cubre el seguimiento durante y después del viaje (próximos lotes). Desactiva la vista previa en Ajustes para volver al antiguo.",
+  qTitle:"¿Cuántos viajeros?",qOk:"Listo",qWait:"Confirma el número de viajeros para ver tu estimación.",qFail:"No se puede guardar ahora ({c}).",
+  hintOn:"Vista previa activada: la vista general antes del viaje está en la pestaña Presupuesto. El antiguo sigue accesible desactivando la vista previa.",
+  hint:{hotel:"Indica el precio de tu hotel{w}",tourist_tax:"¿Tu precio incluye la tasa turística{w}?",meal:"Presupuesto de comidas{w}: ¿cuánto por persona?",activity:"¿Precio de la visita{w}?",toll:"Peajes: ¿cuánto prevés?",parking:"Aparcamiento: ¿cuánto por día?",ticket:"¿Precio de tus billetes?",transit:"¿Precio del traslado{w}?",taxi:"¿Precio del taxi{w}?",fuel:"Combustible: revisa la hipótesis",envelope:"Sobre{w}: ¿qué importe?",refine:"Afina « {l} » ({x}, referencia)"},
+  where:{day:" del día {d}",leg:" en {n}"}};
+BV2_A_TXT.it={sub:"Prepara il viaggio in tranquillità",est:"Stima Magot",known:"{x} noti",oneMissing:"+ {p} da precisare",nMissing:"{n} voci da precisare",perDay:"{x}/giorno · {n} viaggiatori",
+  sharesStrong:"{p} % dell'importo confermato o a prezzo attuale",sharesLocal:"{p} % riferimento locale",sharesGeneral:"{p} % riferimento generale",rangeT:"Forchetta",rangeLow:"Scenario basso",rangeMid:"Stima centrale",rangeHigh:"Scenario prudente",
+  rangeInc:"Forchetta incompleta · {n} voci senza limite",margin:"+ Margine di sicurezza {p} % · {x}",marginWhy5:"proposto perché almeno il 70 % dell'importo è confermato o a prezzo attuale",marginWhy10:"proposto perché meno del 70 % dell'importo è confermato o a prezzo attuale",
+  improve:"Rendere la stima più precisa",from:"Da dove vengono i {x}?",fromNone:"Da dove viene la stima?",toSpecify:"da precisare",known1:"noto",estimated1:"stimato",held:"{n} valori in attesa",heldOne:"1 valore in attesa",
+  post:{ACCOMMODATION:"Alloggio",TRANSPORT:"Trasporti",MEALS:"Pasti",ACTIVITIES:"Visite",PERSONAL:"Personale"},
+  calc1:"{q} × {u}",calcN:"{n} righe · {k} note",fuelPending:"Carburante · calcolo in corso",fuelNotComputed:"Tragitti da calcolare ({n} giorni)",fuelCompute:"Calcola i tragitti rimanenti ({n} giorni)",fuelIncomplete:"Carburante · prezzo non disponibile · {n} paesi senza prezzo",
+  tollDetected:"Pedaggio rilevato sui tragitti del Planning · prezzo da precisare",tollNone:"Nessun pedaggio rilevato · tutti i tragitti controllati",tollToCheck:"Pedaggio da verificare · {n} giorni di strada non controllati",tollShort:"Nessun pedaggio rilevato sulle tratte controllate · {n} tratte brevi non controllate",
+  fxAbsent:"Tasso di cambio mancante per {c}",fxDate:"Data del tasso sconosciuta per {c}",offline:"Offline",
+  noTrip:"Crea prima un viaggio per seguirne il budget.",noDates:"Niente da stimare per ora",noDatesSub:"Aggiungi date e tappe nel Planning.",openPlan:"Apri il Planning",
+  unavailable:"Stima non disponibile",curr:"valuta non supportata ({c})",tooLong:"viaggio di oltre 366 giorni",error:"segnalalo, il dettaglio è nella console",
+  readOnly:"Budget V2 illeggibile su questo dispositivo ({r}) · il vecchio resta disponibile disattivando l'anteprima",openSettings:"Apri Impostazioni",
+  later:"Il nuovo Budget non copre ancora il viaggio in corso né il bilancio (prossimi lotti). Disattiva l'anteprima nelle Impostazioni per tornare al vecchio.",
+  qTitle:"Quanti viaggiatori?",qOk:"Fatto",qWait:"Conferma il numero di viaggiatori per vedere la stima.",qFail:"Impossibile salvare ora ({c}).",
+  hintOn:"Anteprima attiva: la panoramica prima della partenza è nella scheda Budget. Il vecchio Budget resta accessibile disattivando l'anteprima.",
+  hint:{hotel:"Indica il prezzo del tuo hotel{w}",tourist_tax:"Il prezzo include la tassa di soggiorno{w}?",meal:"Budget pasti{w}: quanto a persona?",activity:"Prezzo della visita{w}?",toll:"Pedaggi: quanto prevedi?",parking:"Parcheggio: quanto al giorno?",ticket:"Prezzo dei biglietti?",transit:"Prezzo del trasferimento{w}?",taxi:"Prezzo del taxi{w}?",fuel:"Carburante: verifica l'ipotesi",envelope:"Busta{w}: quale importo?",refine:"Affina « {l} » ({x}, riferimento)"},
+  where:{day:" del giorno {d}",leg:" a {n}"}};
+BV2_A_TXT.de={sub:"Bereite deine Reise entspannt vor",est:"Magot-Schätzung",known:"{x} bekannt",oneMissing:"+ {p} zu klären",nMissing:"{n} Posten zu klären",perDay:"{x}/Tag · {n} Reisende",
+  sharesStrong:"{p} % des Betrags bestätigt oder zum aktuellen Preis",sharesLocal:"{p} % lokale Referenz",sharesGeneral:"{p} % allgemeine Referenz",rangeT:"Spanne",rangeLow:"Niedriges Szenario",rangeMid:"Zentrale Schätzung",rangeHigh:"Vorsichtiges Szenario",
+  rangeInc:"Unvollständige Spanne · {n} Posten ohne Grenzen",margin:"+ Sicherheitsmarge {p} % · {x}",marginWhy5:"vorgeschlagen, weil mindestens 70 % des Betrags bestätigt oder zum aktuellen Preis sind",marginWhy10:"vorgeschlagen, weil weniger als 70 % des Betrags bestätigt oder zum aktuellen Preis sind",
+  improve:"Schätzung genauer machen",from:"Woher kommen die {x}?",fromNone:"Woher kommt die Schätzung?",toSpecify:"zu klären",known1:"bekannt",estimated1:"geschätzt",held:"{n} Werte offen",heldOne:"1 Wert offen",
+  post:{ACCOMMODATION:"Unterkunft",TRANSPORT:"Verkehr",MEALS:"Essen",ACTIVITIES:"Besuche",PERSONAL:"Persönlich"},
+  calc1:"{q} × {u}",calcN:"{n} Zeilen · {k} bekannt",fuelPending:"Kraftstoff · wird berechnet",fuelNotComputed:"Noch zu berechnende Strecken ({n} Tage)",fuelCompute:"Restliche Strecken berechnen ({n} Tage)",fuelIncomplete:"Kraftstoff · Preis nicht verfügbar · {n} Länder ohne Preis",
+  tollDetected:"Maut auf den Planning-Strecken erkannt · Preis zu klären",tollNone:"Keine Maut erkannt · alle Strecken geprüft",tollToCheck:"Maut zu prüfen · {n} Fahrtage nicht geprüft",tollShort:"Keine Maut auf den geprüften Abschnitten · {n} kurze Abschnitte nicht geprüft",
+  fxAbsent:"Wechselkurs fehlt für {c}",fxDate:"Kursdatum unbekannt für {c}",offline:"Offline",
+  noTrip:"Erstelle zuerst eine Reise, um ihr Budget zu verfolgen.",noDates:"Noch nichts zu schätzen",noDatesSub:"Trage Daten und Etappen im Planning ein.",openPlan:"Planning öffnen",
+  unavailable:"Schätzung nicht verfügbar",curr:"Währung nicht unterstützt ({c})",tooLong:"Reise länger als 366 Tage",error:"bitte melden, Details stehen in der Konsole",
+  readOnly:"Budget V2 auf diesem Gerät nicht lesbar ({r}) · das alte Budget bleibt verfügbar, wenn die Vorschau aus ist",openSettings:"Einstellungen öffnen",
+  later:"Das neue Budget deckt die Reise selbst und den Rückblick noch nicht ab (nächste Lose). Schalte die Vorschau in den Einstellungen aus, um das alte Budget zu sehen.",
+  qTitle:"Wie viele Reisende?",qOk:"Fertig",qWait:"Bestätige die Zahl der Reisenden, um deine Schätzung zu sehen.",qFail:"Speichern gerade nicht möglich ({c}).",
+  hintOn:"Vorschau aktiv: die Übersicht vor der Abreise ist im Tab Budget. Das alte Budget bleibt erreichbar, wenn die Vorschau aus ist.",
+  hint:{hotel:"Gib den Preis deines Hotels an{w}",tourist_tax:"Enthält dein Preis die Kurtaxe{w}?",meal:"Essensbudget{w}: wie viel pro Person?",activity:"Preis des Besuchs{w}?",toll:"Maut: wie viel planst du ein?",parking:"Parken: wie viel pro Tag?",ticket:"Preis deiner Tickets?",transit:"Preis des Transfers{w}?",taxi:"Taxipreis{w}?",fuel:"Kraftstoff: Annahme prüfen",envelope:"Umschlag{w}: welcher Betrag?",refine:"Verfeinere „{l}“ ({x}, Referenz)"},
+  where:{day:" an Tag {d}",leg:" in {n}"}};
+for(const _l of ["fr","en","es","it","de"]) if(BV2_TXT[_l]) BV2_TXT[_l].hintOn=BV2_A_TXT[_l].hintOn;   /* A31-a : texte de l'option reaffecte (objet non gele), le source B3.0 n'est pas modifie */
+function _bv2A(){ return BV2_A_TXT[lang()]||BV2_A_TXT.fr; }
+function _bv2Tx(s, v){ if(v) for(const k in v) s=s.split("{"+k+"}").join(String(v[k])); return s; }
+const _bv2Esc=s=>escapeHtml(s);
+const BV2_POST_ICON={ACCOMMODATION:"lodging",TRANSPORT:"transport",MEALS:"food",ACTIVITIES:"activities",PERSONAL:"misc"};   /* A7 : asset BUDCATS, non modifie */
+const BV2_HINT_ORDER=["hotel","tourist_tax","meal","activity","toll","parking","ticket","transit","taxi","fuel","envelope"];   /* m8 */
+const BV2_A_CSS=`
+.bv2a{padding:0 0 18px}.bv2a .bv2-card{background:var(--surface,#fff);border:1px solid var(--line);border-radius:18px;padding:14px 16px;margin:12px 0;box-shadow:var(--shadow-sm)}
+.bv2a .bv2-hero{background:linear-gradient(160deg,var(--navy),var(--navy-2));color:#fff;border:0;border-radius:22px;padding:18px 18px 16px;box-shadow:var(--shadow)}
+.bv2a .bv2-hero .k{font:600 12.5px Inter,sans-serif;letter-spacing:.3px;opacity:.82;text-transform:uppercase}.bv2a .bv2-hero .v{font:700 clamp(26px,8vw,32px) Inter,sans-serif;margin:6px 0 2px;overflow-wrap:anywhere}
+.bv2a .bv2-hero .s{font:500 13px Inter,sans-serif;opacity:.9;margin-top:4px}.bv2a .bv2-hero .held{margin-top:10px;display:inline-block;background:rgba(255,255,255,.14);border-radius:999px;padding:4px 10px;font:600 12px Inter,sans-serif}
+.bv2a h3{font:700 15px Inter,sans-serif;color:var(--ink);margin:18px 0 6px}.bv2a .bv2-range{display:grid;grid-template-columns:1fr 1.25fr 1fr;gap:8px}.bv2a .bv2-range div{border:1px solid var(--line);border-radius:14px;padding:10px 8px;text-align:center}
+.bv2a .bv2-range div.mid{border-color:var(--gold);background:var(--gold-soft)}.bv2a .bv2-range .k{font:600 11px Inter,sans-serif;color:var(--muted)}.bv2a .bv2-range .v{font:700 15px Inter,sans-serif;color:var(--ink);margin-top:3px;overflow-wrap:anywhere}
+.bv2a .bv2-line{font:500 13px Inter,sans-serif;color:var(--ink-2);margin:6px 0}.bv2a .bv2-line.why{color:var(--muted);font-size:12px}.bv2a ul.bv2-hints{margin:0;padding:0 0 0 18px}.bv2a ul.bv2-hints li{font:500 13.5px Inter,sans-serif;color:var(--ink-2);margin:6px 0}
+.bv2a .bv2-post{display:flex;align-items:center;gap:12px;padding:11px 0;border-top:1px solid var(--line-soft)}.bv2a .bv2-post:first-of-type{border-top:0}
+.bv2a .bv2-post .ic{width:36px;height:36px;border-radius:12px;display:grid;place-items:center;flex:0 0 36px}.bv2a .bv2-post .ic svg{width:20px;height:20px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+.bv2a .bv2-post .n{font:600 14px Inter,sans-serif;color:var(--ink)}.bv2a .bv2-post .c{font:500 12px Inter,sans-serif;color:var(--muted);margin-top:2px}.bv2a .bv2-post .a{margin-left:auto;text-align:right;font:700 14px Inter,sans-serif;color:var(--ink);white-space:nowrap}.bv2a .bv2-post .a.todo{font-weight:600;color:var(--danger)}
+.bv2a .bv2-pill{display:inline-block;border-radius:999px;padding:2px 8px;font:600 11px Inter,sans-serif;margin-top:3px}.bv2a .bv2-pill.known{background:rgba(22,163,74,.12);color:var(--emerald)}.bv2a .bv2-pill.est{background:var(--gold-soft);color:var(--gold-d)}.bv2a .bv2-pill.todo{background:color-mix(in srgb,var(--danger) 10%,transparent);color:var(--danger)}
+.bv2a .bv2-state{text-align:center;padding:26px 18px}.bv2a .bv2-state p{font:500 14px Inter,sans-serif;color:var(--ink-2);margin:8px 0 14px}.bv2a .bv2-state h2{font:700 18px Inter,sans-serif;color:var(--ink);margin:0}
+#bv2QSheet.botsheet{inset:auto;left:0;right:0;bottom:0;top:auto;height:auto;max-height:85vh;display:none;flex-direction:column;z-index:3200;background:var(--bg);border-top-left-radius:22px;border-top-right-radius:22px;box-shadow:var(--shadow-lg);transition:transform .25s ease}
+#bv2QSheet.botsheet.show{display:flex;animation:slideup .3s ease both}#bv2QSheet .bv2q-grip{width:40px;height:5px;border-radius:3px;background:var(--line);margin:8px auto 2px}#bv2QSheet .sh-head{display:flex;align-items:center;justify-content:space-between;padding:8px 18px 4px}
+#bv2QSheet .sh-head h2{font:700 17px Inter,sans-serif;color:var(--ink);margin:0}#bv2QSheet .bv2q-x{border:0;background:transparent;font-size:22px;line-height:1;color:var(--muted);width:var(--tap);height:var(--tap)}
+#bv2QSheet .bv2q-body{padding:10px 18px 26px}#bv2QSheet .bv2q-count{display:flex;align-items:center;justify-content:center;gap:22px;margin:14px 0 20px}#bv2QSheet .bv2q-count button{width:52px;height:52px;border-radius:50%;border:1px solid var(--line);background:var(--surface,#fff);font:700 22px Inter,sans-serif;color:var(--ink)}
+#bv2QSheet .bv2q-count b{font:700 34px Inter,sans-serif;color:var(--ink);min-width:48px;text-align:center}#bv2QBackdrop{position:fixed;inset:0;z-index:3199;background:rgba(10,19,38,.38);opacity:0;pointer-events:none;transition:opacity .2s}#bv2QBackdrop.show{opacity:1;pointer-events:auto}
+[data-theme="dark"] .bv2a .bv2-card{background:var(--surface,#131E33)}[data-theme="dark"] .bv2a .bv2-range div.mid{background:rgba(224,163,62,.14)}`;
+function _bv2ACss(){ if(document.getElementById("bv2aCss")) return; const st=document.createElement("style"); st.id="bv2aCss"; st.textContent=BV2_A_CSS; document.head.appendChild(st); }
+function _bv2Fmt(minor, cur){ return minor==null?"—":bv2Fmt(minor, cur); }
+function _bv2ItemOf(tr, id){   /* element du Planning derriere une ligne meal.X ou act.X : par jeton (meal.k<jeton>) ou par identifiant exact (meal.<id>) ; sinon null */
+  const m=/^(meal|act)\.(.+)$/.exec(id||""); if(!m||!tr||!Array.isArray(tr.plan)) return null; const key=m[2];
+  return tr.plan.find(it=>it&&typeof it==="object"&&((typeof it.bv2id==="string"&&it.bv2id===key)||(it.id!=null&&String(it.id)===key&&!/^k[0-9a-z]+$/.test(key))))||null; }
+function _bv2Where(A, m, tr, id){ let w=""; if(m&&Number.isInteger(m.day)) w=_bv2Tx(A.where.day,{d:m.day+1});
+  const it=_bv2ItemOf(tr, id); if(it&&typeof it.title==="string"&&it.title.trim()) w+=" · "+it.title.trim().slice(0,60);   /* texte du voyage : echappe a l'insertion (_bv2Esc) */
+  return w; }
+function bv2Hints(r, A, tr){   /* 1 a 3 pistes, m8 : inconnues requises dans l'ordre des types, puis connues a certitude faible par montant decroissant ; texte seul (A28-a) */
+  const out=[], lines=r.result.lines, meta=r.meta||{};
+  const unknown=lines.filter(l=>l.required&&l.state==="UNKNOWN").sort((a,b)=>BV2_HINT_ORDER.indexOf(a.type)-BV2_HINT_ORDER.indexOf(b.type));
+  for(const l of unknown){ if(out.length>=3) break; const h=A.hint[l.type]; if(!h) continue; out.push(_bv2Tx(h,{w:_bv2Where(A, meta[l.id], tr, l.id)})); }
+  if(out.length<3){ const weak=lines.filter(l=>(l.state==="KNOWN"||l.state==="ESTIMATED")&&(l.certainty==="LOCAL_REFERENCE"||l.certainty==="GENERAL_REFERENCE")&&l.amounts&&l.amounts.central!=null).sort((a,b)=>b.amounts.central-a.amounts.central);
+    for(const l of weak){ if(out.length>=3) break; out.push(_bv2Tx(A.hint.refine,{l:(A.post[l.post]||l.post)+_bv2Where(A, meta[l.id], tr, l.id), x:_bv2Fmt(l.amounts.central, r.result.currency)})); } }
+  return out; }
+function _bv2PostCalc(r, p, A){   /* ligne de calcul d'un poste : une ligne -> « 2 nuits × 118 € » (facteurs × prix unitaire), sinon « N lignes · k connues » */
+  const ls=r.result.lines.filter(l=>l.post===p.post), cur=r.result.currency;
+  if(ls.length===1){ const l=ls[0]; const q=(l.quantity&&Array.isArray(l.quantity.factors))?l.quantity.factors.map(f=>String(f.value)).join(" × "):"";
+    const up=l.unitPrice&&l.unitPrice.central!=null?bv2ToMinor(Number(l.unitPrice.central), l.unitPrice.currency||cur):null; const u=up!=null?_bv2Fmt(up, l.unitPrice.currency||cur):null;   /* unitPrice.central = chaine decimale (B1), convertie en centimes pour bv2Fmt */
+    if(q&&u) return _bv2Tx(A.calc1,{q, u}); return null; }
+  return _bv2Tx(A.calcN,{n:ls.length, k:ls.filter(l=>l.state==="KNOWN"||l.state==="ESTIMATED"||l.state==="ZERO_CONFIRMED").length}); }
+function _bv2Sub(txt){ const el=document.querySelector("#view-budget .page-sub"); if(el&&typeof txt==="string") el.textContent=txt; }   /* A29-a */
+function bv2SubRestore(){ if(bv2PreviewActive()) return; const el=document.querySelector("#view-budget .page-sub"); if(el&&el.dataset.i18n) el.textContent=t(el.dataset.i18n); }   /* A29-a : sous-titre V1 restaure (appele par closeSettings, A30-4 ; applyI18n le refait au changement de langue) */
+function bv2StateHtml(A, title, sub, action){ return `<div class="bv2a"><div class="bv2-card bv2-state"><h2>${_bv2Esc(title)}</h2>${sub?`<p>${_bv2Esc(sub)}</p>`:""}${action||""}</div></div>`; }
+function bv2RenderA(body, tr){   /* ecran A, lecture seule ; aucune ecriture synchrone ; gel budgetAuto differe (§7.4) */
+  _bv2ACss(); const A=_bv2A(); _bv2Sub(A.sub);
+  bv2RenderGuard(()=>{
+    if(!tr){ body.innerHTML=bv2StateHtml(A, A.noTrip); return; }
+    const st=bv2Store(tr);
+    if(st.readOnly){ body.innerHTML=bv2StateHtml(A, A.unavailable, _bv2Tx(A.readOnly,{r:st.reason||""}), `<button class="btn" id="bv2OpenSettings">${_bv2Esc(A.openSettings)}</button>`); return; }   /* Q-READONLY : priorite absolue, aucun geste */
+    const status=tripStatus(tr);
+    if(status==="draft"){ body.innerHTML=bv2StateHtml(A, A.noDates, A.noDatesSub, `<button class="btn" id="bv2OpenPlan">${_bv2Esc(A.openPlan)}</button>`); return; }
+    if(status!=="upcoming"){ body.innerHTML=bv2StateHtml(A, A.est, A.later, `<button class="btn" id="bv2OpenSettings">${_bv2Esc(A.openSettings)}</button>`); return; }   /* A27-a : aucun chiffre V1 */
+    const r=bv2Estimate(tr);
+    if(!r.ok&&r.code==="VOYAGEURS_A_CONFIRMER"||(r.ok&&!st.data.travelersConfirmed)){ body.innerHTML=bv2StateHtml(A, A.qTitle, A.qWait); body.dataset.bv2q="1"; return; }
+    if(!r.ok){ const why=r.code==="DEVISE_VOYAGE_NON_PRISE_EN_CHARGE"?_bv2Tx(A.curr,{c:_bv2CurOf(tr)||"?"}):(r.code==="VOYAGE_TROP_LONG"?A.tooLong:A.error);
+      if(r.code!=="DEVISE_VOYAGE_NON_PRISE_EN_CHARGE"&&r.code!=="VOYAGE_TROP_LONG"){ try{ console.error("bv2RenderA", r.code, r.line||""); }catch(_e){} }
+      body.innerHTML=bv2StateHtml(A, A.unavailable, why); return; }
+    body.innerHTML=bv2AHtml(r, tr, A); });
+  const sb=body.querySelector("#bv2OpenSettings"); if(sb) sb.onclick=()=>openSettings();
+  const pb=body.querySelector("#bv2OpenPlan"); if(pb) pb.onclick=()=>switchTab("plan");
+  if(body.dataset.bv2q){ delete body.dataset.bv2q; bv2OpenQ(tr); } else { bv2CloseQ(); }   /* audit GPT r1 : un rendu qui n'a pas besoin de Q le ferme (changement de voyage, confirmation faite ailleurs) */
+  if(tr&&!bv2Store(tr).readOnly){ const cb=body.querySelector("#bv2FuelCompute"); if(cb){ try{ _b2BindCompute(body, tr, ()=>{ try{ renderBudget(); }catch(_e){} }); }catch(_e){} } }   /* fonction gelee B2, appelee, jamais modifiee */
+  if(tr&&bv2ReadV1(tr).needsAutoFreeze) bv2AfterRender(()=>{ try{ bv2FreezeBudgetAuto(tr, bv2Capture()); }catch(_e){} }); }   /* unique ecriture differee de B3.2 (§7.4, §9) */
+function bv2AHtml(r, tr, A){
+  const res=r.result, cur=res.currency, c=res.scenarios.central, complete=c.complete===true, sh=res.certainty&&res.certainty.sharesPct, nMiss=res.certainty?res.certainty.postsToSpecify:0;
+  let hero=`<div class="k">${_bv2Esc(A.est)}</div>`;
+  if(complete){ hero+=`<div class="v">${_bv2Esc(_bv2Fmt(c.totalMinor,cur))}</div><div class="s">${_bv2Esc(_bv2Tx(A.perDay,{x:_bv2Fmt(res.perDayMinor,cur), n:res.travelers}))}</div>`; }
+  else { const posts=res.posts.filter(p=>!p.complete); const one=posts.length===1?(A.post[posts[0].post]||posts[0].post):null;
+    hero+=`<div class="v">${_bv2Esc(_bv2Tx(A.known,{x:_bv2Fmt(c.knownMinor,cur)}))}</div><div class="s">${_bv2Esc(one?_bv2Tx(A.oneMissing,{p:one.toLowerCase()}):_bv2Tx(A.nMissing,{n:nMiss}))}</div>`; }
+  if(sh&&Number.isInteger(sh.confirmedOrCurrent)){ const parts=[_bv2Tx(A.sharesStrong,{p:sh.confirmedOrCurrent}), _bv2Tx(A.sharesLocal,{p:sh.localReference})]; if(sh.generalReference>0) parts.push(_bv2Tx(A.sharesGeneral,{p:sh.generalReference})); hero+=`<div class="s">${_bv2Esc(parts.join(" · "))}</div>`; }   /* A1-ZERO : sharesPct null -> aucune ligne */
+  if(r.hasHeldEdits){ const n=r.heldEdits.length; hero+=`<div class="held">${_bv2Esc(n===1?A.heldOne:_bv2Tx(A.held,{n}))}</div>`; }
+  let h=`<div class="bv2a"><div class="bv2-card bv2-hero">${hero}</div>`;
+  /* fourchette et marge */
+  h+=`<h3>${_bv2Esc(A.rangeT)}</h3>`;
+  if(complete){ const lo=res.scenarios.low, hi=res.scenarios.high;
+    h+=`<div class="bv2-range"><div><div class="k">${_bv2Esc(A.rangeLow)}</div><div class="v">${_bv2Esc(lo.complete?_bv2Fmt(lo.totalMinor,cur):"—")}</div></div><div class="mid"><div class="k">${_bv2Esc(A.rangeMid)}</div><div class="v">${_bv2Esc(_bv2Fmt(c.totalMinor,cur))}</div></div><div><div class="k">${_bv2Esc(A.rangeHigh)}</div><div class="v">${_bv2Esc(hi.complete?_bv2Fmt(hi.totalMinor,cur):"—")}</div></div></div>`;
+    const m=res.margin; if(m&&m.enabled&&m.amountMinor!=null&&m.appliedPct!=null){ h+=`<div class="bv2-line">${_bv2Esc(_bv2Tx(A.margin,{p:m.appliedPct, x:_bv2Fmt(m.amountMinor,cur)}))}</div><div class="bv2-line why">${_bv2Esc(m.proposedPct===5?A.marginWhy5:A.marginWhy10)}</div>`; } }
+  else { const nb=new Set([].concat(c.missingLines||[], res.scenarios.low.missingRangeLines||[], res.scenarios.high.missingRangeLines||[])).size; h+=`<div class="bv2-line">${_bv2Esc(_bv2Tx(A.rangeInc,{n:nb}))}</div>`; }
+  /* pistes (texte seul) */
+  const hints=bv2Hints(r, A, tr); if(hints.length){ h+=`<h3>${_bv2Esc(A.improve)}</h3><ul class="bv2-hints">${hints.map(x=>`<li>${_bv2Esc(x)}</li>`).join("")}</ul>`; }
+  /* postes */
+  const shown=res.posts.filter(p=>!p.empty);
+  h+=`<h3>${_bv2Esc(complete?_bv2Tx(A.from,{x:_bv2Fmt(c.totalMinor,cur)}):(c.knownMinor>0?_bv2Tx(A.from,{x:_bv2Fmt(c.knownMinor,cur)}):A.fromNone))}</h3><div class="bv2-card">`;
+  for(const p of shown){ const cm=catMeta(BV2_POST_ICON[p.post]||"misc"); const calc=_bv2PostCalc(r,p,A); const pill=p.complete?(r.result.lines.filter(l=>l.post===p.post).every(l=>l.state!=="ESTIMATED")?["known",A.known1]:["est",A.estimated1]):["todo",A.toSpecify];
+    const amt=p.totalMinor!=null?_bv2Fmt(p.totalMinor,cur):(p.knownMinor>0?_bv2Tx(A.known,{x:_bv2Fmt(p.knownMinor,cur)}):A.toSpecify);
+    h+=`<div class="bv2-post"><div class="ic" style="background:${cm.bg};color:${cm.c}">${cm.ic}</div><div><div class="n">${_bv2Esc(A.post[p.post]||p.post)}</div>${calc?`<div class="c">${_bv2Esc(calc)}</div>`:""}${pill[0]!=="todo"?`<span class="bv2-pill ${pill[0]}">${_bv2Esc(pill[1])}</span>`:""}</div><div class="a${pill[0]==="todo"?" todo":""}">${_bv2Esc(amt)}</div></div>`; }
+  h+=`</div>`;
+  /* carburant, peages, taux (§6.9) */
+  const notes=[]; const mf=r.meta&&r.meta.fuel, mt=r.meta&&r.meta.toll; let compute="";
+  if(mf){ const fs=mf.fuelState; if(fs==="pending") notes.push(A.fuelPending);
+    else if(fs==="not_computed"){ let nd="?"; try{ nd=budgetPlanningFuel(_bv2Copy(tr)).notComputedDays.length; }catch(_e){}   /* B2 gele, lu sur une COPIE comme en B3.1 */
+      notes.push(_bv2Tx(A.fuelNotComputed,{n:nd})); compute=`<button class="btn b2-fuel-compute" id="bv2FuelCompute">${_bv2Esc(_bv2Tx(A.fuelCompute,{n:nd}))}</button>`; if(navigator.onLine===false) notes.push(A.offline); }   /* classe attendue par _b2BindCompute */
+    else if(fs==="incomplete"){ const fl=res.lines.find(l=>l.id==="fuel"); notes.push(_bv2Tx(A.fuelIncomplete,{n:(fl&&Number.isInteger(fl.missingCountries))?fl.missingCountries:"?"})); }
+    else if(fs&&fs!=="complete"&&typeof _b2Txt==="function"){ try{ const x=_b2Txt(fs); if(x) notes.push(String(x)); }catch(_e){} } }
+  if(mt){ if(mt.tollState==="detected") notes.push(A.tollDetected); else if(mt.tollState==="to_check") notes.push(_bv2Tx(A.tollToCheck,{n:mt.uncheckedDays})); else if(mt.shortParts>0) notes.push(_bv2Tx(A.tollShort,{n:mt.shortParts})); else notes.push(A.tollNone); }
+  if(r.fxInfo&&r.fxInfo.reason&&r.fxInfo.missing&&r.fxInfo.missing.length){ notes.push(_bv2Tx(r.fxInfo.reason==="TAUX_ABSENTS"?A.fxAbsent:A.fxDate,{c:r.fxInfo.missing.join(", ")})); }
+  if(notes.length||compute){ h+=`<div class="bv2-card">${notes.map(x=>`<div class="bv2-line">${_bv2Esc(x)}</div>`).join("")}${compute}</div>`; }
+  return h+`</div>`; }
+/* ---------- Q · Voyageurs : panneau bas propre (CSS et gestionnaires de #bv2QSheet, #expFilterSheet non touche) ---------- */
+let _bv2QTrip=null, _bv2QN=2;
+function _bv2QEnsure(){ if(document.getElementById("bv2QSheet")) return;
+  const bd=document.createElement("div"); bd.id="bv2QBackdrop"; document.body.appendChild(bd);
+  const s=document.createElement("div"); s.id="bv2QSheet"; s.className="sheet botsheet"; s.setAttribute("role","dialog"); s.setAttribute("aria-modal","true"); s.setAttribute("aria-labelledby","bv2QTitle");
+  s.innerHTML=`<div class="bv2q-grip" id="bv2QGrip"></div><div class="sh-head"><h2 id="bv2QTitle"></h2><button type="button" class="bv2q-x" id="bv2QClose" aria-label="Fermer">✕</button></div><div class="bv2q-body"><div class="bv2q-count"><button type="button" id="bv2QMinus" aria-label="-">−</button><b id="bv2QVal">2</b><button type="button" id="bv2QPlus" aria-label="+">+</button></div><button class="btn gold" id="bv2QOk" style="width:100%"></button></div>`;
+  document.body.appendChild(s);
+  bv2BindSheet(s, document.getElementById("bv2QGrip"), s.querySelector(".sh-head"), bd, document.getElementById("bv2QClose"), bv2CloseQ);
+  document.getElementById("bv2QMinus").onclick=()=>{ _bv2QN=Math.max(1,_bv2QN-1); document.getElementById("bv2QVal").textContent=String(_bv2QN); };
+  document.getElementById("bv2QPlus").onclick=()=>{ _bv2QN=Math.min(BV2_MAX_TRAVELERS,_bv2QN+1); document.getElementById("bv2QVal").textContent=String(_bv2QN); };
+  document.getElementById("bv2QOk").onclick=()=>{ if(!bv2PreviewActive()||_bv2QTrip!==currentTrip()){ bv2CloseQ(); return; }   /* audit GPT r1 : jamais un geste sur un autre voyage que celui affiche, ni sous apercu coupe */
+    const r=bv2ConfirmTravelers(_bv2QTrip, _bv2QN); if(r.ok){ bv2CloseQ(); try{ renderBudget(); }catch(_e){} } else { const A=_bv2A(); toast(_bv2Tx(A.qFail,{c:r.code})); } }; }
+function bv2BindSheet(s, grip, head, bd, closeBtn, close){   /* meme logique que l'IIFE du panneau de filtres (90 px), attachee a CE panneau */
+  if(bd) bd.addEventListener("click", close); if(closeBtn) closeBtn.addEventListener("click", close);
+  let startY=0, dy=0, drag=false;
+  const start=e=>{ drag=true; dy=0; startY=(e.touches?e.touches[0].clientY:e.clientY); s.style.transition="none"; };
+  const move=e=>{ if(!drag) return; const y=(e.touches?e.touches[0].clientY:e.clientY); dy=Math.max(0,y-startY); s.style.transform="translateY("+dy+"px)"; };
+  const end=()=>{ if(!drag) return; drag=false; s.style.transition=""; if(dy>90) close(); else s.style.transform=""; };
+  [grip,head].forEach(el=>{ if(!el) return; el.addEventListener("touchstart",start,{passive:true}); el.addEventListener("touchmove",move,{passive:true}); el.addEventListener("touchend",end); }); }
+function bv2OpenQ(tr){ if(!tr||bv2Store(tr).readOnly) return; _bv2QEnsure(); const A=_bv2A(); _bv2QTrip=tr;
+  _bv2QN=(Number.isInteger(tr.travelers)&&tr.travelers>=1&&tr.travelers<=BV2_MAX_TRAVELERS)?tr.travelers:2;   /* valeur PROPOSEE, jamais enregistree sans geste */
+  document.getElementById("bv2QTitle").textContent=A.qTitle; document.getElementById("bv2QOk").textContent=A.qOk; document.getElementById("bv2QVal").textContent=String(_bv2QN);
+  const s=document.getElementById("bv2QSheet"); s.style.transform=""; s.classList.add("show"); document.getElementById("bv2QBackdrop").classList.add("show"); }
+function bv2CloseQ(){ const s=document.getElementById("bv2QSheet"), bd=document.getElementById("bv2QBackdrop"); if(s){ s.classList.remove("show"); s.style.transform=""; } if(bd) bd.classList.remove("show"); }
+function bv2ConfirmTravelers(tr, n){   /* geste Q (A26-a) : tr.travelers ecrit DANS le geste bv2Mutate, journal de reprise ; deuxieme ecriture declaree hors budgetV2 (apres bv2id) */
+  if(!tr||!Number.isInteger(n)||n<1||n>BV2_MAX_TRAVELERS) return {ok:false, code:"VOYAGEURS_INVALIDES"};
+  const g=bv2Capture(), J={had:Object.prototype.hasOwnProperty.call(tr,"travelers"), prev:tr.travelers};
+  let r; try{ r=bv2Mutate(tr, d=>{ if(tr.travelers!==n) tr.travelers=n; d.travelersConfirmed=true; }, g); }catch(_e){ r={ok:false, code:"GESTE_ERREUR"}; }
+  if(!r||!r.ok){ if(J.had) tr.travelers=J.prev; else delete tr.travelers; }   /* reprise : etat initial exact */
+  return r||{ok:false, code:"GESTE_ERREUR"}; }
+/* ===== fin BUDGET V2 -- B3.2 ===== */
 /* FUEL-R1 : table statique FUEL_BY_CC supprimee -- aucun prix carburant/energie non source, dans aucun pays. */
 /* FUEL-R1 : fuelPrice() (table statique) supprimee. */
 /* ============================================================
@@ -21797,7 +22094,7 @@ function _bilanAIPayload(tr){
   return { payload:payload, sig:sig };
 }
 async function openBilan(tr){ if(!tr) return;
-  var _incBilan=false; if(!tr.bilan){ var est=await ensureBudgetEstimate(tr); if(est && !est.routeIncomplete){ tr.bilan={estTotal:Math.round(est.total||0),budget:Math.round(+tr.budget||0),currency:tr.currency||"EUR",savedAt:Date.now()}; saveState(); } else if(est && est.routeIncomplete){ _incBilan=true; } }
+  var _incBilan=false; if(!tr.bilan){ var est=await ensureBudgetEstimate(tr); if(est && !est.routeIncomplete && !bv2PreviewActive()){ tr.bilan={estTotal:Math.round(est.total||0),budget:Math.round(+tr.budget||0),currency:tr.currency||"EUR",savedAt:Date.now()}; saveState(); } else if(est && est.routeIncomplete){ _incBilan=true; } }
   document.getElementById("bilanHd").textContent=t("bilan.title");
   var b=document.getElementById("bilanBody");
   var render=function(){ if(_incBilan){ b.innerHTML='<div class="ds-warn" style="margin:0 0 12px;padding:11px 13px;border-radius:12px">\u26a0\ufe0f '+escapeHtml(t("bud.routeIncomplete"))+'</div>'; return; } b.innerHTML=bilanContentHtml(tr)+'<button class="btn navy block" id="bilanPrint" style="margin-top:14px">'+t("bilan.print")+'</button><div style="height:18px"></div>';
@@ -21809,11 +22106,11 @@ async function openBilan(tr){ if(!tr) return;
   try{
     var _p=_bilanAIPayload(tr);
     if(tr.bilanAI && tr.bilanAISig===_p.sig){ /* cache valide */ }
-    else if(navigator.onLine!==false){
+    else if(navigator.onLine!==false && !bv2PreviewActive()){   /* B3.2 (A30-8, A32-a) */
       tr.bilanAIPending=true; render();
       var out=await workerFetch("/agent/conseil-budget",_p.payload);
       tr.bilanAIPending=false;
-      if(out&&out.text){ tr.bilanAI=String(out.text).trim().replace(/^[\s"'\u00ab\u00bb\u201c\u201d\u2018\u2019]+/,"").replace(/[\s"'\u00ab\u00bb\u201c\u201d\u2018\u2019]+$/,""); tr.bilanAISig=_p.sig; try{ saveState(); }catch(e){} }
+      if(!bv2PreviewActive() && out && out.text){ tr.bilanAI=String(out.text).trim().replace(/^[\s"'\u00ab\u00bb\u201c\u201d\u2018\u2019]+/,"").replace(/[\s"'\u00ab\u00bb\u201c\u201d\u2018\u2019]+$/,""); tr.bilanAISig=_p.sig; try{ saveState(); }catch(e){} }
       render();
     }
   }catch(e){ tr.bilanAIPending=false; render(); }
@@ -21912,7 +22209,8 @@ function _runEstimate(tr, sig){ const id=tr.id||"?"; const key=id+"|"+sig;   /* 
   const run=(async()=>{ let est=null; try{ est=await estimateBudget(tr); }catch(_e){ return null; }
     const current=(_estLatest.get(id)===sig) && (_estSignature(tr)===sig);   /* anti-stale sur le RESULTAT : un est obsolete ne sort JAMAIS du helper */
     const fuelCurrent=(_fuelGen[id]||0)===fuelGenAtStart;   /* F1-A : deuxieme barriere, independante -- le prix carburant automatique n'entre jamais dans _estSignature() */
-    if(!current || !fuelCurrent) return null;   /* stale (structurel OU carburant) -> pas de _estCache, pas de tr.budget, pas de rerender issu de ce resultat */
+    if(!current || !fuelCurrent) return null;
+    if(bv2PreviewActive()) return est;   /* B3.2 (A30-5) : resultat rendu a l'appelant, AUCUN commit (_estCache, _routeSnap, _budgetDayRoute, saveState) sous l'apercu V2 */   /* stale (structurel OU carburant) -> pas de _estCache, pas de tr.budget, pas de rerender issu de ce resultat */
     _writeEstCache(tr, est, sig);
     const _writes=(est&&est._routeSnapWrites)||{}; const _hasWrites=Object.keys(_writes).length>0;
     const _newMap=(est&&est._dayRouteMap)||{}; const _mapChanged=JSON.stringify(tr._budgetDayRoute||{})!==JSON.stringify(_newMap);
@@ -21924,7 +22222,7 @@ function _runEstimate(tr, sig){ const id=tr.id||"?"; const key=id+"|"+sig;   /* 
   _estInflight.set(key, run);
   run.then(
     (result)=>{ if(_estInflight.get(key)===run) _estInflight.delete(key);   /* liberation NORMALE de l'inflight d'abord */
-      if(result===null && (_fuelGen[id]||0)!==fuelGenAtStart){   /* F1-A : CE run precis a ete rejete specifiquement pour peremption carburant -> reprise bornee APRES liberation, jamais depuis l'interieur de la Promise elle-meme */
+      if(result===null && !bv2PreviewActive() && (_fuelGen[id]||0)!==fuelGenAtStart){   /* B3.2 (A30-7) : aucune relance V1 sous l'apercu V2 */   /* F1-A : CE run precis a ete rejete specifiquement pour peremption carburant -> reprise bornee APRES liberation, jamais depuis l'interieur de la Promise elle-meme */
         const freshSig=_estSignature(tr); _estLatest.set(id, freshSig);
         _runEstimate(tr, freshSig).then(()=>{   /* audit v1035 : la reprise DOIT rejoindre le meme chemin consommateur que renderBudget() (budgetAuto/catBudgets/saveState/re-render) -- on n'attend PAS ce resultat pour l'utiliser directement (on ne duplique aucune logique), on rejoue renderBudget() lui-meme qui relit _estCache desormais frais et applique exactement sa propre logique existante ; son propre appel a ensureBudgetEstimate() sera alors un cache-hit immediat (aucun reseau route/carburant supplementaire) */
           try{ const _ct=currentTrip(); if(_ct && _ct.id===id) renderBudget(); }catch(_e){}
@@ -21943,12 +22241,15 @@ async function ensureBudgetEstimateRaw(tr){ if(!tr) return null; const id=tr.id|
   if(_b2BudgetNeedsHomePrice(tr)){ try{ ensureFuelPriceFresh(tr); }catch(_e){} }   /* B2 : idem ensureBudgetEstimate() */
   return await _runEstimate(tr, sig); }   /* objet est COMPLET, promesse partagee si deja en vol ; null si stale */
 function renderBudget(){ const body=document.getElementById("budgetBody"); if(!body) return; const tr=currentTrip();
+  if(bv2PreviewActive()){ bv2RenderA(body, tr); return; }   /* B3.2 (A30-1) : apercu V2 actif -> ecran A, le rendu V1 (et ses ecritures) ne s'execute pas */
+  bv2SubRestore();   /* B3.2 (A30-1, audit GPT r2) : chaque rendu V1 restaure son sous-titre, quel que soit l'onglet ou l'apercu a ete coupe */
   if(!tr){ body.innerHTML=`<div class="empty" style="padding:30px 18px"><p>${t("bud.noTrip")}</p></div>`; return; }
   const _estSig=_estSignature(tr);
   { const _ec=_estCache[tr.id];
     const _cacheStale=!_ec || _ec.sig!==_estSig || _ec.fuelSig!==_b2FuelSigNow(tr) || (_ec.routeIncomplete && (Date.now()-(_ec.at||0)>30000));   /* B2 (R2) : carburant relu a chaque ouverture */
     const _autoActive=tr.budgetAuto && !tripFinished(tr);
-    if(_cacheStale || _autoActive){ ensureBudgetEstimate(tr).then(est=>{ if(!est) return;   /* BUDGET PERF : une seule source (budgetAuto + cache), dédup en vol */
+    if(_cacheStale || _autoActive){ ensureBudgetEstimate(tr).then(est=>{ if(bv2PreviewActive()) return;   /* B3.2 (A30-2) */
+      if(!est) return;   /* BUDGET PERF : une seule source (budgetAuto + cache), dédup en vol */
       let _changed=_cacheStale;
       if(tr.budgetAuto && !tripFinished(tr) && !est.routeIncomplete && Math.round(est.total)!==Math.round(tr.budget||0)){ tr.budget=Math.round(est.total); tr.catBudgets=Object.assign({},tr.catBudgets||{},est.byCat); saveState(); _changed=true; }   /* total partiel ne remplace jamais tr.budget */
       if(_changed) renderBudget();
@@ -21958,7 +22259,8 @@ function renderBudget(){ const body=document.getElementById("budgetBody"); if(!b
   let tiersHtml=""; { const _e=_estCache[tr.id]; if(_e&&_e.routeIncomplete){ tiersHtml='<div class="ds-warn" style="margin:16px 0 4px;padding:12px 14px;border-radius:14px">\u26a0\ufe0f '+escapeHtml(_budIncompleteTxt(tr,_e))+_b2FuelWarnExtra(tr,_e)+'</div>'; } else if(_e&&_e.total>0){ const _sub=_e.total/(1+RESERVE); const _tight=Math.round(_sub/MARKUP), _reco=Math.round(_e.total), _cmf=Math.round(_sub*(1+RESERVE*2)); const _conf=_e.regional?t("tiers.confLow"):t("tiers.confHigh"); tiersHtml=`<div class="tiers"><div class="tiers-h">📊 ${t("tiers.title")}</div><div class="tiers-grid"><div><span>${t("tiers.tight")}</span><b>${money(_tight,cur)}</b></div><div class="reco"><span>${t("tiers.reco")}</span><b>${money(_reco,cur)}</b></div><div><span>${t("tiers.comfort")}</span><b>${money(_cmf,cur)}</b></div></div><div class="tiers-sub">${_conf}</div></div>`; } }
   let bilanHtml="";
   if(tripFinished(tr)){
-    if(!tr.bilan){ ensureBudgetEstimate(tr).then(est=>{ if(!est || est.routeIncomplete) return; tr.bilan={estTotal:Math.round(est.total||0),budget:Math.round(+tr.budget||0),currency:cur,savedAt:Date.now()}; saveState(); renderBudget(); });
+    if(!tr.bilan){ ensureBudgetEstimate(tr).then(est=>{ if(bv2PreviewActive()) return;   /* B3.2 (A30-3) */
+      if(!est || est.routeIncomplete) return; tr.bilan={estTotal:Math.round(est.total||0),budget:Math.round(+tr.budget||0),currency:cur,savedAt:Date.now()}; saveState(); renderBudget(); });
       bilanHtml=`<div class="bilan"><div class="bilan-h">\u{1F4CA} ${t("bilan.title")}</div><div class="bilan-sub">${(_estCache[tr.id]&&_estCache[tr.id].routeIncomplete)?escapeHtml(t("bud.routeIncomplete")):t("bilan.computing")}</div></div>`; }
     else { const bl=tr.bilan, est=bl.estTotal||0, bg=bl.budget||0, sp=Math.round(spent);
       const vBudget = bg>0 ? (sp<=bg ? `<div class="bilan-verdict ok">${t("bilan.under",{x:money(bg-sp,cur)})}</div>` : `<div class="bilan-verdict over">${t("bilan.over",{x:money(sp-bg,cur)})}</div>`) : `<div class="bilan-sub">${t("bilan.noBudget")}</div>`;
