@@ -9100,6 +9100,174 @@ function _bv2SampleWanted(){ if(/\.github\.io$/i.test(location.hostname)) return
     if(typeof askConfirm==="function") askConfirm(T.ask, T.ok, ()=>{ const r=bv2SampleAdd(); if(!r.ok) toast(T.synced); }); };
   if(document.readyState==="complete") setTimeout(()=>run(0), 300); else window.addEventListener("load", ()=>setTimeout(()=>run(0), 300)); })();
 /* ===== fin BUDGET V2 -- B3.3a ===== */
+/* ===== BUDGET V2 -- B3.4 MON BUDGET (spec B3-r3 §6.2 A1/A1'/A2, §6.7 F, §7.3 choice, §9 ; GO GEL B3.3 et ordre d'engager B3.4, Loic 13 oct. 2026) =====
+   Lot B3.4-1 : choisir « Mon budget » (F) et l'afficher sur l'ecran A (A2). La repartition par poste vient au lot B3.4-2.
+   - Bloc AJOUTE apres B3.3 (gele, 6ec5b07c) : aucun octet de B1, B2, P6d, B3.0, B3.1, B3.2 ni B3.3 n'est modifie.
+   - Accroche : bv2AfterA (B3.3) est ENCHAINE (appel de la fonction B3.3 telle quelle, puis bv2AfterB). DOM seul, aucune ecriture pendant le rendu.
+   - Deux fonctions d'ecriture, toutes deux gardees par bv2EditTargetCheck (apercu actif + voyage selectionne) puis bv2Mutate (B3.0) :
+       bv2BudgetChoose(tr, how, typed, gesture)  how = "estimate_central" | "estimate_with_margin" | "typed"
+       bv2BudgetClear(tr, gesture)               seulement un budget choisi dans le V2 (choice present)
+     Les miroirs V1 (tr.budget, tr.budgetAuto, tr.catBudgets) sont ecrits par _bv2Mirrors (B3.0), jamais ici.
+   - Budget FIGE : rien ne le change sans geste ; si l'estimation change, A2 propose « Mettre a jour mon budget » (F).
+   - Jamais de budget sans geste (aucune ecriture au rendu, aucune ecriture a l'ouverture de F).
+   - Modification faite par l'ancien Budget (§9 regle 5) : F propose d'abord « Prendre en compte » (bv2AdoptV1, B3.0) ; tout autre geste est refuse (MODIFIE_PAR_V1). */
+const BV2_B_TXT={
+  fr:{mine:"Mon budget",covers:"Estimation {e} · ton budget couvre le voyage",short:"Estimation {e} · il manque {x}",inc:"Estimation : {e} connus · {n} postes à préciser",inc1:"Estimation : {e} connus · 1 poste à préciser",
+      fromV1:"Repris de l'ancien Budget",changedV1:"Modifié dans l'ancien Budget · à prendre en compte",use:"Utiliser comme budget",own:"Choisir mon propre montant",edit:"Modifier mon budget",
+      chgTitle:"L'estimation a changé depuis ton choix",chg:"Estimation {e} · ton budget {b} · écart {x}",chgInc:"Estimation : {e} connus · ton budget {b}",was:"Le {d} : estimation {e}",wasInc:"Le {d} : {e} connus, estimation incomplète",update:"Mettre à jour mon budget",
+      title:"Mon budget",current:"Actuellement : {b}",since:"choisi le {d}",propT:"Propositions de Magot",propCentral:"Estimation centrale",propMargin:"Avec la marge de sécurité ({p} %)",propMarginA:"Avec la marge de sécurité",
+      propNone:"Les propositions apparaissent quand l'estimation est complète ({n} à préciser).",ownT:"Mon propre montant",save:"Enregistrer",clear:"Retirer mon budget",now:"actuel",
+      fixed:"Ton budget reste fixe : il ne suit pas l'estimation. Si elle change, Magot te proposera de le mettre à jour.",
+      adoptTxt:"Ton budget a été modifié dans l'ancien Budget : {b}.",adoptNone:"Ton budget a été retiré dans l'ancien Budget.",adoptWhy:"Prends-le en compte avant de choisir un autre montant.",adopt:"Prendre en compte",
+      done:"Budget enregistré",cleared:"Budget retiré",invalid:"Montant invalide",zero:"Le montant doit être supérieur à 0",fail:"Impossible d'enregistrer ({c})."},
+  en:{mine:"My budget",covers:"Estimate {e} · your budget covers the trip",short:"Estimate {e} · {x} short",inc:"Estimate: {e} known · {n} items to specify",inc1:"Estimate: {e} known · 1 item to specify",
+      fromV1:"Taken from the old Budget",changedV1:"Changed in the old Budget · to take into account",use:"Use as budget",own:"Choose my own amount",edit:"Change my budget",
+      chgTitle:"The estimate has changed since your choice",chg:"Estimate {e} · your budget {b} · gap {x}",chgInc:"Estimate: {e} known · your budget {b}",was:"On {d}: estimate {e}",wasInc:"On {d}: {e} known, incomplete estimate",update:"Update my budget",
+      title:"My budget",current:"Currently: {b}",since:"chosen on {d}",propT:"Magot's suggestions",propCentral:"Central estimate",propMargin:"With the safety margin ({p}%)",propMarginA:"With the safety margin",
+      propNone:"Suggestions appear once the estimate is complete ({n} to specify).",ownT:"My own amount",save:"Save",clear:"Remove my budget",now:"current",
+      fixed:"Your budget stays fixed: it does not follow the estimate. If the estimate changes, Magot will offer to update it.",
+      adoptTxt:"Your budget was changed in the old Budget: {b}.",adoptNone:"Your budget was removed in the old Budget.",adoptWhy:"Take it into account before choosing another amount.",adopt:"Take into account",
+      done:"Budget saved",cleared:"Budget removed",invalid:"Invalid amount",zero:"The amount must be greater than 0",fail:"Cannot save ({c})."},
+  es:{mine:"Mi presupuesto",covers:"Estimación {e} · tu presupuesto cubre el viaje",short:"Estimación {e} · faltan {x}",inc:"Estimación: {e} conocidos · {n} partidas por precisar",inc1:"Estimación: {e} conocidos · 1 partida por precisar",
+      fromV1:"Tomado del Presupuesto anterior",changedV1:"Modificado en el Presupuesto anterior · por tener en cuenta",use:"Usar como presupuesto",own:"Elegir mi propio importe",edit:"Cambiar mi presupuesto",
+      chgTitle:"La estimación ha cambiado desde tu elección",chg:"Estimación {e} · tu presupuesto {b} · diferencia {x}",chgInc:"Estimación: {e} conocidos · tu presupuesto {b}",was:"El {d}: estimación {e}",wasInc:"El {d}: {e} conocidos, estimación incompleta",update:"Actualizar mi presupuesto",
+      title:"Mi presupuesto",current:"Actualmente: {b}",since:"elegido el {d}",propT:"Propuestas de Magot",propCentral:"Estimación central",propMargin:"Con el margen de seguridad ({p} %)",propMarginA:"Con el margen de seguridad",
+      propNone:"Las propuestas aparecen cuando la estimación está completa ({n} por precisar).",ownT:"Mi propio importe",save:"Guardar",clear:"Quitar mi presupuesto",now:"actual",
+      fixed:"Tu presupuesto queda fijo: no sigue la estimación. Si cambia, Magot te propondrá actualizarlo.",
+      adoptTxt:"Tu presupuesto se modificó en el Presupuesto anterior: {b}.",adoptNone:"Tu presupuesto se quitó en el Presupuesto anterior.",adoptWhy:"Tenlo en cuenta antes de elegir otro importe.",adopt:"Tener en cuenta",
+      done:"Presupuesto guardado",cleared:"Presupuesto quitado",invalid:"Importe no válido",zero:"El importe debe ser mayor que 0",fail:"No se puede guardar ({c})."},
+  it:{mine:"Il mio budget",covers:"Stima {e} · il tuo budget copre il viaggio",short:"Stima {e} · mancano {x}",inc:"Stima: {e} noti · {n} voci da precisare",inc1:"Stima: {e} noti · 1 voce da precisare",
+      fromV1:"Ripreso dal Budget precedente",changedV1:"Modificato nel Budget precedente · da prendere in conto",use:"Usa come budget",own:"Scegli il mio importo",edit:"Modifica il mio budget",
+      chgTitle:"La stima è cambiata dalla tua scelta",chg:"Stima {e} · il tuo budget {b} · scarto {x}",chgInc:"Stima: {e} noti · il tuo budget {b}",was:"Il {d}: stima {e}",wasInc:"Il {d}: {e} noti, stima incompleta",update:"Aggiorna il mio budget",
+      title:"Il mio budget",current:"Attualmente: {b}",since:"scelto il {d}",propT:"Proposte di Magot",propCentral:"Stima centrale",propMargin:"Con il margine di sicurezza ({p} %)",propMarginA:"Con il margine di sicurezza",
+      propNone:"Le proposte compaiono quando la stima è completa ({n} da precisare).",ownT:"Il mio importo",save:"Salva",clear:"Rimuovi il mio budget",now:"attuale",
+      fixed:"Il tuo budget resta fisso: non segue la stima. Se cambia, Magot ti proporrà di aggiornarlo.",
+      adoptTxt:"Il tuo budget è stato modificato nel Budget precedente: {b}.",adoptNone:"Il tuo budget è stato rimosso nel Budget precedente.",adoptWhy:"Prendilo in conto prima di scegliere un altro importo.",adopt:"Prendi in conto",
+      done:"Budget salvato",cleared:"Budget rimosso",invalid:"Importo non valido",zero:"L'importo deve essere maggiore di 0",fail:"Impossibile salvare ({c})."},
+  de:{mine:"Mein Budget",covers:"Schätzung {e} · dein Budget deckt die Reise",short:"Schätzung {e} · es fehlen {x}",inc:"Schätzung: {e} bekannt · {n} Posten offen",inc1:"Schätzung: {e} bekannt · 1 Posten offen",
+      fromV1:"Aus dem alten Budget übernommen",changedV1:"Im alten Budget geändert · zu übernehmen",use:"Als Budget verwenden",own:"Eigenen Betrag wählen",edit:"Mein Budget ändern",
+      chgTitle:"Die Schätzung hat sich seit deiner Wahl geändert",chg:"Schätzung {e} · dein Budget {b} · Abweichung {x}",chgInc:"Schätzung: {e} bekannt · dein Budget {b}",was:"Am {d}: Schätzung {e}",wasInc:"Am {d}: {e} bekannt, Schätzung unvollständig",update:"Mein Budget aktualisieren",
+      title:"Mein Budget",current:"Aktuell: {b}",since:"gewählt am {d}",propT:"Vorschläge von Magot",propCentral:"Mittlere Schätzung",propMargin:"Mit Sicherheitsreserve ({p} %)",propMarginA:"Mit Sicherheitsreserve",
+      propNone:"Die Vorschläge erscheinen, sobald die Schätzung vollständig ist ({n} offen).",ownT:"Eigener Betrag",save:"Speichern",clear:"Mein Budget entfernen",now:"aktuell",
+      fixed:"Dein Budget bleibt fest: Es folgt nicht der Schätzung. Ändert sie sich, schlägt Magot eine Aktualisierung vor.",
+      adoptTxt:"Dein Budget wurde im alten Budget geändert: {b}.",adoptNone:"Dein Budget wurde im alten Budget entfernt.",adoptWhy:"Übernimm es, bevor du einen anderen Betrag wählst.",adopt:"Übernehmen",
+      done:"Budget gespeichert",cleared:"Budget entfernt",invalid:"Ungültiger Betrag",zero:"Der Betrag muss größer als 0 sein",fail:"Speichern nicht möglich ({c})."}};
+function _bv2B(){ return BV2_B_TXT[lang()]||BV2_B_TXT.fr; }
+const BV2_B_HOW=["estimate_central","estimate_with_margin","typed"];
+function _bv2BDate(ts){ try{ return new Date(ts).toLocaleDateString(LOCALE[lang()]||"fr-FR",{day:"numeric",month:"short"}); }catch(_e){ return ""; } }
+function bv2BudgetMinorOf(str, cur){   /* chaine decimale (bv2EditAmountStr) -> unites mineures exactes, ou null */
+  const d=_b2Digits(cur); if(d==null||typeof str!=="string") return null; const m=/^(\d{1,12})(?:\.(\d{1,10}))?$/.exec(str); if(!m) return null;
+  const f=(m[2]||""); if(f.replace(/0+$/,"").length>d) return null;
+  const n=BigInt(m[1])*(10n**BigInt(d))+BigInt((f+"0".repeat(d)).slice(0,d)||"0"); const max=bv2MaxMinor(cur);
+  return n>BigInt(max)?null:Number(n); }
+function bv2BudgetView(tr, r){   /* PURE : ce qu'affichent A2 et F. r = bv2Estimate(tr) (ou null). Aucune ecriture */
+  const v1=bv2ReadV1(tr), cur=v1.currency, ch=v1.choice, res=r&&r.ok?r.result:null;
+  const c=res?res.scenarios.central:null, complete=!!c&&c.complete===true;
+  const estMinor=c?(complete?c.totalMinor:c.knownMinor):null;
+  const out={ currency:cur, choice:ch, source:v1.choiceSource, changedByV1:v1.changedByV1, complete, estMinor, toSpecify:res&&res.certainty?res.certainty.postsToSpecify:0,
+    gapMinor:null, covers:null, changed:false, proposals:null, marginPct:null };
+  if(ch&&complete){ out.gapMinor=ch.amountMinor-c.totalMinor; out.covers=out.gapMinor>=0; }
+  if(ch&&v1.choiceSource==="v2"&&Number.isInteger(ch.estimateAtChoiceMinor)&&estMinor!=null)
+    out.changed=ch.estimateAtChoiceMinor!==estMinor||(ch.estimateAtChoiceComplete===true)!==complete;   /* A2 : l'estimation a change depuis le choix */
+  if(res&&res.budgetProposals){ out.proposals=res.budgetProposals; out.marginPct=res.margin&&res.margin.appliedPct; }
+  return out; }
+
+/* ---------- ecritures : deux gestes, gardes B3.3 + bv2Mutate (B3.0) ---------- */
+function bv2BudgetChoose(tr, how, typed, gesture){
+  const g=gesture||bv2Capture(); const tc=bv2EditTargetCheck(tr); if(!tc.ok) return tc;
+  if(BV2_B_HOW.indexOf(how)<0) return {ok:false, code:"GESTE_INVALIDE"};
+  const st=bv2Store(tr); if(st.readOnly) return {ok:false, code:st.reason||"LECTURE_SEULE"};
+  const v1=bv2ReadV1(tr); if(v1.changedByV1) return {ok:false, code:"MODIFIE_PAR_V1"};   /* §9 regle 5 : la valeur V1 d'abord (bv2AdoptV1) */
+  const cur=v1.currency; if(v1.digits==null) return {ok:false, code:"DEVISE_INVALIDE"};
+  const r=bv2Estimate(tr), res=r&&r.ok?r.result:null; let amount=null;
+  if(how==="typed"){ const s=bv2EditAmountStr(typeof typed==="string"?typed:"", cur); amount=s==null?null:bv2BudgetMinorOf(s, cur); if(amount==null) return {ok:false, code:"MONTANT_INVALIDE"}; }
+  else { if(!res) return {ok:false, code:(r&&r.code)||"ESTIMATION_INDISPONIBLE"}; const bp=res.budgetProposals; if(!bp) return {ok:false, code:"ESTIMATION_INCOMPLETE"};
+    amount=how==="estimate_central"?bp.centralMinor:bp.centralPlusMarginMinor; if(amount==null) return {ok:false, code:"MARGE_ABSENTE"};
+    if(res.currency!==cur) return {ok:false, code:"DEVISE_DIFFERENTE"}; }
+  if(!Number.isSafeInteger(amount)||amount<=0) return {ok:false, code:"MONTANT_NUL"};
+  const prev=st.data.choice, keep=prev&&prev.byPost?bv2Clone(prev.byPost):null;
+  if(keep&&Object.values(keep).reduce((a,b)=>a+b,0)>amount) return {ok:false, code:"REPARTITION_DEPASSE"};   /* repartition existante jamais tronquee en silence */
+  const c=res?res.scenarios.central:null, complete=!!c&&c.complete===true, est=c?(complete?c.totalMinor:c.knownMinor):null;
+  const choice={ amountMinor:amount, currency:cur, origin:how, setAt:Date.now(), estimateAtChoiceMinor:Number.isSafeInteger(est)&&est>=0?est:null, estimateAtChoiceComplete:complete, byPost:keep };
+  const out=_bv2EMutate(tr, d=>{ d.choice=choice; }, g, null);
+  return out.ok?Object.assign({amountMinor:amount}, out):out; }
+function bv2BudgetClear(tr, gesture){   /* retire un budget CHOISI DANS LE V2 ; un budget seulement lu dans l'ancien Budget se modifie, il ne se retire pas d'ici */
+  const g=gesture||bv2Capture(); const tc=bv2EditTargetCheck(tr); if(!tc.ok) return tc;
+  const st=bv2Store(tr); if(st.readOnly) return {ok:false, code:st.reason||"LECTURE_SEULE"};
+  if(!st.data.choice) return {ok:false, code:"AUCUN_BUDGET_V2"};
+  if(bv2ReadV1(tr).changedByV1) return {ok:false, code:"MODIFIE_PAR_V1"};
+  return _bv2EMutate(tr, d=>{ d.choice=null; }, g, null); }
+function bv2BudgetAdopt(tr, gesture){   /* « Prendre en compte » la valeur de l'ancien Budget (B3.0 bv2AdoptV1), gardee comme les autres gestes */
+  const g=gesture||bv2Capture(); const tc=bv2EditTargetCheck(tr); if(!tc.ok) return tc;
+  return bv2AdoptV1(tr, g); }
+
+/* ---------- A2 : DOM seul, appele par bv2AfterA (B3.3) enchaine ---------- */
+const BV2_B_CSS=`
+.bv2a .bv2-hero.bv2b-on>.k,.bv2a .bv2-hero.bv2b-on>.v,.bv2a .bv2-hero.bv2b-on>.s{display:none}
+.bv2a .bv2-hero .bv2b-k{font:600 12.5px Inter,sans-serif;letter-spacing:.3px;opacity:.82;text-transform:uppercase}.bv2a .bv2-hero .bv2b-v{font:700 clamp(26px,8vw,32px) Inter,sans-serif;margin:6px 0 2px;overflow-wrap:anywhere}
+.bv2a .bv2-hero .bv2b-tag{display:inline-block;margin:8px 6px 0 0;background:rgba(255,255,255,.14);border-radius:999px;padding:3px 10px;font:600 12px Inter,sans-serif}
+.bv2a .bv2-hero .bv2b-s{font:500 13px Inter,sans-serif;opacity:.92;margin-top:4px;overflow-wrap:anywhere}.bv2a .bv2-hero .bv2b-s.warn{color:#FFD7A1;opacity:1;font-weight:600}
+.bv2a .bv2b-link{display:block;width:100%;margin-top:4px;background:var(--surface,#fff);color:var(--ink);border:1px solid var(--line);box-shadow:none}[data-theme="dark"] .bv2a .bv2b-link{background:var(--surface,#131E33)}.bv2a .bv2b-chg{border-color:var(--gold)}.bv2a .bv2b-chg b{display:block;font:700 14px Inter,sans-serif;color:var(--ink);margin-bottom:4px}
+.bv2a .bv2b-chg .l{font:500 13px Inter,sans-serif;color:var(--ink-2);margin:4px 0;overflow-wrap:anywhere}.bv2a .bv2b-chg .w{font:500 12px Inter,sans-serif;color:var(--muted)}
+#bv2ESheet .bv2b-opt{display:flex;align-items:center;gap:10px;width:100%;text-align:left;border:1px solid var(--line);border-radius:14px;background:var(--surface,#fff);padding:12px 14px;margin:8px 0;min-height:52px;color:var(--ink)}
+#bv2ESheet .bv2b-opt .t{flex:1;min-width:0;font:600 14px Inter,sans-serif;overflow-wrap:anywhere}#bv2ESheet .bv2b-opt .a{font:700 15px Inter,sans-serif;white-space:nowrap}#bv2ESheet .bv2b-opt.on{border-color:var(--gold);background:var(--gold-soft)}
+#bv2ESheet .bv2b-clear{border:0;background:none;color:var(--danger);font:600 14px Inter,sans-serif;min-height:44px;padding:0;margin-top:10px}#bv2ESheet .bv2b-note{font:500 12.5px Inter,sans-serif;color:var(--muted);margin:12px 0 0}#bv2ESheet .bv2b-err{font:600 12.5px Inter,sans-serif;color:var(--danger);min-height:16px;margin-top:4px}
+[data-theme="dark"] #bv2ESheet .bv2b-opt{background:var(--surface,#131E33)}[data-theme="dark"] #bv2ESheet .bv2b-opt.on{background:rgba(224,163,62,.14)}`;
+function _bv2BCssOnce(){ if(document.getElementById("bv2bCss")) return; const st=document.createElement("style"); st.id="bv2bCss"; st.textContent=BV2_B_CSS; document.head.appendChild(st); }
+function _bv2BEl(tag, cls, txt, id){ const e=document.createElement(tag); if(cls) e.className=cls; if(txt!=null) e.textContent=txt; if(id) e.id=id; return e; }
+function _bv2BOpenFrom(){ const t=currentTrip(); if(t&&bv2PreviewActive()) bv2OpenBudget(t); }
+function bv2AfterB(body, tr, r){
+  _bv2BCssOnce(); const hero=body.querySelector(".bv2-hero"); if(!hero||!r||!r.ok||!tr) return;
+  const B=_bv2B(), v=bv2BudgetView(tr, r), cur=v.currency, f=x=>_bv2Fmt(x, cur);
+  if(v.choice){
+    hero.classList.add("bv2b-on"); const frag=document.createDocumentFragment();
+    frag.appendChild(_bv2BEl("div","bv2b-k",B.mine)); frag.appendChild(_bv2BEl("div","bv2b-v",f(v.choice.amountMinor),"bv2BAmount"));
+    let line; if(v.complete) line=v.covers?_bv2Tx(B.covers,{e:f(v.estMinor)}):_bv2Tx(B.short,{e:f(v.estMinor), x:f(-v.gapMinor)});
+    else line=v.toSpecify===1?_bv2Tx(B.inc1,{e:f(v.estMinor)}):_bv2Tx(B.inc,{e:f(v.estMinor), n:v.toSpecify});
+    frag.appendChild(_bv2BEl("div","bv2b-s"+(v.complete&&!v.covers?" warn":""),line,"bv2BLine"));
+    if(v.changedByV1) frag.appendChild(_bv2BEl("div","bv2b-tag",B.changedV1)); else if(v.source==="v1") frag.appendChild(_bv2BEl("div","bv2b-tag",B.fromV1));
+    hero.insertBefore(frag, hero.firstChild);
+    let after=hero;
+    if(v.changed){ const ch=v.choice, card=_bv2BEl("div","bv2-card bv2b-chg",null,"bv2BChanged"); card.appendChild(_bv2BEl("b",null,B.chgTitle));
+      card.appendChild(_bv2BEl("div","l", v.complete?_bv2Tx(B.chg,{e:f(v.estMinor), b:f(ch.amountMinor), x:f(Math.abs(v.gapMinor))}):_bv2Tx(B.chgInc,{e:f(v.estMinor), b:f(ch.amountMinor)})));
+      card.appendChild(_bv2BEl("div","w", _bv2Tx(ch.estimateAtChoiceComplete?B.was:B.wasInc,{d:_bv2BDate(ch.setAt), e:f(ch.estimateAtChoiceMinor)})));
+      const u=_bv2BEl("button","btn gold",B.update,"bv2BUpdate"); u.type="button"; u.style.cssText="width:100%;margin-top:8px"; u.onclick=_bv2BOpenFrom; card.appendChild(u);
+      after.insertAdjacentElement("afterend", card); after=card; }
+    const e=_bv2BEl("button","btn bv2b-link",B.edit,"bv2BEdit"); e.type="button"; e.onclick=_bv2BOpenFrom; after.insertAdjacentElement("afterend", e); }
+  else {
+    if(v.changedByV1) hero.appendChild(_bv2BEl("div","bv2b-tag",B.changedV1));
+    if(v.complete&&!hero.querySelector("#bv2ESpecify")){ const u=_bv2BEl("button","btn gold bv2e-cta",B.use,"bv2BUse"); u.type="button"; u.onclick=_bv2BOpenFrom; hero.appendChild(u); }   /* A1' : action en or */
+    else { const o=_bv2BEl("button","btn bv2b-link",B.own,"bv2BOwn"); o.type="button"; o.onclick=_bv2BOpenFrom; hero.insertAdjacentElement("afterend", o); } }   /* A1 : lien secondaire */
+  }
+
+/* ---------- F · Mon budget (panneau #bv2ESheet de B3.3) ---------- */
+function bv2OpenBudget(tr){   /* lecture seule a l'ouverture : aucune ecriture */
+  if(!tr||bv2Store(tr).readOnly) return; const B=_bv2B(), r=bv2Estimate(tr), v=bv2BudgetView(tr, r), cur=v.currency, f=x=>_bv2Fmt(x, cur);
+  const esc=_bv2Esc; let h="";
+  if(v.changedByV1){ h+=`<div class="bv2e-item"><div class="r">${esc(v.choice?_bv2Tx(B.adoptTxt,{b:f(v.choice.amountMinor)}):B.adoptNone)}</div><div class="k">${esc(B.adoptWhy)}</div><div class="acts"><button type="button" class="btn gold sm" id="bv2BAdopt">${esc(B.adopt)}</button></div></div>`; }
+  else {
+    if(v.choice){ const since=v.source==="v2"&&v.choice.setAt?" · "+_bv2Tx(B.since,{d:_bv2BDate(v.choice.setAt)}):(v.source==="v1"?" · "+B.fromV1:""); h+=`<div class="bv2e-v" id="bv2BCurrent">${esc(_bv2Tx(B.current,{b:f(v.choice.amountMinor)})+since)}</div>`; }
+    h+=`<div class="bv2e-k">${esc(B.propT)}</div>`;
+    if(v.proposals){ const on=x=>v.choice&&v.choice.amountMinor===x?" on":"", tag=x=>v.choice&&v.choice.amountMinor===x?` <span class="bv2e-pill ok">${esc(B.now)}</span>`:"";
+      h+=`<button type="button" class="bv2b-opt${on(v.proposals.centralMinor)}" data-how="estimate_central"><span class="t">${esc(B.propCentral)}${tag(v.proposals.centralMinor)}</span><span class="a">${esc(f(v.proposals.centralMinor))}</span></button>`;
+      if(v.proposals.centralPlusMarginMinor!=null) h+=`<button type="button" class="bv2b-opt${on(v.proposals.centralPlusMarginMinor)}" data-how="estimate_with_margin"><span class="t">${esc(Number.isInteger(v.marginPct)?_bv2Tx(B.propMargin,{p:v.marginPct}):B.propMarginA)}${tag(v.proposals.centralPlusMarginMinor)}</span><span class="a">${esc(f(v.proposals.centralPlusMarginMinor))}</span></button>`; }
+    else h+=`<div class="bv2b-note" style="margin-top:6px">${esc(_bv2Tx(B.propNone,{n:v.toSpecify}))}</div>`;
+    h+=`<div class="bv2e-k">${esc(B.ownT)} (${esc(cur)})</div><div class="bv2e-row"><input class="bv2e-in" id="bv2BIn" inputmode="decimal" autocomplete="off" placeholder="${esc(_bv2E().amountPh)}"><button type="button" class="btn gold" id="bv2BSave" style="margin-top:0">${esc(B.save)}</button></div><div class="bv2b-err" id="bv2BErr" role="alert"></div>`;
+    h+=`<div class="bv2b-note">${esc(B.fixed)}</div>`;
+    if(v.choice&&v.source==="v2") h+=`<button type="button" class="bv2b-clear" id="bv2BClear">${esc(B.clear)}</button>`; }
+  _bv2EShow(B.title, h); _bv2ETrip=tr; _bv2EKind="budget"; _bv2ELine=null;
+  const body=document.getElementById("bv2EBody"), done=(res, msg)=>{ if(_bv2EAfter(res, null)){ bv2CloseE(); toast(msg); } };
+  const ad=body.querySelector("#bv2BAdopt"); if(ad) ad.onclick=()=>{ const t=_bv2EGuard(); if(!t) return; const res=bv2BudgetAdopt(t, bv2Capture()); if(_bv2EAfter(res, null)) bv2OpenBudget(t); };
+  body.querySelectorAll(".bv2b-opt[data-how]").forEach(b=>b.onclick=()=>{ const t=_bv2EGuard(); if(!t) return; done(bv2BudgetChoose(t, b.dataset.how, null, bv2Capture()), B.done); });
+  const inp=body.querySelector("#bv2BIn"), sv=body.querySelector("#bv2BSave"), err=body.querySelector("#bv2BErr");
+  const save=()=>{ const t=_bv2EGuard(); if(!t) return; const g=bv2Capture(); const s=bv2EditAmountStr(inp.value, cur), m=s==null?null:bv2BudgetMinorOf(s, cur);
+    if(m==null){ err.textContent=B.invalid; return; } if(m<=0){ err.textContent=B.zero; return; } err.textContent=""; done(bv2BudgetChoose(t, "typed", inp.value, g), B.done); };
+  if(sv) sv.onclick=save; if(inp) inp.onkeydown=e=>{ if(e.key==="Enter"){ e.preventDefault(); save(); } };
+  const cl=body.querySelector("#bv2BClear"); if(cl) cl.onclick=()=>{ const t=_bv2EGuard(); if(!t) return; done(bv2BudgetClear(t, bv2Capture()), B.cleared); }; }
+
+/* accroche : la fonction B3.3 est appelee telle quelle, puis B3.4 (aucun octet de B3.3 modifie) */
+bv2AfterA=(function(prev){ return function(body, tr, r){ if(typeof prev==="function") prev(body, tr, r); try{ bv2AfterB(body, tr, r); }catch(e){ console.error("bv2AfterB", e); } }; })(bv2AfterA);
+/* ===== fin BUDGET V2 -- B3.4 ===== */
 /* FUEL-R1 : table statique FUEL_BY_CC supprimee -- aucun prix carburant/energie non source, dans aucun pays. */
 /* FUEL-R1 : fuelPrice() (table statique) supprimee. */
 /* ============================================================
