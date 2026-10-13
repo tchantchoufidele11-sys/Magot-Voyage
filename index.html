@@ -8448,7 +8448,7 @@ function bv2ConfirmTravelers(tr, n){   /* geste Q (A26-a) : tr.travelers ecrit D
      panneau bas propre (#bv2ESheet, patron Q). Accroches dans A par le crochet bv2AfterA (B3.2 r4) : DOM seulement, aucune ecriture.
    - Hors perimetre (B3.3b) : ecran B, C poste, saisie groupee, carburant (conso), peages trois etats, A19. Aucun reseau. Aucune zone gelee touchee. */
 const BV2_E_TXT={
-  fr:{line:"Ligne",yes:"Oui",no:"Non",state:{MAGOT:"Estimation Magot",MODIFIED:"Modifié par toi",CONFIRMED:"Confirmé"},src:{user:"ta saisie",communaute_magot:"communauté Magot",planning:"Planning",route:"trajet",Google:"établissement (Google)",openstreetmap:"OpenStreetMap",hebergement:"inclus dans l'hôtel",none:"aucune source"},types:{hotel:"Hôtel",tourist_tax:"Taxe de séjour",toll:"Péages",parking:"Stationnement",ticket:"Billets",transit:"Transfert",taxi:"Taxi",fuel:"Carburant",envelope:"Enveloppe"},
+  fr:{line:"Ligne",postTotal:"Total du poste",postKnown:"{x} connus",grpTitle:"Même prix pour plusieurs lignes",grpAll:"Tous",grpPer:"Prix par personne",grpApply:"Appliquer à {n} lignes",grpApply1:"Appliquer à 1 ligne",grpNone:"Aucune ligne à remplir (les lignes déjà modifiées par toi ne sont jamais écrasées)",grpHint:"Remplit les lignes à préciser ou estimées par Magot ; tes saisies ne sont pas touchées.",grpDone:"{n} lignes mises à jour",yes:"Oui",no:"Non",state:{MAGOT:"Estimation Magot",MODIFIED:"Modifié par toi",CONFIRMED:"Confirmé"},src:{user:"ta saisie",communaute_magot:"communauté Magot",planning:"Planning",route:"trajet",Google:"établissement (Google)",openstreetmap:"OpenStreetMap",hebergement:"inclus dans l'hôtel",none:"aucune source"},types:{hotel:"Hôtel",tourist_tax:"Taxe de séjour",toll:"Péages",parking:"Stationnement",ticket:"Billets",transit:"Transfert",taxi:"Taxi",fuel:"Carburant",envelope:"Enveloppe"},
       low:"bas",mid:"central",high:"prudent",magot:"Magot : {x}",gap:"écart {x}",qty:"Quantité",perUnit:"Prix par {u}",total:"Total",free:"Gratuit",save:"Enregistrer",amountPh:"Montant",
       back:"Revenir à Magot ({x})",backUnknown:"Revenir à « à préciser »",taxQ:"Ton prix inclut-il la taxe de séjour ?",taxInc:"Incluse",taxExc:"En plus",taxUnk:"Je ne sais pas",breakfast:"Petit-déjeuner inclus",
       persons:"Combien de personnes paient la taxe ?",confirm:"Confirmer",noneTaxable:"Personne n'est assujetti",taxTotal:"Montant total de la taxe",fuelLater:"Le carburant se règle dans un prochain lot (hypothèse de consommation).",
@@ -8459,7 +8459,7 @@ const BV2_E_TXT={
       reasons:{IDENTITE_ABSENTE:"L'élément du Planning n'existe plus",SANS_LIGNE:"Aucune ligne ne correspond plus à cette valeur",IDENTITE_DUPLIQUEE:"Deux éléments portent la même identité",IDENTITE_CONFLIT:"Identité en conflit, à résoudre",REGISTRE_ILLISIBLE:"Registre des identités illisible : réparation nécessaire",
         CONFIRMATION_REQUISE:"À confirmer après la réparation du registre",SAISIES_CONCURRENTES:"Deux saisies visent le même élément",IDENTITE_INCOHERENTE:"Saisie incohérente (clé et rattachement différents)",LIEU_CHANGE:"Le lieu de cet élément a changé",SANS_JETON:"Élément sans identité : saisie à reprendre",ID_ABSENT:"Élément sans identifiant",ID_AMBIGU:"Identifiant ambigu",
         LIGNE_NON_CONCERNEE:"La ligne ne s'applique plus",QUANTITE_NULLE:"Quantité nulle",TAXE_INCLUSE:"Taxe incluse dans le prix de l'hôtel",SANS_SEJOUR:"Aucune nuit sur cette étape",DEVISE_RETIREE:"Devise plus prise en charge",SAISIE_ILLISIBLE:"Saisie illisible ({c})",BUDGETV2_LECTURE_SEULE:"Budget V2 en lecture seule ({c})",RESERVE_A22:"Montant carburant réservé à un prochain lot",PROVENANCE_ENVELOPPE:"Enveloppe non reconnue",METADONNEES_ORPHELINES:"Choix sans ligne (taxe, petit-déjeuner, personnes)"}},
-  en:{line:"Line",yes:"Yes",no:"No",state:{MAGOT:"Magot estimate",MODIFIED:"Edited by you",CONFIRMED:"Confirmed"},src:{user:"your entry",communaute_magot:"Magot community",planning:"Planning",route:"route",Google:"venue (Google)",openstreetmap:"OpenStreetMap",hebergement:"included in the hotel",none:"no source"},types:{hotel:"Hotel",tourist_tax:"Tourist tax",toll:"Tolls",parking:"Parking",ticket:"Tickets",transit:"Transfer",taxi:"Taxi",fuel:"Fuel",envelope:"Envelope"},
+  en:{line:"Line",postTotal:"Item total",postKnown:"{x} known",grpTitle:"Same price for several lines",grpAll:"All",grpPer:"Price per person",grpApply:"Apply to {n} lines",grpApply1:"Apply to 1 line",grpNone:"No line to fill (lines you edited are never overwritten)",grpHint:"Fills lines to specify or estimated by Magot; your own entries are not touched.",grpDone:"{n} lines updated",yes:"Yes",no:"No",state:{MAGOT:"Magot estimate",MODIFIED:"Edited by you",CONFIRMED:"Confirmed"},src:{user:"your entry",communaute_magot:"Magot community",planning:"Planning",route:"route",Google:"venue (Google)",openstreetmap:"OpenStreetMap",hebergement:"included in the hotel",none:"no source"},types:{hotel:"Hotel",tourist_tax:"Tourist tax",toll:"Tolls",parking:"Parking",ticket:"Tickets",transit:"Transfer",taxi:"Taxi",fuel:"Fuel",envelope:"Envelope"},
       low:"low",mid:"central",high:"cautious",magot:"Magot: {x}",gap:"gap {x}",qty:"Quantity",perUnit:"Price per {u}",total:"Total",free:"Free",save:"Save",amountPh:"Amount",
       back:"Back to Magot ({x})",backUnknown:"Back to “to specify”",taxQ:"Does your price include the tourist tax?",taxInc:"Included",taxExc:"Extra",taxUnk:"I don't know",breakfast:"Breakfast included",
       persons:"How many people pay the tax?",confirm:"Confirm",noneTaxable:"Nobody is liable",taxTotal:"Total tax amount",fuelLater:"Fuel is set in a later lot (consumption assumption).",
@@ -8471,7 +8471,7 @@ const BV2_E_TXT={
         CONFIRMATION_REQUISE:"To confirm after the registry repair",SAISIES_CONCURRENTES:"Two entries target the same item",IDENTITE_INCOHERENTE:"Inconsistent entry (key and binding differ)",LIEU_CHANGE:"The place of this item has changed",SANS_JETON:"Item without identity: entry to resume",ID_ABSENT:"Item without identifier",ID_AMBIGU:"Ambiguous identifier",
         LIGNE_NON_CONCERNEE:"The line no longer applies",QUANTITE_NULLE:"Zero quantity",TAXE_INCLUSE:"Tax included in the hotel price",SANS_SEJOUR:"No night on this stop",DEVISE_RETIREE:"Currency no longer supported",SAISIE_ILLISIBLE:"Unreadable entry ({c})",BUDGETV2_LECTURE_SEULE:"Budget V2 read-only ({c})",RESERVE_A22:"Fuel amount reserved for a later lot",PROVENANCE_ENVELOPPE:"Envelope not recognised",METADONNEES_ORPHELINES:"Choices without a line (tax, breakfast, people)"}}
 };
-BV2_E_TXT.es={line:"Línea",yes:"Sí",no:"No",state:{MAGOT:"Estimación Magot",MODIFIED:"Modificado por ti",CONFIRMED:"Confirmado"},src:{user:"tu dato",communaute_magot:"comunidad Magot",planning:"Planning",route:"trayecto",Google:"establecimiento (Google)",openstreetmap:"OpenStreetMap",hebergement:"incluido en el hotel",none:"sin fuente"},types:{hotel:"Hotel",tourist_tax:"Tasa turística",toll:"Peajes",parking:"Aparcamiento",ticket:"Billetes",transit:"Traslado",taxi:"Taxi",fuel:"Combustible",envelope:"Sobre"},
+BV2_E_TXT.es={line:"Línea",postTotal:"Total de la partida",postKnown:"{x} conocidos",grpTitle:"Mismo precio para varias líneas",grpAll:"Todas",grpPer:"Precio por persona",grpApply:"Aplicar a {n} líneas",grpApply1:"Aplicar a 1 línea",grpNone:"Ninguna línea que rellenar (tus datos nunca se sobrescriben)",grpHint:"Rellena las líneas por precisar o estimadas por Magot; tus datos no se tocan.",grpDone:"{n} líneas actualizadas",yes:"Sí",no:"No",state:{MAGOT:"Estimación Magot",MODIFIED:"Modificado por ti",CONFIRMED:"Confirmado"},src:{user:"tu dato",communaute_magot:"comunidad Magot",planning:"Planning",route:"trayecto",Google:"establecimiento (Google)",openstreetmap:"OpenStreetMap",hebergement:"incluido en el hotel",none:"sin fuente"},types:{hotel:"Hotel",tourist_tax:"Tasa turística",toll:"Peajes",parking:"Aparcamiento",ticket:"Billetes",transit:"Traslado",taxi:"Taxi",fuel:"Combustible",envelope:"Sobre"},
   low:"bajo",mid:"central",high:"prudente",magot:"Magot: {x}",gap:"diferencia {x}",qty:"Cantidad",perUnit:"Precio por {u}",total:"Total",free:"Gratis",save:"Guardar",amountPh:"Importe",
   back:"Volver a Magot ({x})",backUnknown:"Volver a « por precisar »",taxQ:"¿Tu precio incluye la tasa turística?",taxInc:"Incluida",taxExc:"Aparte",taxUnk:"No lo sé",breakfast:"Desayuno incluido",
   persons:"¿Cuántas personas pagan la tasa?",confirm:"Confirmar",noneTaxable:"Nadie está sujeto",taxTotal:"Importe total de la tasa",fuelLater:"El combustible se ajusta en un próximo lote (hipótesis de consumo).",
@@ -8482,7 +8482,7 @@ BV2_E_TXT.es={line:"Línea",yes:"Sí",no:"No",state:{MAGOT:"Estimación Magot",M
   reasons:{IDENTITE_ABSENTE:"El elemento del Planning ya no existe",SANS_LIGNE:"Ninguna línea corresponde ya a este valor",IDENTITE_DUPLIQUEE:"Dos elementos comparten la misma identidad",IDENTITE_CONFLIT:"Identidad en conflicto, por resolver",REGISTRE_ILLISIBLE:"Registro de identidades ilegible: reparación necesaria",
     CONFIRMATION_REQUISE:"Por confirmar tras la reparación del registro",SAISIES_CONCURRENTES:"Dos datos apuntan al mismo elemento",IDENTITE_INCOHERENTE:"Dato incoherente (clave y vínculo distintos)",LIEU_CHANGE:"El lugar de este elemento ha cambiado",SANS_JETON:"Elemento sin identidad: dato por retomar",ID_ABSENT:"Elemento sin identificador",ID_AMBIGU:"Identificador ambiguo",
     LIGNE_NON_CONCERNEE:"La línea ya no aplica",QUANTITE_NULLE:"Cantidad nula",TAXE_INCLUSE:"Tasa incluida en el precio del hotel",SANS_SEJOUR:"Ninguna noche en esta etapa",DEVISE_RETIREE:"Moneda ya no admitida",SAISIE_ILLISIBLE:"Dato ilegible ({c})",BUDGETV2_LECTURE_SEULE:"Presupuesto V2 en solo lectura ({c})",RESERVE_A22:"Importe de combustible reservado a un próximo lote",PROVENANCE_ENVELOPPE:"Sobre no reconocido",METADONNEES_ORPHELINES:"Elecciones sin línea (tasa, desayuno, personas)"}};
-BV2_E_TXT.it={line:"Riga",yes:"Sì",no:"No",state:{MAGOT:"Stima Magot",MODIFIED:"Modificato da te",CONFIRMED:"Confermato"},src:{user:"il tuo dato",communaute_magot:"comunità Magot",planning:"Planning",route:"tragitto",Google:"locale (Google)",openstreetmap:"OpenStreetMap",hebergement:"incluso nell'hotel",none:"nessuna fonte"},types:{hotel:"Hotel",tourist_tax:"Tassa di soggiorno",toll:"Pedaggi",parking:"Parcheggio",ticket:"Biglietti",transit:"Trasferimento",taxi:"Taxi",fuel:"Carburante",envelope:"Busta"},
+BV2_E_TXT.it={line:"Riga",postTotal:"Totale della voce",postKnown:"{x} noti",grpTitle:"Stesso prezzo per più righe",grpAll:"Tutte",grpPer:"Prezzo a persona",grpApply:"Applica a {n} righe",grpApply1:"Applica a 1 riga",grpNone:"Nessuna riga da compilare (i tuoi dati non vengono mai sovrascritti)",grpHint:"Compila le righe da precisare o stimate da Magot; i tuoi dati restano invariati.",grpDone:"{n} righe aggiornate",yes:"Sì",no:"No",state:{MAGOT:"Stima Magot",MODIFIED:"Modificato da te",CONFIRMED:"Confermato"},src:{user:"il tuo dato",communaute_magot:"comunità Magot",planning:"Planning",route:"tragitto",Google:"locale (Google)",openstreetmap:"OpenStreetMap",hebergement:"incluso nell'hotel",none:"nessuna fonte"},types:{hotel:"Hotel",tourist_tax:"Tassa di soggiorno",toll:"Pedaggi",parking:"Parcheggio",ticket:"Biglietti",transit:"Trasferimento",taxi:"Taxi",fuel:"Carburante",envelope:"Busta"},
   low:"basso",mid:"centrale",high:"prudente",magot:"Magot: {x}",gap:"scarto {x}",qty:"Quantità",perUnit:"Prezzo per {u}",total:"Totale",free:"Gratuito",save:"Salva",amountPh:"Importo",
   back:"Torna a Magot ({x})",backUnknown:"Torna a « da precisare »",taxQ:"Il prezzo include la tassa di soggiorno?",taxInc:"Inclusa",taxExc:"A parte",taxUnk:"Non lo so",breakfast:"Colazione inclusa",
   persons:"Quante persone pagano la tassa?",confirm:"Conferma",noneTaxable:"Nessuno è soggetto",taxTotal:"Importo totale della tassa",fuelLater:"Il carburante si imposta in un prossimo lotto (ipotesi di consumo).",
@@ -8493,7 +8493,7 @@ BV2_E_TXT.it={line:"Riga",yes:"Sì",no:"No",state:{MAGOT:"Stima Magot",MODIFIED:
   reasons:{IDENTITE_ABSENTE:"L'elemento del Planning non esiste più",SANS_LIGNE:"Nessuna riga corrisponde più a questo valore",IDENTITE_DUPLIQUEE:"Due elementi hanno la stessa identità",IDENTITE_CONFLIT:"Identità in conflitto, da risolvere",REGISTRE_ILLISIBLE:"Registro delle identità illeggibile: riparazione necessaria",
     CONFIRMATION_REQUISE:"Da confermare dopo la riparazione del registro",SAISIES_CONCURRENTES:"Due dati puntano allo stesso elemento",IDENTITE_INCOHERENTE:"Dato incoerente (chiave e collegamento diversi)",LIEU_CHANGE:"Il luogo di questo elemento è cambiato",SANS_JETON:"Elemento senza identità: dato da riprendere",ID_ABSENT:"Elemento senza identificativo",ID_AMBIGU:"Identificativo ambiguo",
     LIGNE_NON_CONCERNEE:"La riga non si applica più",QUANTITE_NULLE:"Quantità nulla",TAXE_INCLUSE:"Tassa inclusa nel prezzo dell'hotel",SANS_SEJOUR:"Nessuna notte in questa tappa",DEVISE_RETIREE:"Valuta non più supportata",SAISIE_ILLISIBLE:"Dato illeggibile ({c})",BUDGETV2_LECTURE_SEULE:"Budget V2 in sola lettura ({c})",RESERVE_A22:"Importo carburante riservato a un prossimo lotto",PROVENANCE_ENVELOPPE:"Busta non riconosciuta",METADONNEES_ORPHELINES:"Scelte senza riga (tassa, colazione, persone)"}};
-BV2_E_TXT.de={line:"Zeile",yes:"Ja",no:"Nein",state:{MAGOT:"Magot-Schätzung",MODIFIED:"Von dir geändert",CONFIRMED:"Bestätigt"},src:{user:"deine Eingabe",communaute_magot:"Magot-Community",planning:"Planning",route:"Strecke",Google:"Betrieb (Google)",openstreetmap:"OpenStreetMap",hebergement:"im Hotel enthalten",none:"keine Quelle"},types:{hotel:"Hotel",tourist_tax:"Kurtaxe",toll:"Maut",parking:"Parken",ticket:"Tickets",transit:"Transfer",taxi:"Taxi",fuel:"Kraftstoff",envelope:"Umschlag"},
+BV2_E_TXT.de={line:"Zeile",postTotal:"Summe des Postens",postKnown:"{x} bekannt",grpTitle:"Gleicher Preis für mehrere Zeilen",grpAll:"Alle",grpPer:"Preis pro Person",grpApply:"Auf {n} Zeilen anwenden",grpApply1:"Auf 1 Zeile anwenden",grpNone:"Keine Zeile zu füllen (deine Eingaben werden nie überschrieben)",grpHint:"Füllt Zeilen, die zu klären oder von Magot geschätzt sind; deine Eingaben bleiben unberührt.",grpDone:"{n} Zeilen aktualisiert",yes:"Ja",no:"Nein",state:{MAGOT:"Magot-Schätzung",MODIFIED:"Von dir geändert",CONFIRMED:"Bestätigt"},src:{user:"deine Eingabe",communaute_magot:"Magot-Community",planning:"Planning",route:"Strecke",Google:"Betrieb (Google)",openstreetmap:"OpenStreetMap",hebergement:"im Hotel enthalten",none:"keine Quelle"},types:{hotel:"Hotel",tourist_tax:"Kurtaxe",toll:"Maut",parking:"Parken",ticket:"Tickets",transit:"Transfer",taxi:"Taxi",fuel:"Kraftstoff",envelope:"Umschlag"},
   low:"niedrig",mid:"zentral",high:"vorsichtig",magot:"Magot: {x}",gap:"Abweichung {x}",qty:"Menge",perUnit:"Preis pro {u}",total:"Gesamt",free:"Kostenlos",save:"Speichern",amountPh:"Betrag",
   back:"Zurück zu Magot ({x})",backUnknown:"Zurück zu „zu klären“",taxQ:"Enthält dein Preis die Kurtaxe?",taxInc:"Enthalten",taxExc:"Zusätzlich",taxUnk:"Weiß ich nicht",breakfast:"Frühstück inklusive",
   persons:"Wie viele Personen zahlen die Taxe?",confirm:"Bestätigen",noneTaxable:"Niemand ist pflichtig",taxTotal:"Gesamtbetrag der Taxe",fuelLater:"Kraftstoff wird in einem späteren Los festgelegt (Verbrauchsannahme).",
@@ -8710,6 +8710,7 @@ const BV2_E_CSS=`
 #bv2ESheet .bv2e-cnt{display:flex;align-items:center;gap:10px}#bv2ESheet .bv2e-cnt button{width:44px;height:44px;border-radius:50%;border:1px solid var(--line);background:var(--surface,#fff);font:700 20px Inter,sans-serif;color:var(--ink)}#bv2ESheet .bv2e-cnt b{font:700 20px Inter,sans-serif;color:var(--ink);min-width:32px;text-align:center}
 #bv2ESheet .seg button{min-height:40px}#bv2ESheet .btn{min-height:44px;margin-top:8px}#bv2ESheet .btn.sm{min-height:40px;font-size:13px;padding:0 12px}#bv2ESheet .bv2e-item{border:1px solid var(--line);border-radius:14px;padding:10px 12px;margin:10px 0}#bv2ESheet .bv2e-item .r{font:600 13px Inter,sans-serif;color:var(--danger)}#bv2ESheet .bv2e-item .k{font:500 12px Inter,sans-serif;color:var(--muted);overflow-wrap:anywhere}#bv2ESheet .bv2e-item .acts{display:flex;flex-wrap:wrap;gap:8px;margin-top:6px}
 #bv2ESheet .bv2e-pill{display:inline-block;border-radius:999px;padding:2px 8px;font:600 11px Inter,sans-serif;background:var(--gold-soft);color:var(--gold-d)}#bv2ESheet .bv2e-pill.ok{background:rgba(22,163,74,.12);color:var(--emerald)}
+#bv2ESheet .bv2e-back{border:0;background:none;font:600 14px Inter,sans-serif;color:var(--gold-d,#B7791F);padding:6px 0;min-height:40px}#bv2ESheet .bv2e-ln{display:flex;align-items:center;gap:10px;width:100%;text-align:left;border:0;border-top:1px solid var(--line-soft);background:none;padding:12px 0;min-height:52px;color:var(--ink)}#bv2ESheet .bv2e-ln:first-of-type{border-top:0}#bv2ESheet .bv2e-ln .t{flex:1;min-width:0;font:600 14px Inter,sans-serif;overflow-wrap:anywhere}#bv2ESheet .bv2e-ln .s{display:block;font:500 12px Inter,sans-serif;color:var(--muted);margin-top:2px}#bv2ESheet .bv2e-ln .a{font:700 14px Inter,sans-serif;white-space:nowrap}#bv2ESheet .bv2e-ln .a.todo{color:var(--danger);font-weight:600}#bv2ESheet .bv2e-ln .chev{color:var(--muted);font-size:18px}#bv2ESheet .bv2e-grp{border:1px solid var(--line);border-radius:16px;padding:12px 14px;margin:8px 0 14px;background:var(--surface,#fff)}#bv2ESheet .bv2e-grp .seg{display:flex;flex-wrap:wrap;gap:6px}#bv2ESheet .bv2e-grp .n{font:500 12px Inter,sans-serif;color:var(--muted);margin-top:6px}[data-theme="dark"] #bv2ESheet .bv2e-grp{background:var(--surface,#131E33)}
 #bv2EBackdrop{position:fixed;inset:0;z-index:3199;background:rgba(10,19,38,.38);opacity:0;pointer-events:none;transition:opacity .2s}#bv2EBackdrop.show{opacity:1;pointer-events:auto}
 .bv2a .bv2-range>div>div{border:0;padding:0;background:none;border-radius:0}   /* fourchette A : cadres imbriques herites de B3.2 (selecteur trop large), corrige ici sans toucher au bloc gele */
 .bv2a .bv2-hints li[data-line],.bv2a .bv2-post[data-post]{cursor:pointer}.bv2a .bv2-hero .held{cursor:pointer}.bv2a .bv2e-cta{margin-top:12px;width:100%}`;
@@ -8737,10 +8738,11 @@ function _bv2ELineTitle(A, E, l, m, tr){ let t=A.post[l.post]||l.post; const it=
   const parts=[t]; if(m&&Number.isInteger(m.day)) parts.push(_bv2Tx(E.day,{d:m.day+1})); if(m&&m.legKey&&m.legKey!=="main"){ try{ const L=bv2Legs(tr).legs.find(g=>g.key===m.legKey); const n=L&&L.leg&&L.leg.dest&&L.leg.dest.name; if(n) parts.push(String(n).slice(0,40)); }catch(_e){} }
   if(l.type==="meal"&&it&&typeof it.title==="string"&&it.title.trim()) parts.push(it.title.trim().slice(0,40));
   return parts.join(" · "); }
-function bv2OpenLine(tr, lineId){   /* C' ; lecture depuis bv2Estimate ; aucun geste au rendu */
+let _bv2EBack=null;   /* poste d'origine quand C' est ouverte depuis la fiche de poste */
+function bv2OpenLine(tr, lineId, opts){   /* C' ; lecture depuis bv2Estimate ; aucun geste au rendu */
   if(!tr||!bv2PreviewActive()||tr!==currentTrip()) return false; const r=bv2Estimate(tr); if(!r.ok) return false;
   const l=r.result.lines.find(x=>x.id===lineId); if(!l) return false; const m=r.meta[lineId]||{}, A=_bv2A(), E=_bv2E(), cur=r.result.currency, st=bv2Store(tr), ed=_bv2Edit(st.data, lineId), ro=st.readOnly;
-  _bv2ETrip=tr; _bv2EKind="line"; _bv2ELine=lineId;
+  _bv2ETrip=tr; _bv2EKind="line"; _bv2ELine=lineId; _bv2EBack=(opts&&opts.back)||null;
   const f=x=>_bv2Esc(_bv2Fmt(x, cur)), srcName=l.state==="UNKNOWN"?A.toSpecify:(l.source&&l.source.kind==="user"?E.src.user:(l.source&&E.src[l.source.name]||(l.source&&l.source.name)||E.src.none));
   let h=`<div class="bv2e-k">${_bv2Esc(E.state[l.editState]||l.editState)}</div><div class="bv2e-v">${_bv2Esc(srcName)}${ed&&Number.isInteger(ed.at)?" · "+_bv2Esc(new Date(ed.at).toLocaleDateString(lang())):""}</div>`;
   h+=`<div class="bv2e-range"><div><span class="bv2e-rk">${_bv2Esc(E.low)}</span>${f(l.amounts.low)}</div><div class="mid"><span class="bv2e-rk">${_bv2Esc(E.mid)}</span>${f(l.amounts.central)}</div><div><span class="bv2e-rk">${_bv2Esc(E.high)}</span>${f(l.amounts.high)}</div></div>`;
@@ -8751,7 +8753,7 @@ function bv2OpenLine(tr, lineId){   /* C' ; lecture depuis bv2Estimate ; aucun g
   const canWrite=!idLine||reserved||(item&&(!m.heldReason||m.heldReason==="SANS_JETON"));   /* element sans identite fiable (x<rang>, ambigu) : aucune saisie (ID-5), H explique */
   const write=(patch)=>{ const t=_bv2EGuard(); if(!t) return {ok:false, code:"VOYAGE_CHANGE"}; const g=bv2Capture();
     return (idLine&&!reserved)?bv2ItemEdit(t, item, patch, g):bv2EditSet(t, l.id, patch, g); };
-  const reopen=()=>{ const t=currentTrip(); if(t&&bv2PreviewActive()){ const rr=bv2Estimate(t); const nl=rr.ok&&(rr.result.lines.find(x=>x.id===lineId)||(item&&rr.result.lines.find(x=>_bv2ItemOf(t,x.id)===item))); if(nl) bv2OpenLine(t, nl.id); else bv2CloseE(); } };
+  const reopen=()=>{ const t=currentTrip(); if(t&&bv2PreviewActive()){ const rr=bv2Estimate(t); const nl=rr.ok&&(rr.result.lines.find(x=>x.id===lineId)||(item&&rr.result.lines.find(x=>_bv2ItemOf(t,x.id)===item))); if(nl) bv2OpenLine(t, nl.id, {back:_bv2EBack}); else bv2CloseE(); } };
   const prevUser=ed?_bv2UserOf(ed):null, unitMode=l.type!=="toll"&&l.type!=="ticket"&&l.type!=="envelope";   /* lignes AMOUNT : jamais unitPrice (B1) */
   if(canWrite&&l.quantity&&Array.isArray(l.quantity.factors)&&l.quantity.factors.length&&l.type!=="tourist_tax"){ h+=`<div class="bv2e-k">${_bv2Esc(E.qty)}</div>`;
     for(const fc of l.quantity.factors) h+=`<div class="bv2e-row"><label>${_bv2Esc(E.factors[fc.key]||fc.key)}</label><div class="bv2e-cnt"><button type="button" data-f="${_bv2Esc(fc.key)}" data-d="-1" aria-label="-">−</button><b>${_bv2Esc(fc.value)}</b><button type="button" data-f="${_bv2Esc(fc.key)}" data-d="1" aria-label="+">+</button></div></div>`; }
@@ -8768,7 +8770,9 @@ function bv2OpenLine(tr, lineId){   /* C' ; lecture depuis bv2Estimate ; aucun g
     h+=`<div class="bv2e-k">${_bv2Esc(E.taxTotal)}</div><div class="bv2e-row"><input class="bv2e-in" id="bv2ETotal" inputmode="decimal" placeholder="${_bv2Esc(E.amountPh)}" value="${prevUser&&prevUser.total?_bv2Esc(prevUser.total.amount):""}"><span>${_bv2Esc(cur)}</span><button type="button" class="btn sm gold" id="bv2ETotalOk">${_bv2Esc(E.save)}</button></div>`;
     if(prevUser) h+=`<button type="button" class="btn sm" id="bv2EBack">${_bv2Esc(E.backUnknown)}</button>`; }
   if(!canWrite&&m.heldReason) h+=`<div class="bv2e-v">${_bv2Esc(_bv2Tx(E.reasons[m.heldReason]||m.heldReason,{c:""}))}</div>`;
+  if(_bv2EBack) h=`<button type="button" class="bv2e-back" id="bv2EBackPost">‹ ${_bv2Esc(A.post[_bv2EBack]||_bv2EBack)}</button>`+h;
   _bv2EShow(_bv2ELineTitle(A,E,l,m,tr), h); const B=document.getElementById("bv2EBody");
+  { const bp=B.querySelector("#bv2EBackPost"); if(bp){ const post=_bv2EBack; bp.onclick=()=>{ const t=currentTrip(); if(t&&bv2PreviewActive()) bv2OpenPost(t, post); else bv2CloseE(); }; } }
   const taxOf=()=>{ const e2=_bv2Edit(bv2Store(tr).data, l.id); return l.type==="hotel"&&e2&&BV2_TAX_STATUS.indexOf(e2.taxStatus)>=0?{touristTaxStatus:e2.taxStatus}:{}; };   /* §7.3 : statut recopie dans le user ecrit */
   const money=(id)=>{ const a=bv2EditAmountStr(B.querySelector("#"+id).value, cur); if(a==null){ toast(E.invalid); return null; } return Object.assign({amount:a, currency:cur}, taxOf()); };
   B.querySelectorAll("[data-f]").forEach(b=>b.onclick=()=>{ const fc=l.quantity.factors.find(x=>x.key===b.dataset.f); const v=Math.max(0, Math.min(999, (parseInt(fc.value,10)||0)+(+b.dataset.d)));
@@ -8785,6 +8789,62 @@ function bv2OpenLine(tr, lineId){   /* C' ; lecture depuis bv2Estimate ; aucun g
     pok.onclick=()=>{ const t=_bv2EGuard(); if(!t) return; const n=+pv.textContent, tp=bv2Store(t).data.taxPersons, g=bv2Capture();
       const r2=(!tp)?bv2TaxPersonsSet(t, n, g):(n===tp.value?bv2EditClear(t, l.id, ["persons"], g):bv2EditSet(t, l.id, {persons:n}, g));   /* A20 : premier « Confirmer » = taxPersons du voyage ; ensuite exception par etape si different */
       _bv2EAfter(r2.ok||r2.code!=="ANNULE"?r2:{ok:true}, reopen); }; }
+  return true; }
+
+
+/* ---------- B3.3b-1 : saisie groupee (dixieme fonction d'ecriture) ---------- */
+function bv2EditMany(tr, targets, patch, gesture){   /* UN SEUL bv2Mutate pour toutes les lignes : elements du Planning (G2, jeton + journal) et cles reservees (meal.day.N, meal.route.N) */
+  const tc=bv2EditTargetCheck(tr); if(!tc.ok) return tc;
+  if(!Array.isArray(targets)||!targets.length||targets.length>200) return {ok:false, code:"SAISIE_INVALIDE:cibles"};
+  const err=bv2EditPatchCheck(patch, _bv2CurOf(tr)); if(err) return {ok:false, code:err};
+  if(patch.bound!==undefined) return {ok:false, code:"SAISIE_INVALIDE:bound"};
+  const st=bv2Store(tr); if(st.readOnly) return {ok:false, code:st.reason||"LECTURE_SEULE"};
+  if(_bv2ERegState(st.data)==="illisible") return {ok:false, code:"REGISTRE_ILLISIBLE"};
+  const holders=_bv2EHolders(tr), reg=_bv2Obj(st.data.notices)&&_bv2Obj(st.data.notices.identityConflicts)?st.data.notices.identityConflicts:{}, taken=new Set(), plan=[], keys=[];
+  for(const t of targets){
+    if(t&&t.it){ const it=t.it; if(!Array.isArray(tr.plan)||tr.plan.indexOf(it)<0) return {ok:false, code:"ELEMENT_ABSENT"}; const prefix=_bv2EPrefixOf(it); if(!prefix) return {ok:false, code:"TYPE_NON_PRIS_EN_CHARGE"};
+      let tok=_bv2TokOf(it);
+      if(tok){ if((holders.get(tok)||[]).length>1) return {ok:false, code:"IDENTITE_DUPLIQUEE"}; if(_bv2Has(reg,tok)) return {ok:false, code:"IDENTITE_CONFLIT"}; }
+      else { tok=_bv2ENewToken(tr, st.data, taken); if(!tok) return {ok:false, code:"JETON_INDISPONIBLE"}; taken.add(tok); }
+      plan.push({it, tok, key:prefix+"."+tok}); }
+    else if(t&&typeof t.key==="string"&&/^meal\.(day|route)\.\d{1,3}$/.test(t.key)) keys.push(t.key);
+    else return {ok:false, code:"SAISIE_INVALIDE:cible"}; }
+  const g=gesture||bv2Capture(), J=[], at=Date.now();
+  const r=_bv2EMutate(tr, d=>{ for(const p of plan){ _bv2ESetToken(p.it, p.tok, J); const o=_bv2EApply(d.edits[p.key], patch); o.bound=_bv2EBound(p.it, p.tok); if(patch.user!==undefined) o.at=at; d.edits[p.key]=o; }
+    for(const k of keys){ const o=_bv2EApply(d.edits[k], patch); if(patch.user!==undefined) o.at=at; d.edits[k]=o; } }, g, J);
+  return r.ok?Object.assign(r,{count:plan.length+keys.length}):r; }
+
+/* ---------- B3.3b-1 : fiche de poste (C) ---------- */
+function _bv2EGroupable(tr, r, l){   /* ligne remplissable par la saisie groupee : prix par personne, pas de saisie de l'utilisateur, identite fiable ou cle reservee */
+  if(l.type!=="meal"&&l.type!=="activity") return null; if(l.editState!=="MAGOT"||l.applicable===false) return null;
+  if(l.state!=="UNKNOWN"&&l.state!=="ESTIMATED") return null;   /* jamais une valeur confirmee par une source (lieu gratuit, inclus a l'hotel) */
+  if(/^meal\.(day|route)\.\d+$/.test(l.id)) return {key:l.id};
+  const m=r.meta[l.id]||{}; if(m.heldReason&&m.heldReason!=="SANS_JETON") return null;
+  const it=_bv2ItemOf(tr, l.id); if(!it) return null; if(_bv2TokOf(it)) return {it};
+  const same=(Array.isArray(tr.plan)?tr.plan:[]).filter(x=>x&&_bv2EPrefixOf(x)===_bv2EPrefixOf(it)&&x.id!=null&&String(x.id)===String(it.id));
+  return same.length===1?{it}:null; }   /* sans jeton : identifiant du Planning UNIQUE seulement (jamais une saisie sur un element ambigu, ID-5) */
+function _bv2EMealOf(tr, r, l){ if(/^meal\.route\./.test(l.id)) return "lunch"; if(/^meal\.day\./.test(l.id)) return null; const m=r.meta[l.id]; return (m&&m.meal)||null; }
+function bv2OpenPost(tr, post){
+  if(!tr||!bv2PreviewActive()||tr!==currentTrip()) return false; const r=bv2Estimate(tr); if(!r.ok) return false;
+  const A=_bv2A(), E=_bv2E(), cur=r.result.currency, st=bv2Store(tr), ls=r.result.lines.filter(l=>l.post===post&&l.applicable!==false), p=r.result.posts.find(x=>x.post===post);
+  _bv2ETrip=tr; _bv2EKind="post"; _bv2ELine=null; _bv2EBack=null;
+  let h=`<div class="bv2e-k">${_bv2Esc(p&&p.totalMinor!=null?E.postTotal:_bv2Tx(E.postKnown,{x:_bv2Fmt(p?p.knownMinor:0,cur)}))}</div><div class="bv2e-v" style="font-size:20px">${_bv2Esc(p&&p.totalMinor!=null?_bv2Fmt(p.totalMinor,cur):A.toSpecify)}</div>`;
+  const groupable=(post==="MEALS"||post==="ACTIVITIES")&&!st.readOnly;
+  if(groupable){ const types=post==="MEALS"?[["all",E.grpAll],["breakfast",E.meal.breakfast],["lunch",E.meal.lunch],["dinner",E.meal.dinner]]:[["all",E.grpAll]];
+    h+=`<div class="bv2e-grp"><div class="bv2e-k" style="margin-top:0">${_bv2Esc(E.grpTitle)}</div>${types.length>1?`<div class="seg" role="group" style="margin-top:8px">${types.map(([v,t],i)=>`<button type="button" data-g="${v}" class="${i===0?"on":""}" aria-pressed="${i===0}">${_bv2Esc(t)}</button>`).join("")}</div>`:""}
+      <div class="bv2e-row"><input class="bv2e-in" id="bv2EGrpAmt" inputmode="decimal" placeholder="${_bv2Esc(E.grpPer)}"><span>${_bv2Esc(cur)}</span></div><button type="button" class="btn gold" id="bv2EGrpOk" style="width:100%"></button><div class="n">${_bv2Esc(E.grpHint)}</div></div>`; }
+  for(const l of ls){ const m=r.meta[l.id]||{}; const t=_bv2ELineTitle(A,E,l,m,tr); const amt=l.amounts&&l.amounts.central!=null?_bv2Fmt(l.amounts.central,cur):A.toSpecify;
+    h+=`<button type="button" class="bv2e-ln" data-line="${_bv2Esc(l.id)}"><span class="t">${_bv2Esc(t)}<span class="s">${_bv2Esc(E.state[l.editState]||"")}${l.state==="ESTIMATED"?" · "+_bv2Esc(A.estimated1):""}</span></span><span class="a${l.amounts&&l.amounts.central!=null?"":" todo"}">${_bv2Esc(amt)}</span><span class="chev">›</span></button>`; }
+  _bv2EShow(A.post[post]||post, h); const B=document.getElementById("bv2EBody");
+  B.querySelectorAll(".bv2e-ln[data-line]").forEach(b=>b.onclick=()=>{ const t=currentTrip(); if(t&&bv2PreviewActive()&&t===_bv2ETrip) bv2OpenLine(t, b.dataset.line, {back:post}); else bv2CloseE(); });
+  if(groupable){ let filter="all"; const ok=B.querySelector("#bv2EGrpOk");
+    const targetsOf=()=>{ const t=_bv2ETrip, rr=bv2Estimate(t); if(!rr.ok) return []; return rr.result.lines.filter(l=>l.post===post).filter(l=>filter==="all"||_bv2EMealOf(t,rr,l)===filter).map(l=>_bv2EGroupable(t,rr,l)).filter(Boolean); };
+    const refresh=()=>{ const n=targetsOf().length; ok.disabled=!n; ok.textContent=n?(n===1?E.grpApply1:_bv2Tx(E.grpApply,{n})):E.grpNone; };
+    B.querySelectorAll("[data-g]").forEach(b=>b.onclick=()=>{ filter=b.dataset.g; B.querySelectorAll("[data-g]").forEach(x=>{ x.classList.toggle("on", x===b); x.setAttribute("aria-pressed", String(x===b)); }); refresh(); });
+    refresh();
+    ok.onclick=()=>{ const t=_bv2EGuard(); if(!t) return; const a=bv2EditAmountStr(B.querySelector("#bv2EGrpAmt").value, cur); if(a==null){ toast(E.invalid); return; }
+      const tg=targetsOf(); if(!tg.length) return; const r2=bv2EditMany(t, tg, {user:{unitPrice:{amount:a, currency:cur, basis:"typed"}}}, bv2Capture());
+      if(_bv2EAfter(r2, ()=>{ const t2=currentTrip(); if(t2&&bv2PreviewActive()) bv2OpenPost(t2, post); })) toast(_bv2Tx(E.grpDone,{n:r2.count})); }; }
   return true; }
 
 /* ---------- H : « Valeurs sans ligne » ---------- */
@@ -8841,7 +8901,7 @@ function bv2AfterA(body, tr, r){
     const sp=ev.target.closest("#bv2ESpecify"); if(sp){ bv2OpenLine(t, sp.dataset.line); return; }
     const li=ev.target.closest(".bv2-hints li[data-line]"); if(li){ bv2OpenLine(t, li.dataset.line); return; }
     const hd=ev.target.closest(".bv2-hero .held"); if(hd){ bv2OpenHeld(t); return; }
-    const po=ev.target.closest(".bv2-post[data-post]"); if(po){ const rr=bv2Estimate(t); if(!rr.ok) return; const ls=rr.result.lines.filter(l=>l.post===po.dataset.post); const l=ls.find(x=>x.state==="UNKNOWN"&&x.required)||ls[0]; if(l) bv2OpenLine(t, l.id); } }); }
+    const po=ev.target.closest(".bv2-post[data-post]"); if(po){ bv2OpenPost(t, po.dataset.post); } }); }
   if(tr&&tr.sample===true&&/^essai-/.test(String(tr.id))&&!body.querySelector("#bv2SampleRemove")){ const root=body.querySelector(".bv2a"); if(root){ const b=document.createElement("button"); b.type="button"; b.className="btn"; b.id="bv2SampleRemove"; b.style.cssText="width:100%;margin-top:14px"; b.textContent=_bv2ST().remove; b.onclick=()=>{ const r=bv2SampleRemove(); if(r.ok) toast(_bv2ST().removed); }; root.appendChild(b); } }
   if(_bv2ETrip===tr&&_bv2EKind==="held"&&!held.length) bv2CloseE(); }
 
@@ -8904,7 +8964,8 @@ function bv2SampleRemove(){
   const n0=S.trips.length; S.trips=S.trips.filter(t=>!(t&&t.sample===true&&/^essai-/.test(String(t.id))));
   if(/^essai-/.test(String(S.currentTripId))) S.currentTripId=S.trips.length?S.trips[0].id:null;
   saveState(); try{ renderBudget(); }catch(_e){} return {ok:true, removed:n0-S.trips.length}; }
-function _bv2SampleWanted(){ const m=/[?&]essai(=([^&#]*))?/.exec(location.search); return m?(m[2]||"ajouter"):null; }
+function _bv2SampleWanted(){ if(/\.github\.io$/i.test(location.hostname)) return null;   /* production (GitHub Pages) : jamais de voyages d'essai (audit GPT B3.3a) */
+  const m=/[?&]essai(=([^&#]*))?/.exec(location.search); return m?(m[2]||"ajouter"):null; }
 (function(){ const run=n=>{ const w=_bv2SampleWanted(); if(!w) return;
     if(typeof S!=="object"||!S||!Array.isArray(S.trips)||_storeHydrating||!document.getElementById("view-budget")){ if(n<120) setTimeout(()=>run(n+1), 150); return; }
     try{ history.replaceState(null, "", location.pathname+location.hash); }catch(_e){}   /* le parametre ne rejoue pas au rechargement */
