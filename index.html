@@ -8210,9 +8210,10 @@ function bv2Estimate(tr){   /* -> {ok:true, result, input, meta, dropped, heldEd
   for(const d of dropped) if(inp.meta[d.id]) inp.meta[d.id].held=inp.meta[d.id].held.concat(["SAISIE_ILLISIBLE:"+d.code]);
   return Object.assign({ok:true, result:r1.result, input:Object.assign({}, base, {lines}), meta:inp.meta, notes:inp.notes, fxInfo:inp.fxInfo, dropped}, _bv2Ready(r1.result, inp, dropped)); }
 /* ===== fin BUDGET V2 -- B3.1 ===== */
-/* ===== BUDGET V2 -- B3.2 VUE D'ENSEMBLE AVANT LE DEPART (B3.2-SPEC r4 + audit GPT ; arbitrages de Loic A25-a..A32-a, 12 oct. 2026) =====
+/* ===== BUDGET V2 -- B3.2 VUE D'ENSEMBLE AVANT LE DEPART (B3.2-SPEC r4 + audit GPT ; arbitrages de Loic A25-a..A32-a, 12 oct. 2026 ; r4 = accroches A34 pour B3.3, 13 oct. 2026) =====
    - Ecran A (A1 estimation incomplete, A1' complete) en LECTURE SEULE depuis le seul retour de bv2Estimate ; panneau Q · Voyageurs ;
      etats §6.9 ; aiguillage par l'option « Nouveau Budget (apercu) » (bv2PreviewActive, B3.0).
+   - r4 (A34, B3.3-SPEC r3 §3.5) : bv2Hints retourne {id,text} ; <li data-line> ; .bv2-post[data-post] ; crochet bv2AfterA(body,tr,r) dans bv2RenderGuard, inerte tant que B3.3 n'existe pas, DOM seul.
    - Aucun bouton d'un lot futur (A28-a). Aucun reseau. Tout rendu passe par bv2RenderGuard ; une seule ecriture differee : gel budgetAuto (§7.4).
    - Q est le seul geste : bv2Mutate + ecriture declaree de tr.travelers dans le geste, journal de reprise (A26-a, meme patron qu'ID-9).
    - Neuf modifications d'une ligne dans le V1 hors zones gelees (A30-a), posees par construire-b32.py : voir RAPPORT.md. */
@@ -8331,12 +8332,12 @@ function _bv2ItemOf(tr, id){   /* element du Planning derriere une ligne meal.X 
 function _bv2Where(A, m, tr, id){ let w=""; if(m&&Number.isInteger(m.day)) w=_bv2Tx(A.where.day,{d:m.day+1});
   const it=_bv2ItemOf(tr, id); if(it&&typeof it.title==="string"&&it.title.trim()) w+=" · "+it.title.trim().slice(0,60);   /* texte du voyage : echappe a l'insertion (_bv2Esc) */
   return w; }
-function bv2Hints(r, A, tr){   /* 1 a 3 pistes, m8 : inconnues requises dans l'ordre des types, puis connues a certitude faible par montant decroissant ; texte seul (A28-a) */
+function bv2Hints(r, A, tr){   /* 1 a 3 pistes, m8 : inconnues requises dans l'ordre des types, puis connues a certitude faible par montant decroissant ; {id, text} (A34 r4), aucun bouton (A28-a) */
   const out=[], lines=r.result.lines, meta=r.meta||{};
   const unknown=lines.filter(l=>l.required&&l.state==="UNKNOWN").sort((a,b)=>BV2_HINT_ORDER.indexOf(a.type)-BV2_HINT_ORDER.indexOf(b.type));
-  for(const l of unknown){ if(out.length>=3) break; const h=A.hint[l.type]; if(!h) continue; out.push(_bv2Tx(h,{w:_bv2Where(A, meta[l.id], tr, l.id)})); }
+  for(const l of unknown){ if(out.length>=3) break; const h=A.hint[l.type]; if(!h) continue; out.push({id:l.id, text:_bv2Tx(h,{w:_bv2Where(A, meta[l.id], tr, l.id)})}); }
   if(out.length<3){ const weak=lines.filter(l=>(l.state==="KNOWN"||l.state==="ESTIMATED")&&(l.certainty==="LOCAL_REFERENCE"||l.certainty==="GENERAL_REFERENCE")&&l.amounts&&l.amounts.central!=null).sort((a,b)=>b.amounts.central-a.amounts.central);
-    for(const l of weak){ if(out.length>=3) break; out.push(_bv2Tx(A.hint.refine,{l:(A.post[l.post]||l.post)+_bv2Where(A, meta[l.id], tr, l.id), x:_bv2Fmt(l.amounts.central, r.result.currency)})); } }
+    for(const l of weak){ if(out.length>=3) break; out.push({id:l.id, text:_bv2Tx(A.hint.refine,{l:(A.post[l.post]||l.post)+_bv2Where(A, meta[l.id], tr, l.id), x:_bv2Fmt(l.amounts.central, r.result.currency)})}); } }
   return out; }
 function _bv2PostCalc(r, p, A){   /* ligne de calcul d'un poste : une ligne -> « 2 nuits × 118 € » (facteurs × prix unitaire), sinon « N lignes · k connues » */
   const ls=r.result.lines.filter(l=>l.post===p.post), cur=r.result.currency;
@@ -8361,7 +8362,9 @@ function bv2RenderA(body, tr){   /* ecran A, lecture seule ; aucune ecriture syn
     if(!r.ok){ const why=r.code==="DEVISE_VOYAGE_NON_PRISE_EN_CHARGE"?_bv2Tx(A.curr,{c:_bv2CurOf(tr)||"?"}):(r.code==="VOYAGE_TROP_LONG"?A.tooLong:A.error);
       if(r.code!=="DEVISE_VOYAGE_NON_PRISE_EN_CHARGE"&&r.code!=="VOYAGE_TROP_LONG"){ try{ console.error("bv2RenderA", r.code, r.line||""); }catch(_e){} }
       body.innerHTML=bv2StateHtml(A, A.unavailable, why); return; }
-    body.innerHTML=bv2AHtml(r, tr, A); });
+    body.innerHTML=bv2AHtml(r, tr, A);
+    if(typeof bv2AfterA==="function"){ try{ bv2AfterA(body, tr, r); }catch(e){ console.error("bv2AfterA", e); } }   /* A34 r4 : crochet B3.3 (DOM et interactions seulement, aucune ecriture) ; inerte sans B3.3 */
+  });
   const sb=body.querySelector("#bv2OpenSettings"); if(sb) sb.onclick=()=>openSettings();
   const pb=body.querySelector("#bv2OpenPlan"); if(pb) pb.onclick=()=>switchTab("plan");
   if(body.dataset.bv2q){ delete body.dataset.bv2q; bv2OpenQ(tr); } else { bv2CloseQ(); }   /* audit GPT r1 : un rendu qui n'a pas besoin de Q le ferme (changement de voyage, confirmation faite ailleurs) */
@@ -8383,13 +8386,13 @@ function bv2AHtml(r, tr, A){
     const m=res.margin; if(m&&m.enabled&&m.amountMinor!=null&&m.appliedPct!=null){ h+=`<div class="bv2-line">${_bv2Esc(_bv2Tx(A.margin,{p:m.appliedPct, x:_bv2Fmt(m.amountMinor,cur)}))}</div><div class="bv2-line why">${_bv2Esc(m.proposedPct===5?A.marginWhy5:A.marginWhy10)}</div>`; } }
   else { const nb=new Set([].concat(c.missingLines||[], res.scenarios.low.missingRangeLines||[], res.scenarios.high.missingRangeLines||[])).size; h+=`<div class="bv2-line">${_bv2Esc(_bv2Tx(A.rangeInc,{n:nb}))}</div>`; }
   /* pistes (texte seul) */
-  const hints=bv2Hints(r, A, tr); if(hints.length){ h+=`<h3>${_bv2Esc(A.improve)}</h3><ul class="bv2-hints">${hints.map(x=>`<li>${_bv2Esc(x)}</li>`).join("")}</ul>`; }
+  const hints=bv2Hints(r, A, tr); if(hints.length){ h+=`<h3>${_bv2Esc(A.improve)}</h3><ul class="bv2-hints">${hints.map(x=>`<li data-line="${_bv2Esc(x.id)}">${_bv2Esc(x.text)}</li>`).join("")}</ul>`; }
   /* postes */
   const shown=res.posts.filter(p=>!p.empty);
   h+=`<h3>${_bv2Esc(complete?_bv2Tx(A.from,{x:_bv2Fmt(c.totalMinor,cur)}):(c.knownMinor>0?_bv2Tx(A.from,{x:_bv2Fmt(c.knownMinor,cur)}):A.fromNone))}</h3><div class="bv2-card">`;
   for(const p of shown){ const cm=catMeta(BV2_POST_ICON[p.post]||"misc"); const calc=_bv2PostCalc(r,p,A); const pill=p.complete?(r.result.lines.filter(l=>l.post===p.post).every(l=>l.state!=="ESTIMATED")?["known",A.known1]:["est",A.estimated1]):["todo",A.toSpecify];
     const amt=p.totalMinor!=null?_bv2Fmt(p.totalMinor,cur):(p.knownMinor>0?_bv2Tx(A.known,{x:_bv2Fmt(p.knownMinor,cur)}):A.toSpecify);
-    h+=`<div class="bv2-post"><div class="ic" style="background:${cm.bg};color:${cm.c}">${cm.ic}</div><div><div class="n">${_bv2Esc(A.post[p.post]||p.post)}</div>${calc?`<div class="c">${_bv2Esc(calc)}</div>`:""}${pill[0]!=="todo"?`<span class="bv2-pill ${pill[0]}">${_bv2Esc(pill[1])}</span>`:""}</div><div class="a${pill[0]==="todo"?" todo":""}">${_bv2Esc(amt)}</div></div>`; }
+    h+=`<div class="bv2-post" data-post="${_bv2Esc(p.post)}"><div class="ic" style="background:${cm.bg};color:${cm.c}">${cm.ic}</div><div><div class="n">${_bv2Esc(A.post[p.post]||p.post)}</div>${calc?`<div class="c">${_bv2Esc(calc)}</div>`:""}${pill[0]!=="todo"?`<span class="bv2-pill ${pill[0]}">${_bv2Esc(pill[1])}</span>`:""}</div><div class="a${pill[0]==="todo"?" todo":""}">${_bv2Esc(amt)}</div></div>`; }
   h+=`</div>`;
   /* carburant, peages, taux (§6.9) */
   const notes=[]; const mf=r.meta&&r.meta.fuel, mt=r.meta&&r.meta.toll; let compute="";
