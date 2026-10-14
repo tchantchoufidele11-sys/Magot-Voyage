@@ -9977,6 +9977,260 @@ function bv2PaidNow(tr, lineId){   /* A8 : feuille de depense B3.5 PREREMPLIE (m
 bv2AfterA=(function(prev){ return function(body, tr, r){ if(typeof prev==="function") prev(body, tr, r); try{ bv2AfterF(body, tr, r); }catch(e){ console.error("bv2AfterF", e); } }; })(bv2AfterA);
 bv2RenderA=(function(prev){ return function(body, tr){ try{ if(tr&&bv2PreviewActive()&&tripStatus(tr)==="ongoing"&&bv2RenderA3(body, tr)) return; }catch(e){ console.error("bv2RenderA3", e); } return prev(body, tr); }; })(bv2RenderA);
 /* ===== fin BUDGET V2 -- B3.6 ===== */
+/* ===== BUDGET V2 -- B3.7 PARAMETRES DE PREVISION (spec B3-r3 §6.6 E, §6.1 « ⚙ de l'en-tete », §7.3 margin/taxPersons/edits, §8 B3.7, §10 HYP/FX ;
+   changement de priorite de Loic du 14 oct. 2026 : STOP UX apres UX-2, GO B3.7 sur B3.6 gele 66c5596d) =====
+   - Bloc AJOUTE apres B3.6 gele : aucun octet de B1, B2, P6d, B3.0 a B3.6 n'est modifie. Le travail UX-1/UX-2 est archive a part (non inclus ici).
+   - Ecran E dans le panneau commun #bv2ESheet, ouvert par ⚙ de l'en-tete du Budget (apercu V2 actif seulement).
+   - Gestes : voyageurs (bv2ConfirmTravelers, B3.2), chambres par etape (facteur rooms de la ligne hotel, meme ecriture que C' B3.3 : bv2EditSet),
+     personnes assujetties (bv2TaxPersonsSet, B3.3), consommation (fiche carburant C' B3.3, ouverte telle quelle), marge (NOUVEAU geste unique :
+     bv2MarginSet, seul lot qui la regle), « Actualiser les taux » (refreshFxRates existant, geste reseau declare), « Revenir a l'ancien Budget » (bv2SetPreview, B3.0).
+   - Tout geste passe par bv2EditTargetCheck puis bv2Mutate (garde d'espace, compte synchronise refuse, schema verifie) ; en cas d'echec, y compris
+     une exception de saveState, tr.budgetV2, tr._ts et tr.travelers sont rendus a l'identique.
+   - Ouvrir E n'ecrit rien et n'appelle aucun service. Aucun montant d'hypothese carburant stocke, aucun taux FX statique ni 1:1 (A11). */
+const BV2_P_TXT={
+  fr:{title:"Paramètres de prévision",gear:"Paramètres de prévision",sTrav:"Voyageurs et chambres",trav:"Voyageurs",travSub:"Confirmé · utilisé pour tous les postes",travTodo:"À confirmer",
+      rooms:"Chambres",roomsAt:"Chambres · {w}",roomsMine:"{n} nuits · choisi par toi",roomsMine1:"1 nuit · choisi par toi",roomsHyp:"Hypothèse",roomsHypSub:"{r} chambre(s) proposée(s) pour {t} voyageurs",roomsV1:"{n} nuits · repris de l'ancien Budget",
+      tax:"Paient la taxe de séjour",taxOk:"{n} personne(s) · confirmé le {d} · modifiable par hôtel",taxTodo:"À confirmer · rien n'est compté avant",confirm:"Confirmer",
+      sMargin:"Marge de sécurité",mAuto:"Automatique",mAmount:"Montant",mOff:"Désactivée",mSave:"Enregistrer",mAmountPh:"Montant",
+      whyAuto:"Automatique : 5 % quand au moins 70 % de l'estimation est confirmée ou au prix actuel, 10 % sinon.",today:"Aujourd'hui {p} % · {x}.",todayPct:"Aujourd'hui {p} %.",todayAmt:"Aujourd'hui {x}.",
+      known:"Le montant de la marge s'affichera quand l'estimation sera complète.",apart:"La marge reste à part : ce n'est pas une dépense.",offTxt:"Aucune marge ajoutée aux propositions de budget.",
+      sFuel:"Carburant",conso:"Consommation pour le Budget",consoRef:"Planning : {c} · aucune hypothèse, la référence est utilisée",consoMine:"Ton hypothèse : {c} · {x} (référence {r})",
+      consoWait:"Disponible quand tous les trajets sont calculés",fuelNote:"Mêmes trajets et mêmes prix que le Planning ; seul le Budget utilise ton hypothèse.",
+      sFx:"Taux de change",allIn:"Ce voyage est entièrement en {c}",noRate:"aucun taux nécessaire",rateOf:"taux du {d} · récupéré le {f}",rateOld:"taux du {d} · ancien · actualiser",
+      rateNoDate:"date du taux inconnue · non utilisé · actualiser",rateAbsent:"taux absent",rateAbsentSub:"les lignes en {c} restent « à préciser »",parity:"parité fixe",
+      refresh:"Actualiser les taux",refreshing:"Actualisation…",refreshFail:"Impossible d'actualiser les taux (réseau).",refreshOk:"Taux actualisés",offline:"Hors ligne : actualisation impossible",
+      attrib:"Taux :",attribName:"Rates By Exchange Rate API",attribSub:"mis à jour une fois par jour par la source",
+      sPrev:"Aperçu Budget V2",prevTxt:"Le nouveau Budget est en aperçu. L'ancien reste disponible, avec tes dépenses et ton budget inchangés.",prevBack:"Revenir à l'ancien Budget",
+      back:"‹ Paramètres de prévision",fail:"Impossible d'enregistrer ({c}).",minus:"Retirer un",plus:"Ajouter un",ro:"Budget V2 en lecture seule pour ce voyage : aucun réglage n'est modifiable."},
+  en:{title:"Forecast settings",gear:"Forecast settings",sTrav:"Travellers and rooms",trav:"Travellers",travSub:"Confirmed · used for every category",travTodo:"To confirm",
+      rooms:"Rooms",roomsAt:"Rooms · {w}",roomsMine:"{n} nights · chosen by you",roomsMine1:"1 night · chosen by you",roomsHyp:"Assumption",roomsHypSub:"{r} room(s) suggested for {t} travellers",roomsV1:"{n} nights · taken from the old Budget",
+      tax:"Pay the tourist tax",taxOk:"{n} person(s) · confirmed on {d} · can differ per hotel",taxTodo:"To confirm · nothing is counted until then",confirm:"Confirm",
+      sMargin:"Safety margin",mAuto:"Automatic",mAmount:"Amount",mOff:"Off",mSave:"Save",mAmountPh:"Amount",
+      whyAuto:"Automatic: 5% when at least 70% of the estimate is confirmed or at current price, 10% otherwise.",today:"Today {p}% · {x}.",todayPct:"Today {p}%.",todayAmt:"Today {x}.",
+      known:"The margin amount will show once the estimate is complete.",apart:"The margin stays separate: it is not an expense.",offTxt:"No margin added to budget suggestions.",
+      sFuel:"Fuel",conso:"Consumption for the Budget",consoRef:"Planning: {c} · no assumption, the reference is used",consoMine:"Your assumption: {c} · {x} (reference {r})",
+      consoWait:"Available once every route is computed",fuelNote:"Same routes and prices as the Planning; only the Budget uses your assumption.",
+      sFx:"Exchange rates",allIn:"This trip is entirely in {c}",noRate:"no rate needed",rateOf:"rate of {d} · fetched on {f}",rateOld:"rate of {d} · outdated · refresh",
+      rateNoDate:"rate date unknown · not used · refresh",rateAbsent:"no rate",rateAbsentSub:"lines in {c} stay “to specify”",parity:"fixed parity",
+      refresh:"Refresh rates",refreshing:"Refreshing…",refreshFail:"Could not refresh rates (network).",refreshOk:"Rates refreshed",offline:"Offline: cannot refresh",
+      attrib:"Rates:",attribName:"Rates By Exchange Rate API",attribSub:"updated once a day by the source",
+      sPrev:"Budget V2 preview",prevTxt:"The new Budget is in preview. The old one is still available, with your expenses and budget unchanged.",prevBack:"Back to the old Budget",
+      back:"‹ Forecast settings",fail:"Could not save ({c}).",minus:"Remove one",plus:"Add one",ro:"Budget V2 is read-only for this trip: no setting can be changed."},
+  es:{title:"Parámetros de previsión",gear:"Parámetros de previsión",sTrav:"Viajeros y habitaciones",trav:"Viajeros",travSub:"Confirmado · usado en todas las partidas",travTodo:"Por confirmar",
+      rooms:"Habitaciones",roomsAt:"Habitaciones · {w}",roomsMine:"{n} noches · elegido por ti",roomsMine1:"1 noche · elegido por ti",roomsHyp:"Hipótesis",roomsHypSub:"{r} habitación(es) propuesta(s) para {t} viajeros",roomsV1:"{n} noches · tomado del antiguo Presupuesto",
+      tax:"Pagan la tasa turística",taxOk:"{n} persona(s) · confirmado el {d} · modificable por hotel",taxTodo:"Por confirmar · no se cuenta nada antes",confirm:"Confirmar",
+      sMargin:"Margen de seguridad",mAuto:"Automático",mAmount:"Importe",mOff:"Desactivado",mSave:"Guardar",mAmountPh:"Importe",
+      whyAuto:"Automático: 5 % cuando al menos el 70 % de la estimación está confirmado o a precio actual, 10 % si no.",today:"Hoy {p} % · {x}.",todayPct:"Hoy {p} %.",todayAmt:"Hoy {x}.",
+      known:"El importe del margen se mostrará cuando la estimación esté completa.",apart:"El margen va aparte: no es un gasto.",offTxt:"Ningún margen añadido a las propuestas de presupuesto.",
+      sFuel:"Combustible",conso:"Consumo para el Presupuesto",consoRef:"Planificación: {c} · sin hipótesis, se usa la referencia",consoMine:"Tu hipótesis: {c} · {x} (referencia {r})",
+      consoWait:"Disponible cuando todos los trayectos estén calculados",fuelNote:"Mismos trayectos y precios que la Planificación; solo el Presupuesto usa tu hipótesis.",
+      sFx:"Tipos de cambio",allIn:"Este viaje es íntegramente en {c}",noRate:"no hace falta ningún tipo",rateOf:"tipo del {d} · obtenido el {f}",rateOld:"tipo del {d} · antiguo · actualizar",
+      rateNoDate:"fecha del tipo desconocida · no usado · actualizar",rateAbsent:"sin tipo",rateAbsentSub:"las líneas en {c} siguen «por precisar»",parity:"paridad fija",
+      refresh:"Actualizar los tipos",refreshing:"Actualizando…",refreshFail:"No se pudieron actualizar los tipos (red).",refreshOk:"Tipos actualizados",offline:"Sin conexión: no se puede actualizar",
+      attrib:"Tipos:",attribName:"Rates By Exchange Rate API",attribSub:"actualizado una vez al día por la fuente",
+      sPrev:"Vista previa Presupuesto V2",prevTxt:"El nuevo Presupuesto está en vista previa. El antiguo sigue disponible, con tus gastos y tu presupuesto sin cambios.",prevBack:"Volver al antiguo Presupuesto",
+      back:"‹ Parámetros de previsión",fail:"No se pudo guardar ({c}).",minus:"Quitar uno",plus:"Añadir uno",ro:"Presupuesto V2 en solo lectura para este viaje: ningún ajuste es modificable."},
+  it:{title:"Parametri di previsione",gear:"Parametri di previsione",sTrav:"Viaggiatori e camere",trav:"Viaggiatori",travSub:"Confermato · usato per tutte le voci",travTodo:"Da confermare",
+      rooms:"Camere",roomsAt:"Camere · {w}",roomsMine:"{n} notti · scelto da te",roomsMine1:"1 notte · scelto da te",roomsHyp:"Ipotesi",roomsHypSub:"{r} camera/e proposta/e per {t} viaggiatori",roomsV1:"{n} notti · ripreso dal vecchio Budget",
+      tax:"Pagano la tassa di soggiorno",taxOk:"{n} persona/e · confermato il {d} · modificabile per hotel",taxTodo:"Da confermare · nulla è contato prima",confirm:"Conferma",
+      sMargin:"Margine di sicurezza",mAuto:"Automatico",mAmount:"Importo",mOff:"Disattivato",mSave:"Salva",mAmountPh:"Importo",
+      whyAuto:"Automatico: 5 % quando almeno il 70 % della stima è confermato o al prezzo attuale, altrimenti 10 %.",today:"Oggi {p} % · {x}.",todayPct:"Oggi {p} %.",todayAmt:"Oggi {x}.",
+      known:"L'importo del margine apparirà quando la stima sarà completa.",apart:"Il margine resta a parte: non è una spesa.",offTxt:"Nessun margine aggiunto alle proposte di budget.",
+      sFuel:"Carburante",conso:"Consumo per il Budget",consoRef:"Pianificazione: {c} · nessuna ipotesi, si usa il riferimento",consoMine:"La tua ipotesi: {c} · {x} (riferimento {r})",
+      consoWait:"Disponibile quando tutti i tragitti sono calcolati",fuelNote:"Stessi tragitti e stessi prezzi della Pianificazione; solo il Budget usa la tua ipotesi.",
+      sFx:"Tassi di cambio",allIn:"Questo viaggio è interamente in {c}",noRate:"nessun tasso necessario",rateOf:"tasso del {d} · recuperato il {f}",rateOld:"tasso del {d} · vecchio · aggiorna",
+      rateNoDate:"data del tasso sconosciuta · non usato · aggiorna",rateAbsent:"tasso assente",rateAbsentSub:"le righe in {c} restano «da precisare»",parity:"parità fissa",
+      refresh:"Aggiorna i tassi",refreshing:"Aggiornamento…",refreshFail:"Impossibile aggiornare i tassi (rete).",refreshOk:"Tassi aggiornati",offline:"Offline: aggiornamento impossibile",
+      attrib:"Tassi:",attribName:"Rates By Exchange Rate API",attribSub:"aggiornato una volta al giorno dalla fonte",
+      sPrev:"Anteprima Budget V2",prevTxt:"Il nuovo Budget è in anteprima. Il vecchio resta disponibile, con le tue spese e il tuo budget invariati.",prevBack:"Torna al vecchio Budget",
+      back:"‹ Parametri di previsione",fail:"Impossibile salvare ({c}).",minus:"Togli uno",plus:"Aggiungi uno",ro:"Budget V2 in sola lettura per questo viaggio: nessun parametro è modificabile."},
+  de:{title:"Prognose-Einstellungen",gear:"Prognose-Einstellungen",sTrav:"Reisende und Zimmer",trav:"Reisende",travSub:"Bestätigt · für alle Posten verwendet",travTodo:"Zu bestätigen",
+      rooms:"Zimmer",roomsAt:"Zimmer · {w}",roomsMine:"{n} Nächte · von dir gewählt",roomsMine1:"1 Nacht · von dir gewählt",roomsHyp:"Annahme",roomsHypSub:"{r} Zimmer vorgeschlagen für {t} Reisende",roomsV1:"{n} Nächte · aus dem alten Budget übernommen",
+      tax:"Zahlen Kurtaxe",taxOk:"{n} Person(en) · bestätigt am {d} · je Hotel änderbar",taxTodo:"Zu bestätigen · vorher wird nichts gezählt",confirm:"Bestätigen",
+      sMargin:"Sicherheitsreserve",mAuto:"Automatisch",mAmount:"Betrag",mOff:"Aus",mSave:"Speichern",mAmountPh:"Betrag",
+      whyAuto:"Automatisch: 5 %, wenn mindestens 70 % der Schätzung bestätigt oder zum aktuellen Preis sind, sonst 10 %.",today:"Heute {p} % · {x}.",todayPct:"Heute {p} %.",todayAmt:"Heute {x}.",
+      known:"Der Reservebetrag erscheint, sobald die Schätzung vollständig ist.",apart:"Die Reserve bleibt getrennt: Sie ist keine Ausgabe.",offTxt:"Keine Reserve in den Budgetvorschlägen.",
+      sFuel:"Kraftstoff",conso:"Verbrauch für das Budget",consoRef:"Planung: {c} · keine Annahme, der Referenzwert gilt",consoMine:"Deine Annahme: {c} · {x} (Referenz {r})",
+      consoWait:"Verfügbar, sobald alle Strecken berechnet sind",fuelNote:"Gleiche Strecken und Preise wie in der Planung; nur das Budget nutzt deine Annahme.",
+      sFx:"Wechselkurse",allIn:"Diese Reise ist vollständig in {c}",noRate:"kein Kurs nötig",rateOf:"Kurs vom {d} · abgerufen am {f}",rateOld:"Kurs vom {d} · veraltet · aktualisieren",
+      rateNoDate:"Kursdatum unbekannt · nicht verwendet · aktualisieren",rateAbsent:"kein Kurs",rateAbsentSub:"Zeilen in {c} bleiben „offen“",parity:"feste Parität",
+      refresh:"Kurse aktualisieren",refreshing:"Wird aktualisiert…",refreshFail:"Kurse konnten nicht aktualisiert werden (Netz).",refreshOk:"Kurse aktualisiert",offline:"Offline: Aktualisierung nicht möglich",
+      attrib:"Kurse:",attribName:"Rates By Exchange Rate API",attribSub:"einmal täglich von der Quelle aktualisiert",
+      sPrev:"Vorschau Budget V2",prevTxt:"Das neue Budget ist in der Vorschau. Das alte bleibt verfügbar, mit unveränderten Ausgaben und Budget.",prevBack:"Zurück zum alten Budget",
+      back:"‹ Prognose-Einstellungen",fail:"Speichern nicht möglich ({c}).",minus:"Eins weniger",plus:"Eins mehr",ro:"Budget V2 ist für diese Reise schreibgeschützt: keine Einstellung änderbar."}};
+function _bv2P(){ return BV2_P_TXT[lang()]||BV2_P_TXT.fr; }
+const BV2_P_TRAV_MAX=20, BV2_P_ROOMS_MAX=20, BV2_P_TAX_MAX=99, BV2_P_STALE_MS=24*3600*1000;
+const BV2_P_ATTRIB_URL="https://www.exchangerate-api.com";
+const BV2_P_CSS=`
+#bv2ESheet .bv2p-s{font:700 12px Inter,sans-serif;color:var(--muted);text-transform:uppercase;letter-spacing:.3px;margin:18px 2px 6px}#bv2ESheet .bv2p-s:first-child{margin-top:4px}
+#bv2ESheet .bv2p-card{border:1px solid var(--line);border-radius:16px;background:var(--surface,#fff);padding:4px 14px}
+#bv2ESheet .bv2p-row{display:flex;align-items:center;gap:10px;padding:10px 0;border-top:1px solid var(--line-soft,#EEF1F7)}#bv2ESheet .bv2p-row:first-child{border-top:0}
+#bv2ESheet .bv2p-row .t{flex:1;min-width:0}#bv2ESheet .bv2p-row .t b{display:block;font:600 14.5px Inter,sans-serif;color:var(--ink);overflow-wrap:break-word}#bv2ESheet .bv2p-row .t span{display:block;font:500 12.5px Inter,sans-serif;color:var(--muted);margin-top:2px;overflow-wrap:break-word}
+#bv2ESheet .bv2p-row .t span.warn{color:var(--danger)}#bv2ESheet .bv2p-row .t span.bv2p-hyp,#bv2ESheet .bv2p-hyp{display:inline-block;border-radius:999px;background:var(--gold-soft);color:var(--gold-d);font:600 11.5px Inter,sans-serif;padding:2px 8px;margin-top:3px}
+#bv2ESheet .bv2p-cnt{display:flex;align-items:center;border:1px solid var(--line);border-radius:14px;flex:0 0 auto}#bv2ESheet .bv2p-cnt button{width:44px;height:44px;border:0;background:none;font:600 20px Inter,sans-serif;color:var(--ink)}
+#bv2ESheet .bv2p-cnt button:disabled{opacity:.35}#bv2ESheet .bv2p-cnt b{min-width:28px;text-align:center;font:700 16px Inter,sans-serif;color:var(--ink)}
+#bv2ESheet .bv2p-seg{display:flex;flex-wrap:wrap;gap:8px;padding:12px 0 4px}#bv2ESheet .bv2p-seg button{min-height:44px;padding:0 14px;border-radius:999px;border:1px solid var(--line);background:var(--surface,#fff);font:600 14px Inter,sans-serif;color:var(--ink)}
+#bv2ESheet .bv2p-seg button.on{background:var(--navy);border-color:var(--navy);color:#fff}
+#bv2ESheet .bv2p-note{font:500 12.5px Inter,sans-serif;color:var(--ink-2);padding:10px 0 12px;border-top:1px solid var(--line-soft,#EEF1F7);margin-top:8px}#bv2ESheet .bv2p-note b{color:var(--ink)}
+#bv2ESheet .bv2p-amt{display:flex;gap:8px;align-items:center;padding:4px 0 6px}#bv2ESheet .bv2p-amt input{flex:1;min-width:0;height:44px;border:1px solid var(--line);border-radius:12px;padding:0 12px;font:600 16px Inter,sans-serif;color:var(--ink);background:var(--surface,#fff)}
+#bv2ESheet .bv2p-amt span{font:600 13px Inter,sans-serif;color:var(--muted)}#bv2ESheet .bv2p-amt .btn.sm{min-height:44px;margin-top:0}
+#bv2ESheet .bv2p-link{display:flex;align-items:center;gap:10px;width:100%;text-align:left;border:0;background:none;padding:10px 0;min-height:56px;color:var(--ink)}#bv2ESheet .bv2p-link:disabled{opacity:1;color:var(--ink)}
+#bv2ESheet .bv2p-link .chev{font:600 18px Inter,sans-serif;color:var(--muted)}
+#bv2ESheet .bv2p-fx{padding:10px 0;border-top:1px solid var(--line-soft,#EEF1F7)}#bv2ESheet .bv2p-fx:first-child{border-top:0}#bv2ESheet .bv2p-fx b{font:700 14.5px Inter,sans-serif;color:var(--ink);overflow-wrap:anywhere}#bv2ESheet .bv2p-fx b .bad{color:var(--danger)}
+#bv2ESheet .bv2p-fx span{display:block;font:500 12.5px Inter,sans-serif;color:var(--muted);margin-top:2px}#bv2ESheet .bv2p-fx span.warn{color:var(--danger);font-weight:600}
+#bv2ESheet .bv2p-btn{width:100%;min-height:48px;margin:8px 0 6px;border-radius:14px;border:1.5px solid var(--ink);background:var(--surface,#fff);font:700 15px Inter,sans-serif;color:var(--ink)}#bv2ESheet .bv2p-btn:disabled{opacity:.45}
+#bv2ESheet .bv2p-attr{font:500 12px Inter,sans-serif;color:var(--muted);padding:0 0 12px}#bv2ESheet .bv2p-attr a{color:var(--ink-2);text-decoration:underline}
+#bv2ESheet .bv2p-txt{font:500 13px Inter,sans-serif;color:var(--ink-2);padding:12px 0 2px}
+#bv2ESheet .bv2p-ro{font:600 13px Inter,sans-serif;color:var(--danger);margin:6px 2px}
+.bv2p-gear{flex:0 0 auto;width:44px;height:44px;border-radius:50%;border:1px solid var(--line);background:var(--surface,#fff);display:grid;place-items:center;color:var(--ink);box-shadow:var(--shadow-sm)}
+.bv2p-gear svg{width:21px;height:21px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+[data-theme="dark"] #bv2ESheet .bv2p-card,[data-theme="dark"] #bv2ESheet .bv2p-seg button:not(.on),[data-theme="dark"] #bv2ESheet .bv2p-btn,[data-theme="dark"] .bv2p-gear{background:var(--surface,#131E33)}`;
+function _bv2PCssOnce(){ if(document.getElementById("bv2pCss")) return; const st=document.createElement("style"); st.id="bv2pCss"; st.textContent=BV2_P_CSS; document.head.appendChild(st); }
+const BV2_P_GEAR=`<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>`;
+
+/* ---------- geste : marge (seul lot qui la regle, §8) ---------- */
+function bv2MarginSet(tr, margin, gesture){   /* margin = {mode:"auto"|"off"} | {mode:"percent", percent:0|5|10} | {mode:"amount", amountMinor} ; schema verifie par bv2Mutate (bv2Check) */
+  const tc=bv2EditTargetCheck(tr); if(!tc.ok) return tc;
+  if(!_bv2Obj(margin)) return {ok:false, code:"MARGE_INVALIDE"};
+  const m=margin.mode==="amount"?{mode:"amount", amountMinor:margin.amountMinor}:(margin.mode==="percent"?{mode:"percent", percent:margin.percent}:{mode:margin.mode});
+  const g=gesture||bv2Capture();
+  return _bv2PSafe(tr, ()=>_bv2EMutate(tr, d=>{ d.margin=m; }, g, null)); }
+function _bv2PSafe(tr, fn){   /* filet : si l'ecriture echoue APRES l'affectation en memoire (saveState en erreur), etat initial exact (budgetV2, _ts, travelers) */
+  const K=_bv2XKeep(tr), ht=Object.prototype.hasOwnProperty.call(tr,"travelers"), tv=tr.travelers; let r;
+  try{ r=fn(); }catch(_e){ r={ok:false, code:"GESTE_ERREUR"}; }
+  if(!r||!r.ok){ _bv2XRestore(tr, K); if(ht) tr.travelers=tv; else delete tr.travelers; }
+  return r||{ok:false, code:"GESTE_ERREUR"}; }
+function bv2ParamsTravelers(tr, n, gesture){   /* E : meme geste que Q (B3.2), apres la garde d'apercu et de voyage */
+  const tc=bv2EditTargetCheck(tr); if(!tc.ok) return tc;
+  if(!Number.isInteger(n)||n<1||n>BV2_P_TRAV_MAX) return {ok:false, code:"VOYAGEURS_INVALIDES"};
+  return _bv2PSafe(tr, ()=>bv2ConfirmTravelers(tr, n)); }
+function bv2ParamsRooms(tr, lineId, n, gesture){   /* E : facteur rooms de la ligne hotel, meme ecriture que C' (B3.3) : edits[hotel.k].user.factors.rooms */
+  const tc=bv2EditTargetCheck(tr); if(!tc.ok) return tc;
+  if(typeof lineId!=="string"||!/^hotel\.[A-Za-z0-9_.:-]{1,74}$/.test(lineId)) return {ok:false, code:"LIGNE_INVALIDE"};
+  if(!Number.isInteger(n)||n<1||n>BV2_P_ROOMS_MAX) return {ok:false, code:"SAISIE_INVALIDE:rooms"};
+  const ed=_bv2Edit(bv2Store(tr).data, lineId), prev=ed?_bv2UserOf(ed):null, u=prev?bv2Clone(prev):{};
+  u.factors=Object.assign({}, u.factors||{}, {rooms:String(n)});
+  const g=gesture||bv2Capture(); return _bv2PSafe(tr, ()=>bv2EditSet(tr, lineId, {user:u}, g)); }
+function bv2ParamsTaxPersons(tr, n, gesture){ const g=gesture||bv2Capture(); const tc=bv2EditTargetCheck(tr); if(!tc.ok) return tc; return _bv2PSafe(tr, ()=>bv2TaxPersonsSet(tr, n, g)); }
+
+/* ---------- modele PUR de l'ecran E (aucune ecriture, aucun reseau) ---------- */
+function _bv2PRate(c, tcur, rates){ const decOf=x=>{ if(x==="EUR") return {n:1n,s:0}; const r=rates&&rates[x]; return (typeof r==="number"&&Number.isFinite(r)&&r>0)?_b2Dec(r):null; };
+  const a=decOf(tcur), b=decOf(c); return a&&b?_bv2RateStr(a, b):null; }   /* meme calcul que bv2Fx (B3.1) : 1 c = r[trip]/r[c] */
+function bv2FxCurrencies(tr){   /* devises du voyage autres que la sienne : lignes (saisies, candidats), etapes, depenses ; jamais la table FX */
+  const tcur=_bv2CurOf(tr), set=new Set();
+  try{ const L=bv2Lines(tr); for(const l of L.lines) for(const c of _bv2LineCurrencies(l)) set.add(String(c).toUpperCase()); }catch(_e){}
+  try{ for(const g of bv2Legs(tr).legs){ const c=g.leg&&g.leg.currency; if(typeof c==="string"&&c) set.add(c.toUpperCase()); } }catch(_e){}
+  try{ for(const x of bv2ReadExpenses(tr)) if(typeof x.currency==="string"&&x.currency) set.add(x.currency.toUpperCase()); }catch(_e){}
+  return Array.from(set).filter(c=>c!==tcur&&_bv2InTable(c)).sort(); }
+function bv2FxView(tr, nowMs){   /* PURE : etat de chaque taux pour E (§6.6) */
+  const tcur=_bv2CurOf(tr), fr=S&&S.settings&&S.settings.fxRates, rates=fr&&_bv2Obj(fr.rates)?fr.rates:null, now=Number.isFinite(nowMs)?nowMs:Date.now();
+  const eff=fr&&Number.isInteger(fr.effectiveAt)&&fr.effectiveAt>0?fr.effectiveAt:null, next=fr&&Number.isInteger(fr.nextAt)&&fr.nextAt>0?fr.nextAt:null, at=fr&&Number.isFinite(fr.at)?fr.at:null;
+  const used=bv2Fx(tr, bv2FxCurrencies(tr));   /* ce que B1 recoit vraiment */
+  const rows=bv2FxCurrencies(tr).map(c=>{ const parity=["XAF","XOF"].indexOf(c)>=0&&["EUR","XAF","XOF"].indexOf(tcur)>=0||["XAF","XOF"].indexOf(tcur)>=0&&c==="EUR";
+    const rate=_bv2PRate(c, tcur, rates), sent=used.fx.find(x=>x.from===c)||null;
+    let status; if(!rate) status="absent"; else if(!eff) status="nodate"; else if(next&&now>next+BV2_P_STALE_MS) status="old"; else status="ok";
+    return { cur:c, rate:sent?sent.rate:rate, status, parity, sent:!!sent }; });
+  return { tripCur:tcur, rows, effectiveAt:eff, fetchedAt:at, nextAt:next, any:rows.length>0 }; }
+function bv2ParamsView(tr){   /* PURE : tout ce qu'affiche E */
+  const st=bv2Store(tr), data=st.data, r=bv2Estimate(tr), res=r&&r.ok?r.result:null, cur=_bv2CurOf(tr);
+  const out={ readOnly:st.readOnly, cur, travelers:Number.isInteger(tr.travelers)?tr.travelers:null, travelersConfirmed:data.travelersConfirmed===true,
+    rooms:[], taxShown:false, taxPersons:data.taxPersons, margin:data.margin||{mode:"auto"}, marginOut:res?res.margin:null, complete:!!(res&&res.scenarios.central.complete), fuel:null, fx:bv2FxView(tr) };
+  if(res){ const legs=(()=>{ try{ return bv2Legs(tr).legs; }catch(_e){ return []; } })(), many=legs.length>1;
+    for(const l of res.lines){ if(l.type==="hotel"&&l.state!=="NOT_APPLICABLE"){ const m=(r.meta&&r.meta[l.id])||{}, fr=(l.quantity&&Array.isArray(l.quantity.factors))?l.quantity.factors.find(f=>f.key==="rooms"):null;
+        const g=legs.find(x=>"hotel."+x.key===l.id), name=many&&g&&g.leg&&g.leg.dest&&g.leg.dest.name?String(g.leg.dest.name).slice(0,40):null;
+        out.rooms.push({ id:l.id, value:fr?parseInt(fr.value,10):null, nights:Number.isInteger(m.nights)?m.nights:null, hypothesis:m.roomsHypothesis===true, source:m.source||null, name }); }
+      if(l.type==="tourist_tax"&&l.state!=="NOT_APPLICABLE") out.taxShown=true; } }
+  else { out.taxShown=!!data.taxPersons; }
+  try{ const v=bv2FuelView(tr); if(v.ref&&v.ref.applicable){ const ed=_bv2Edit(data, "fuel"), mine=ed&&Number.isFinite(Number(ed.conso))&&Number(ed.conso)>0?Number(ed.conso):null;
+      let hyMinor=null; if(mine!=null&&v.ref.state==="complete"){ const hy=budgetFuelHypothesis(v.ref, mine); if(hy&&hy.state==="complete") hyMinor=hy.minor; }
+      out.fuel={ complete:v.ref.state==="complete", vehConso:v.vehConso, unit:v.unit, mine, refMinor:v.ref.state==="complete"?v.ref.minor:null, hyMinor }; } }catch(_e){}
+  return out; }
+
+/* ---------- ecran E ---------- */
+let _bv2PFromE=false;   /* fiche carburant ouverte depuis E : bouton de retour */
+function bv2OpenParams(tr, opts){   /* lecture seule a l'ouverture : aucune ecriture, aucun reseau */
+  if(!tr||!bv2PreviewActive()||tr!==currentTrip()) return false;
+  _bv2ECssOnce(); _bv2PCssOnce(); const P=_bv2P(), V=bv2ParamsView(tr), esc=_bv2Esc, f=x=>_bv2Fmt(x, V.cur), ro=V.readOnly, dis=ro?" disabled":"";
+  const keep=opts&&opts.keepScroll?(document.getElementById("bv2EBody")||{}).scrollTop||0:0;
+  const cnt=(id, v, min, max, lbl)=>`<div class="bv2p-cnt" role="group" aria-label="${esc(lbl)}"><button type="button" data-pm="${esc(id)}" data-d="-1" aria-label="${esc(P.minus+" · "+lbl)}"${ro||v==null||v<=min?" disabled":""}>−</button><b aria-live="polite">${v==null?"–":esc(v)}</b><button type="button" data-pm="${esc(id)}" data-d="1" aria-label="${esc(P.plus+" · "+lbl)}"${ro||v!=null&&v>=max?" disabled":""}>+</button></div>`;
+  let h=ro?`<div class="bv2p-ro" id="bv2PRo">${esc(P.ro)}</div>`:"";
+  /* voyageurs et chambres */
+  h+=`<div class="bv2p-s">${esc(P.sTrav)}</div><div class="bv2p-card" id="bv2PTrav">`;
+  h+=`<div class="bv2p-row"><div class="t"><b>${esc(P.trav)}</b><span>${esc(V.travelersConfirmed?P.travSub:P.travTodo)}</span></div>${cnt("trav", V.travelers, 1, BV2_P_TRAV_MAX, P.trav)}</div>`;
+  for(const rm of V.rooms){ const lbl=rm.name?_bv2Tx(P.roomsAt,{w:rm.name}):P.rooms;
+    const sub=rm.hypothesis?`<span class="bv2p-hyp">${esc(P.roomsHyp)}</span><span>${esc(_bv2Tx(P.roomsHypSub,{r:rm.value==null?"?":rm.value, t:V.travelers==null?"?":V.travelers}))}</span>`
+      :`<span>${esc(rm.source==="v1"?_bv2Tx(P.roomsV1,{n:rm.nights==null?"?":rm.nights}):(rm.nights===1?P.roomsMine1:_bv2Tx(P.roomsMine,{n:rm.nights==null?"?":rm.nights})))}</span>`;
+    h+=`<div class="bv2p-row" data-rooms="${esc(rm.id)}"><div class="t"><b>${esc(lbl)}</b>${sub}</div>${cnt(rm.id, rm.value, 1, BV2_P_ROOMS_MAX, lbl)}</div>`; }
+  if(V.taxShown){ const tp=V.taxPersons, n=tp?tp.value:(V.travelers||1);
+    h+=`<div class="bv2p-row" id="bv2PTax"><div class="t"><b>${esc(P.tax)}</b><span${tp?"":" class=\"warn\""}>${esc(tp?_bv2Tx(P.taxOk,{n:tp.value, d:_bv2BDate(tp.confirmedAt)}):P.taxTodo)}</span></div>${cnt("tax", n, 0, BV2_P_TAX_MAX, P.tax)}</div>`;
+    if(!tp) h+=`<div class="bv2p-row"><button type="button" class="btn gold" id="bv2PTaxOk" style="width:100%;min-height:44px"${dis}>${esc(P.confirm)} · ${esc(n)}</button></div>`; }
+  h+=`</div>`;
+  /* marge */
+  const m=V.margin, mk=m.mode==="percent"?"p"+m.percent:m.mode, mo=V.marginOut;
+  const opt=(k, t)=>`<button type="button" data-mg="${k}" class="${mk===k?"on":""}" aria-pressed="${mk===k}"${dis}>${esc(t)}</button>`;
+  h+=`<div class="bv2p-s">${esc(P.sMargin)}</div><div class="bv2p-card" id="bv2PMargin"><div class="bv2p-seg" role="group" aria-label="${esc(P.sMargin)}">${opt("auto",P.mAuto)}${opt("p0","0 %")}${opt("p5","5 %")}${opt("p10","10 %")}${opt("amount",P.mAmount)}${opt("off",P.mOff)}</div>`;
+  const showAmt=mk==="amount"||(opts&&opts.amountOpen);
+  if(showAmt) h+=`<div class="bv2p-amt"><input id="bv2PMAmt" inputmode="decimal" placeholder="${esc(P.mAmountPh)}" aria-label="${esc(P.mAmount)}" value="${m.mode==="amount"?esc(_b2MinorToDecStr(m.amountMinor,_b2Digits(V.cur)).replace(/\.0+$/,"").replace(".",",")):""}"${dis}><span>${esc(V.cur||"")}</span><button type="button" class="btn sm gold" id="bv2PMAmtOk"${dis}>${esc(P.mSave)}</button></div>`;
+  let note=""; if(m.mode==="off") note=esc(P.offTxt);
+  else { if(m.mode==="auto") note+=esc(P.whyAuto)+" "; if(mo&&mo.enabled&&mo.amountMinor!=null) note+=`<b>${esc(!V.complete&&mo.appliedPct!=null?_bv2Tx(P.todayPct,{p:mo.appliedPct}):(mo.appliedPct!=null?_bv2Tx(P.today,{p:mo.appliedPct, x:f(mo.amountMinor)}):_bv2Tx(P.todayAmt,{x:f(mo.amountMinor)})))}</b> `;   /* estimation incomplete : aucun montant de marge affiche (INV, jamais de faux total) */
+    if(mo&&!V.complete) note+=esc(P.known)+" "; note+=esc(P.apart); }
+  h+=`<div class="bv2p-note" id="bv2PMarginNote">${note.replace(/(\d) %/g,"$1\u00a0%")}</div></div>`;   /* « 10 % » jamais coupe */
+  /* carburant */
+  if(V.fuel){ const u=V.fuel.unit, cs=x=>_bv2EConsoStr(x, u);
+    const sub=!V.fuel.complete?P.consoWait:(V.fuel.mine!=null?_bv2Tx(P.consoMine,{c:cs(V.fuel.mine), x:_bv2Fmt(V.fuel.hyMinor, V.cur), r:_bv2Fmt(V.fuel.refMinor, V.cur)}):_bv2Tx(P.consoRef,{c:cs(V.fuel.vehConso)}));
+    h+=`<div class="bv2p-s">${esc(P.sFuel)}</div><div class="bv2p-card" id="bv2PFuel"><button type="button" class="bv2p-link" id="bv2PConso"${V.fuel.complete&&!ro?"":" disabled"}><span class="t" style="flex:1;min-width:0"><b style="display:block;font:600 14.5px Inter,sans-serif">${esc(P.conso)}</b><span style="display:block;font:500 12.5px Inter,sans-serif;color:var(--muted);margin-top:2px">${esc(sub)}</span></span>${V.fuel.complete&&!ro?`<span class="chev" aria-hidden="true">›</span>`:""}</button><div class="bv2p-note">${esc(P.fuelNote)}</div></div>`; }
+  /* taux de change */
+  const X=V.fx; h+=`<div class="bv2p-s">${esc(P.sFx)}</div><div class="bv2p-card" id="bv2PFx">`;
+  if(!X.any) h+=`<div class="bv2p-fx"><b>${esc(_bv2Tx(P.allIn,{c:X.tripCur||"?"}))}</b><span>${esc(P.noRate)}</span></div>`;
+  else { const d=ts=>_bv2BDate(ts), rateTxt=x=>{ const n=Number(x); if(!Number.isFinite(n)) return x; try{ return n.toLocaleString(LOCALE[lang()]||"fr-FR",{maximumSignificantDigits:5}); }catch(_e){ return x; } };
+    for(const x of X.rows){ const head=`1 ${esc(x.cur)} = `;
+      if(x.status==="absent") h+=`<div class="bv2p-fx" data-fx="${esc(x.cur)}" data-st="absent"><b>${head}<span class="bad">${esc(P.rateAbsent)}</span></b><span>${esc(_bv2Tx(P.rateAbsentSub,{c:x.cur}))}</span></div>`;
+      else { const sub=x.status==="ok"?_bv2Tx(P.rateOf,{d:d(X.effectiveAt), f:d(X.fetchedAt)}):(x.status==="old"?_bv2Tx(P.rateOld,{d:d(X.effectiveAt)}):P.rateNoDate);
+        h+=`<div class="bv2p-fx" data-fx="${esc(x.cur)}" data-st="${x.status}"><b>${head}${esc(rateTxt(x.rate))} ${esc(X.tripCur)}</b><span${x.status==="ok"?"":" class=\"warn\""}>${esc(sub)}${x.parity?" · "+esc(P.parity):""}</span></div>`; } }
+    const off=typeof navigator!=="undefined"&&navigator.onLine===false;
+    h+=`<button type="button" class="bv2p-btn" id="bv2PRefresh"${off?" disabled":""}>${esc(off?P.offline:P.refresh)}</button>`; }
+  h+=`<div class="bv2p-attr" id="bv2PAttr">${esc(P.attrib)} <a href="${BV2_P_ATTRIB_URL}" target="_blank" rel="noopener noreferrer">${esc(P.attribName)}</a> · ${esc(P.attribSub)}</div></div>`;
+  /* apercu */
+  h+=`<div class="bv2p-s">${esc(P.sPrev)}</div><div class="bv2p-card" id="bv2PPrev"><div class="bv2p-txt">${esc(P.prevTxt)}</div><button type="button" class="bv2p-btn" id="bv2PBackV1">${esc(P.prevBack)}</button></div>`;
+  _bv2EShow(P.title, h); _bv2ETrip=tr; _bv2EKind="params"; _bv2ELine=null; _bv2EBack=null; _bv2PFromE=false;
+  const B=document.getElementById("bv2EBody"); B.scrollTop=keep;
+  const after=(r, extra)=>{ if(!r||!r.ok){ if(r&&(r.code==="VOYAGE_CHANGE"||r.code==="APERCU_INACTIF")){ bv2CloseE(); return; } toast(_bv2Tx(P.fail,{c:(r&&r.code)||"?"})); return; }
+    try{ renderBudget(); }catch(_e){} const t=currentTrip(); if(t&&bv2PreviewActive()) bv2OpenParams(t, Object.assign({keepScroll:true}, extra||{})); };
+  const guard=()=>_bv2EGuard();
+  B.querySelectorAll("[data-pm]").forEach(b=>b.onclick=()=>{ const t=guard(); if(!t) return; const id=b.dataset.pm, d=+b.dataset.d, W=bv2ParamsView(t);
+    if(id==="trav"){ const v=(W.travelers||1)+d; after(bv2ParamsTravelers(t, v, bv2Capture())); return; }
+    if(id==="tax"){ const tp=W.taxPersons; if(!tp){ const lab=B.querySelector("#bv2PTax b[aria-live]"), ok=B.querySelector("#bv2PTaxOk"); const v=Math.max(0, Math.min(BV2_P_TAX_MAX, (+lab.textContent)+d));
+        lab.textContent=String(v); ok.textContent=P.confirm+" · "+v; B.querySelectorAll('[data-pm="tax"]').forEach(x=>{ x.disabled=(+x.dataset.d<0&&v<=0)||(+x.dataset.d>0&&v>=BV2_P_TAX_MAX); }); return; }   /* A20 : rien n'est ecrit avant « Confirmer » */
+      after(bv2ParamsTaxPersons(t, Math.max(0, Math.min(BV2_P_TAX_MAX, tp.value+d)), bv2Capture())); return; }
+    const rm=W.rooms.find(x=>x.id===id); if(!rm||rm.value==null) return; after(bv2ParamsRooms(t, id, rm.value+d, bv2Capture())); });
+  const tok=B.querySelector("#bv2PTaxOk"); if(tok) tok.onclick=()=>{ const t=guard(); if(!t) return; const v=+B.querySelector("#bv2PTax b[aria-live]").textContent; after(bv2ParamsTaxPersons(t, v, bv2Capture())); };
+  B.querySelectorAll("[data-mg]").forEach(b=>b.onclick=()=>{ const t=guard(); if(!t) return; const k=b.dataset.mg;
+    if(k==="amount"){ if(bv2Store(t).data.margin.mode!=="amount") bv2OpenParams(t, {keepScroll:true, amountOpen:true}); const i=document.getElementById("bv2PMAmt"); if(i) i.focus(); return; }
+    const mm=k==="auto"||k==="off"?{mode:k}:{mode:"percent", percent:+k.slice(1)}; after(bv2MarginSet(t, mm, bv2Capture())); });
+  const ma=B.querySelector("#bv2PMAmtOk"); if(ma) ma.onclick=()=>{ const t=guard(); if(!t) return; const c=_bv2CurOf(t), s=bv2EditAmountStr(B.querySelector("#bv2PMAmt").value, c), mn=s==null?null:bv2BudgetMinorOf(s, c);
+    if(mn==null){ toast(_bv2E().invalid); return; } after(bv2MarginSet(t, {mode:"amount", amountMinor:mn}, bv2Capture())); };
+  const cb=B.querySelector("#bv2PConso"); if(cb&&!cb.disabled) cb.onclick=()=>{ const t=guard(); if(!t) return; _bv2PFromE=true; bv2OpenLine(t, "fuel"); };
+  const rf=B.querySelector("#bv2PRefresh"); if(rf) rf.onclick=async()=>{ const t=guard(); if(!t) return; rf.disabled=true; rf.textContent=P.refreshing; let ok=false;
+    try{ ok=await refreshFxRates(); }catch(_e){ ok=false; }   /* geste reseau declare (§6.1) : seul appel de service de E */
+    const t2=currentTrip(); if(!ok){ toast(P.refreshFail); if(t2===t&&_bv2EKind==="params"&&bv2PreviewActive()) bv2OpenParams(t2, {keepScroll:true}); return; }
+    toast(P.refreshOk); try{ renderBudget(); }catch(_e){} if(t2===t&&_bv2EKind==="params"&&bv2PreviewActive()) bv2OpenParams(t2, {keepScroll:true}); };
+  const bk=B.querySelector("#bv2PBackV1"); if(bk) bk.onclick=()=>{ const r=bv2SetPreview(false); if(!r.ok){ toast(_bv2Tx(P.fail,{c:r.code})); return; } bv2CloseE(); try{ bv2SubRestore(); renderBudget(); }catch(_e){} };
+  return true; }
+function _bv2PBackBtn(){ const B=document.getElementById("bv2EBody"); if(!B||!_bv2PFromE||B.querySelector("#bv2PBackE")) return;
+  const b=document.createElement("button"); b.type="button"; b.className="bv2e-back"; b.id="bv2PBackE"; b.textContent=_bv2P().back;
+  b.onclick=()=>{ const t=currentTrip(); if(t&&bv2PreviewActive()) bv2OpenParams(t); else bv2CloseE(); }; B.insertBefore(b, B.firstChild); }
+
+/* ---------- accroches (enveloppes ; aucune fonction gelee modifiee) ---------- */
+bv2OpenLine=(function(prev){ return function(tr, lineId, opts){ const fromE=_bv2PFromE&&lineId==="fuel"; const r=prev(tr, lineId, opts); if(fromE&&_bv2EKind==="line"&&_bv2ELine==="fuel"){ _bv2PFromE=true; _bv2PBackBtn(); } else _bv2PFromE=false; return r; }; })(bv2OpenLine);   /* le reopen de la fiche carburant garde le retour vers E */
+bv2CloseE=(function(prev){ return function(){ _bv2PFromE=false; return prev.apply(this, arguments); }; })(bv2CloseE);
+function _bv2PGear(on){ const head=document.querySelector("#view-budget .page-head"); if(!head) return; let g=document.getElementById("bv2PGear");
+  if(!on){ if(g) g.remove(); return; }
+  _bv2PCssOnce(); if(!g){ g=document.createElement("button"); g.type="button"; g.id="bv2PGear"; g.className="bv2p-gear"; g.innerHTML=BV2_P_GEAR; head.appendChild(g); }
+  g.setAttribute("aria-label", _bv2P().gear); g.title=_bv2P().gear;
+  g.onclick=()=>{ const t=currentTrip(); if(t&&bv2PreviewActive()) bv2OpenParams(t); }; }
+bv2RenderA=(function(prev){ return function(body, tr){ const r=prev(body, tr); try{ _bv2PGear(!!tr&&bv2PreviewActive()); }catch(_e){} return r; }; })(bv2RenderA);   /* ⚙ de l'en-tete (§6.1) : element d'interface, aucune donnee ecrite */
+bv2SubRestore=(function(prev){ return function(){ const r=prev.apply(this, arguments); try{ if(!bv2PreviewActive()) _bv2PGear(false); }catch(_e){} return r; }; })(bv2SubRestore);   /* rendu V1 : plus de ⚙ */
+/* ===== fin BUDGET V2 -- B3.7 ===== */
 /* FUEL-R1 : table statique FUEL_BY_CC supprimee -- aucun prix carburant/energie non source, dans aucun pays. */
 /* FUEL-R1 : fuelPrice() (table statique) supprimee. */
 /* ============================================================
