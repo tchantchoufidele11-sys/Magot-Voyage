@@ -9395,6 +9395,8 @@ bv2AfterA=(function(prev){ return function(body, tr, r){ if(typeof prev==="funct
 /* ===== fin BUDGET V2 -- B3.4 ===== */
 /* ===== BUDGET V2 -- B3.5 DEPENSES ET PAIEMENTS REELS (spec B3-r3 §6.5 D/D', §7.3 expenses, §9 ; GO GEL B3.4 et GO B3.5, Loic 14 oct. 2026) =====
    Lot B3.5-1 : enregistrer une depense reelle depuis le Budget V2, la retrouver apres rechargement, afficher « Deja paye » separement de l'estimation.
+   Lot B3.5-2 (plus bas) : relier une depense a une ligne, paiement complet ou acompte, reste par ligne ; P1 audit B3.5-1 : devise cible du taux fige.
+   Lot B3.5-3 : remboursements, modification en place (E16), « Utiliser le taux du ... », taxe comprise (settlesTax), « Utiliser ce prix comme prix confirme » (basis expense).
    - Bloc AJOUTE apres B3.4 (gele, e17c89d6) : aucun octet de B1, B2, P6d, B3.0 a B3.4 n'est modifie. Accroche : bv2AfterA enchaine (DOM seul).
    - Une depense V2 EST une depense V1 : l'enregistrement va dans tr.expenses (memes champs que addExpense V1 : id, amount signe en unites majeures,
      currency, category, establishment, label, city, date, createdAt), ecrit DANS le geste bv2Mutate avec un journal de reprise (patron Q, A26-a),
@@ -9405,35 +9407,35 @@ bv2AfterA=(function(prev){ return function(body, tr, r){ if(typeof prev==="funct
    - Anciennes depenses : lues par bv2ReadExpenses (B3.0), jamais reecrites ; celles en autre devise sans taux V2 -> « Taux a actualiser ».
    - Deux gestes : bv2ExpenseAdd, bv2ExpenseDelete ; gardes bv2EditTargetCheck (B3.3) + bv2Mutate (B3.0, compte synchronise refuse). */
 const BV2_X_TXT={
-  fr:{other:"Autres",paid:"Déjà payé",paidN:"{n} dépenses",paid1:"1 dépense",partial:"Total partiel · {n} dépense(s) sans taux",none:"J'ai déjà payé quelque chose ›",add:"+ Ajouter une dépense",list:"Voir les dépenses",
+  fr:{all:"Toutes",places:"Tes lieux",typeExp:"Dépense",typeRef:"Remboursement",editTitle:"Modifier la dépense",editSave:"Enregistrer les modifications",edited:"Dépense modifiée",edit:"Modifier",taxIn:"La taxe de séjour est comprise",taxInWhy:"La ligne de taxe sera soldée aussi, sans montant séparé.",useRate:"Utiliser le taux du {d}",refreshRates:"Actualiser les taux",ratesFail:"Taux indisponibles pour l'instant (hors ligne ?).",rateUsed:"Taux du {d} appliqué",confirmPrice:"Utiliser {x} comme prix confirmé de la ligne ?",priceDone:"Prix confirmé : {x}",refundSaved:"Remboursement enregistré",rateKept:"Le taux figé est conservé (montant et devise inchangés).",rateNew:"Montant ou devise modifiés : le taux sera figé à nouveau.",taxDone:"taxe comprise",payOf:"C'est le paiement de… (facultatif)",noLine:"— Aucune ligne",grpOther:"Autres postes",full:"Paiement complet",part:"Acompte ou partiel",fullWhy:"La ligne sera soldée : reste 0.",partWhy:"Reste {x} prévus sur cette ligne.",partWhyUnk:"Reste à préciser : le prix de la ligne est inconnu.",over:"Payé {p} · estimé {e} · +{o}",est:"estimé {x}",estUnk:"prix à préciser",rest:"reste {x}",linked:"↳ {l} · estimé {e}",linkedUnk:"↳ {l} · prix à préciser",settled:"soldé",deposit:"acompte, reste {x}",depositUnk:"acompte, reste à préciser",pendingRate:"taux à actualiser",lost:"Lien perdu · relier",link:"Relier",linkEdit:"Modifier le lien",linkTitle:"Relier à une ligne",unlink:"Délier",linkSaved:"Lien enregistré",unlinked:"Dépense déliée",refundNoToggle:"Remboursement : il réduit le payé de la ligne, sans bascule.",refundNoPay:"remboursement sans paiement lié",lineSet:"Ligne",other:"Autres",paid:"Déjà payé",paidN:"{n} dépenses",paid1:"1 dépense",partial:"Total partiel · {n} dépense(s) sans taux",none:"J'ai déjà payé quelque chose ›",add:"+ Ajouter une dépense",list:"Voir les dépenses",
       notEst:"Montants réellement payés, à part de l'estimation.",title:"Ajouter une dépense",listTitle:"Dépenses",amount:"Montant",currency:"Devise",category:"Catégorie",place:"Établissement",placePh:"Ex. Hôtel des Célestins",city:"Ville",date:"Date",
       save:"Enregistrer la dépense",saved:"Dépense enregistrée",deleted:"Dépense supprimée",del:"Supprimer",delAsk:"Supprimer cette dépense ? Elle sera retirée du Budget, ancien et nouveau.",
       invalid:"Montant invalide",needCat:"Choisis une catégorie",outTrip:"Date hors du séjour : la dépense sera bien enregistrée.",rateOk:"≈ {x} · taux du {d}",rateNo:"Taux indisponible : la dépense sera enregistrée avec « Taux à actualiser » et exclue du total converti.",
       toRefresh:"Taux à actualiser",conv:"≈ {x} · taux du {d}",refund:"↩︎ Remboursement",dayTot:"{x}",byPost:"{p} : {x} payés · {e} estimés",byPostInc:"{p} : {x} payés · estimation à préciser",byPostNoEst:"{p} : {x} payés",
       empty:"Aucune dépense pour l'instant.",keepV1:"Dépense liée à l'ancien Budget (billet ou hébergement) : à modifier depuis l'ancien Budget.",fail:"Impossible d'enregistrer ({c}).",dup:"Cette dépense est déjà enregistrée.",
       arrow:"→ {p}",invalidRec:"montant illisible"},
-  en:{other:"Other",paid:"Already paid",paidN:"{n} expenses",paid1:"1 expense",partial:"Partial total · {n} expense(s) without rate",none:"I've already paid something ›",add:"+ Add an expense",list:"See expenses",
+  en:{all:"All",places:"Your places",typeExp:"Expense",typeRef:"Refund",editTitle:"Edit expense",editSave:"Save changes",edited:"Expense updated",edit:"Edit",taxIn:"Tourist tax is included",taxInWhy:"The tax line will be settled too, with no separate amount.",useRate:"Use the rate of {d}",refreshRates:"Refresh rates",ratesFail:"Rates unavailable right now (offline?).",rateUsed:"Rate of {d} applied",confirmPrice:"Use {x} as the confirmed price of the line?",priceDone:"Price confirmed: {x}",refundSaved:"Refund saved",rateKept:"The frozen rate is kept (amount and currency unchanged).",rateNew:"Amount or currency changed: the rate will be frozen again.",taxDone:"tax included",payOf:"This pays for… (optional)",noLine:"— No line",grpOther:"Other categories",full:"Full payment",part:"Deposit or partial",fullWhy:"The line will be settled: 0 left.",partWhy:"{x} still planned on this line.",partWhyUnk:"Remaining amount unknown: the line price is not set.",over:"Paid {p} · estimated {e} · +{o}",est:"estimated {x}",estUnk:"price to specify",rest:"{x} left",linked:"↳ {l} · estimated {e}",linkedUnk:"↳ {l} · price to specify",settled:"settled",deposit:"deposit, {x} left",depositUnk:"deposit, remaining unknown",pendingRate:"rate to refresh",lost:"Link lost · relink",link:"Link",linkEdit:"Change link",linkTitle:"Link to a line",unlink:"Unlink",linkSaved:"Link saved",unlinked:"Expense unlinked",refundNoToggle:"Refund: it lowers what was paid on the line, no toggle.",refundNoPay:"refund without a linked payment",lineSet:"Line",other:"Other",paid:"Already paid",paidN:"{n} expenses",paid1:"1 expense",partial:"Partial total · {n} expense(s) without rate",none:"I've already paid something ›",add:"+ Add an expense",list:"See expenses",
       notEst:"Amounts actually paid, separate from the estimate.",title:"Add an expense",listTitle:"Expenses",amount:"Amount",currency:"Currency",category:"Category",place:"Place",placePh:"e.g. Hôtel des Célestins",city:"City",date:"Date",
       save:"Save the expense",saved:"Expense saved",deleted:"Expense deleted",del:"Delete",delAsk:"Delete this expense? It will be removed from both the old and new Budget.",
       invalid:"Invalid amount",needCat:"Choose a category",outTrip:"Date outside the trip: the expense will still be saved.",rateOk:"≈ {x} · rate of {d}",rateNo:"Rate unavailable: the expense will be saved as “Rate to refresh” and left out of the converted total.",
       toRefresh:"Rate to refresh",conv:"≈ {x} · rate of {d}",refund:"↩︎ Refund",dayTot:"{x}",byPost:"{p}: {x} paid · {e} estimated",byPostInc:"{p}: {x} paid · estimate to specify",byPostNoEst:"{p}: {x} paid",
       empty:"No expenses yet.",keepV1:"Expense tied to the old Budget (ticket or lodging): change it from the old Budget.",fail:"Cannot save ({c}).",dup:"This expense is already saved.",
       arrow:"→ {p}",invalidRec:"unreadable amount"},
-  es:{other:"Otros",paid:"Ya pagado",paidN:"{n} gastos",paid1:"1 gasto",partial:"Total parcial · {n} gasto(s) sin tipo de cambio",none:"Ya he pagado algo ›",add:"+ Añadir un gasto",list:"Ver los gastos",
+  es:{all:"Todos",places:"Tus lugares",typeExp:"Gasto",typeRef:"Reembolso",editTitle:"Modificar el gasto",editSave:"Guardar los cambios",edited:"Gasto modificado",edit:"Modificar",taxIn:"La tasa turística está incluida",taxInWhy:"La línea de la tasa también quedará saldada, sin importe aparte.",useRate:"Usar el cambio del {d}",refreshRates:"Actualizar los cambios",ratesFail:"Cambios no disponibles por ahora (¿sin conexión?).",rateUsed:"Cambio del {d} aplicado",confirmPrice:"¿Usar {x} como precio confirmado de la línea?",priceDone:"Precio confirmado: {x}",refundSaved:"Reembolso guardado",rateKept:"Se conserva el cambio fijado (importe y moneda sin cambios).",rateNew:"Importe o moneda modificados: el cambio se fijará de nuevo.",taxDone:"tasa incluida",payOf:"Es el pago de… (opcional)",noLine:"— Ninguna línea",grpOther:"Otras partidas",full:"Pago completo",part:"Anticipo o parcial",fullWhy:"La línea quedará saldada: queda 0.",partWhy:"Quedan {x} previstos en esta línea.",partWhyUnk:"Resto por precisar: el precio de la línea es desconocido.",over:"Pagado {p} · estimado {e} · +{o}",est:"estimado {x}",estUnk:"precio por precisar",rest:"quedan {x}",linked:"↳ {l} · estimado {e}",linkedUnk:"↳ {l} · precio por precisar",settled:"saldado",deposit:"anticipo, quedan {x}",depositUnk:"anticipo, resto por precisar",pendingRate:"cambio por actualizar",lost:"Enlace perdido · volver a enlazar",link:"Enlazar",linkEdit:"Cambiar el enlace",linkTitle:"Enlazar con una línea",unlink:"Desenlazar",linkSaved:"Enlace guardado",unlinked:"Gasto desenlazado",refundNoToggle:"Reembolso: reduce lo pagado en la línea, sin opción.",refundNoPay:"reembolso sin pago enlazado",lineSet:"Línea",other:"Otros",paid:"Ya pagado",paidN:"{n} gastos",paid1:"1 gasto",partial:"Total parcial · {n} gasto(s) sin tipo de cambio",none:"Ya he pagado algo ›",add:"+ Añadir un gasto",list:"Ver los gastos",
       notEst:"Importes realmente pagados, aparte de la estimación.",title:"Añadir un gasto",listTitle:"Gastos",amount:"Importe",currency:"Moneda",category:"Categoría",place:"Establecimiento",placePh:"Ej. Hôtel des Célestins",city:"Ciudad",date:"Fecha",
       save:"Guardar el gasto",saved:"Gasto guardado",deleted:"Gasto eliminado",del:"Eliminar",delAsk:"¿Eliminar este gasto? Se quitará del Presupuesto, anterior y nuevo.",
       invalid:"Importe no válido",needCat:"Elige una categoría",outTrip:"Fecha fuera del viaje: el gasto se guardará igualmente.",rateOk:"≈ {x} · cambio del {d}",rateNo:"Tipo de cambio no disponible: el gasto se guardará con «Cambio por actualizar» y quedará fuera del total convertido.",
       toRefresh:"Cambio por actualizar",conv:"≈ {x} · cambio del {d}",refund:"↩︎ Reembolso",dayTot:"{x}",byPost:"{p}: {x} pagados · {e} estimados",byPostInc:"{p}: {x} pagados · estimación por precisar",byPostNoEst:"{p}: {x} pagados",
       empty:"Todavía no hay gastos.",keepV1:"Gasto ligado al Presupuesto anterior (billete o alojamiento): modifícalo desde el Presupuesto anterior.",fail:"No se puede guardar ({c}).",dup:"Este gasto ya está guardado.",
       arrow:"→ {p}",invalidRec:"importe ilegible"},
-  it:{other:"Altro",paid:"Già pagato",paidN:"{n} spese",paid1:"1 spesa",partial:"Totale parziale · {n} spesa/e senza cambio",none:"Ho già pagato qualcosa ›",add:"+ Aggiungi una spesa",list:"Vedi le spese",
+  it:{all:"Tutte",places:"I tuoi luoghi",typeExp:"Spesa",typeRef:"Rimborso",editTitle:"Modifica la spesa",editSave:"Salva le modifiche",edited:"Spesa modificata",edit:"Modifica",taxIn:"La tassa di soggiorno è compresa",taxInWhy:"Anche la voce della tassa sarà saldata, senza importo separato.",useRate:"Usa il cambio del {d}",refreshRates:"Aggiorna i cambi",ratesFail:"Cambi non disponibili per ora (offline?).",rateUsed:"Cambio del {d} applicato",confirmPrice:"Usare {x} come prezzo confermato della voce?",priceDone:"Prezzo confermato: {x}",refundSaved:"Rimborso salvato",rateKept:"Il cambio fissato è mantenuto (importo e valuta invariati).",rateNew:"Importo o valuta modificati: il cambio sarà fissato di nuovo.",taxDone:"tassa compresa",payOf:"È il pagamento di… (facoltativo)",noLine:"— Nessuna voce",grpOther:"Altre voci",full:"Pagamento completo",part:"Acconto o parziale",fullWhy:"La voce sarà saldata: resta 0.",partWhy:"Restano {x} previsti su questa voce.",partWhyUnk:"Resto da precisare: il prezzo della voce è sconosciuto.",over:"Pagato {p} · stimato {e} · +{o}",est:"stimato {x}",estUnk:"prezzo da precisare",rest:"restano {x}",linked:"↳ {l} · stimato {e}",linkedUnk:"↳ {l} · prezzo da precisare",settled:"saldato",deposit:"acconto, restano {x}",depositUnk:"acconto, resto da precisare",pendingRate:"cambio da aggiornare",lost:"Collegamento perso · ricollega",link:"Collega",linkEdit:"Modifica il collegamento",linkTitle:"Collega a una voce",unlink:"Scollega",linkSaved:"Collegamento salvato",unlinked:"Spesa scollegata",refundNoToggle:"Rimborso: riduce il pagato della voce, senza scelta.",refundNoPay:"rimborso senza pagamento collegato",lineSet:"Voce",other:"Altro",paid:"Già pagato",paidN:"{n} spese",paid1:"1 spesa",partial:"Totale parziale · {n} spesa/e senza cambio",none:"Ho già pagato qualcosa ›",add:"+ Aggiungi una spesa",list:"Vedi le spese",
       notEst:"Importi realmente pagati, separati dalla stima.",title:"Aggiungi una spesa",listTitle:"Spese",amount:"Importo",currency:"Valuta",category:"Categoria",place:"Esercizio",placePh:"Es. Hôtel des Célestins",city:"Città",date:"Data",
       save:"Salva la spesa",saved:"Spesa salvata",deleted:"Spesa eliminata",del:"Elimina",delAsk:"Eliminare questa spesa? Sarà tolta dal Budget, precedente e nuovo.",
       invalid:"Importo non valido",needCat:"Scegli una categoria",outTrip:"Data fuori dal viaggio: la spesa sarà comunque salvata.",rateOk:"≈ {x} · cambio del {d}",rateNo:"Cambio non disponibile: la spesa sarà salvata con «Cambio da aggiornare» ed esclusa dal totale convertito.",
       toRefresh:"Cambio da aggiornare",conv:"≈ {x} · cambio del {d}",refund:"↩︎ Rimborso",dayTot:"{x}",byPost:"{p}: {x} pagati · {e} stimati",byPostInc:"{p}: {x} pagati · stima da precisare",byPostNoEst:"{p}: {x} pagati",
       empty:"Nessuna spesa per ora.",keepV1:"Spesa legata al Budget precedente (biglietto o alloggio): modificala dal Budget precedente.",fail:"Impossibile salvare ({c}).",dup:"Questa spesa è già salvata.",
       arrow:"→ {p}",invalidRec:"importo illeggibile"},
-  de:{other:"Sonstiges",paid:"Bereits bezahlt",paidN:"{n} Ausgaben",paid1:"1 Ausgabe",partial:"Teilsumme · {n} Ausgabe(n) ohne Kurs",none:"Ich habe schon etwas bezahlt ›",add:"+ Ausgabe hinzufügen",list:"Ausgaben ansehen",
+  de:{all:"Alle",places:"Deine Orte",typeExp:"Ausgabe",typeRef:"Erstattung",editTitle:"Ausgabe bearbeiten",editSave:"Änderungen speichern",edited:"Ausgabe geändert",edit:"Bearbeiten",taxIn:"Kurtaxe ist inbegriffen",taxInWhy:"Die Kurtaxe-Zeile gilt dann auch als bezahlt, ohne eigenen Betrag.",useRate:"Kurs vom {d} verwenden",refreshRates:"Kurse aktualisieren",ratesFail:"Kurse gerade nicht verfügbar (offline?).",rateUsed:"Kurs vom {d} angewendet",confirmPrice:"{x} als bestätigten Preis der Zeile verwenden?",priceDone:"Preis bestätigt: {x}",refundSaved:"Erstattung gespeichert",rateKept:"Der festgelegte Kurs bleibt (Betrag und Währung unverändert).",rateNew:"Betrag oder Währung geändert: Der Kurs wird neu festgelegt.",taxDone:"Kurtaxe inbegriffen",payOf:"Das bezahlt… (optional)",noLine:"— Keine Zeile",grpOther:"Andere Posten",full:"Vollständige Zahlung",part:"Anzahlung oder Teilzahlung",fullWhy:"Die Zeile gilt als bezahlt: Rest 0.",partWhy:"Noch {x} auf dieser Zeile geplant.",partWhyUnk:"Rest unbekannt: Der Preis der Zeile fehlt.",over:"Bezahlt {p} · geschätzt {e} · +{o}",est:"geschätzt {x}",estUnk:"Preis offen",rest:"Rest {x}",linked:"↳ {l} · geschätzt {e}",linkedUnk:"↳ {l} · Preis offen",settled:"bezahlt",deposit:"Anzahlung, Rest {x}",depositUnk:"Anzahlung, Rest offen",pendingRate:"Kurs zu aktualisieren",lost:"Verknüpfung verloren · neu verknüpfen",link:"Verknüpfen",linkEdit:"Verknüpfung ändern",linkTitle:"Mit einer Zeile verknüpfen",unlink:"Lösen",linkSaved:"Verknüpfung gespeichert",unlinked:"Ausgabe gelöst",refundNoToggle:"Erstattung: senkt den bezahlten Betrag der Zeile, ohne Auswahl.",refundNoPay:"Erstattung ohne verknüpfte Zahlung",lineSet:"Zeile",other:"Sonstiges",paid:"Bereits bezahlt",paidN:"{n} Ausgaben",paid1:"1 Ausgabe",partial:"Teilsumme · {n} Ausgabe(n) ohne Kurs",none:"Ich habe schon etwas bezahlt ›",add:"+ Ausgabe hinzufügen",list:"Ausgaben ansehen",
       notEst:"Tatsächlich bezahlte Beträge, getrennt von der Schätzung.",title:"Ausgabe hinzufügen",listTitle:"Ausgaben",amount:"Betrag",currency:"Währung",category:"Kategorie",place:"Ort",placePh:"z. B. Hôtel des Célestins",city:"Stadt",date:"Datum",
       save:"Ausgabe speichern",saved:"Ausgabe gespeichert",deleted:"Ausgabe gelöscht",del:"Löschen",delAsk:"Diese Ausgabe löschen? Sie wird aus dem alten und dem neuen Budget entfernt.",
       invalid:"Ungültiger Betrag",needCat:"Wähle eine Kategorie",outTrip:"Datum außerhalb der Reise: Die Ausgabe wird trotzdem gespeichert.",rateOk:"≈ {x} · Kurs vom {d}",rateNo:"Kurs nicht verfügbar: Die Ausgabe wird als „Kurs zu aktualisieren“ gespeichert und nicht in die umgerechnete Summe aufgenommen.",
@@ -9451,9 +9453,10 @@ function bv2FxConvert(minor, fromCur, toCur, rate){   /* PURE, exact : minor (de
 function bv2SpentView(tr, r){   /* PURE : « Deja paye » = somme nette des depenses (depenses - remboursements) en devise du voyage ; sans taux -> exclue (partiel) */
   const cur=_bv2CurOf(tr), recs=bv2ReadExpenses(tr), byPost={}, out={ currency:cur, spentMinor:0, count:0, pending:0, invalid:0, byPost, recs:[] };
   for(const x of recs){ let tm=null;
-    if(x.minor!=null){ if(x.currency===cur) tm=x.minor; else if(x.fxStatus==="sourced"&&x.fx) tm=bv2FxConvert(x.minor, x.currency, cur, x.fx.rate); }
+    let fxMismatch=false;
+    if(x.minor!=null){ if(x.currency===cur) tm=x.minor; else if(x.fxStatus==="sourced"&&x.fx){ if(x.fx.to===cur) tm=bv2FxConvert(x.minor, x.currency, cur, x.fx.rate); else fxMismatch=true; } }   /* P1 : taux fige vers une AUTRE devise (devise du voyage changee) ou sans devise cible -> aucune conversion, « Taux a actualiser » */
     const signed=tm==null?null:(x.kind==="refund"?-tm:tm);
-    out.recs.push(Object.assign({}, x, {tripMinor:signed}));
+    out.recs.push(Object.assign({}, x, {tripMinor:signed, fxMismatch}));
     out.count++; if(x.minor==null){ out.invalid++; continue; } if(signed==null){ out.pending++; continue; }
     out.spentMinor+=signed; byPost[x.post]=(byPost[x.post]||0)+signed; }
   const res=r&&r.ok?r.result:null; out.est=res?Object.fromEntries(res.posts.map(p=>[p.post,{empty:p.empty, complete:p.complete, totalMinor:p.totalMinor}])):null;
@@ -9462,26 +9465,79 @@ function bv2SpentView(tr, r){   /* PURE : « Deja paye » = somme nette des depe
 /* ---------- gestes ---------- */
 function _bv2XKeep(tr){ return {hb:Object.prototype.hasOwnProperty.call(tr,"budgetV2"), b:tr.budgetV2, ht:Object.prototype.hasOwnProperty.call(tr,"_ts"), t:tr._ts}; }   /* si l'enregistrement echoue APRES l'ecriture en memoire de bv2Mutate (saveState en erreur) */
 function _bv2XRestore(tr, K){ if(K.hb) tr.budgetV2=K.b; else delete tr.budgetV2; if(K.ht) tr._ts=K.t; else delete tr._ts; }
-function bv2ExpenseAdd(tr, draft, gesture){   /* draft = {id, amount:"12,50", currency, category, establishment, city, date} ; type « depense » (lot 1) */
-  const g=gesture||bv2Capture(); const tc=bv2EditTargetCheck(tr); if(!tc.ok) return tc;
-  const st=bv2Store(tr); if(st.readOnly) return {ok:false, code:st.reason||"LECTURE_SEULE"};
-  if(!_bv2Obj(draft)||typeof draft.id!=="string"||!/^[A-Za-z0-9_-]{4,40}$/.test(draft.id)) return {ok:false, code:"IDENTIFIANT_INVALIDE"};
-  if((Array.isArray(tr.expenses)?tr.expenses:[]).some(e=>e&&String(e.id)===draft.id)||_bv2Has(st.data.expenses||{}, draft.id)) return {ok:false, code:"DEJA_ENREGISTREE"};   /* double geste, double clic */
+function _bv2XDraft(tr, draft, r){   /* -> {ok, minor, ecur, kind, amt, cat, date, est, city, lc} ; montant toujours > 0, le signe vient du type */
   const tcur=_bv2CurOf(tr), ecur=String(draft.currency||tcur||"").toUpperCase(); if(!_bv2InTable(ecur)) return {ok:false, code:"DEVISE_INVALIDE"};
+  const kind=draft.kind===undefined?"expense":draft.kind; if(kind!=="expense"&&kind!=="refund") return {ok:false, code:"TYPE_INVALIDE"};
   const s=bv2EditAmountStr(typeof draft.amount==="string"?draft.amount:"", ecur), minor=s==null?null:bv2BudgetMinorOf(s, ecur); if(minor==null) return {ok:false, code:"MONTANT_INVALIDE"};
   if(minor<=0) return {ok:false, code:"MONTANT_NUL"};
   if(BV2_X_CATS.indexOf(draft.category)<0) return {ok:false, code:"CATEGORIE_INVALIDE"};
   if(!_bv2XDateOk(draft.date)) return {ok:false, code:"DATE_INVALIDE"};
-  const amt=bv2FromMinor(minor, ecur); if(amt==null) return {ok:false, code:"DEVISE_INVALIDE"};
-  let fx=null; if(ecur!==tcur){ const F=bv2Fx(tr,[ecur]); const x=F.fx.find(y=>y.from===ecur); if(x) fx={ rate:x.rate, date:x.date, fetchedAt:(S.settings.fxRates&&S.settings.fxRates.at)||Date.now(), source:x.source }; }   /* fige a l'enregistrement (E16) */
-  const est=String(draft.establishment||"").trim().slice(0,120), city=String(draft.city||"").trim().slice(0,80);
-  const e={ id:draft.id, amount:amt, currency:ecur, category:draft.category, establishment:est, estPlaceId:"", lat:null, lng:null, city, label:est, date:draft.date, createdAt:Date.now() };
-  if(fx){ e.fxTo=tcur; e.fxRate=Number(fx.rate); }   /* l'ancien Budget affiche le meme taux que le V2 */
+  const lid=draft.lineId==null||draft.lineId===""?null:draft.lineId;
+  const lc=_bv2XLinkCheck(tr, lid!=null?(r||bv2Estimate(tr)):null, lid, kind==="refund"?false:draft.settles===true, kind, draft.settlesTax===true); if(!lc.ok) return lc;
+  const amt=bv2FromMinor(kind==="refund"?-minor:minor, ecur); if(amt==null) return {ok:false, code:"DEVISE_INVALIDE"};
+  return {ok:true, tcur, ecur, kind, minor, amt, cat:draft.category, date:draft.date, est:String(draft.establishment||"").trim().slice(0,120), city:String(draft.city||"").trim().slice(0,80), lc}; }
+function _bv2XFreshFx(tr, ecur){ const tcur=_bv2CurOf(tr); if(ecur===tcur) return null; const F=bv2Fx(tr,[ecur]), x=F.fx.find(y=>y.from===ecur);
+  return x?{ rate:x.rate, date:x.date, fetchedAt:(S.settings.fxRates&&S.settings.fxRates.at)||Date.now(), source:x.source, to:tcur }:null; }
+function bv2ExpenseAdd(tr, draft, gesture){   /* draft = {id, kind:"expense"|"refund", amount:"12,50", currency, category, establishment, city, date, lineId?, settles?, settlesTax?} */
+  const g=gesture||bv2Capture(); const tc=bv2EditTargetCheck(tr); if(!tc.ok) return tc;
+  const st=bv2Store(tr); if(st.readOnly) return {ok:false, code:st.reason||"LECTURE_SEULE"};
+  if(!_bv2Obj(draft)||typeof draft.id!=="string"||!/^[A-Za-z0-9_-]{4,40}$/.test(draft.id)) return {ok:false, code:"IDENTIFIANT_INVALIDE"};
+  if((Array.isArray(tr.expenses)?tr.expenses:[]).some(e=>e&&String(e.id)===draft.id)||_bv2Has(st.data.expenses||{}, draft.id)) return {ok:false, code:"DEJA_ENREGISTREE"};   /* double geste, double clic */
+  const v=_bv2XDraft(tr, draft); if(!v.ok) return v;
+  const fx=_bv2XFreshFx(tr, v.ecur);   /* fige a l'enregistrement (E16) ; audit GPT B3.5-1 (P1) : devise cible conservee */
+  const e={ id:draft.id, amount:v.amt, currency:v.ecur, category:v.cat, establishment:v.est, estPlaceId:"", lat:null, lng:null, city:v.city, label:v.est, date:v.date, createdAt:Date.now() };
+  if(fx){ e.fxTo=v.tcur; e.fxRate=Number(fx.rate); }   /* l'ancien Budget affiche le meme taux que le V2 */
   const had=Object.prototype.hasOwnProperty.call(tr,"expenses"), prev=tr.expenses, K=_bv2XKeep(tr);
   let r; try{ r=bv2Mutate(tr, d=>{ if(!Array.isArray(tr.expenses)) tr.expenses=[]; tr.expenses.push(e);
-      d.expenses=Object.assign({}, d.expenses, {[e.id]:{ kind:"expense", lineId:null, settles:false, settlesTax:false, fx, digest:bv2ExpenseDigest(e) }}); }, g); }catch(_e){ r={ok:false, code:"GESTE_ERREUR"}; }
+      d.expenses=Object.assign({}, d.expenses, {[e.id]:{ kind:v.kind, lineId:v.lc.lineId, settles:v.lc.settles, settlesTax:v.lc.settlesTax, fx, digest:bv2ExpenseDigest(e) }}); }, g); }catch(_e){ r={ok:false, code:"GESTE_ERREUR"}; }
   if(!r||!r.ok){ if(Array.isArray(tr.expenses)){ const i=tr.expenses.indexOf(e); if(i>=0) tr.expenses.splice(i,1); } if(!had) delete tr.expenses; else if(tr.expenses!==prev) tr.expenses=prev; _bv2XRestore(tr, K); }   /* reprise : etat initial exact */
-  return r&&r.ok?Object.assign({id:e.id, minor, fx}, r):(r||{ok:false, code:"GESTE_ERREUR"}); }
+  return r&&r.ok?Object.assign({id:e.id, minor:v.minor, fx}, r):(r||{ok:false, code:"GESTE_ERREUR"}); }
+function bv2ExpenseEdit(tr, id, draft, gesture){   /* modification EN PLACE (meme identifiant : aucun doublon) ; taux refige seulement si montant ou devise change (E16) */
+  const g=gesture||bv2Capture(); const tc=bv2EditTargetCheck(tr); if(!tc.ok) return tc;
+  const st=bv2Store(tr); if(st.readOnly) return {ok:false, code:st.reason||"LECTURE_SEULE"};
+  const e=(Array.isArray(tr.expenses)?tr.expenses:[]).find(x=>x&&String(x.id)===String(id)); if(!e) return {ok:false, code:"DEPENSE_ABSENTE"};
+  if(e.ticket===true||e.lodging===true) return {ok:false, code:"DEPENSE_ANCIEN_BUDGET"};
+  if(!_bv2Obj(draft)) return {ok:false, code:"GESTE_INVALIDE"}; const v=_bv2XDraft(tr, draft); if(!v.ok) return v;
+  const key=String(e.id), rec=bv2ReadExpenses(tr).find(x=>x.id===key), prevFx=rec&&rec.fx?rec.fx:null;
+  const moneySame=!!rec&&rec.minor===v.minor&&rec.currency===v.ecur;
+  const fx=v.ecur===v.tcur?null:(moneySame&&prevFx?bv2Clone(prevFx):_bv2XFreshFx(tr, v.ecur));
+  const snap=Object.assign({}, e), K=_bv2XKeep(tr);
+  const apply=()=>{ Object.assign(e, { amount:v.amt, currency:v.ecur, category:v.cat, establishment:v.est, label:v.est, city:v.city, date:v.date });
+    if(fx){ e.fxTo=v.tcur; e.fxRate=Number(fx.rate); } else if(v.ecur===v.tcur||!moneySame&&snap.currency!==v.ecur){ delete e.fxTo; delete e.fxRate; } };   /* taux V1 perime (autre devise) retire ; meme devise : le taux V1 par unite reste valable */
+  let r; try{ r=bv2Mutate(tr, d=>{ apply(); d.expenses=Object.assign({}, d.expenses, {[key]:{ kind:v.kind, lineId:v.lc.lineId, settles:v.lc.settles, settlesTax:v.lc.settlesTax, fx, digest:bv2ExpenseDigest(e) }}); }, g); }catch(_e){ r={ok:false, code:"GESTE_ERREUR"}; }
+  if(!r||!r.ok){ for(const k of Object.keys(e)) if(!(k in snap)) delete e[k]; Object.assign(e, snap); _bv2XRestore(tr, K); }   /* reprise exacte de l'enregistrement V1 */
+  return r&&r.ok?Object.assign({id:key, refrozen:!moneySame, fx}, r):(r||{ok:false, code:"GESTE_ERREUR"}); }
+function bv2ExpenseUseRate(tr, id, gesture){   /* « Utiliser le taux du ... » : taux SOURCE date, jamais 1:1 ni table statique */
+  const g=gesture||bv2Capture(); const tc=bv2EditTargetCheck(tr); if(!tc.ok) return tc;
+  const st=bv2Store(tr); if(st.readOnly) return {ok:false, code:st.reason||"LECTURE_SEULE"};
+  const e=(Array.isArray(tr.expenses)?tr.expenses:[]).find(x=>x&&String(x.id)===String(id)); if(!e) return {ok:false, code:"DEPENSE_ABSENTE"};
+  const key=String(e.id), rec=bv2ReadExpenses(tr).find(x=>x.id===key); if(!rec||rec.minor==null) return {ok:false, code:"MONTANT_ILLISIBLE"};
+  if(rec.currency===_bv2CurOf(tr)) return {ok:false, code:"DEVISE_DU_VOYAGE"};
+  const fx=_bv2XFreshFx(tr, rec.currency); if(!fx) return {ok:false, code:"TAUX_ABSENT"};
+  const snap=Object.assign({}, e), K=_bv2XKeep(tr);
+  let r; try{ r=bv2Mutate(tr, d=>{ e.fxTo=fx.to; e.fxRate=Number(fx.rate);
+      d.expenses=Object.assign({}, d.expenses, {[key]:{ kind:rec.kind, lineId:rec.lineId, settles:rec.settles, settlesTax:rec.settlesTax, fx, digest:bv2ExpenseDigest(e) }}); }, g); }catch(_e){ r={ok:false, code:"GESTE_ERREUR"}; }
+  if(!r||!r.ok){ for(const k of Object.keys(e)) if(!(k in snap)) delete e[k]; Object.assign(e, snap); _bv2XRestore(tr, K); }
+  return r&&r.ok?Object.assign({fx}, r):(r||{ok:false, code:"GESTE_ERREUR"}); }
+const _bv2XPriceOk=id=>!/^(fuel|env\.)/.test(id)&&!/^(meal|act)\.(?!k[0-9a-z]{1,30}$)(?!day\.|route\.)/.test(id);   /* lignes d'element non identifiees par jeton : jamais de saisie (lot B3.3 requis) */
+function bv2PricePropose(tr, r, pv, lineId){   /* PURE : « Utiliser ce prix comme prix confirme de la ligne ? » -> {amountMinor} ou null */
+  const p=pv.lines[lineId], l=bv2LinkableLines(tr, r).find(x=>x.id===lineId); if(!p||!l||!p.settled||p.viaHotel||p.pending||p.P<=0||!_bv2XPriceOk(lineId)) return null;
+  if(l.editState==="CONFIRMED"&&l.amounts&&l.amounts.central===p.P) return null; return {amountMinor:p.P, settlesTax:!!p.settlesTax}; }
+function bv2LineConfirmFromPayments(tr, lineId, gesture){   /* geste explicite ; user.total basis:"expense" (B1) ; jamais automatique */
+  const g=gesture||bv2Capture(); const tc=bv2EditTargetCheck(tr); if(!tc.ok) return tc;
+  const st=bv2Store(tr); if(st.readOnly) return {ok:false, code:st.reason||"LECTURE_SEULE"};
+  const r=bv2Estimate(tr), pv=bv2PaymentView(tr, r), pr=bv2PricePropose(tr, r, pv, lineId); if(!pr) return {ok:false, code:"PRIX_NON_PROPOSE"};
+  const cur=_bv2CurOf(tr), d0=_b2Digits(cur); let amount=_b2MinorToDecStr(pr.amountMinor, d0); if(amount&&/\.0+$/.test(amount)) amount=amount.replace(/\.0+$/,"");
+  const money={ amount, currency:cur, basis:"expense" }; const prev=_bv2Obj(st.data.edits[lineId])?st.data.edits[lineId]:{};
+  if(/^hotel\./.test(lineId)){ const ts=pr.settlesTax?"included":prev.taxStatus; if(["included","excluded"].indexOf(ts)>=0) money.touristTaxStatus=ts; }
+  const factors=_bv2Obj(prev.user)&&_bv2Obj(prev.user.factors)&&Object.keys(prev.user.factors).length?bv2Clone(prev.user.factors):null;
+  const user=Object.assign(factors?{factors}:{}, {total:money});
+  const idm=/^(meal|act)\.(k[0-9a-z]{1,30})$/.exec(lineId); let bound=null;
+  if(idm){ bound=_bv2Obj(prev.bound)?bv2Clone(prev.bound):null; if(!bound){ const it=_bv2ItemOf(tr, lineId); if(!it) return {ok:false, code:"ELEMENT_ABSENT"}; bound=_bv2EBound(it, idm[2]); } }   /* saisie identitaire : meme forme que B3.3 G2 (bound) */
+  { const cp=_bv2Copy(tr); cp.budgetV2=bv2Clone(st.data); cp.budgetV2.edits[lineId]=Object.assign({}, prev, bound?{bound}:{}, {user, at:Date.now()}); const rr=bv2Estimate(cp); const l=rr&&rr.ok?rr.result.lines.find(x=>x.id===lineId):null;
+    if(!l||l.amounts.central!==pr.amountMinor) return {ok:false, code:"PRIX_REFUSE_PAR_LE_MOTEUR"}; }   /* essai a blanc sur une copie : B1 doit accepter exactement ce prix */
+  const K=_bv2XKeep(tr); let res; try{ res=bv2Mutate(tr, d=>{ d.edits=Object.assign({}, d.edits, {[lineId]:Object.assign({}, prev, bound?{bound}:{}, {user, at:Date.now()})}); }, g); }catch(_e){ res={ok:false, code:"GESTE_ERREUR"}; }
+  if(!res||!res.ok) _bv2XRestore(tr, K); return res&&res.ok?Object.assign({amountMinor:pr.amountMinor}, res):(res||{ok:false, code:"GESTE_ERREUR"}); }
 function bv2ExpenseDelete(tr, id, gesture){
   const g=gesture||bv2Capture(); const tc=bv2EditTargetCheck(tr); if(!tc.ok) return tc;
   const st=bv2Store(tr); if(st.readOnly) return {ok:false, code:st.reason||"LECTURE_SEULE"};
@@ -9490,6 +9546,76 @@ function bv2ExpenseDelete(tr, id, gesture){
   const K=_bv2XKeep(tr); let r; try{ r=bv2Mutate(tr, d=>{ arr.splice(i,1); if(_bv2Obj(d.expenses)&&_bv2Has(d.expenses, String(id))){ const x=Object.assign({}, d.expenses); delete x[String(id)]; d.expenses=x; } }, g); }catch(_e){ r={ok:false, code:"GESTE_ERREUR"}; }
   if(!r||!r.ok){ if(arr[i]!==e) arr.splice(i,0,e); _bv2XRestore(tr, K); }   /* reprise */
   return r||{ok:false, code:"GESTE_ERREUR"}; }
+
+/* ===== B3.5-2 : paiement d'une ligne (spec §6.5 « Paiement d'une ligne (r3) » ; GO GPT B3.5-2, 14 oct. 2026) =====
+   - Une depense est liee a UNE ligne (lineId) : elle entre une fois dans « Deja paye » et reduit une seule ligne (aucun double comptage).
+   - Par ligne L (unites mineures, devise du voyage) : E = amounts.central (B1) ; P = somme nette des depenses liees (converties une seule fois) ;
+     L soldee si une depense liee porte settles:true. R = 0 si soldee (meme E inconnu, meme taux manquant) ; sinon max(0, E - max(0, P)),
+     ou inconnu si E inconnu ou si une depense liee attend son taux.
+   - Lignes proposees : toutes sauf carburant (m6) et « non concernees » ; celles du poste de la categorie d'abord, puis du meme jour.
+   - Bascule « Paiement complet / Acompte ou partiel » : proposee (repas, visite, taxi, transfert, peage sans prix, ou montant >= reste),
+     toujours visible et modifiable ; aucune bascule pour un remboursement. Lien par l'identifiant de ligne ACTUEL : si la ligne disparait
+     (element supprime, jeton pose plus tard), la depense reste dans « Deja paye » et affiche « Lien perdu · relier ».
+   - Taxe comprise (settlesTax) : lot suivant (B3.5-3). */
+function bv2LinkableLines(tr, r){ const res=r&&r.ok?r.result:null; return res?res.lines.filter(l=>l.type!=="fuel"&&l.state!=="NOT_APPLICABLE"):[]; }
+function bv2PaymentView(tr, r){   /* PURE */
+  const sp=bv2SpentView(tr, r), res=r&&r.ok?r.result:null, ids=new Set(res?res.lines.map(l=>l.id):[]), by={}, lines={};
+  for(const x of sp.recs){ if(!x.lineId) continue; if(!ids.has(x.lineId)){ x.lost=true; continue; } (by[x.lineId]=by[x.lineId]||[]).push(x); }
+  if(res) for(const l of res.lines){ const xs=by[l.id]||[]; if(!xs.length) continue;
+    const E=l.amounts&&Number.isSafeInteger(l.amounts.central)?l.amounts.central:null, settled=xs.some(x=>x.kind==="expense"&&x.settles===true), pending=xs.some(x=>x.minor!=null&&x.tripMinor==null);
+    const P=xs.reduce((a,x)=>a+(x.tripMinor||0),0);
+    const R=settled?0:((E==null||pending)?null:Math.max(0, E-Math.max(0,P)));
+    const withTax=settled&&xs.some(x=>x.kind==="expense"&&x.settles===true&&x.settlesTax===true), tl=withTax?bv2TaxLineOf(tr, r, l.id):null, TE=tl&&tl.amounts&&Number.isSafeInteger(tl.amounts.central)?tl.amounts.central:null;
+    const Eref=withTax?(E!=null&&TE!=null?E+TE:null):E;   /* r3 : depassement compare a E(hotel)+E(taxe) ; taxe inconnue -> aucune mention */
+    lines[l.id]={ E, P, R, settled, pending, count:xs.length, overMinor:(Eref!=null&&!pending&&P>Eref)?P-Eref:0, refundOnly:P<0, settlesTax:withTax, taxLine:tl?tl.id:null }; }
+  for(const id of Object.keys(lines)){ const t=lines[id].taxLine; if(!t) continue; const own=lines[t]; const tl=res.lines.find(l=>l.id===t);
+    lines[t]=Object.assign({ E:tl&&tl.amounts&&Number.isSafeInteger(tl.amounts.central)?tl.amounts.central:null, P:0, pending:false, count:0, overMinor:0, refundOnly:false }, own||{}, { R:0, settled:true, viaHotel:id }); }   /* ligne de taxe soldee sans montant (compte une seule fois, sur l'hotel) */
+  return { spent:sp, lines }; }
+function bv2SettlesProposal(l, R, amtTripMinor){   /* PURE : proposition de la bascule (jamais appliquee sans etre affichee) */
+  if(!l) return false; if(["meal","activity","taxi","transit"].indexOf(l.type)>=0) return true;
+  const E=l.amounts&&l.amounts.central; if(l.type==="toll"&&(E==null)) return true;
+  return amtTripMinor!=null&&R!=null&&amtTripMinor>=R; }
+function bv2TaxLineOf(tr, r, lineId){   /* PURE : ligne de taxe separee de l'hotel (hotel.<k> -> tax.<k>), ou null */
+  const m=/^hotel\.(.+)$/.exec(String(lineId||"")); if(!m) return null; return bv2LinkableLines(tr, r).find(l=>l.id==="tax."+m[1])||null; }
+function _bv2XLinkCheck(tr, r, lineId, settles, kind, settlesTax){
+  if(lineId==null) return {ok:true, lineId:null, settles:false, settlesTax:false};
+  if(typeof lineId!=="string"||!bv2LinkableLines(tr, r).some(l=>l.id===lineId)) return {ok:false, code:"LIGNE_INCONNUE"};
+  if(typeof settles!=="boolean") return {ok:false, code:"BASCULE_INVALIDE"};
+  if(kind==="refund"&&settles) return {ok:false, code:"REMBOURSEMENT_SANS_BASCULE"};
+  const st=settlesTax===true; if(st&&(!settles||kind==="refund"||!bv2TaxLineOf(tr, r, lineId))) return {ok:false, code:"TAXE_COMPRISE_INVALIDE"};   /* r3 : hotel avec ligne de taxe separee, paiement complet seulement */
+  return {ok:true, lineId, settles, settlesTax:st}; }
+function bv2ExpenseLink(tr, id, lineId, settles, gesture, settlesTax){   /* relier / delier / changer la bascule d'une depense existante (V1 ou V2) */
+  const g=gesture||bv2Capture(); const tc=bv2EditTargetCheck(tr); if(!tc.ok) return tc;
+  const st=bv2Store(tr); if(st.readOnly) return {ok:false, code:st.reason||"LECTURE_SEULE"};
+  const e=(Array.isArray(tr.expenses)?tr.expenses:[]).find(x=>x&&String(x.id)===String(id)); if(!e) return {ok:false, code:"DEPENSE_ABSENTE"};
+  if(!(typeof e.amount==="number"&&Number.isFinite(e.amount)&&e.amount!==0)) return {ok:false, code:"MONTANT_ILLISIBLE"};
+  const kind=e.amount<0?"refund":"expense", lc=_bv2XLinkCheck(tr, bv2Estimate(tr), lineId==null?null:lineId, lineId==null?false:settles, kind, lineId==null?false:settlesTax===true); if(!lc.ok) return lc;
+  const key=String(e.id), prev=_bv2Obj(st.data.expenses)&&_bv2Has(st.data.expenses, key)?st.data.expenses[key]:null, dig=bv2ExpenseDigest(e), was=prev?_bv2DigestParts(prev.digest):null, now=_bv2DigestParts(dig);
+  const fx=(prev&&prev.fx&&was&&now&&was.amount===now.amount&&was.currency===now.currency)?bv2Clone(prev.fx):null;   /* taux fige garde seulement si le montant et la devise n'ont pas change (E16) */
+  const comp={ kind, lineId:lc.lineId, settles:lc.settles, settlesTax:settlesTax===undefined?!!(prev&&prev.settlesTax===true&&lc.settles&&prev.lineId===lc.lineId&&bv2TaxLineOf(tr, bv2Estimate(tr), lc.lineId)):lc.settlesTax, fx, digest:dig };
+  const K=_bv2XKeep(tr); let r; try{ r=bv2Mutate(tr, d=>{ d.expenses=Object.assign({}, d.expenses, {[key]:comp}); }, g); }catch(_e){ r={ok:false, code:"GESTE_ERREUR"}; }
+  if(!r||!r.ok) _bv2XRestore(tr, K); return r||{ok:false, code:"GESTE_ERREUR"}; }
+function _bv2XLineLabel(tr, r, l){ let t=""; try{ t=_bv2ELineTitle(_bv2A(), _bv2E(), l, r.meta&&r.meta[l.id], tr); }catch(_e){ t=l.id; } return t; }
+function _bv2XLineOptions(tr, r, pv, category, date, sel){   /* <option> groupes : poste de la categorie (meme jour d'abord), puis autres postes */
+  const X=_bv2X(), A=_bv2A(), esc=_bv2Esc, cur=_bv2CurOf(tr), post=BV2_CAT_POST[category]||null, ds=tr.dateStart, day=(ds&&_bv2XDateOk(date))?Math.round((new Date(date+"T00:00:00")-new Date(ds+"T00:00:00"))/86400000):null;
+  const L=bv2LinkableLines(tr, r), lab=l=>{ const p=pv.lines[l.id], E=l.amounts&&l.amounts.central; let s=_bv2XLineLabel(tr, r, l)+" · "+(E!=null?_bv2Tx(X.est,{x:_bv2Fmt(E,cur)}):X.estUnk);
+      if(p) s+=" · "+(p.settled?X.settled:(p.R!=null?_bv2Tx(X.rest,{x:_bv2Fmt(p.R,cur)}):X.depositUnk)); return s; };
+  const m=l=>r.meta&&r.meta[l.id]&&Number.isInteger(r.meta[l.id].day)?r.meta[l.id].day:null, ord=(a,b)=>((m(b)===day)-(m(a)===day));
+  const same=L.filter(l=>l.post===post).sort(ord), other=L.filter(l=>l.post!==post).sort((a,b)=>BV2_POSTS.indexOf(a.post)-BV2_POSTS.indexOf(b.post)||ord(a,b));
+  const o=l=>`<option value="${esc(l.id)}"${l.id===sel?" selected":""}>${esc(lab(l))}</option>`;
+  let h=`<option value="">${esc(X.noLine)}</option>`; if(same.length) h+=`<optgroup label="${esc(A.post[post]||"")}">${same.map(o).join("")}</optgroup>`; if(other.length) h+=`<optgroup label="${esc(X.grpOther)}">${other.map(o).join("")}</optgroup>`;
+  return h; }
+function _bv2XPayHtml(X, l, p, amtTrip, settles, kind, cur, tax){   /* bascule + consequence en clair ; tax = {line, p, checked} si l'hotel a une ligne de taxe separee */
+  if(!l) return ""; const esc=_bv2Esc, f=x=>_bv2Fmt(x, cur);
+  if(kind==="refund") return `<div class="bv2x-info">${esc(X.refundNoToggle)}</div>`;
+  const R0=p?p.R:(l.amounts&&Number.isSafeInteger(l.amounts.central)?l.amounts.central:null), E=l.amounts&&l.amounts.central;
+  let why; if(settles) why=X.fullWhy; else if(R0==null||amtTrip==null) why=X.partWhyUnk; else why=_bv2Tx(X.partWhy,{x:f(Math.max(0, R0-amtTrip))});
+  const TE=tax&&tax.checked&&settles&&tax.line&&tax.line.amounts?tax.line.amounts.central:undefined, Eref=TE===undefined?E:(E!=null&&TE!=null?E+TE:null);   /* r3 : taxe comprise -> compare a E(hotel)+E(taxe) ; taxe inconnue -> aucune mention */
+  const paidAfter=(p?p.P:0)+(amtTrip||0); const over=(Eref!=null&&amtTrip!=null&&paidAfter>Eref)?`<div class="bv2x-info warn" id="bv2XOver">${esc(_bv2Tx(X.over,{p:f(paidAfter), e:f(Eref), o:f(paidAfter-Eref)}))}</div>`:"";
+  const taxBox=(tax&&settles)?`<label class="bv2x-chk"><input type="checkbox" id="bv2XTax"${tax.checked?" checked":""}> ${esc(X.taxIn)}</label>${tax.checked?`<div class="bv2x-info">${esc(X.taxInWhy)}</div>`:""}`:"";
+  return `<div class="seg bv2x-seg" role="radiogroup"><button type="button" data-settles="1" class="${settles?"on":""}" aria-pressed="${settles}">${esc(X.full)}</button><button type="button" data-settles="0" class="${settles?"":"on"}" aria-pressed="${!settles}">${esc(X.part)}</button></div><div class="bv2x-info" id="bv2XWhy">${esc(why)}</div>${over}`+taxBox; }
+function _bv2XTripMinor(tr, cur, amtTxt){ const tcur=_bv2CurOf(tr), s=bv2EditAmountStr(amtTxt||"", cur), m=s==null?null:bv2BudgetMinorOf(s, cur); if(m==null) return null; if(cur===tcur) return m;
+  const F=bv2Fx(tr,[cur]), x=F.fx.find(y=>y.from===cur); return x?bv2FxConvert(m, cur, tcur, x.rate):null; }
 
 /* ---------- ecran A : carte « Deja paye » (DOM seul) ---------- */
 const BV2_X_CSS=`
@@ -9505,7 +9631,9 @@ const BV2_X_CSS=`
 #bv2ESheet .bv2x-row .t{flex:1;min-width:0}#bv2ESheet .bv2x-row .t b{display:block;font:600 14px Inter,sans-serif;color:var(--ink);overflow-wrap:anywhere}#bv2ESheet .bv2x-row .t span{display:block;font:500 12px Inter,sans-serif;color:var(--muted);overflow-wrap:anywhere}
 #bv2ESheet .bv2x-row .t{flex:1 1 0}#bv2ESheet .bv2x-row .a{text-align:right;max-width:46%}#bv2ESheet .bv2x-row .a b{white-space:nowrap}#bv2ESheet .bv2x-row .a b{display:block;font:700 14px Inter,sans-serif;color:var(--ink)}#bv2ESheet .bv2x-row .a span{display:block;font:500 11.5px Inter,sans-serif;color:var(--muted)}#bv2ESheet .bv2x-row .t span.warn{color:var(--danger);font-weight:600}
 #bv2ESheet .bv2x-row .del{border:0;background:none;color:var(--muted);font-size:16px;width:30px;height:40px;flex:0 0 30px;padding:0}#bv2ESheet .bv2x-post{font:500 12.5px Inter,sans-serif;color:var(--ink-2);margin:3px 0}
-[data-theme="dark"] .bv2a .bv2x-ghost{background:var(--surface,#131E33)}`;
+#bv2ESheet .bv2x-seg{display:flex;gap:6px;margin:6px 0 2px}#bv2ESheet .bv2x-seg button{flex:1;min-height:42px;border:1px solid var(--line);border-radius:12px;background:var(--surface,#fff);font:600 13px Inter,sans-serif;color:var(--ink)}#bv2ESheet .bv2x-seg button.on{border-color:var(--gold);background:var(--gold-soft)}
+#bv2ESheet .bv2x-row .t span.lk{color:var(--ink-2)}#bv2ESheet .bv2x-lnk{border:0;background:none;padding:2px 0;min-height:30px;font:600 12.5px Inter,sans-serif;color:var(--gold-d,#B7791F)}
+#bv2ESheet select optgroup{font-weight:700}#bv2ESheet .bv2x-chips{display:flex;flex-wrap:wrap;gap:6px;margin:8px 0}#bv2ESheet .bv2x-chips .lb{width:100%;font:600 11.5px Inter,sans-serif;color:var(--muted);text-transform:uppercase;letter-spacing:.3px}#bv2ESheet .bv2x-chips button{min-height:34px;border:1px solid var(--line);border-radius:999px;background:var(--surface,#fff);padding:0 12px;font:600 12.5px Inter,sans-serif;color:var(--ink)}#bv2ESheet .bv2x-chips button.on{border-color:var(--gold);background:var(--gold-soft)}#bv2ESheet .bv2x-chk{display:flex;align-items:center;gap:8px;font:600 13.5px Inter,sans-serif;color:var(--ink);margin:8px 0 2px;min-height:40px}#bv2ESheet .bv2x-chk input{width:20px;height:20px}#bv2ESheet .bv2x-acts{display:flex;gap:14px;flex-wrap:wrap}#bv2ESheet .bv2x-price{display:block;width:100%;margin-top:6px;min-height:38px;font-size:12.5px;padding:6px 10px;background:var(--surface,#fff);color:var(--ink);border:1px solid var(--gold);box-shadow:none;white-space:normal}#bv2ESheet #bv2XKind{margin-bottom:6px}[data-theme="dark"] #bv2ESheet .bv2x-seg button{background:var(--surface,#131E33)}[data-theme="dark"] .bv2a .bv2x-ghost{background:var(--surface,#131E33)}`;
 function _bv2XCssOnce(){ if(document.getElementById("bv2xCss")) return; const st=document.createElement("style"); st.id="bv2xCss"; st.textContent=BV2_X_CSS; document.head.appendChild(st); }
 function _bv2XOpen(fn){ return ()=>{ const t=currentTrip(); if(t&&bv2PreviewActive()) fn(t); }; }
 function bv2AfterX(body, tr, r){
@@ -9525,60 +9653,128 @@ function bv2AfterX(body, tr, r){
 /* ---------- D' · feuille de depense ---------- */
 function _bv2XCurList(tr, date){ const t=_bv2CurOf(tr), l=legCurForDate(_bv2Copy(tr), date); const o=[t]; if(l&&o.indexOf(l)<0) o.push(l);
   for(const c of ["EUR","USD","GBP","CHF"].concat(CURRENCIES)) if(o.indexOf(c)<0&&_bv2InTable(c)) o.push(c); return o.filter(_bv2InTable); }
-function bv2OpenExpense(tr){   /* aucune ecriture a l'ouverture ; identifiant tire ici (anti-doublon) */
+function bv2OpenExpense(tr, opts){   /* D' : ajout (identifiant tire ici, anti-doublon) ou modification (opts.editId, meme identifiant) ; aucune ecriture a l'ouverture */
   if(!tr||bv2Store(tr).readOnly) return; const X=_bv2X(), A=_bv2A(), esc=_bv2Esc, tcur=_bv2CurOf(tr);
-  const date0=todayISO(), cur0=legCurForDate(_bv2Copy(tr), date0)||tcur, id=uid();
-  const curs=_bv2XCurList(tr, date0), cats=BV2_X_CATS.map(k=>`<option value="${k}">${esc(t("bcat."+k))} ${esc(_bv2Tx(X.arrow,{p:A.post[BV2_CAT_POST[k]]}))}</option>`).join("");
-  const h=`<div class="bv2x-2"><div class="bv2x-f"><label for="bv2XAmt">${esc(X.amount)}</label><input id="bv2XAmt" inputmode="decimal" autocomplete="off" placeholder="0"></div>`
+  const editId=opts&&opts.editId?String(opts.editId):null, e0=editId?((tr.expenses||[]).find(y=>y&&String(y.id)===editId)||null):null; if(editId&&!e0) return;
+  const rec0=editId?bv2ReadExpenses(tr).find(x=>x.id===editId):null;
+  const date0=e0&&_bv2XDateOk(e0.date)?e0.date:todayISO(), cur0=e0?String(e0.currency||tcur).toUpperCase():(legCurForDate(_bv2Copy(tr), date0)||tcur), id=editId||uid();
+  const amt0=rec0&&rec0.minor!=null?_bv2SStr(rec0.minor, cur0):"", cat0=e0&&BV2_X_CATS.indexOf(e0.category)>=0?e0.category:"";
+  let kind=rec0?rec0.kind:"expense";
+  const curs=_bv2XCurList(tr, date0); if(curs.indexOf(cur0)<0&&_bv2InTable(cur0)) curs.push(cur0);
+  const cats=BV2_X_CATS.map(k=>{ const c=t("bcat."+k), q=A.post[BV2_CAT_POST[k]]; return `<option value="${k}"${k===cat0?" selected":""}>${esc(c)}${c===q?"":" "+esc(_bv2Tx(X.arrow,{p:q}))}</option>`; }).join("");
+  const h=`<div class="seg bv2x-seg" id="bv2XKind"><button type="button" data-kind="expense">${esc(X.typeExp)}</button><button type="button" data-kind="refund">${esc(X.typeRef)}</button></div>`
+    +`<div class="bv2x-2"><div class="bv2x-f"><label for="bv2XAmt">${esc(X.amount)}</label><input id="bv2XAmt" inputmode="decimal" autocomplete="off" placeholder="0" value="${esc(amt0)}"></div>`
     +`<div class="bv2x-f"><label for="bv2XCur">${esc(X.currency)}</label><select id="bv2XCur">${curs.map(c=>`<option value="${c}"${c===cur0?" selected":""}>${c}</option>`).join("")}</select></div></div><div class="bv2x-info" id="bv2XRate"></div>`
     +`<div class="bv2x-f"><label for="bv2XCat">${esc(X.category)}</label><select id="bv2XCat"><option value="">—</option>${cats}</select></div>`
-    +`<div class="bv2x-f"><label for="bv2XEst">${esc(X.place)}</label><input id="bv2XEst" autocomplete="off" placeholder="${esc(X.placePh)}"></div>`
-    +`<div class="bv2x-f"><label for="bv2XCity">${esc(X.city)}</label><input id="bv2XCity" autocomplete="off" value="${esc(typeof tripCity==="function"?(tripCity(tr)||""):"")}"></div>`
+    +`<div class="bv2x-f"><label for="bv2XLine">${esc(X.payOf)}</label><select id="bv2XLine"></select></div><div id="bv2XPay"></div>`
+    +`<div class="bv2x-f"><label for="bv2XEst">${esc(X.place)}</label><input id="bv2XEst" autocomplete="off" placeholder="${esc(X.placePh)}" value="${esc(e0?String(e0.establishment||e0.label||""):"")}"></div>`
+    +`<div class="bv2x-chips" id="bv2XPlaces"></div>`
+    +`<div class="bv2x-f"><label for="bv2XCity">${esc(X.city)}</label><input id="bv2XCity" autocomplete="off" value="${esc(e0?String(e0.city||""):(typeof tripCity==="function"?(tripCity(tr)||""):""))}"></div>`
     +`<div class="bv2x-f"><label for="bv2XDate">${esc(X.date)}</label><input id="bv2XDate" type="date" value="${esc(date0)}"></div><div class="bv2x-info" id="bv2XDateInfo"></div>`
-    +`<div class="bv2b-err" id="bv2XErr" role="alert"></div><button type="button" class="btn gold" id="bv2XSave" style="width:100%">${esc(X.save)}</button>`;
-  _bv2EShow(X.title, h); _bv2ETrip=tr; _bv2EKind="expense"; _bv2ELine=null;
+    +`<div class="bv2b-err" id="bv2XErr" role="alert"></div><button type="button" class="btn gold" id="bv2XSave" style="width:100%">${esc(editId?X.editSave:X.save)}</button>`;
+  _bv2EShow(editId?X.editTitle:X.title, h); _bv2ETrip=tr; _bv2EKind=editId?"expenseEdit":"expense"; _bv2ELine=null;
   const body=document.getElementById("bv2EBody"), $=s=>body.querySelector(s), amt=$("#bv2XAmt"), cs=$("#bv2XCur"), dt=$("#bv2XDate"), err=$("#bv2XErr"), sv=$("#bv2XSave");
-  let curTouched=false;
+  let curTouched=!!editId;
+  const sameMoney=()=>{ if(!rec0) return false; const s2=bv2EditAmountStr(amt.value, cs.value), m=s2==null?null:bv2BudgetMinorOf(s2, cs.value); return m===rec0.minor&&cs.value===rec0.currency; };
   const rateInfo=()=>{ const c=cs.value, box=$("#bv2XRate"); box.classList.remove("warn"); if(c===tcur){ box.textContent=""; return; }
+    if(rec0&&rec0.fx&&sameMoney()){ box.textContent=X.rateKept; return; }   /* E16 */
     const F=bv2Fx(tr,[c]), x=F.fx.find(y=>y.from===c); if(!x){ box.textContent=X.rateNo; box.classList.add("warn"); return; }
-    const s=bv2EditAmountStr(amt.value, c), m=s==null?null:bv2BudgetMinorOf(s, c); const conv=m==null?null:bv2FxConvert(m, c, tcur, x.rate);
-    box.textContent=_bv2Tx(X.rateOk,{x:conv==null?"—":_bv2Fmt(conv, tcur), d:_bv2BDate(new Date(x.date+"T12:00:00").getTime())}); };
+    const s2=bv2EditAmountStr(amt.value, c), m=s2==null?null:bv2BudgetMinorOf(s2, c); const conv=m==null?null:bv2FxConvert(m, c, tcur, x.rate);
+    box.textContent=(rec0&&rec0.fx?X.rateNew+" ":"")+_bv2Tx(X.rateOk,{x:conv==null?"—":_bv2Fmt(conv, tcur), d:_bv2BDate(new Date(x.date+"T12:00:00").getTime())}); };
   const dateInfo=()=>{ const d=dt.value, box=$("#bv2XDateInfo"); box.classList.toggle("warn", !!(d&&tr.dateStart&&tr.dateEnd&&(d<tr.dateStart||d>tr.dateEnd))); box.textContent=box.classList.contains("warn")?X.outTrip:""; };
-  amt.oninput=rateInfo; cs.onchange=()=>{ curTouched=true; rateInfo(); };
-  dt.onchange=()=>{ if(!curTouched){ const nc=legCurForDate(_bv2Copy(tr), dt.value);   /* normalizeLegs (V1) modifie le voyage : lu sur une copie */ if(nc&&_bv2InTable(nc)){ if(![].some.call(cs.options,o=>o.value===nc)) cs.insertAdjacentHTML("beforeend",`<option value="${nc}">${nc}</option>`); cs.value=nc; } } rateInfo(); dateInfo(); };
-  rateInfo(); dateInfo();
-  sv.onclick=()=>{ const t=_bv2EGuard(); if(!t) return; const g=bv2Capture(); err.textContent="";
-    const c=cs.value, s=bv2EditAmountStr(amt.value, c), m=s==null?null:bv2BudgetMinorOf(s, c); if(m==null||m<=0){ err.textContent=X.invalid; amt.focus(); return; }
+  const trTmp=editId?Object.assign({}, tr, {expenses:(tr.expenses||[]).filter(y=>y!==e0)}):tr;   /* reste des lignes SANS la depense modifiee */
+  const r0=bv2Estimate(tr), pv0=bv2PaymentView(trTmp, r0), lsel=$("#bv2XLine"), pay=$("#bv2XPay");
+  let settles=rec0?rec0.settles:false, settlesTax=rec0?rec0.settlesTax:false, payTouched=!!(rec0&&rec0.lineId), taxTouched=!!(rec0&&rec0.lineId);
+  const lineOf=()=>bv2LinkableLines(tr, r0).find(l=>l.id===lsel.value)||null;
+  const payUpd=()=>{ const l=lineOf(), at=_bv2XTripMinor(tr, cs.value, amt.value), tl=l?bv2TaxLineOf(tr, r0, l.id):null;
+    if(l&&!payTouched&&kind==="expense"){ const p=pv0.lines[l.id]; settles=bv2SettlesProposal(l, p?p.R:(l.amounts?l.amounts.central:null), at); }
+    if(tl&&!taxTouched){ const ph=pv0.lines[l.id], pt=pv0.lines[tl.id], Rh=ph?ph.R:(l.amounts?l.amounts.central:null), Rt=pt?pt.R:(tl.amounts?tl.amounts.central:null); settlesTax=at!=null&&Rh!=null&&Rt!=null&&at>=Rh+Rt; }   /* r3 : cochee seulement si le montant couvre R(hotel)+R(taxe) */
+    if(!tl||!settles||kind==="refund") settlesTax=false;
+    pay.innerHTML=_bv2XPayHtml(X, l, l?pv0.lines[l.id]:null, at, settles, kind, tcur, tl&&kind==="expense"?{line:tl, checked:settlesTax}:null);
+    pay.querySelectorAll("[data-settles]").forEach(b=>b.onclick=()=>{ payTouched=true; settles=b.dataset.settles==="1"; payUpd(); });
+    const tx=pay.querySelector("#bv2XTax"); if(tx) tx.onchange=()=>{ taxTouched=true; settlesTax=tx.checked; payUpd(); }; };
+  const linesUpd=()=>{ const keep=lsel.value||(rec0&&!lsel.options.length?(rec0.lineId||""):""); lsel.innerHTML=_bv2XLineOptions(tr, r0, pv0, $("#bv2XCat").value, dt.value, keep); if(lsel.value!==keep){ payTouched=false; taxTouched=false; } payUpd(); };
+  const kindUpd=()=>{ body.querySelectorAll("#bv2XKind [data-kind]").forEach(b=>{ const on=b.dataset.kind===kind; b.classList.toggle("on", on); b.setAttribute("aria-pressed", on); }); payUpd(); };
+  body.querySelectorAll("#bv2XKind [data-kind]").forEach(b=>b.onclick=()=>{ kind=b.dataset.kind; if(kind==="refund"){ settles=false; settlesTax=false; } else payTouched=false; kindUpd(); });
+  amt.oninput=()=>{ rateInfo(); payUpd(); }; cs.onchange=()=>{ curTouched=true; rateInfo(); payUpd(); };
+  dt.onchange=()=>{ if(!curTouched){ const nc=legCurForDate(_bv2Copy(tr), dt.value);   /* normalizeLegs (V1) modifie le voyage : lu sur une copie */ if(nc&&_bv2InTable(nc)){ if(![].some.call(cs.options,o=>o.value===nc)) cs.insertAdjacentHTML("beforeend",`<option value="${nc}">${nc}</option>`); cs.value=nc; } } rateInfo(); dateInfo(); linesUpd(); };
+  lsel.onchange=()=>{ payTouched=false; taxTouched=false; payUpd(); }; $("#bv2XCat").onchange=linesUpd;
+  const placesUpd=()=>{ const box=$("#bv2XPlaces"); let ps=[]; try{ const cp=_bv2Copy(tr); ps=expQuickPlaces(cp, expenseZone(cp, dt.value||todayISO())); }catch(_e){}   /* fonctions V1 lues sur une copie (expenseZone lit l'etat du Planning) */
+    box.innerHTML=ps.length?`<span class="lb">${esc(X.places)}</span>`+ps.map((pl,i)=>`<button type="button" data-pl="${i}">${esc(String(pl.name||"—").slice(0,40))}</button>`).join(""):"";
+    box.querySelectorAll("[data-pl]").forEach(b=>b.onclick=()=>{ const pl=ps[+b.dataset.pl]; $("#bv2XEst").value=pl.name||""; const loc=pl.locality||pl.city; if(loc) $("#bv2XCity").value=loc; }); };
+  { const d1=dt.onchange; dt.onchange=()=>{ d1(); placesUpd(); }; }
+  rateInfo(); dateInfo(); linesUpd(); kindUpd(); placesUpd();
+  sv.onclick=()=>{ const t2=_bv2EGuard(); if(!t2) return; const g=bv2Capture(); err.textContent="";
+    const c=cs.value, s2=bv2EditAmountStr(amt.value, c), m=s2==null?null:bv2BudgetMinorOf(s2, c); if(m==null||m<=0){ err.textContent=X.invalid; amt.focus(); return; }
     if(!$("#bv2XCat").value){ err.textContent=X.needCat; return; }
     sv.disabled=true;   /* double clic : un seul enregistrement (et l'identifiant reste unique) */
-    const res=bv2ExpenseAdd(t, {id, amount:amt.value, currency:c, category:$("#bv2XCat").value, establishment:$("#bv2XEst").value, city:$("#bv2XCity").value, date:dt.value||todayISO()}, g);
+    const draft={ id, kind, amount:amt.value, currency:c, category:$("#bv2XCat").value, establishment:$("#bv2XEst").value, city:$("#bv2XCity").value, date:dt.value||todayISO(), lineId:lsel.value||null, settles:lsel.value&&kind==="expense"?settles:false, settlesTax:lsel.value&&kind==="expense"&&settles?settlesTax:false };
+    const res=editId?bv2ExpenseEdit(t2, editId, draft, g):bv2ExpenseAdd(t2, draft, g);
     if(!res.ok){ sv.disabled=false; if(res.code==="DEJA_ENREGISTREE"){ err.textContent=X.dup; return; } if(_bv2EAfter(res, null)===false) return; }
-    if(res.ok&&_bv2EAfter(res, null)){ bv2CloseE(); toast(X.saved); } }; }
+    if(res.ok&&_bv2EAfter(res, null)){ toast(editId?X.edited:(kind==="refund"?X.refundSaved:X.saved)); if(editId) bv2OpenExpenses(t2); else bv2CloseE(); } }; }
 
 /* ---------- D · liste des depenses ---------- */
-function bv2OpenExpenses(tr){   /* lecture seule a l'ouverture */
-  if(!tr||bv2Store(tr).readOnly) return; const X=_bv2X(), A=_bv2A(), esc=_bv2Esc, r=bv2Estimate(tr), sp=bv2SpentView(tr, r), cur=sp.currency, f=x=>_bv2Fmt(x, cur);
+function bv2OpenExpenses(tr, opts){   /* lecture seule a l'ouverture ; opts.post = filtre par poste (§6.5) */
+  if(!tr||bv2Store(tr).readOnly) return; const X=_bv2X(), A=_bv2A(), esc=_bv2Esc, r=bv2Estimate(tr), pv=bv2PaymentView(tr, r), sp=pv.spent, cur=sp.currency, f=x=>_bv2Fmt(x, cur), lineById=new Map(bv2LinkableLines(tr, r).map(l=>[l.id,l]));
+  const linkTxt=x=>{ if(!x.lineId) return ""; if(x.lost) return `<span class="warn">${esc(X.lost)}</span>`; const l=lineById.get(x.lineId), p=pv.lines[x.lineId]; if(!l||!p) return `<span class="warn">${esc(X.lost)}</span>`;
+    const E=l.amounts&&l.amounts.central, head=E!=null?_bv2Tx(X.linked,{l:_bv2XLineLabel(tr, r, l), e:f(E)}):_bv2Tx(X.linkedUnk,{l:_bv2XLineLabel(tr, r, l)});
+    const st=p.settled?X.settled:(p.R!=null?_bv2Tx(X.deposit,{x:f(p.R)}):X.depositUnk), extra=p.refundOnly?" · "+X.refundNoPay:(p.overMinor?" · "+_bv2Tx(X.over,{p:f(p.P), e:f(E), o:f(p.overMinor)}):"");
+    return `<span class="lk" data-line="${esc(x.lineId)}">${esc(head+" · "+st+(p.settlesTax?" ("+X.taxDone+")":"")+extra)}</span>`; };
+  const rateBtn=x=>{ if(x.minor==null||x.currency===cur||x.tripMinor!=null) return ""; const F=bv2Fx(tr,[x.currency]), fx=F.fx.find(y=>y.from===x.currency);
+    return fx?`<button type="button" class="bv2x-lnk" data-rate="${esc(x.id)}">${esc(_bv2Tx(X.useRate,{d:_bv2BDate(new Date(fx.date+"T12:00:00").getTime())}))}</button>`:`<button type="button" class="bv2x-lnk" data-refresh="1">${esc(X.refreshRates)}</button>`; };
+  const shownPrice=new Set(), priceBtn=x=>{ if(!x.lineId||x.lost||shownPrice.has(x.lineId)||!(x.kind==="expense"&&x.settles)) return ""; const pr=bv2PricePropose(tr, r, pv, x.lineId); if(!pr) return ""; shownPrice.add(x.lineId);
+    return `<button type="button" class="btn bv2x-price" data-price="${esc(x.lineId)}">${esc(_bv2Tx(X.confirmPrice,{x:f(pr.amountMinor)}))}</button>`; };
   let h=`<div class="bv2e-v">${esc(X.paid)} : ${esc(f(sp.spentMinor))}</div>${sp.pending||sp.invalid?`<div class="bv2x-info warn">${esc(_bv2Tx(X.partial,{n:sp.pending+sp.invalid}))}</div>`:""}`;
   for(const p of BV2_POSTS){ if(sp.byPost[p]==null) continue; const e=sp.est&&sp.est[p];
     const line=!e||e.empty?_bv2Tx(X.byPostNoEst,{p:A.post[p], x:f(sp.byPost[p])}):(e.complete?_bv2Tx(X.byPost,{p:A.post[p], x:f(sp.byPost[p]), e:f(e.totalMinor)}):_bv2Tx(X.byPostInc,{p:A.post[p], x:f(sp.byPost[p])}));
     h+=`<div class="bv2x-post">${esc(line)}</div>`; }
   if(!sp.recs.length) h+=`<div class="bv2x-info">${esc(X.empty)}</div>`;
-  const days=new Map(); for(const x of sp.recs.slice().sort((a,b)=>String(b.date||"").localeCompare(String(a.date||"")))){ const k=x.date||"—"; if(!days.has(k)) days.set(k,[]); days.get(k).push(x); }
+  const fpost=opts&&BV2_POSTS.indexOf(opts.post)>=0?opts.post:null, postsIn=BV2_POSTS.filter(p=>sp.recs.some(x=>x.post===p));
+  if(postsIn.length>1) h+=`<div class="bv2x-chips" role="tablist"><button type="button" data-fpost=""${fpost?"":' class="on"'}>${esc(X.all)}</button>${postsIn.map(p=>`<button type="button" data-fpost="${p}"${fpost===p?' class="on"':""}>${esc(A.post[p])}</button>`).join("")}</div>`;
+  const days=new Map(); for(const x of sp.recs.filter(y=>!fpost||y.post===fpost).slice().sort((a,b)=>String(b.date||"").localeCompare(String(a.date||"")))){ const k=x.date||"—"; if(!days.has(k)) days.set(k,[]); days.get(k).push(x); }
   const v1=new Map(((tr&&tr.expenses)||[]).filter(_bv2Obj).map(e=>[String(e.id), e]));
   for(const [d, xs] of days){ const tot=xs.reduce((a,x)=>a+(x.tripMinor||0),0), dl=_bv2XDateOk(d)?new Date(d+"T12:00:00").toLocaleDateString(LOCALE[lang()]||"fr-FR",{weekday:"short",day:"numeric",month:"short"}):d;
     h+=`<div class="bv2x-day"><span>${esc(dl)}</span><span>${esc(f(tot))}</span></div>`;
     for(const x of xs){ const e=v1.get(x.id)||{}, cm=catMeta(x.category), name=String(e.establishment||e.label||t("bcat."+x.category)).slice(0,80), catL=t("bcat."+x.category), postL=A.post[x.post], sub=[e.city, (x.otherLabel?X.other:catL)+(catL===postL&&!x.otherLabel?"":" "+_bv2Tx(X.arrow,{p:postL}))].filter(Boolean).join(" · ");
       const orig=x.minor==null?X.invalidRec:_bv2Fmt(x.kind==="refund"?-x.minor:x.minor, x.currency);
       let conv=""; if(x.minor!=null&&x.currency!==cur) conv=x.tripMinor!=null&&x.fx?`<span>${esc(_bv2Tx(X.conv,{x:f(x.tripMinor), d:_bv2BDate(new Date(x.fx.date+"T12:00:00").getTime())}))}</span>`:`<span class="warn">${esc(X.toRefresh)}</span>`;
-      h+=`<div class="bv2x-row" data-exp="${esc(x.id)}"><div class="ic" style="background:${cm.bg};color:${cm.c}">${cm.ic}</div><div class="t"><b>${esc(name)}</b><span>${esc(sub)}</span>${x.kind==="refund"?`<span>${esc(X.refund)}</span>`:""}${conv}</div><div class="a"><b>${esc(orig)}</b></div>`
+      h+=`<div class="bv2x-row" data-exp="${esc(x.id)}"><div class="ic" style="background:${cm.bg};color:${cm.c}">${cm.ic}</div><div class="t"><b>${esc(name)}</b><span>${esc(sub)}</span>${x.kind==="refund"?`<span>${esc(X.refund)}</span>`:""}${conv}${linkTxt(x)}${rateBtn(x)}<div class="bv2x-acts">${e.ticket===true||e.lodging===true?"":`<button type="button" class="bv2x-lnk" data-edit="${esc(x.id)}">${esc(X.edit)}</button>`}<button type="button" class="bv2x-lnk" data-link="${esc(x.id)}">${esc(x.lineId?(x.lost?X.link:X.linkEdit):X.link)}</button></div>${priceBtn(x)}</div><div class="a"><b>${esc(orig)}</b></div>`
         +`<button type="button" class="del" data-del="${esc(x.id)}" aria-label="${esc(X.del)}">🗑</button></div>`; } }
   h+=`<button type="button" class="btn gold" id="bv2XAdd2" style="width:100%;margin-top:14px">${esc(X.add)}</button>`;
   _bv2EShow(X.listTitle, h); _bv2ETrip=tr; _bv2EKind="expenses"; _bv2ELine=null;
   const body=document.getElementById("bv2EBody");
   body.querySelector("#bv2XAdd2").onclick=()=>{ const t=_bv2EGuard(); if(t) bv2OpenExpense(t); };
+  body.querySelectorAll("[data-link]").forEach(b=>b.onclick=()=>{ const t=_bv2EGuard(); if(t) bv2OpenLink(t, b.dataset.link); });
+  body.querySelectorAll("[data-fpost]").forEach(b=>b.onclick=()=>{ const t=_bv2EGuard(); if(t) bv2OpenExpenses(t, {post:b.dataset.fpost||null}); });
+  body.querySelectorAll("[data-edit]").forEach(b=>b.onclick=()=>{ const t=_bv2EGuard(); if(t) bv2OpenExpense(t, {editId:b.dataset.edit}); });
+  body.querySelectorAll("[data-rate]").forEach(b=>b.onclick=()=>{ const t=_bv2EGuard(); if(!t) return; const res=bv2ExpenseUseRate(t, b.dataset.rate, bv2Capture()); if(_bv2EAfter(res, null)){ toast(_bv2Tx(X.rateUsed,{d:_bv2BDate(new Date(res.fx.date+"T12:00:00").getTime())})); bv2OpenExpenses(t); } });
+  body.querySelectorAll("[data-refresh]").forEach(b=>b.onclick=async()=>{ const t=_bv2EGuard(); if(!t) return; b.disabled=true; let ok=false; try{ ok=await refreshFxRates(); }catch(_e){} if(!ok){ b.disabled=false; toast(X.ratesFail); return; } const t2=_bv2EGuard(); if(t2) bv2OpenExpenses(t2); });   /* reseau sur geste seulement (refreshFxRates V1, complete par B3.1) */
+  body.querySelectorAll("[data-price]").forEach(b=>b.onclick=()=>{ const t=_bv2EGuard(); if(!t) return; const res=bv2LineConfirmFromPayments(t, b.dataset.price, bv2Capture()); if(_bv2EAfter(res, null)){ toast(_bv2Tx(X.priceDone,{x:f(res.amountMinor)})); bv2OpenExpenses(t); } });
   body.querySelectorAll("[data-del]").forEach(b=>b.onclick=()=>{ const t=_bv2EGuard(); if(!t) return; const id=b.dataset.del, e=v1.get(id);
     if(e&&(e.ticket===true||e.lodging===true)){ toast(X.keepV1); return; }
     askConfirm(X.delAsk, X.del, ()=>{ const t2=_bv2EGuard(); if(!t2) return; const res=bv2ExpenseDelete(t2, id, bv2Capture()); if(_bv2EAfter(res, null)){ toast(X.deleted); bv2OpenExpenses(t2); } }); }); }
+
+function bv2OpenLink(tr, id){   /* relier une depense existante ; aucune ecriture a l'ouverture */
+  if(!tr||bv2Store(tr).readOnly) return; const X=_bv2X(), esc=_bv2Esc, r=bv2Estimate(tr), pv=bv2PaymentView(tr, r), tcur=_bv2CurOf(tr);
+  const x=pv.spent.recs.find(y=>y.id===String(id)), e=((tr.expenses||[]).find(y=>y&&String(y.id)===String(id)))||null; if(!x||!e) return;
+  const others={ spent:pv.spent, lines:{} }; { const rr=Object.assign({}, r); const pv2=bv2PaymentView(Object.assign({}, tr, {expenses:(tr.expenses||[]).filter(y=>y!==e)}), rr); others.lines=pv2.lines; }   /* reste de la ligne SANS cette depense */
+  const name=String(e.establishment||e.label||t("bcat."+x.category)).slice(0,80), amtTrip=x.tripMinor==null?null:Math.abs(x.tripMinor);
+  let h=`<div class="bv2e-v">${esc(name)} · ${esc(_bv2Fmt(x.kind==="refund"?-x.minor:x.minor, x.currency))}${x.kind==="refund"?" · "+esc(X.refund):""}</div>`
+    +`<div class="bv2x-f"><label for="bv2XLine">${esc(X.payOf)}</label><select id="bv2XLine">${_bv2XLineOptions(tr, r, others, x.category, x.date, x.lost?"":(x.lineId||""))}</select></div><div id="bv2XPay"></div>`
+    +`<div class="bv2b-err" id="bv2XErr" role="alert"></div><button type="button" class="btn gold" id="bv2XLinkSave" style="width:100%">${esc(X.link)}</button>`
+    +(x.lineId?`<button type="button" class="bv2b-clear" id="bv2XUnlink">${esc(X.unlink)}</button>`:"");
+  _bv2EShow(X.linkTitle, h); _bv2ETrip=tr; _bv2EKind="link"; _bv2ELine=null;
+  const body=document.getElementById("bv2EBody"), lsel=body.querySelector("#bv2XLine"), pay=body.querySelector("#bv2XPay"); let settles=x.lineId&&!x.lost?x.settles:false, payTouched=!!(x.lineId&&!x.lost), settlesTax=x.lineId&&!x.lost?x.settlesTax:false, taxTouched=payTouched;
+  const lineOf=()=>bv2LinkableLines(tr, r).find(l=>l.id===lsel.value)||null;
+  const upd=()=>{ const l=lineOf(), tl=l?bv2TaxLineOf(tr, r, l.id):null; if(l&&!payTouched&&x.kind==="expense"){ const p=others.lines[l.id]; settles=bv2SettlesProposal(l, p?p.R:(l.amounts?l.amounts.central:null), amtTrip); }
+    if(tl&&!taxTouched){ const ph=others.lines[l.id], pt=others.lines[tl.id], Rh=ph?ph.R:(l.amounts?l.amounts.central:null), Rt=pt?pt.R:(tl.amounts?tl.amounts.central:null); settlesTax=amtTrip!=null&&Rh!=null&&Rt!=null&&amtTrip>=Rh+Rt; }
+    if(!tl||!settles||x.kind==="refund") settlesTax=false;
+    pay.innerHTML=_bv2XPayHtml(X, l, l?others.lines[l.id]:null, amtTrip, settles, x.kind, tcur, tl&&x.kind==="expense"?{line:tl, checked:settlesTax}:null); pay.querySelectorAll("[data-settles]").forEach(b=>b.onclick=()=>{ payTouched=true; settles=b.dataset.settles==="1"; upd(); });
+    const tx=pay.querySelector("#bv2XTax"); if(tx) tx.onchange=()=>{ taxTouched=true; settlesTax=tx.checked; upd(); }; };
+  lsel.onchange=()=>{ payTouched=false; taxTouched=false; upd(); }; upd();
+  body.querySelector("#bv2XLinkSave").onclick=()=>{ const t2=_bv2EGuard(); if(!t2) return; const res=bv2ExpenseLink(t2, id, lsel.value||null, x.kind==="expense"&&!!lsel.value&&settles, bv2Capture(), x.kind==="expense"&&!!lsel.value&&settles&&settlesTax);
+    if(!res.ok){ body.querySelector("#bv2XErr").textContent=_bv2Tx(X.fail,{c:res.code}); return; } if(_bv2EAfter(res, null)){ toast(lsel.value?X.linkSaved:X.unlinked); bv2OpenExpenses(t2); } };
+  const ul=body.querySelector("#bv2XUnlink"); if(ul) ul.onclick=()=>{ const t2=_bv2EGuard(); if(!t2) return; const res=bv2ExpenseLink(t2, id, null, false, bv2Capture()); if(_bv2EAfter(res, null)){ toast(X.unlinked); bv2OpenExpenses(t2); } }; }
 
 /* accroche : enchainee apres B3.3 et B3.4 (aucun octet gele modifie) */
 bv2AfterA=(function(prev){ return function(body, tr, r){ if(typeof prev==="function") prev(body, tr, r); try{ bv2AfterX(body, tr, r); }catch(e){ console.error("bv2AfterX", e); } }; })(bv2AfterA);
