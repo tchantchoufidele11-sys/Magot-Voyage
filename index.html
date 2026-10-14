@@ -9503,9 +9503,9 @@ function bv2ExpenseEdit(tr, id, draft, gesture){   /* modification EN PLACE (mem
   const fx=v.ecur===v.tcur?null:(moneySame&&prevFx?bv2Clone(prevFx):_bv2XFreshFx(tr, v.ecur));
   const snap=Object.assign({}, e), K=_bv2XKeep(tr);
   const apply=()=>{ Object.assign(e, { amount:v.amt, currency:v.ecur, category:v.cat, establishment:v.est, label:v.est, city:v.city, date:v.date });
-    if(fx){ e.fxTo=v.tcur; e.fxRate=Number(fx.rate); } else if(v.ecur===v.tcur||!moneySame&&snap.currency!==v.ecur){ delete e.fxTo; delete e.fxRate; } };   /* taux V1 perime (autre devise) retire ; meme devise : le taux V1 par unite reste valable */
+    if(fx){ e.fxTo=v.tcur; e.fxRate=Number(fx.rate); } else { delete e.fxTo; delete e.fxRate; } };   /* audit GPT cloture B3.5 (P1) : aucun taux valide retenu -> aucun ancien taux fige ne reste attache a la depense (V1 et V2 coherents) */
   let r; try{ r=bv2Mutate(tr, d=>{ apply(); d.expenses=Object.assign({}, d.expenses, {[key]:{ kind:v.kind, lineId:v.lc.lineId, settles:v.lc.settles, settlesTax:v.lc.settlesTax, fx, digest:bv2ExpenseDigest(e) }}); }, g); }catch(_e){ r={ok:false, code:"GESTE_ERREUR"}; }
-  if(!r||!r.ok){ for(const k of Object.keys(e)) if(!(k in snap)) delete e[k]; Object.assign(e, snap); _bv2XRestore(tr, K); }   /* reprise exacte de l'enregistrement V1 */
+  if(!r||!r.ok){ for(const k of Object.keys(e)) delete e[k]; Object.assign(e, snap);   /* ordre des cles d'origine compris */ _bv2XRestore(tr, K); }   /* reprise exacte de l'enregistrement V1 */
   return r&&r.ok?Object.assign({id:key, refrozen:!moneySame, fx}, r):(r||{ok:false, code:"GESTE_ERREUR"}); }
 function bv2ExpenseUseRate(tr, id, gesture){   /* « Utiliser le taux du ... » : taux SOURCE date, jamais 1:1 ni table statique */
   const g=gesture||bv2Capture(); const tc=bv2EditTargetCheck(tr); if(!tc.ok) return tc;
@@ -9517,7 +9517,7 @@ function bv2ExpenseUseRate(tr, id, gesture){   /* « Utiliser le taux du ... » 
   const snap=Object.assign({}, e), K=_bv2XKeep(tr);
   let r; try{ r=bv2Mutate(tr, d=>{ e.fxTo=fx.to; e.fxRate=Number(fx.rate);
       d.expenses=Object.assign({}, d.expenses, {[key]:{ kind:rec.kind, lineId:rec.lineId, settles:rec.settles, settlesTax:rec.settlesTax, fx, digest:bv2ExpenseDigest(e) }}); }, g); }catch(_e){ r={ok:false, code:"GESTE_ERREUR"}; }
-  if(!r||!r.ok){ for(const k of Object.keys(e)) if(!(k in snap)) delete e[k]; Object.assign(e, snap); _bv2XRestore(tr, K); }
+  if(!r||!r.ok){ for(const k of Object.keys(e)) delete e[k]; Object.assign(e, snap);   /* ordre des cles d'origine compris */ _bv2XRestore(tr, K); }
   return r&&r.ok?Object.assign({fx}, r):(r||{ok:false, code:"GESTE_ERREUR"}); }
 const _bv2XPriceOk=id=>!/^(fuel|env\.)/.test(id)&&!/^(meal|act)\.(?!k[0-9a-z]{1,30}$)(?!day\.|route\.)/.test(id);   /* lignes d'element non identifiees par jeton : jamais de saisie (lot B3.3 requis) */
 function bv2PricePropose(tr, r, pv, lineId){   /* PURE : « Utiliser ce prix comme prix confirme de la ligne ? » -> {amountMinor} ou null */
@@ -9779,6 +9779,204 @@ function bv2OpenLink(tr, id){   /* relier une depense existante ; aucune ecritur
 /* accroche : enchainee apres B3.3 et B3.4 (aucun octet gele modifie) */
 bv2AfterA=(function(prev){ return function(body, tr, r){ if(typeof prev==="function") prev(body, tr, r); try{ bv2AfterX(body, tr, r); }catch(e){ console.error("bv2AfterX", e); } }; })(bv2AfterA);
 /* ===== fin BUDGET V2 -- B3.5 ===== */
+/* ===== BUDGET V2 -- B3.6 RESTE ET PREVISION FINALE (spec B3-r3 §6.2 A3, §6.5 « Prevision finale », m6, m7, A8 ; GO GEL B3.5 et GO B3.6, 14 oct. 2026) =====
+   - Bloc AJOUTE apres B3.5 (gele, f5746b9d) : aucun octet de B1, B2, P6d, B3.0 a B3.5 n'est modifie.
+   - Accroches (meme patron que B3.4 et B3.5) : bv2AfterA enchaine (carte « Prevision finale » avant le depart) ; bv2RenderA ENVELOPPE
+     pour le seul cas « pendant le voyage » (ecran A3) : la fonction B3.2 est appelee telle quelle dans tous les autres cas.
+   - bv2Forecast est PUR (aucune ecriture) : Prevision finale = Deja paye + somme des restes R des lignes comptees (§6.5 r3) :
+       * repas et visites : comptes s'ils sont d'aujourd'hui ou apres ; un creneau d'un jour passe sort de la prevision (m7 : celui
+         d'aujourd'hui reste compte tant qu'il n'est pas solde) ;
+       * hotel, taxe, billet, peages, stationnement, transfert, taxi : reste R entier quelle que soit la date, jusqu'au paiement complet ;
+       * carburant : somme des jours B2 d'aujourd'hui ou apres (budgetPlanningFuel ou hypothese de consommation), jamais recalcule (m6) ;
+       * enveloppe : max(0, enveloppe - depenses de ses categories) ;
+       * ligne inconnue non soldee : « X connus · N postes a preciser », jamais de total.
+     Une depense compte UNE fois (Deja paye) et reduit au plus une ligne : aucun double comptage. Les depenses non reliees partageant un
+     poste avec une ligne non soldee sont SIGNALEES (« peut-etre comptee deux fois · Relier »), jamais rapprochees automatiquement (A19-a).
+   - « Je l'ai deja paye » (A8) : ouvre la feuille de depense B3.5 preremplie (montant = reste, categorie, ligne, paiement complet) ; rien
+     n'est ecrit sans « Enregistrer » ; les gestes restent ceux de B3.5 (gardes, compte synchronise refuse). */
+const BV2_F_TXT={
+  fr:{pend:"{n} dépense(s) dont le taux est à actualiser : non comptée(s)",pend1:"1 dépense dont le taux est à actualiser : non comptée",finPend:"Prévision : {x} connus · {n} dépense(s) sans taux",title:"Prévision finale",paidPart:"Déjà payé",restPart:"Reste à payer",confPart:"dont {x} à prix confirmé",estPart:"dont {x} estimés",unk:"{n} postes à préciser",unk1:"1 poste à préciser",known:"{x} connus",
+      inBudget:"dans ton budget · {x} en dessous",over:"dépasserait ton budget de {x}",noBudget:"Aucun budget fixé",partial:"partiel · {n} dépense(s) sans taux",detail:"Voir le reste à payer",
+      dbl:"{n} dépense(s) de {p} non reliée(s) · peut-être comptée(s) deux fois",dbl1:"1 dépense de {p} non reliée · elle est peut-être comptée deux fois",link:"Relier",
+      remTitle:"Reste à payer",remNone:"Rien ne reste à payer sur les lignes connues.",remUnk:"à préciser",remRest:"reste {x}",remSettled:"Soldées",remPast:"Jours passés, hors prévision",paidNow:"Je l'ai déjà payé",fuelDays:"jours de route restants",
+      sub:"Suis ton budget au jour le jour",rest:"Reste",spent:"Dépensé",perDay:"≈ {x}/jour pour les {n} jours restants",perDay1:"≈ {x} pour le dernier jour",used:"{p} % utilisés · {x} sur {b}",
+      fin:"Prévision finale {x}",finInc:"Prévision : {x} connus · {n} à préciser",today:"Aujourd'hui : {x} dépensés sur {y} prévus",todayNone:"Aujourd'hui : {x} dépensés",recent:"Dernières dépenses",all:"Toutes les dépenses",add:"+ Ajouter une dépense",
+      posts:"Par poste",postLine:"{x} payés · reste {y}",postLineUnk:"{x} payés · reste à préciser",noExp:"Aucune dépense pour l'instant.",fuelNote:"carburant : jours de route restants"},
+  en:{pend:"{n} expense(s) whose rate needs refreshing: not counted",pend1:"1 expense whose rate needs refreshing: not counted",finPend:"Forecast: {x} known · {n} expense(s) without rate",title:"Final forecast",paidPart:"Already paid",restPart:"Left to pay",confPart:"of which {x} at confirmed price",estPart:"of which {x} estimated",unk:"{n} items to specify",unk1:"1 item to specify",known:"{x} known",
+      inBudget:"within your budget · {x} under",over:"would exceed your budget by {x}",noBudget:"No budget set",partial:"partial · {n} expense(s) without rate",detail:"See what's left to pay",
+      dbl:"{n} unlinked {p} expense(s) · may be counted twice",dbl1:"1 unlinked {p} expense · it may be counted twice",link:"Link",
+      remTitle:"Left to pay",remNone:"Nothing left to pay on known lines.",remUnk:"to specify",remRest:"{x} left",remSettled:"Settled",remPast:"Past days, out of the forecast",paidNow:"I've already paid it",fuelDays:"remaining driving days",
+      sub:"Track your budget day by day",rest:"Left",spent:"Spent",perDay:"≈ {x}/day for the {n} remaining days",perDay1:"≈ {x} for the last day",used:"{p}% used · {x} of {b}",
+      fin:"Final forecast {x}",finInc:"Forecast: {x} known · {n} to specify",today:"Today: {x} spent of {y} planned",todayNone:"Today: {x} spent",recent:"Latest expenses",all:"All expenses",add:"+ Add an expense",
+      posts:"By category",postLine:"{x} paid · {y} left",postLineUnk:"{x} paid · remaining to specify",noExp:"No expenses yet.",fuelNote:"fuel: remaining driving days"},
+  es:{pend:"{n} gasto(s) con el cambio por actualizar: no contado(s)",pend1:"1 gasto con el cambio por actualizar: no contado",finPend:"Previsión: {x} conocidos · {n} gasto(s) sin tipo de cambio",title:"Previsión final",paidPart:"Ya pagado",restPart:"Queda por pagar",confPart:"de ello {x} a precio confirmado",estPart:"de ello {x} estimados",unk:"{n} partidas por precisar",unk1:"1 partida por precisar",known:"{x} conocidos",
+      inBudget:"dentro de tu presupuesto · {x} por debajo",over:"superaría tu presupuesto en {x}",noBudget:"Ningún presupuesto fijado",partial:"parcial · {n} gasto(s) sin tipo de cambio",detail:"Ver lo que queda por pagar",
+      dbl:"{n} gasto(s) de {p} sin enlazar · quizá contado(s) dos veces",dbl1:"1 gasto de {p} sin enlazar · quizá se cuenta dos veces",link:"Enlazar",
+      remTitle:"Queda por pagar",remNone:"No queda nada por pagar en las líneas conocidas.",remUnk:"por precisar",remRest:"quedan {x}",remSettled:"Saldadas",remPast:"Días pasados, fuera de la previsión",paidNow:"Ya lo he pagado",fuelDays:"días de ruta restantes",
+      sub:"Sigue tu presupuesto día a día",rest:"Queda",spent:"Gastado",perDay:"≈ {x}/día para los {n} días restantes",perDay1:"≈ {x} para el último día",used:"{p} % usado · {x} de {b}",
+      fin:"Previsión final {x}",finInc:"Previsión: {x} conocidos · {n} por precisar",today:"Hoy: {x} gastados de {y} previstos",todayNone:"Hoy: {x} gastados",recent:"Últimos gastos",all:"Todos los gastos",add:"+ Añadir un gasto",
+      posts:"Por partida",postLine:"{x} pagados · quedan {y}",postLineUnk:"{x} pagados · resto por precisar",noExp:"Todavía no hay gastos.",fuelNote:"carburante: días de ruta restantes"},
+  it:{pend:"{n} spesa/e con cambio da aggiornare: non contata/e",pend1:"1 spesa con cambio da aggiornare: non contata",finPend:"Previsione: {x} noti · {n} spesa/e senza cambio",title:"Previsione finale",paidPart:"Già pagato",restPart:"Resta da pagare",confPart:"di cui {x} a prezzo confermato",estPart:"di cui {x} stimati",unk:"{n} voci da precisare",unk1:"1 voce da precisare",known:"{x} noti",
+      inBudget:"nel tuo budget · {x} sotto",over:"supererebbe il budget di {x}",noBudget:"Nessun budget fissato",partial:"parziale · {n} spesa/e senza cambio",detail:"Vedi cosa resta da pagare",
+      dbl:"{n} spesa/e di {p} non collegata/e · forse contata/e due volte",dbl1:"1 spesa di {p} non collegata · forse contata due volte",link:"Collega",
+      remTitle:"Resta da pagare",remNone:"Non resta nulla da pagare sulle voci note.",remUnk:"da precisare",remRest:"restano {x}",remSettled:"Saldate",remPast:"Giorni passati, fuori previsione",paidNow:"L'ho già pagato",fuelDays:"giorni di guida restanti",
+      sub:"Segui il budget giorno per giorno",rest:"Resta",spent:"Speso",perDay:"≈ {x}/giorno per i {n} giorni restanti",perDay1:"≈ {x} per l'ultimo giorno",used:"{p} % usato · {x} su {b}",
+      fin:"Previsione finale {x}",finInc:"Previsione: {x} noti · {n} da precisare",today:"Oggi: {x} spesi su {y} previsti",todayNone:"Oggi: {x} spesi",recent:"Ultime spese",all:"Tutte le spese",add:"+ Aggiungi una spesa",
+      posts:"Per voce",postLine:"{x} pagati · restano {y}",postLineUnk:"{x} pagati · resto da precisare",noExp:"Nessuna spesa per ora.",fuelNote:"carburante: giorni di guida restanti"},
+  de:{pend:"{n} Ausgabe(n) mit zu aktualisierendem Kurs: nicht gezählt",pend1:"1 Ausgabe mit zu aktualisierendem Kurs: nicht gezählt",finPend:"Prognose: {x} bekannt · {n} Ausgabe(n) ohne Kurs",title:"Endprognose",paidPart:"Bereits bezahlt",restPart:"Noch zu zahlen",confPart:"davon {x} zum bestätigten Preis",estPart:"davon {x} geschätzt",unk:"{n} Posten offen",unk1:"1 Posten offen",known:"{x} bekannt",
+      inBudget:"im Budget · {x} darunter",over:"würde dein Budget um {x} überschreiten",noBudget:"Kein Budget festgelegt",partial:"Teilsumme · {n} Ausgabe(n) ohne Kurs",detail:"Noch zu Zahlendes ansehen",
+      dbl:"{n} nicht verknüpfte {p}-Ausgabe(n) · evtl. doppelt gezählt",dbl1:"1 nicht verknüpfte {p}-Ausgabe · evtl. doppelt gezählt",link:"Verknüpfen",
+      remTitle:"Noch zu zahlen",remNone:"Auf den bekannten Zeilen ist nichts mehr zu zahlen.",remUnk:"offen",remRest:"Rest {x}",remSettled:"Bezahlt",remPast:"Vergangene Tage, nicht in der Prognose",paidNow:"Schon bezahlt",fuelDays:"verbleibende Fahrtage",
+      sub:"Verfolge dein Budget Tag für Tag",rest:"Übrig",spent:"Ausgegeben",perDay:"≈ {x}/Tag für die {n} restlichen Tage",perDay1:"≈ {x} für den letzten Tag",used:"{p} % verbraucht · {x} von {b}",
+      fin:"Endprognose {x}",finInc:"Prognose: {x} bekannt · {n} offen",today:"Heute: {x} ausgegeben von {y} geplant",todayNone:"Heute: {x} ausgegeben",recent:"Letzte Ausgaben",all:"Alle Ausgaben",add:"+ Ausgabe hinzufügen",
+      posts:"Nach Posten",postLine:"{x} bezahlt · Rest {y}",postLineUnk:"{x} bezahlt · Rest offen",noExp:"Noch keine Ausgaben.",fuelNote:"Kraftstoff: verbleibende Fahrtage"}};
+function _bv2F(){ return BV2_F_TXT[lang()]||BV2_F_TXT.fr; }
+const BV2_F_DATED=["meal","activity"];   /* dates par le creneau du Planning (m7) */
+const BV2_F_LINE_CAT={hotel:"lodging",tourist_tax:"lodging",ticket:"transport",toll:"transport",parking:"transport",transit:"transport",taxi:"transport",meal:"food",activity:"activities",envelope:"misc"};
+function _bv2FDayIndex(tr, iso){ if(!tr||!tr.dateStart||!_bv2XDateOk(iso)) return null; return Math.round((new Date(iso+"T00:00:00")-new Date(tr.dateStart+"T00:00:00"))/86400000); }
+function _bv2FFuelDays(tr){   /* jours B2 de la MEME base que l'estimation (B3.1) : hypothese de consommation si active, sinon reference Planning ; sur une copie */
+  try{ const cp=_bv2Copy(tr), ref=budgetPlanningFuel(cp); if(!ref.applicable) return null; const e=_bv2Edit(bv2Store(tr).data,"fuel"), conso=e&&e.conso!=null?Number(e.conso):NaN;
+    if(Number.isFinite(conso)&&conso>0){ const h=budgetFuelHypothesis(ref, conso); if(h&&h.b1User&&Array.isArray(h.days)) return h.days.map(d=>({day:d.day, minor:d.minor||0})); }
+    return ref.days.map((d,i)=>({day:i, minor:d.state==="complete"?(d.minor||0):0})); }catch(_e){ return null; } }
+function bv2Forecast(tr, r, todayIso){   /* PURE : prevision finale, reste par ligne, parts certain / estime / inconnu, double comptage, aujourd'hui */
+  const pv=bv2PaymentView(tr, r), sp=pv.spent, res=r&&r.ok?r.result:null, cur=sp.currency, today=todayIso||todayISO(), ti=_bv2FDayIndex(tr, today), started=ti!=null&&ti>=0;
+  const out={ currency:cur, spentMinor:sp.spentMinor, pending:sp.pending+sp.invalid, rows:[], remainingKnownMinor:0, confirmedMinor:0, estimatedMinor:0, unknownLines:[], unknownPosts:[],
+    complete:true, finalMinor:null, knownFinalMinor:null, doubles:[], byPost:{}, today:{ index:ti, spentMinor:0, plannedMinor:0 }, started };
+  if(!res) return Object.assign(out, {complete:false});
+  const meta=r.meta||{}, fuelDays=_bv2FFuelDays(tr), envs=(bv2Store(tr).data.envelopes)||[];
+  for(const l of res.lines){ if(l.state==="NOT_APPLICABLE") continue;
+    const E=l.amounts&&Number.isSafeInteger(l.amounts.central)?l.amounts.central:null, p=pv.lines[l.id], m=meta[l.id]||{}, day=Number.isInteger(m.day)?m.day:null;
+    const row={ id:l.id, post:l.post, type:l.type, E, R:null, status:"remaining", state:l.state, editState:l.editState, day };
+    if(p&&p.settled){ row.R=0; row.status="settled"; }
+    else if(BV2_F_DATED.indexOf(l.type)>=0&&started&&day!=null&&day<ti){ row.status="past"; row.R=0; }   /* m7 : creneau d'un jour passe -> hors prevision */
+    else if(l.type==="fuel"){ if(E==null||!fuelDays){ row.R=E==null?null:E; } else { const from=started?ti:0; row.R=fuelDays.filter(d=>d.day>=from).reduce((a,d)=>a+d.minor,0); row.fuel=true; } }   /* m6 */
+    else if(l.type==="envelope"){ const env=envs.find(x=>"env."+x.id===l.id)||envs.find(x=>m.label&&x.label===m.label); const cats=env&&Array.isArray(env.categories)?env.categories:[];
+      const used=sp.recs.filter(x=>cats.indexOf(x.category)>=0&&x.tripMinor!=null).reduce((a,x)=>a+x.tripMinor,0); row.R=E==null?null:Math.max(0, E-Math.max(0,used)); }
+    else row.R=p?p.R:E;
+    if(row.status==="remaining"&&row.R==null){ row.status="unknown"; if(l.required!==false){ out.unknownLines.push(l.id); if(out.unknownPosts.indexOf(l.post)<0) out.unknownPosts.push(l.post); } }
+    if(row.status==="remaining"&&row.R!=null){ out.remainingKnownMinor+=row.R; if(l.state==="KNOWN"||l.state==="ZERO_CONFIRMED") out.confirmedMinor+=row.R; else out.estimatedMinor+=row.R; }
+    const bp=out.byPost[l.post]||(out.byPost[l.post]={paidMinor:0, remainingMinor:0, unknown:0}); if(row.status==="remaining"&&row.R!=null) bp.remainingMinor+=row.R; if(row.status==="unknown") bp.unknown++;
+    if(started&&day===ti&&l.type!=="hotel"&&l.type!=="ticket"&&E!=null) out.today.plannedMinor+=E;   /* A3 : prevu du jour = centrales des lignes datees d'aujourd'hui */
+    out.rows.push(row); }
+  if(started&&fuelDays){ const fd=fuelDays.find(d=>d.day===ti); if(fd) out.today.plannedMinor+=fd.minor; }
+  for(const x of sp.recs){ if(x.tripMinor==null) continue; const bp=out.byPost[x.post]||(out.byPost[x.post]={paidMinor:0, remainingMinor:0, unknown:0}); bp.paidMinor+=x.tripMinor; if(x.date===today) out.today.spentMinor+=x.tripMinor; }
+  out.estimateComplete=out.unknownLines.length===0;
+  out.complete=out.estimateComplete&&out.pending===0;   /* audit GPT B3.6-1 (P1-A) : une depense sans taux ou illisible rend la prevision PARTIELLE (jamais de faux total) */
+  out.knownFinalMinor=out.spentMinor+out.remainingKnownMinor; out.finalMinor=out.complete?out.knownFinalMinor:null;
+  for(const post of BV2_POSTS){ const open=out.rows.some(rw=>rw.post===post&&(rw.status==="remaining"&&(rw.R==null||rw.R>0)||rw.status==="unknown")); if(!open) continue;
+    const un=sp.recs.filter(x=>x.post===post&&x.kind==="expense"&&(!x.lineId||x.lost)); if(un.length) out.doubles.push({post, n:un.length, ids:un.map(x=>x.id)}); }   /* A19-a : signale, jamais rapproche */
+  return out; }
+
+/* ---------- styles ---------- */
+const BV2_F_CSS=`
+.bv2a .bv2f-card .big{font:700 22px Inter,sans-serif;color:var(--ink);overflow-wrap:anywhere}.bv2a .bv2f-card .parts{margin-top:8px;display:grid;gap:4px}.bv2a .bv2f-card .parts div{display:flex;justify-content:space-between;gap:10px;font:500 13px Inter,sans-serif;color:var(--ink-2)}
+.bv2a .bv2f-card .parts div b{font-weight:700;color:var(--ink);white-space:nowrap}.bv2a .bv2f-card .parts div.sub{padding-left:12px;color:var(--muted);font-size:12px}.bv2a .bv2f-card .st{font:600 13px Inter,sans-serif;margin-top:8px}.bv2a .bv2f-card .st.ok{color:var(--emerald)}.bv2a .bv2f-card .st.bad{color:var(--danger)}
+.bv2a .bv2f-card .unk{font:600 12.5px Inter,sans-serif;color:var(--danger);margin-top:4px}.bv2a .bv2f-card .w{font:500 12px Inter,sans-serif;color:var(--muted);margin-top:4px}
+.bv2a .bv2f-dbl{display:flex;align-items:center;gap:10px;border:1px solid var(--gold);background:var(--gold-soft);border-radius:14px;padding:10px 12px;margin:10px 0;font:600 12.5px Inter,sans-serif;color:var(--ink)}.bv2a .bv2f-dbl span{flex:1;min-width:0;overflow-wrap:anywhere}.bv2a .bv2f-dbl button{border:0;background:none;font:700 13px Inter,sans-serif;color:var(--gold-d,#B7791F);min-height:36px}
+.bv2a .bv2f-ghost{background:var(--surface,#fff);color:var(--ink);border:1px solid var(--line);box-shadow:none;width:100%;margin-top:10px}
+.bv2a .bv2-hero .bv2f-bar{height:8px;border-radius:4px;background:rgba(255,255,255,.18);overflow:hidden;margin-top:10px}.bv2a .bv2-hero .bv2f-bar i{display:block;height:100%;background:var(--gold);border-radius:4px}.bv2a .bv2-hero .bv2f-bar.over i{background:#FF8A7A}
+.bv2a .bv2f-rec{display:flex;gap:10px;align-items:center;padding:9px 0;border-top:1px solid var(--line-soft)}.bv2a .bv2f-rec:first-of-type{border-top:0}.bv2a .bv2f-rec .t{flex:1;min-width:0;font:600 13.5px Inter,sans-serif;color:var(--ink);overflow-wrap:anywhere}.bv2a .bv2f-rec .t span{display:block;font:500 12px Inter,sans-serif;color:var(--muted)}.bv2a .bv2f-rec .a{font:700 13.5px Inter,sans-serif;white-space:nowrap}
+.bv2a .bv2f-post{display:flex;justify-content:space-between;gap:10px;padding:8px 0;border-top:1px solid var(--line-soft);font:500 13px Inter,sans-serif;color:var(--ink-2)}.bv2a .bv2f-post:first-of-type{border-top:0}.bv2a .bv2f-post b{color:var(--ink)}
+#bv2ESheet .bv2f-row{display:flex;align-items:center;gap:10px;padding:10px 0;border-top:1px solid var(--line-soft)}#bv2ESheet .bv2f-row .t{flex:1;min-width:0;font:600 13.5px Inter,sans-serif;color:var(--ink);overflow-wrap:anywhere}#bv2ESheet .bv2f-row .t span{display:block;font:500 12px Inter,sans-serif;color:var(--muted)}
+#bv2ESheet .bv2f-row .a{font:700 13.5px Inter,sans-serif;white-space:nowrap}#bv2ESheet .bv2f-row .a.unk{color:var(--danger);font-weight:600}#bv2ESheet .bv2f-row button{border:1px solid var(--gold);background:var(--surface,#fff);border-radius:10px;min-height:36px;padding:0 10px;font:600 12px Inter,sans-serif;color:var(--ink)}
+#bv2ESheet .bv2f-h{font:700 12px Inter,sans-serif;color:var(--muted);text-transform:uppercase;letter-spacing:.3px;margin:16px 0 2px}[data-theme="dark"] .bv2a .bv2f-ghost,[data-theme="dark"] #bv2ESheet .bv2f-row button{background:var(--surface,#131E33)}`;
+function _bv2FCssOnce(){ if(document.getElementById("bv2fCss")) return; const st=document.createElement("style"); st.id="bv2fCss"; st.textContent=BV2_F_CSS; document.head.appendChild(st); }
+function _bv2FBudget(tr){ const v=bv2ReadV1(tr); return v.choice?v.choice.amountMinor:null; }
+function bv2ForecastCardHtml(tr, fc, opts){   /* PURE : carte « Prevision finale » (avant et pendant le voyage) */
+  const F=_bv2F(), A=_bv2A(), f=x=>_bv2Fmt(x, fc.currency), esc=_bv2Esc, bud=_bv2FBudget(tr);
+  let h=`<div class="bv2-card bv2f-card" id="bv2FCard">`;
+  if(!opts||!opts.noTitle) h+=`<div class="big" id="bv2FFinal">${esc(fc.complete?f(fc.finalMinor):_bv2Tx(F.known,{x:f(fc.knownFinalMinor)}))}</div>`;
+  h+=`<div class="parts"><div><span>${esc(F.paidPart)}</span><b>${esc(f(fc.spentMinor))}</b></div><div><span>${esc(F.restPart)}</span><b>${esc(f(fc.remainingKnownMinor))}${fc.unknownLines.length?" +":""}</b></div>`;
+  if(fc.confirmedMinor&&fc.estimatedMinor) h+=`<div class="sub"><span>${esc(_bv2Tx(F.confPart,{x:f(fc.confirmedMinor)}))}</span></div><div class="sub"><span>${esc(_bv2Tx(F.estPart,{x:f(fc.estimatedMinor)}))}</span></div>`;
+  h+=`</div>`;
+  if(fc.unknownLines.length){ const n=fc.unknownPosts.length; h+=`<div class="unk">${esc(n===1?F.unk1:_bv2Tx(F.unk,{n}))} · ${esc(fc.unknownPosts.map(p=>A.post[p]).join(", "))}</div>`; }
+  if(fc.pending) h+=`<div class="unk" id="bv2FPend">${esc(fc.pending===1?F.pend1:_bv2Tx(F.pend,{n:fc.pending}))}</div>`;
+  if(fc.complete&&bud!=null){ const d=bud-fc.finalMinor; h+=`<div class="st ${d>=0?"ok":"bad"}" id="bv2FVs">${esc(d>=0?_bv2Tx(F.inBudget,{x:f(d)}):_bv2Tx(F.over,{x:f(-d)}))}</div>`; }
+  if(fc.rows.some(rw=>rw.fuel&&rw.status==="remaining"&&rw.R>0)&&fc.started) h+=`<div class="w">${esc(F.fuelNote)}</div>`;
+  h+=`<button type="button" class="btn bv2f-ghost" id="bv2FDetail">${esc(F.detail)}</button></div>`;
+  for(const d of fc.doubles){ const p=(A.post[d.post]||d.post).toLowerCase(); h+=`<div class="bv2f-dbl" data-dbl="${esc(d.post)}"><span>${esc(d.n===1?_bv2Tx(F.dbl1,{p}):_bv2Tx(F.dbl,{n:d.n, p}))}</span><button type="button" data-dbl-link="${esc(d.post)}">${esc(F.link)}</button></div>`; }
+  return h; }
+function _bv2FBind(root, tr){
+  const b=root.querySelector("#bv2FDetail"); if(b) b.onclick=()=>{ const t=currentTrip(); if(t&&bv2PreviewActive()) bv2OpenRemaining(t); };
+  root.querySelectorAll("[data-dbl-link]").forEach(x=>x.onclick=()=>{ const t=currentTrip(); if(t&&bv2PreviewActive()) bv2OpenExpenses(t, {post:x.dataset.dblLink}); }); }
+
+/* ---------- avant le depart : carte apres « Deja paye » (DOM seul) ---------- */
+function bv2AfterF(body, tr, r){
+  _bv2FCssOnce(); if(!r||!r.ok||!tr||body.querySelector("#bv2FCard")) return; const card=body.querySelector("#bv2XCard"); if(!card) return;
+  const sp=bv2SpentView(tr, r); if(!sp.count) return;   /* sans depense, la prevision = l'estimation deja affichee */
+  const fc=bv2Forecast(tr, r), w=document.createElement("div"); w.id="bv2FWrap"; w.innerHTML=`<h3>${_bv2Esc(_bv2F().title)}</h3>`+bv2ForecastCardHtml(tr, fc);
+  card.insertAdjacentElement("afterend", w); _bv2FBind(w, tr); }
+
+/* ---------- pendant le voyage : ecran A3 ---------- */
+function bv2RenderA3(body, tr){   /* -> true si rendu ; aucune ecriture synchrone (gel budgetAuto differe comme B3.2) */
+  const st=bv2Store(tr); if(st.readOnly) return false;
+  _bv2ACss(); _bv2ECssOnce(); _bv2XCssOnce(); _bv2FCssOnce(); const A=_bv2A(), F=_bv2F(), X=_bv2X(); _bv2Sub(F.sub);
+  if(_bv2ETrip&&_bv2ETrip!==tr) bv2CloseE();
+  let needQ=false, ok=false;
+  bv2RenderGuard(()=>{
+    const r=bv2Estimate(tr);
+    if((!r.ok&&r.code==="VOYAGEURS_A_CONFIRMER")||(r.ok&&!st.data.travelersConfirmed)){ body.innerHTML=bv2StateHtml(A, A.qTitle, A.qWait); needQ=true; ok=true; return; }
+    if(!r.ok) return;
+    const fc=bv2Forecast(tr, r), cur=fc.currency, f=x=>_bv2Fmt(x, cur), esc=_bv2Esc, bud=_bv2FBudget(tr), days=tripDays(tr).length, left=Math.max(1, days-Math.max(0, fc.today.index));
+    let hero="";
+    if(bud!=null){ const rest=bud-fc.spentMinor, pct=bud>0?Math.round(100*fc.spentMinor/bud):0;
+      hero+=`<div class="k">${esc(F.rest)}${fc.pending?" · "+esc(_bv2Tx(F.partial,{n:fc.pending})):""}</div><div class="v" id="bv2FRest">${esc(f(rest))}</div>`;
+      hero+=`<div class="s">${esc(left===1?_bv2Tx(F.perDay1,{x:f(Math.max(0,rest))}):_bv2Tx(F.perDay,{x:f(Math.max(0,Math.round(rest/left))), n:left}))}</div>`;
+      hero+=`<div class="bv2f-bar${pct>100?" over":""}"><i style="width:${Math.min(100,Math.max(0,pct))}%"></i></div><div class="s">${esc(_bv2Tx(F.used,{p:pct, x:f(fc.spentMinor), b:f(bud)}))}</div>`; }
+    else hero+=`<div class="k">${esc(F.spent)}${fc.pending?" · "+esc(_bv2Tx(F.partial,{n:fc.pending})):""}</div><div class="v" id="bv2FRest">${esc(f(fc.spentMinor))}</div>`;
+    hero+=`<div class="s" id="bv2FHeroFin">${esc(fc.complete?_bv2Tx(F.fin,{x:f(fc.finalMinor)})+(bud!=null?" · "+(bud-fc.finalMinor>=0?_bv2Tx(F.inBudget,{x:f(bud-fc.finalMinor)}):_bv2Tx(F.over,{x:f(fc.finalMinor-bud)})):""):(fc.estimateComplete?_bv2Tx(F.finPend,{x:f(fc.knownFinalMinor), n:fc.pending}):_bv2Tx(F.finInc,{x:f(fc.knownFinalMinor), n:fc.unknownPosts.length})))}</div>`;
+    let h=`<div class="bv2a" id="bv2A3"><div class="bv2-card bv2-hero">${hero}</div>`;   /* attribut propre a A3 : l'ancre du temoin B3.2 W-A4 reste unique */
+    h+=`<div class="bv2-line" id="bv2FToday">${esc(fc.today.plannedMinor>0?_bv2Tx(F.today,{x:f(fc.today.spentMinor), y:f(fc.today.plannedMinor)}):_bv2Tx(F.todayNone,{x:f(fc.today.spentMinor)}))}</div>`;
+    h+=`<button type="button" class="btn gold" id="bv2FAdd" style="width:100%;margin-top:8px">${esc(F.add)}</button>`;
+    h+=`<h3>${esc(F.title)}</h3>`+bv2ForecastCardHtml(tr, fc, {noTitle:false});
+    const recs=fc.rows.length?bv2SpentView(tr, r).recs:[], v1=new Map(((tr.expenses)||[]).filter(_bv2Obj).map(e=>[String(e.id), e]));
+    const last=recs.slice().sort((a,b)=>String(b.date||"").localeCompare(String(a.date||""))||((v1.get(b.id)||{}).createdAt||0)-((v1.get(a.id)||{}).createdAt||0)).slice(0,5);
+    h+=`<h3>${esc(F.recent)}</h3><div class="bv2-card">`;
+    if(!last.length) h+=`<div class="bv2-line">${esc(F.noExp)}</div>`;
+    for(const x of last){ const e=v1.get(x.id)||{}, name=String(e.establishment||e.label||t("bcat."+x.category)).slice(0,60);
+      h+=`<div class="bv2f-rec"><div class="t">${esc(name)}<span>${esc(A.post[x.post]||"")}${x.tripMinor==null?" · "+esc(X.toRefresh):""}</span></div><div class="a">${esc(_bv2Fmt(x.kind==="refund"?-x.minor:x.minor, x.currency))}</div></div>`; }
+    h+=`<button type="button" class="btn bv2f-ghost" id="bv2FAll">${esc(F.all)}</button></div>`;
+    h+=`<h3>${esc(F.posts)}</h3><div class="bv2-card">`;
+    for(const p of BV2_POSTS){ const b=fc.byPost[p]; if(!b||(!b.paidMinor&&!b.remainingMinor&&!b.unknown)) continue;
+      h+=`<div class="bv2f-post"><b>${esc(A.post[p])}</b><span>${esc(b.unknown?_bv2Tx(F.postLineUnk,{x:f(b.paidMinor)}):_bv2Tx(F.postLine,{x:f(b.paidMinor), y:f(b.remainingMinor)}))}</span></div>`; }
+    h+=`</div></div>`;
+    body.innerHTML=h; ok=true; });
+  if(!ok) return false;
+  if(needQ){ bv2OpenQ(tr); return true; } else bv2CloseQ();
+  const a=body.querySelector("#bv2FAdd"); if(a) a.onclick=()=>{ const t=currentTrip(); if(t&&bv2PreviewActive()) bv2OpenExpense(t); };
+  const l=body.querySelector("#bv2FAll"); if(l) l.onclick=()=>{ const t=currentTrip(); if(t&&bv2PreviewActive()) bv2OpenExpenses(t); };
+  _bv2FBind(body, tr);
+  if(bv2ReadV1(tr).needsAutoFreeze) bv2AfterRender(()=>{ try{ bv2FreezeBudgetAuto(tr, bv2Capture()); }catch(_e){} });   /* meme ecriture differee declaree que B3.2 (§7.4) */
+  return true; }
+
+/* ---------- « Reste a payer » et « Je l'ai deja paye » (A8) ---------- */
+function bv2OpenRemaining(tr){   /* lecture seule a l'ouverture */
+  if(!tr||bv2Store(tr).readOnly) return; const F=_bv2F(), A=_bv2A(), esc=_bv2Esc, r=bv2Estimate(tr); if(!r.ok) return; const fc=bv2Forecast(tr, r), f=x=>_bv2Fmt(x, fc.currency);
+  const linkable=new Set(bv2LinkableLines(tr, r).map(l=>l.id)), lineOf=id=>r.result.lines.find(l=>l.id===id), lab=rw=>{ const l=lineOf(rw.id); return l?_bv2XLineLabel(tr, r, l):rw.id; };
+  let h=`<div class="bv2e-v">${esc(F.restPart)} : ${esc(f(fc.remainingKnownMinor))}${fc.unknownLines.length?" + "+esc(fc.unknownPosts.length===1?F.unk1:_bv2Tx(F.unk,{n:fc.unknownPosts.length})):""}</div>`;
+  const open=fc.rows.filter(rw=>rw.status==="unknown"||(rw.status==="remaining"&&rw.R>0));
+  if(!open.length) h+=`<div class="bv2x-info">${esc(F.remNone)}</div>`;
+  for(const p of BV2_POSTS){ const xs=open.filter(rw=>rw.post===p); if(!xs.length) continue; h+=`<div class="bv2f-h">${esc(A.post[p])}</div>`;
+    for(const rw of xs){ const can=rw.status==="remaining"&&rw.R>0&&linkable.has(rw.id)&&rw.type!=="fuel";
+      h+=`<div class="bv2f-row" data-row="${esc(rw.id)}"><div class="t">${esc(lab(rw))}${rw.fuel?`<span>${esc(F.fuelDays)}</span>`:""}</div><div class="a${rw.R==null?" unk":""}">${esc(rw.R==null?F.remUnk:f(rw.R))}</div>${can?`<button type="button" data-paid="${esc(rw.id)}">${esc(F.paidNow)}</button>`:""}</div>`; } }
+  const settled=fc.rows.filter(rw=>rw.status==="settled"); if(settled.length){ h+=`<div class="bv2f-h">${esc(F.remSettled)}</div>`; for(const rw of settled) h+=`<div class="bv2f-row"><div class="t">${esc(lab(rw))}</div><div class="a">0</div></div>`; }
+  const past=fc.rows.filter(rw=>rw.status==="past"); if(past.length) h+=`<div class="bv2f-h">${esc(F.remPast)} (${past.length})</div>`;
+  _bv2EShow(F.remTitle, h); _bv2ETrip=tr; _bv2EKind="remaining"; _bv2ELine=null;
+  document.querySelectorAll("#bv2EBody [data-paid]").forEach(b=>b.onclick=()=>{ const t=_bv2EGuard(); if(t) bv2PaidNow(t, b.dataset.paid); }); }
+function bv2PaidNow(tr, lineId){   /* A8 : feuille de depense B3.5 PREREMPLIE (montant = reste, categorie, ligne, paiement complet) ; ecriture seulement par « Enregistrer » */
+  const r=bv2Estimate(tr); if(!r.ok) return false; const fc=bv2Forecast(tr, r), rw=fc.rows.find(x=>x.id===lineId); if(!rw||rw.status!=="remaining"||!(rw.R>0)) return false;
+  const l=bv2LinkableLines(tr, r).find(x=>x.id===lineId); if(!l) return false;
+  bv2OpenExpense(tr); const b=document.getElementById("bv2EBody"); if(!b) return false;
+  const set=(sel, v, ev)=>{ const el=b.querySelector(sel); if(!el) return; el.value=v; el.dispatchEvent(new Event(ev)); };
+  set("#bv2XCur", fc.currency, "change");   /* audit GPT B3.6-1 (P1-B) : le reste est dans la devise du VOYAGE, jamais celle de l'etape ; l'utilisateur peut la changer ensuite */
+  set("#bv2XAmt", _bv2SStr(rw.R, fc.currency), "input"); set("#bv2XCat", BV2_F_LINE_CAT[l.type]||"misc", "change"); set("#bv2XLine", lineId, "change");
+  const full=b.querySelector('#bv2XPay [data-settles="1"]'); if(full) full.click();   /* paiement complet, visible et modifiable */
+  return true; }
+
+/* accroches : enchainees, aucun octet gele modifie */
+bv2AfterA=(function(prev){ return function(body, tr, r){ if(typeof prev==="function") prev(body, tr, r); try{ bv2AfterF(body, tr, r); }catch(e){ console.error("bv2AfterF", e); } }; })(bv2AfterA);
+bv2RenderA=(function(prev){ return function(body, tr){ try{ if(tr&&bv2PreviewActive()&&tripStatus(tr)==="ongoing"&&bv2RenderA3(body, tr)) return; }catch(e){ console.error("bv2RenderA3", e); } return prev(body, tr); }; })(bv2RenderA);
+/* ===== fin BUDGET V2 -- B3.6 ===== */
 /* FUEL-R1 : table statique FUEL_BY_CC supprimee -- aucun prix carburant/energie non source, dans aucun pays. */
 /* FUEL-R1 : fuelPrice() (table statique) supprimee. */
 /* ============================================================
