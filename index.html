@@ -9101,7 +9101,7 @@ function _bv2SampleWanted(){ if(/\.github\.io$/i.test(location.hostname)) return
   if(document.readyState==="complete") setTimeout(()=>run(0), 300); else window.addEventListener("load", ()=>setTimeout(()=>run(0), 300)); })();
 /* ===== fin BUDGET V2 -- B3.3a ===== */
 /* ===== BUDGET V2 -- B3.4 MON BUDGET (spec B3-r3 §6.2 A1/A1'/A2, §6.7 F, §7.3 choice, §9 ; GO GEL B3.3 et ordre d'engager B3.4, Loic 13 oct. 2026) =====
-   Lot B3.4-1 : choisir « Mon budget » (F) et l'afficher sur l'ecran A (A2). La repartition par poste vient au lot B3.4-2.
+   Lot B3.4-1 : choisir « Mon budget » (F) et l'afficher sur l'ecran A (A2). Lot B3.4-2 (plus bas) : repartition par poste.
    - Bloc AJOUTE apres B3.3 (gele, 6ec5b07c) : aucun octet de B1, B2, P6d, B3.0, B3.1, B3.2 ni B3.3 n'est modifie.
    - Accroche : bv2AfterA (B3.3) est ENCHAINE (appel de la fonction B3.3 telle quelle, puis bv2AfterB). DOM seul, aucune ecriture pendant le rendu.
    - Deux fonctions d'ecriture, toutes deux gardees par bv2EditTargetCheck (apercu actif + voyage selectionne) puis bv2Mutate (B3.0) :
@@ -9247,6 +9247,7 @@ function bv2OpenBudget(tr){   /* lecture seule a l'ouverture : aucune ecriture *
   if(v.changedByV1){ h+=`<div class="bv2e-item"><div class="r">${esc(v.choice?_bv2Tx(B.adoptTxt,{b:f(v.choice.amountMinor)}):B.adoptNone)}</div><div class="k">${esc(B.adoptWhy)}</div><div class="acts"><button type="button" class="btn gold sm" id="bv2BAdopt">${esc(B.adopt)}</button></div></div>`; }
   else {
     if(v.choice){ const since=v.source==="v2"&&v.choice.setAt?" · "+_bv2Tx(B.since,{d:_bv2BDate(v.choice.setAt)}):(v.source==="v1"?" · "+B.fromV1:""); h+=`<div class="bv2e-v" id="bv2BCurrent">${esc(_bv2Tx(B.current,{b:f(v.choice.amountMinor)})+since)}</div>`; }
+    if(v.choice){ const sv=bv2SplitView(tr, r), S=_bv2S(); h+=`<button type="button" class="bv2b-opt" id="bv2BSplit"><span class="t">${esc(sv&&sv.on?S.openDone:S.open)}</span><span class="a" style="font-weight:600;font-size:13px">${esc(sv&&sv.on?_bv2Tx(S.todo,{n:f(sv.unallocatedMinor)}):"")} ›</span></button>`; }
     h+=`<div class="bv2e-k">${esc(B.propT)}</div>`;
     if(v.proposals){ const on=x=>v.choice&&v.choice.amountMinor===x?" on":"", tag=x=>v.choice&&v.choice.amountMinor===x?` <span class="bv2e-pill ok">${esc(B.now)}</span>`:"";
       h+=`<button type="button" class="bv2b-opt${on(v.proposals.centralMinor)}" data-how="estimate_central"><span class="t">${esc(B.propCentral)}${tag(v.proposals.centralMinor)}</span><span class="a">${esc(f(v.proposals.centralMinor))}</span></button>`;
@@ -9257,6 +9258,7 @@ function bv2OpenBudget(tr){   /* lecture seule a l'ouverture : aucune ecriture *
     if(v.choice&&v.source==="v2") h+=`<button type="button" class="bv2b-clear" id="bv2BClear">${esc(B.clear)}</button>`; }
   _bv2EShow(B.title, h); _bv2ETrip=tr; _bv2EKind="budget"; _bv2ELine=null;
   const body=document.getElementById("bv2EBody"), done=(res, msg)=>{ if(_bv2EAfter(res, null)){ bv2CloseE(); toast(msg); } };
+  const sp=body.querySelector("#bv2BSplit"); if(sp) sp.onclick=()=>{ const t=_bv2EGuard(); if(t) bv2OpenSplit(t); };
   const ad=body.querySelector("#bv2BAdopt"); if(ad) ad.onclick=()=>{ const t=_bv2EGuard(); if(!t) return; const res=bv2BudgetAdopt(t, bv2Capture()); if(_bv2EAfter(res, null)) bv2OpenBudget(t); };
   body.querySelectorAll(".bv2b-opt[data-how]").forEach(b=>b.onclick=()=>{ const t=_bv2EGuard(); if(!t) return; done(bv2BudgetChoose(t, b.dataset.how, null, bv2Capture()), B.done); });
   const inp=body.querySelector("#bv2BIn"), sv=body.querySelector("#bv2BSave"), err=body.querySelector("#bv2BErr");
@@ -9265,8 +9267,129 @@ function bv2OpenBudget(tr){   /* lecture seule a l'ouverture : aucune ecriture *
   if(sv) sv.onclick=save; if(inp) inp.onkeydown=e=>{ if(e.key==="Enter"){ e.preventDefault(); save(); } };
   const cl=body.querySelector("#bv2BClear"); if(cl) cl.onclick=()=>{ const t=_bv2EGuard(); if(!t) return; done(bv2BudgetClear(t, bv2Capture()), B.cleared); }; }
 
+/* ===== B3.4-2 : repartition par poste (spec §6.7 « Repartir par poste », §6.2 A2 « Repartition par poste », §9 regle 6 ; GO GPT B3.4-2, 14 oct. 2026) =====
+   - Un seul geste d'ecriture : bv2BudgetSplit(tr, valeurs|null, gesture), garde comme les autres (bv2EditTargetCheck + bv2Mutate).
+     valeurs = {POSTE: "350,50" | ""} ; somme <= « Mon budget » (REPARTITION_DEPASSE sinon) ; le reste est « non reparti ».
+     null = « Ne pas repartir » : byPost = {} (tout non reparti). Le miroir V1 (tr.catBudgets : poste -> premiere categorie, reste -> reserve)
+     est ecrit par _bv2Mirrors (B3.0), jamais ici.
+   - Cas d'une repartition encore tenue par l'ancien Budget (byPost absent du V2, catBudgets V1 lus) : « Ne pas repartir » la reprend d'abord
+     telle quelle (1er bv2Mutate : miroir identique par poste), puis la vide (2e bv2Mutate). Si le 2e echoue, l'etat reste celui qui etait affiche.
+   - Ecran A2 : carte « Repartition de mon budget » (DOM seul) ; chaque enveloppe comparee a l'estimation du poste, poste incomplet distingue. */
+const BV2_S_TXT={
+  fr:{lgBudget:"budget",lgEst:"estimation",open:"Répartir par poste",openDone:"Répartition par poste",title:"Répartir mon budget",budget:"Mon budget : {b}",est:"estimation {x}",estInc:"{x} connus · à préciser",estNone:"aucune estimation",
+      sum:"Réparti {x} sur {b} · {r} non répartis",sumFull:"Réparti {x} sur {b} · tout est réparti",over:"Réparti {x} sur {b} · dépasse de {o}",fill:"Reprendre l'estimation",save:"Enregistrer la répartition",none:"Ne pas répartir",back:"‹ Mon budget",
+      card:"Répartition de mon budget",unalloc:"Non réparti : {x}",covers:"couvre l'estimation ({x})",short:"il manque {o} (estimation {x})",inc:"{x} connus · estimation incomplète",incOver:"dépasse déjà de {o} ({x} connus, estimation incomplète)",noEst:"aucune estimation",noBudget:"non budgété · estimation {x}",
+      done:"Répartition enregistrée",cleared:"Répartition retirée",invalid:"Montant invalide : {p}",overErr:"La répartition dépasse ton budget de {o}",fromV1:"reprise de l'ancien Budget",todo:"{n} non répartis"},
+  en:{lgBudget:"budget",lgEst:"estimate",open:"Split by category",openDone:"Split by category",title:"Split my budget",budget:"My budget: {b}",est:"estimate {x}",estInc:"{x} known · to specify",estNone:"no estimate",
+      sum:"Allocated {x} of {b} · {r} unallocated",sumFull:"Allocated {x} of {b} · fully allocated",over:"Allocated {x} of {b} · {o} over",fill:"Use the estimate",save:"Save the split",none:"Don't split",back:"‹ My budget",
+      card:"My budget by category",unalloc:"Unallocated: {x}",covers:"covers the estimate ({x})",short:"{o} short (estimate {x})",inc:"{x} known · incomplete estimate",incOver:"already {o} over ({x} known, incomplete estimate)",noEst:"no estimate",noBudget:"not budgeted · estimate {x}",
+      done:"Split saved",cleared:"Split removed",invalid:"Invalid amount: {p}",overErr:"The split exceeds your budget by {o}",fromV1:"taken from the old Budget",todo:"{n} unallocated"},
+  es:{lgBudget:"presupuesto",lgEst:"estimación",open:"Repartir por partida",openDone:"Reparto por partida",title:"Repartir mi presupuesto",budget:"Mi presupuesto: {b}",est:"estimación {x}",estInc:"{x} conocidos · por precisar",estNone:"sin estimación",
+      sum:"Repartido {x} de {b} · {r} sin repartir",sumFull:"Repartido {x} de {b} · todo repartido",over:"Repartido {x} de {b} · excede en {o}",fill:"Usar la estimación",save:"Guardar el reparto",none:"No repartir",back:"‹ Mi presupuesto",
+      card:"Reparto de mi presupuesto",unalloc:"Sin repartir: {x}",covers:"cubre la estimación ({x})",short:"faltan {o} (estimación {x})",inc:"{x} conocidos · estimación incompleta",incOver:"ya excede en {o} ({x} conocidos, estimación incompleta)",noEst:"sin estimación",noBudget:"sin presupuesto · estimación {x}",
+      done:"Reparto guardado",cleared:"Reparto quitado",invalid:"Importe no válido: {p}",overErr:"El reparto excede tu presupuesto en {o}",fromV1:"tomado del Presupuesto anterior",todo:"{n} sin repartir"},
+  it:{lgBudget:"budget",lgEst:"stima",open:"Ripartisci per voce",openDone:"Ripartizione per voce",title:"Ripartisci il mio budget",budget:"Il mio budget: {b}",est:"stima {x}",estInc:"{x} noti · da precisare",estNone:"nessuna stima",
+      sum:"Ripartiti {x} su {b} · {r} non ripartiti",sumFull:"Ripartiti {x} su {b} · tutto ripartito",over:"Ripartiti {x} su {b} · supera di {o}",fill:"Usa la stima",save:"Salva la ripartizione",none:"Non ripartire",back:"‹ Il mio budget",
+      card:"Ripartizione del mio budget",unalloc:"Non ripartito: {x}",covers:"copre la stima ({x})",short:"mancano {o} (stima {x})",inc:"{x} noti · stima incompleta",incOver:"supera già di {o} ({x} noti, stima incompleta)",noEst:"nessuna stima",noBudget:"non previsto · stima {x}",
+      done:"Ripartizione salvata",cleared:"Ripartizione rimossa",invalid:"Importo non valido: {p}",overErr:"La ripartizione supera il budget di {o}",fromV1:"ripresa dal Budget precedente",todo:"{n} non ripartiti"},
+  de:{lgBudget:"Budget",lgEst:"Schätzung",open:"Nach Posten aufteilen",openDone:"Aufteilung nach Posten",title:"Mein Budget aufteilen",budget:"Mein Budget: {b}",est:"Schätzung {x}",estInc:"{x} bekannt · offen",estNone:"keine Schätzung",
+      sum:"Verteilt {x} von {b} · {r} nicht verteilt",sumFull:"Verteilt {x} von {b} · alles verteilt",over:"Verteilt {x} von {b} · {o} zu viel",fill:"Schätzung übernehmen",save:"Aufteilung speichern",none:"Nicht aufteilen",back:"‹ Mein Budget",
+      card:"Aufteilung meines Budgets",unalloc:"Nicht verteilt: {x}",covers:"deckt die Schätzung ({x})",short:"es fehlen {o} (Schätzung {x})",inc:"{x} bekannt · Schätzung unvollständig",incOver:"bereits {o} darüber ({x} bekannt, Schätzung unvollständig)",noEst:"keine Schätzung",noBudget:"nicht budgetiert · Schätzung {x}",
+      done:"Aufteilung gespeichert",cleared:"Aufteilung entfernt",invalid:"Ungültiger Betrag: {p}",overErr:"Die Aufteilung übersteigt dein Budget um {o}",fromV1:"aus dem alten Budget übernommen",todo:"{n} nicht verteilt"}};
+function _bv2S(){ return BV2_S_TXT[lang()]||BV2_S_TXT.fr; }
+function _bv2SSplitOn(bp){ return _bv2Obj(bp)&&Object.values(bp).some(x=>x>0); }
+function bv2SplitView(tr, r){   /* PURE : enveloppes par poste comparees a l'estimation ; null sans « Mon budget » */
+  const v1=bv2ReadV1(tr), ch=v1.choice; if(!ch) return null; const res=r&&r.ok?r.result:null, bp=_bv2Obj(ch.byPost)?ch.byPost:{};
+  const posts=BV2_POSTS.map(p=>{ const e=res?res.posts.find(x=>x.post===p):null, budgetMinor=bp[p]||0;
+    const est={ empty:!e||e.empty===true, complete:!!e&&e.complete===true&&!e.empty, totalMinor:e?e.totalMinor:null, knownMinor:e?e.knownMinor:null };
+    let status;
+    if(est.empty) status=budgetMinor>0?"noEst":"none";
+    else if(est.complete) status=budgetMinor===0?(est.totalMinor>0?"noBudget":"none"):(budgetMinor>=est.totalMinor?"covers":"short");   /* estimation 0 et rien de reparti : poste sans objet, non affiche */
+    else status=(est.knownMinor||0)>budgetMinor&&budgetMinor>0?"incOver":(budgetMinor===0?"noBudgetInc":"inc");
+    const ref=est.complete?est.totalMinor:(est.knownMinor||0);
+    return { post:p, budgetMinor, est, status, gapMinor:est.empty?null:budgetMinor-ref }; });
+  const allocated=posts.reduce((a,x)=>a+x.budgetMinor,0);
+  return { currency:v1.currency, amountMinor:ch.amountMinor, on:_bv2SSplitOn(ch.byPost), source:v1.byPostSource, allocatedMinor:allocated, unallocatedMinor:ch.amountMinor-allocated, posts }; }
+function _bv2SStr(minor, cur){ const d=_b2Digits(cur); if(d==null||!Number.isSafeInteger(minor)||minor<0) return ""; let s=_b2MinorToDecStr(minor, d); if(s&&/\.0+$/.test(s)) s=s.replace(/\.0+$/,"");   /* 298.80 garde ses centimes, 300.00 -> 300 */ return lang()==="en"?s:s.replace(".", ","); }
+function bv2BudgetSplit(tr, values, gesture){
+  const g=gesture||bv2Capture(); const tc=bv2EditTargetCheck(tr); if(!tc.ok) return tc;
+  const st=bv2Store(tr); if(st.readOnly) return {ok:false, code:st.reason||"LECTURE_SEULE"};
+  const v1=bv2ReadV1(tr); if(v1.changedByV1) return {ok:false, code:"MODIFIE_PAR_V1"};
+  const ch=v1.choice; if(!ch) return {ok:false, code:"AUCUN_BUDGET"}; const cur=v1.currency;
+  let byPost={};
+  if(values!=null){ if(!_bv2Obj(values)) return {ok:false, code:"GESTE_INVALIDE"};
+    for(const k of Object.keys(values)) if(BV2_POSTS.indexOf(k)<0) return {ok:false, code:"POSTE_INCONNU"};
+    for(const p of BV2_POSTS){ const raw=values[p]; if(raw==null||String(raw).trim()==="") continue;
+      const s=bv2EditAmountStr(String(raw), cur), m=s==null?null:bv2BudgetMinorOf(s, cur); if(m==null) return {ok:false, code:"MONTANT_INVALIDE:"+p};
+      if(m>0) byPost[p]=m; }
+    const sum=Object.values(byPost).reduce((a,b)=>a+b,0); if(sum>ch.amountMinor) return {ok:false, code:"REPARTITION_DEPASSE", overMinor:sum-ch.amountMinor}; }
+  const base=()=>st.data.choice?null:{ amountMinor:ch.amountMinor, currency:ch.currency, origin:"migrated_v1", setAt:Date.now(), estimateAtChoiceMinor:null, estimateAtChoiceComplete:false, byPost:null };   /* budget encore lu dans l'ancien Budget : pris en charge, montant inchange */
+  const set=bp=>d=>{ d.choice=Object.assign({}, d.choice||base(), {byPost:bp}); };
+  if(values==null){
+    const v2bp=st.data.choice&&_bv2Obj(st.data.choice.byPost)?st.data.choice.byPost:null;
+    if(!v2bp&&!_bv2SSplitOn(ch.byPost)) return {ok:true, noop:true};   /* rien a retirer */
+    if(!v2bp&&_bv2SSplitOn(ch.byPost)){ const a=_bv2EMutate(tr, set(bv2Clone(ch.byPost)), g, null); if(!a.ok) return a; }   /* repartition V1 reprise telle quelle avant d'etre videe (sinon le miroir ne reecrirait pas catBudgets) */
+    return _bv2EMutate(tr, set({}), g, null); }
+  return _bv2EMutate(tr, set(byPost), g, null); }
+
+const BV2_S_CSS=`
+#bv2ESheet .bv2s-row{display:flex;align-items:center;gap:10px;padding:8px 0;border-top:1px solid var(--line-soft)}#bv2ESheet .bv2s-row:first-of-type{border-top:0}
+#bv2ESheet .bv2s-row .n{flex:1;min-width:0}#bv2ESheet .bv2s-row .n b{display:block;font:600 14px Inter,sans-serif;color:var(--ink)}#bv2ESheet .bv2s-row .n span{display:block;font:500 12px Inter,sans-serif;color:var(--muted);overflow-wrap:anywhere}
+#bv2ESheet .bv2s-row input{width:112px;flex:0 0 112px;height:44px;border:1px solid var(--line);border-radius:12px;padding:0 10px;font:600 16px Inter,sans-serif;color:var(--ink);background:var(--surface,#fff);text-align:right}
+#bv2ESheet .bv2s-row input.bad{border-color:var(--danger)}#bv2ESheet .bv2s-sum{position:sticky;bottom:0;background:var(--bg);padding:10px 0 2px;font:600 13.5px Inter,sans-serif;color:var(--ink);border-top:1px solid var(--line)}#bv2ESheet .bv2s-sum.over{color:var(--danger)}
+#bv2ESheet #bv2SFill{background:var(--surface,#fff);color:var(--ink);border:1px solid var(--line);box-shadow:none}#bv2ESheet .bv2s-acts{display:flex;flex-wrap:wrap;gap:8px;margin-top:8px}#bv2ESheet .bv2s-acts .btn{flex:1 1 140px}#bv2ESheet .btn[disabled]{opacity:.45}
+.bv2a .bv2s-card .bv2s-p{padding:10px 0;border-top:1px solid var(--line-soft);cursor:pointer}.bv2a .bv2s-card .bv2s-p:first-of-type{border-top:0}
+.bv2a .bv2s-card .h{display:flex;align-items:center;gap:10px}.bv2a .bv2s-card .h .n{flex:1;min-width:0;font:600 14px Inter,sans-serif;color:var(--ink)}.bv2a .bv2s-card .h .a{font:700 14px Inter,sans-serif;color:var(--ink);white-space:nowrap}
+.bv2a .bv2s-card .bars{margin:6px 0 4px;display:grid;gap:3px}.bv2a .bv2s-card .bar{height:6px;border-radius:3px;background:var(--line-soft);overflow:hidden}.bv2a .bv2s-card .bar i{display:block;height:100%;border-radius:3px}
+.bv2a .bv2s-card .bar.b i{background:var(--navy)}.bv2a .bv2s-card .bar.e i{background:var(--gold)}.bv2a .bv2s-card .bar.e.inc i{background:repeating-linear-gradient(90deg,var(--gold) 0 6px,transparent 6px 9px)}
+.bv2a .bv2s-card .t{font:500 12px Inter,sans-serif;color:var(--muted);overflow-wrap:anywhere}.bv2a .bv2s-card .t.bad{color:var(--danger);font-weight:600}.bv2a .bv2s-card .t.ok{color:var(--emerald)}
+.bv2a .bv2s-card .lg{display:flex;gap:14px;font:500 11.5px Inter,sans-serif;color:var(--muted);margin-bottom:2px}.bv2a .bv2s-card .lg i{display:inline-block;width:14px;height:6px;border-radius:3px;margin-right:5px;vertical-align:middle}.bv2a .bv2s-card .u{margin-top:8px;padding-top:10px;border-top:1px solid var(--line);font:600 13px Inter,sans-serif;color:var(--ink-2)}[data-theme="dark"] .bv2a .bv2s-card .bar.b i{background:#8FA6D8}`;
+function _bv2SCssOnce(){ if(document.getElementById("bv2sCss")) return; const st=document.createElement("style"); st.id="bv2sCss"; st.textContent=BV2_S_CSS; document.head.appendChild(st); }
+function _bv2SStatusText(S, x, f){ const e=x.est;
+  switch(x.status){ case "covers": return [S.covers.replace("{x}",f(e.totalMinor)),"ok"]; case "short": return [_bv2Tx(S.short,{o:f(-x.gapMinor), x:f(e.totalMinor)}),"bad"];
+    case "noBudget": return [_bv2Tx(S.noBudget,{x:f(e.totalMinor)}),"bad"]; case "inc": case "noBudgetInc": return [_bv2Tx(S.inc,{x:f(e.knownMinor||0)}),""];
+    case "incOver": return [_bv2Tx(S.incOver,{o:f(-x.gapMinor), x:f(e.knownMinor||0)}),"bad"]; case "noEst": return [S.noEst,""]; default: return ["",""]; } }
+function bv2SplitCardHtml(sv, A){   /* PURE : carte A2 « Repartition de mon budget » */
+  const S=_bv2S(), f=x=>_bv2Fmt(x, sv.currency), esc=_bv2Esc; let h=`<h3>${esc(S.card)}</h3><div class="bv2-card bv2s-card" id="bv2SCard"><div class="lg"><span><i style="background:var(--navy)"></i>${esc(S.lgBudget)}</span><span><i style="background:var(--gold)"></i>${esc(S.lgEst)}</span></div>`;
+  for(const x of sv.posts){ if(x.status==="none") continue; const e=x.est, ref=e.complete?e.totalMinor:(e.knownMinor||0), top=Math.max(x.budgetMinor, ref, 1);
+    const [t,cls]=_bv2SStatusText(S, x, f), cm=catMeta(BV2_POST_ICON[x.post]||"misc");
+    h+=`<div class="bv2s-p" data-split="${esc(x.post)}"><div class="h"><span class="bv2s-dot" style="width:10px;height:10px;border-radius:50%;background:${cm.c};flex:0 0 10px"></span><span class="n">${esc(A.post[x.post]||x.post)}</span><span class="a">${esc(f(x.budgetMinor))}</span></div>`;
+    h+=`<div class="bars"><div class="bar b"><i style="width:${(100*x.budgetMinor/top).toFixed(1)}%"></i></div>${e.empty?"":`<div class="bar e${e.complete?"":" inc"}"><i style="width:${(100*ref/top).toFixed(1)}%"></i></div>`}</div><div class="t ${cls}">${esc(t)}</div></div>`; }
+  h+=`<div class="u" id="bv2SUnalloc">${esc(_bv2Tx(S.unalloc,{x:f(sv.unallocatedMinor)}))}</div></div>`; return h; }
+function bv2AfterS(body, tr, r){
+  _bv2SCssOnce(); if(!r||!r.ok||!tr) return; const sv=bv2SplitView(tr, r); if(!sv||!sv.on||bv2ReadV1(tr).changedByV1) return;
+  const anchor=body.querySelector("#bv2BEdit"); if(!anchor) return; const w=document.createElement("div"); w.innerHTML=bv2SplitCardHtml(sv, _bv2A());
+  const nodes=[...w.childNodes]; let at=anchor; for(const n of nodes){ at.insertAdjacentElement("afterend", n); at=n; }
+  const card=body.querySelector("#bv2SCard"); if(card) card.onclick=()=>{ const t=currentTrip(); if(t&&bv2PreviewActive()) bv2OpenSplit(t); }; }
+
+function bv2OpenSplit(tr, opts){   /* editeur de repartition (panneau #bv2ESheet) ; aucune ecriture a l'ouverture */
+  if(!tr||bv2Store(tr).readOnly) return; const r=bv2Estimate(tr), sv=bv2SplitView(tr, r); if(!sv) return bv2OpenBudget(tr);
+  const S=_bv2S(), A=_bv2A(), cur=sv.currency, f=x=>_bv2Fmt(x, cur), esc=_bv2Esc, fromEst=!!(opts&&opts.fromEstimate)||!sv.on;
+  const estStr=e=>{ const m=e.empty?0:(e.complete?e.totalMinor:(e.knownMinor||0)); return m>0?_bv2SStr(m, cur):""; };
+  const pre=x=>fromEst?estStr(x.est):(x.budgetMinor>0?_bv2SStr(x.budgetMinor, cur):"");
+  let h=`<button type="button" class="bv2e-back" id="bv2SBack">${esc(S.back)}</button><div class="bv2e-v">${esc(_bv2Tx(S.budget,{b:f(sv.amountMinor)}))}${sv.on&&sv.source==="v1"?" · "+esc(S.fromV1):""}</div>`;
+  for(const x of sv.posts){ const e=x.est, hint=e.empty?S.estNone:(e.complete?_bv2Tx(S.est,{x:f(e.totalMinor)}):_bv2Tx(S.estInc,{x:f(e.knownMinor||0)}));
+    h+=`<div class="bv2s-row"><label class="n" for="bv2S_${x.post}"><b>${esc(A.post[x.post]||x.post)}</b><span>${esc(hint)}</span></label><input id="bv2S_${x.post}" data-post="${x.post}" inputmode="decimal" autocomplete="off" value="${esc(pre(x))}" placeholder="0"></div>`; }
+  h+=`<div class="bv2s-sum" id="bv2SSum" role="status"></div><div class="bv2b-err" id="bv2SErr" role="alert"></div><div class="bv2s-acts"><button type="button" class="btn" id="bv2SFill">${esc(S.fill)}</button><button type="button" class="btn gold" id="bv2SSave">${esc(S.save)}</button></div>`;
+  if(sv.on) h+=`<button type="button" class="bv2b-clear" id="bv2SNone">${esc(S.none)}</button>`;
+  _bv2EShow(S.title, h); _bv2ETrip=tr; _bv2EKind="split"; _bv2ELine=null;
+  const body=document.getElementById("bv2EBody"), ins=[...body.querySelectorAll("input[data-post]")], sum=body.querySelector("#bv2SSum"), err=body.querySelector("#bv2SErr"), sv2=body.querySelector("#bv2SSave");
+  const read=()=>{ let tot=0, bad=null; for(const i of ins){ const raw=i.value.trim(); let m=0; if(raw!==""){ const s=bv2EditAmountStr(raw, cur); m=s==null?null:bv2BudgetMinorOf(s, cur); }
+      i.classList.toggle("bad", m==null); if(m==null){ if(!bad) bad=i.dataset.post; } else tot+=m; } return {tot, bad}; };
+  const upd=()=>{ const {tot, bad}=read(), over=tot-sv.amountMinor;
+    sum.textContent=over>0?_bv2Tx(S.over,{x:f(tot), b:f(sv.amountMinor), o:f(over)}):(over===0?_bv2Tx(S.sumFull,{x:f(tot), b:f(sv.amountMinor)}):_bv2Tx(S.sum,{x:f(tot), b:f(sv.amountMinor), r:f(-over)}));
+    sum.classList.toggle("over", over>0); err.textContent=bad?_bv2Tx(S.invalid,{p:A.post[bad]||bad}):""; sv2.disabled=over>0||!!bad; };
+  ins.forEach(i=>{ i.oninput=upd; i.onkeydown=e=>{ if(e.key==="Enter"){ e.preventDefault(); sv2.click(); } }; }); upd();
+  body.querySelector("#bv2SBack").onclick=()=>{ const t=_bv2EGuard(); if(t) bv2OpenBudget(t); };
+  body.querySelector("#bv2SFill").onclick=()=>{ for(const i of ins){ const x=sv.posts.find(p=>p.post===i.dataset.post); i.value=estStr(x.est); } upd(); };
+  sv2.onclick=()=>{ const t=_bv2EGuard(); if(!t) return; const g=bv2Capture(); const vals={}; for(const i of ins) vals[i.dataset.post]=i.value;
+    const res=bv2BudgetSplit(t, vals, g); if(!res.ok&&res.code==="REPARTITION_DEPASSE"){ err.textContent=_bv2Tx(S.overErr,{o:f(res.overMinor)}); return; }
+    if(!res.ok&&/^MONTANT_INVALIDE:/.test(res.code)){ const p=res.code.split(":")[1]; err.textContent=_bv2Tx(S.invalid,{p:A.post[p]||p}); return; }
+    if(_bv2EAfter(res, null)){ bv2CloseE(); toast(S.done); } };
+  const nb=body.querySelector("#bv2SNone"); if(nb) nb.onclick=()=>{ const t=_bv2EGuard(); if(!t) return; const res=bv2BudgetSplit(t, null, bv2Capture()); if(_bv2EAfter(res, null)){ bv2CloseE(); toast(S.cleared); } }; }
+
 /* accroche : la fonction B3.3 est appelee telle quelle, puis B3.4 (aucun octet de B3.3 modifie) */
-bv2AfterA=(function(prev){ return function(body, tr, r){ if(typeof prev==="function") prev(body, tr, r); try{ bv2AfterB(body, tr, r); }catch(e){ console.error("bv2AfterB", e); } }; })(bv2AfterA);
+bv2AfterA=(function(prev){ return function(body, tr, r){ if(typeof prev==="function") prev(body, tr, r); try{ bv2AfterB(body, tr, r); }catch(e){ console.error("bv2AfterB", e); } try{ bv2AfterS(body, tr, r); }catch(e){ console.error("bv2AfterS", e); } }; })(bv2AfterA);
 /* ===== fin BUDGET V2 -- B3.4 ===== */
 /* FUEL-R1 : table statique FUEL_BY_CC supprimee -- aucun prix carburant/energie non source, dans aucun pays. */
 /* FUEL-R1 : fuelPrice() (table statique) supprimee. */
