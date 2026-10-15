@@ -10059,7 +10059,7 @@ const BV2_P_TXT={
       sPrev:"Vorschau Budget V2",prevTxt:"Das neue Budget ist in der Vorschau. Das alte bleibt verfügbar, mit unveränderten Ausgaben und Budget.",prevBack:"Zurück zum alten Budget",
       back:"‹ Prognose-Einstellungen",fail:"Speichern nicht möglich ({c}).",minus:"Eins weniger",plus:"Eins mehr",ro:"Budget V2 ist für diese Reise schreibgeschützt: keine Einstellung änderbar."}};
 function _bv2P(){ return BV2_P_TXT[lang()]||BV2_P_TXT.fr; }
-const BV2_P_TRAV_MAX=20, BV2_P_ROOMS_MAX=20, BV2_P_TAX_MAX=99, BV2_P_STALE_MS=24*3600*1000;
+const BV2_P_TRAV_MAX=20, BV2_P_ROOMS_MAX=20, BV2_P_TAX_MAX=99, BV2_P_STALE_MS=24*3600*1000, BV2_P_STALE_NONEXT_MS=48*3600*1000;   /* audit GPT B3.7-1 P2-B : sans nextAt, ancien au-dela de effectiveAt + 48 h (publication quotidienne + 24 h de tolerance, meme regle que §6.6) */
 const BV2_P_ATTRIB_URL="https://www.exchangerate-api.com";
 const BV2_P_CSS=`
 #bv2ESheet .bv2p-s{font:700 12px Inter,sans-serif;color:var(--muted);text-transform:uppercase;letter-spacing:.3px;margin:18px 2px 6px}#bv2ESheet .bv2p-s:first-child{margin-top:4px}
@@ -10128,7 +10128,7 @@ function bv2FxView(tr, nowMs){   /* PURE : etat de chaque taux pour E (§6.6) */
   const used=bv2Fx(tr, bv2FxCurrencies(tr));   /* ce que B1 recoit vraiment */
   const rows=bv2FxCurrencies(tr).map(c=>{ const parity=["XAF","XOF"].indexOf(c)>=0&&["EUR","XAF","XOF"].indexOf(tcur)>=0||["XAF","XOF"].indexOf(tcur)>=0&&c==="EUR";
     const rate=_bv2PRate(c, tcur, rates), sent=used.fx.find(x=>x.from===c)||null;
-    let status; if(!rate) status="absent"; else if(!eff) status="nodate"; else if(next&&now>next+BV2_P_STALE_MS) status="old"; else status="ok";
+    let status; if(!rate) status="absent"; else if(!eff) status="nodate"; else if(next?now>next+BV2_P_STALE_MS:now>eff+BV2_P_STALE_NONEXT_MS) status="old"; else status="ok";
     return { cur:c, rate:sent?sent.rate:rate, status, parity, sent:!!sent }; });
   return { tripCur:tcur, rows, effectiveAt:eff, fetchedAt:at, nextAt:next, any:rows.length>0 }; }
 function bv2ParamsView(tr){   /* PURE : tout ce qu'affiche E */
@@ -10172,7 +10172,7 @@ function bv2OpenParams(tr, opts){   /* lecture seule a l'ouverture : aucune ecri
   const showAmt=mk==="amount"||(opts&&opts.amountOpen);
   if(showAmt) h+=`<div class="bv2p-amt"><input id="bv2PMAmt" inputmode="decimal" placeholder="${esc(P.mAmountPh)}" aria-label="${esc(P.mAmount)}" value="${m.mode==="amount"?esc(_b2MinorToDecStr(m.amountMinor,_b2Digits(V.cur)).replace(/\.0+$/,"").replace(".",",")):""}"${dis}><span>${esc(V.cur||"")}</span><button type="button" class="btn sm gold" id="bv2PMAmtOk"${dis}>${esc(P.mSave)}</button></div>`;
   let note=""; if(m.mode==="off") note=esc(P.offTxt);
-  else { if(m.mode==="auto") note+=esc(P.whyAuto)+" "; if(mo&&mo.enabled&&mo.amountMinor!=null) note+=`<b>${esc(!V.complete&&mo.appliedPct!=null?_bv2Tx(P.todayPct,{p:mo.appliedPct}):(mo.appliedPct!=null?_bv2Tx(P.today,{p:mo.appliedPct, x:f(mo.amountMinor)}):_bv2Tx(P.todayAmt,{x:f(mo.amountMinor)})))}</b> `;   /* estimation incomplete : aucun montant de marge affiche (INV, jamais de faux total) */
+  else { if(m.mode==="auto") note+=esc(P.whyAuto)+" "; if(mo&&mo.enabled&&mo.amountMinor!=null){ const tx=!V.complete?(mo.appliedPct!=null?_bv2Tx(P.todayPct,{p:mo.appliedPct}):null):(mo.appliedPct!=null?_bv2Tx(P.today,{p:mo.appliedPct, x:f(mo.amountMinor)}):_bv2Tx(P.todayAmt,{x:f(mo.amountMinor)})); if(tx) note+=`<b>${esc(tx)}</b> `; }   /* audit GPT B3.7-1 P2-A : estimation incomplete -> aucun montant de marge dans le recapitulatif, quel que soit le mode (la valeur saisie reste dans le champ) */   /* estimation incomplete : aucun montant de marge affiche (INV, jamais de faux total) */
     if(mo&&!V.complete) note+=esc(P.known)+" "; note+=esc(P.apart); }
   h+=`<div class="bv2p-note" id="bv2PMarginNote">${note.replace(/(\d) %/g,"$1\u00a0%")}</div></div>`;   /* « 10 % » jamais coupe */
   /* carburant */
@@ -10231,6 +10231,241 @@ function _bv2PGear(on){ const head=document.querySelector("#view-budget .page-he
 bv2RenderA=(function(prev){ return function(body, tr){ const r=prev(body, tr); try{ _bv2PGear(!!tr&&bv2PreviewActive()); }catch(_e){} return r; }; })(bv2RenderA);   /* ⚙ de l'en-tete (§6.1) : element d'interface, aucune donnee ecrite */
 bv2SubRestore=(function(prev){ return function(){ const r=prev.apply(this, arguments); try{ if(!bv2PreviewActive()) _bv2PGear(false); }catch(_e){} return r; }; })(bv2SubRestore);   /* rendu V1 : plus de ⚙ */
 /* ===== fin BUDGET V2 -- B3.7 ===== */
+/* ===== BUDGET V2 -- B3.8 BILAN APRES LE VOYAGE (spec B3-r3 §6.2 A4, m3, §7.3 snapshots, §7.4, §8 B3.8, §9 tr.bilan ; GO B3.8 de Loic/GPT, 14 oct. 2026) =====
+   - Bloc AJOUTE apres B3.7 : aucun octet de B1, B2, P6d, B3.0 a B3.7 n'est modifie.
+   - m3 : snapshots.departure = {centralMinor, knownMinor, complete, currency, at}, fige UNE SEULE FOIS par voyage a la premiere ouverture du V2
+     a partir du premier jour (pendant ou apres le voyage), par un bv2Mutate DIFFERE apres le rendu (deuxieme ecriture differee declaree §7.4).
+     « currency » (devise explicite, §7.3 regle 1) : un instantane dans une autre devise que celle du voyage n'est jamais compare.
+   - A4 : bilan V2 (Mon budget, Estime au depart, Depense, economise/depassement, ecarts par poste, impression, depenses) ; AUCUN conseil
+     de l'agent (A18) ; aucune conclusion sur un depense partiel (taux manquant) ni sur une estimation incomplete (jamais de faux total).
+   - Voyage termine deja dote d'un tr.bilan V1 : affiche TEL QUEL (bilanContentHtml / printBilan geles) avec « Bilan enregistre le … » ;
+     tr.bilan n'est jamais reecrit (§9), aucun appel IA.
+   - Rendu sans ecriture synchrone ; l'impression n'ecrit rien et n'appelle aucun service.
+   - Lot 2 (audit GPT B3.8-1) : P1 aucun ecart chiffre pour un poste dont une depense est sans taux ; byPost fige dans l'instantane (decision 1) ;
+     bilan d'un voyage archive consultable depuis l'historique (decision 2), sans toucher currentTrip(). */
+const BV2_L_TXT={
+  fr:{sub:"Voyage terminé · {d}",title:"Bilan du séjour",mine:"Mon budget",dep:"Estimé au départ",depAt:"Estimation du {d}",cur:"Estimation actuelle",spent:"Dépensé",known:"{x} connus",
+      saved:"{x} économisés",over:"{x} de dépassement",exact:"Pile dans ton budget",under:"{x} sous l'estimation de départ",above:"{x} au-dessus de l'estimation de départ",equal:"Exactement l'estimation de départ",
+      underC:"{x} sous l'estimation",aboveC:"{x} au-dessus de l'estimation",equalC:"Exactement l'estimation",estInc:"Estimation incomplète : pas de comparaison",partial:"Bilan partiel · {n} dépense(s) sans taux : aucune conclusion",
+      noExp:"Aucune dépense notée pour ce voyage",add:"+ Ajouter une dépense",posts:"Écarts par poste",postsSub:"Réel comparé à l'estimation, du plus grand écart au plus petit",
+      postLine:"{x} pour {y} estimés",postUnk:"{x} · estimation à préciser",postNone:"{x} · sans estimation",print:"Imprimer / PDF",all:"Voir les {n} dépenses",all1:"Voir la dépense",
+      v1:"Bilan enregistré le {d} par l'ancien Budget, affiché tel quel",estNa:"Estimation indisponible",printErr:"Impression impossible",pDate:"Date",pWhat:"Dépense",pPost:"Poste",pAmt:"Montant",pRefund:"remboursement",pNoRate:"sans taux",pFoot:"Magot Voyage · Budget V2 · {d}"},
+  en:{sub:"Trip finished · {d}",title:"Trip summary",mine:"My budget",dep:"Estimated at departure",depAt:"Estimate of {d}",cur:"Current estimate",spent:"Spent",known:"{x} known",
+      saved:"{x} saved",over:"{x} over budget",exact:"Exactly on budget",under:"{x} below the departure estimate",above:"{x} above the departure estimate",equal:"Exactly the departure estimate",
+      underC:"{x} below the estimate",aboveC:"{x} above the estimate",equalC:"Exactly the estimate",estInc:"Incomplete estimate: no comparison",partial:"Partial summary · {n} expense(s) without rate: no conclusion",
+      noExp:"No expense recorded for this trip",add:"+ Add an expense",posts:"Differences by category",postsSub:"Actual compared with the estimate, largest difference first",
+      postLine:"{x} for {y} estimated",postUnk:"{x} · estimate to specify",postNone:"{x} · not estimated",print:"Print / PDF",all:"See the {n} expenses",all1:"See the expense",
+      v1:"Summary saved on {d} by the old Budget, shown as is",estNa:"Estimate unavailable",printErr:"Cannot print",pDate:"Date",pWhat:"Expense",pPost:"Category",pAmt:"Amount",pRefund:"refund",pNoRate:"no rate",pFoot:"Magot Voyage · Budget V2 · {d}"},
+  es:{sub:"Viaje terminado · {d}",title:"Balance del viaje",mine:"Mi presupuesto",dep:"Estimado al salir",depAt:"Estimación del {d}",cur:"Estimación actual",spent:"Gastado",known:"{x} conocidos",
+      saved:"{x} ahorrados",over:"{x} de exceso",exact:"Justo en tu presupuesto",under:"{x} por debajo de la estimación de salida",above:"{x} por encima de la estimación de salida",equal:"Exactamente la estimación de salida",
+      underC:"{x} por debajo de la estimación",aboveC:"{x} por encima de la estimación",equalC:"Exactamente la estimación",estInc:"Estimación incompleta: sin comparación",partial:"Balance parcial · {n} gasto(s) sin tipo de cambio: ninguna conclusión",
+      noExp:"Ningún gasto anotado para este viaje",add:"+ Añadir un gasto",posts:"Diferencias por partida",postsSub:"Real comparado con la estimación, de mayor a menor diferencia",
+      postLine:"{x} para {y} estimados",postUnk:"{x} · estimación por precisar",postNone:"{x} · sin estimación",print:"Imprimir / PDF",all:"Ver los {n} gastos",all1:"Ver el gasto",
+      v1:"Balance guardado el {d} por el antiguo Presupuesto, mostrado tal cual",estNa:"Estimación no disponible",printErr:"No se puede imprimir",pDate:"Fecha",pWhat:"Gasto",pPost:"Partida",pAmt:"Importe",pRefund:"reembolso",pNoRate:"sin tipo",pFoot:"Magot Voyage · Presupuesto V2 · {d}"},
+  it:{sub:"Viaggio terminato · {d}",title:"Bilancio del soggiorno",mine:"Il mio budget",dep:"Stimato alla partenza",depAt:"Stima del {d}",cur:"Stima attuale",spent:"Speso",known:"{x} noti",
+      saved:"{x} risparmiati",over:"{x} di sforamento",exact:"Esattamente nel budget",under:"{x} sotto la stima di partenza",above:"{x} sopra la stima di partenza",equal:"Esattamente la stima di partenza",
+      underC:"{x} sotto la stima",aboveC:"{x} sopra la stima",equalC:"Esattamente la stima",estInc:"Stima incompleta: nessun confronto",partial:"Bilancio parziale · {n} spesa/e senza cambio: nessuna conclusione",
+      noExp:"Nessuna spesa registrata per questo viaggio",add:"+ Aggiungi una spesa",posts:"Scarti per voce",postsSub:"Reale confrontato con la stima, dallo scarto più grande al più piccolo",
+      postLine:"{x} per {y} stimati",postUnk:"{x} · stima da precisare",postNone:"{x} · senza stima",print:"Stampa / PDF",all:"Vedi le {n} spese",all1:"Vedi la spesa",
+      v1:"Bilancio salvato il {d} dal vecchio Budget, mostrato così com'è",estNa:"Stima non disponibile",printErr:"Stampa impossibile",pDate:"Data",pWhat:"Spesa",pPost:"Voce",pAmt:"Importo",pRefund:"rimborso",pNoRate:"senza cambio",pFoot:"Magot Voyage · Budget V2 · {d}"},
+  de:{sub:"Reise beendet · {d}",title:"Reisebilanz",mine:"Mein Budget",dep:"Geschätzt bei Abreise",depAt:"Schätzung vom {d}",cur:"Aktuelle Schätzung",spent:"Ausgegeben",known:"{x} bekannt",
+      saved:"{x} gespart",over:"{x} Überschreitung",exact:"Genau im Budget",under:"{x} unter der Schätzung bei Abreise",above:"{x} über der Schätzung bei Abreise",equal:"Genau die Schätzung bei Abreise",
+      underC:"{x} unter der Schätzung",aboveC:"{x} über der Schätzung",equalC:"Genau die Schätzung",estInc:"Unvollständige Schätzung: kein Vergleich",partial:"Teilbilanz · {n} Ausgabe(n) ohne Kurs: keine Schlussfolgerung",
+      noExp:"Keine Ausgabe für diese Reise erfasst",add:"+ Ausgabe hinzufügen",posts:"Abweichungen nach Posten",postsSub:"Ist im Vergleich zur Schätzung, größte Abweichung zuerst",
+      postLine:"{x} für {y} geschätzt",postUnk:"{x} · Schätzung offen",postNone:"{x} · ohne Schätzung",print:"Drucken / PDF",all:"Die {n} Ausgaben ansehen",all1:"Die Ausgabe ansehen",
+      v1:"Bilanz vom {d} aus dem alten Budget, unverändert angezeigt",estNa:"Schätzung nicht verfügbar",printErr:"Drucken nicht möglich",pDate:"Datum",pWhat:"Ausgabe",pPost:"Posten",pAmt:"Betrag",pRefund:"Erstattung",pNoRate:"ohne Kurs",pFoot:"Magot Voyage · Budget V2 · {d}"}};
+const BV2_L2_TXT={   /* lot 2 (audit GPT B3.8-1) */
+  fr:{postPend:"{x} connus · taux à actualiser",subDep:"Réel comparé à l'estimation de départ, du plus grand écart au plus petit",subLate:"Réel comparé à l'estimation du {d}, du plus grand écart au plus petit",subCur:"Réel comparé à l'estimation actuelle (aucune estimation par poste enregistrée au départ)",
+      sheet:"Bilan · {t}",exp:"Dépenses",expNone:"Aucune dépense",archived:"Voyage archivé · consultation seule"},
+  en:{postPend:"{x} known · rate to update",subDep:"Actual compared with the departure estimate, largest difference first",subLate:"Actual compared with the estimate of {d}, largest difference first",subCur:"Actual compared with the current estimate (no per-category estimate saved at departure)",
+      sheet:"Summary · {t}",exp:"Expenses",expNone:"No expense",archived:"Archived trip · read only"},
+  es:{postPend:"{x} conocidos · tipo por actualizar",subDep:"Real comparado con la estimación de salida, de mayor a menor diferencia",subLate:"Real comparado con la estimación del {d}, de mayor a menor diferencia",subCur:"Real comparado con la estimación actual (ninguna estimación por partida guardada al salir)",
+      sheet:"Balance · {t}",exp:"Gastos",expNone:"Ningún gasto",archived:"Viaje archivado · solo consulta"},
+  it:{postPend:"{x} noti · cambio da aggiornare",subDep:"Reale confrontato con la stima di partenza, dallo scarto più grande al più piccolo",subLate:"Reale confrontato con la stima del {d}, dallo scarto più grande al più piccolo",subCur:"Reale confrontato con la stima attuale (nessuna stima per voce salvata alla partenza)",
+      sheet:"Bilancio · {t}",exp:"Spese",expNone:"Nessuna spesa",archived:"Viaggio archiviato · sola consultazione"},
+  de:{postPend:"{x} bekannt · Kurs aktualisieren",subDep:"Ist im Vergleich zur Schätzung bei Abreise, größte Abweichung zuerst",subLate:"Ist im Vergleich zur Schätzung vom {d}, größte Abweichung zuerst",subCur:"Ist im Vergleich zur aktuellen Schätzung (bei Abreise keine Schätzung je Posten gespeichert)",
+      sheet:"Bilanz · {t}",exp:"Ausgaben",expNone:"Keine Ausgabe",archived:"Archivierte Reise · nur Ansicht"}};
+function _bv2L(){ return Object.assign({}, BV2_L_TXT[lang()]||BV2_L_TXT.fr, BV2_L2_TXT[lang()]||BV2_L2_TXT.fr); }
+const BV2_L_CSS=`
+.bv2a .bv2l-hero .row3{display:flex;gap:6px;margin-top:10px}.bv2a .bv2l-hero .row3>div{flex:1 1 0;text-align:center;min-width:0}
+.bv2a .bv2l-hero .row3 .k{font:600 12px Inter,sans-serif;opacity:.82;text-transform:none;letter-spacing:0}.bv2a .bv2l-hero .row3 .v{font:700 clamp(14px,4.4vw,20px) Inter,sans-serif;margin-top:3px;white-space:nowrap}
+.bv2a .bv2l-res{margin-top:14px;border-radius:12px;padding:10px 12px;text-align:center;font:700 15px Inter,sans-serif;background:rgba(255,255,255,.1)}.bv2a .bv2l-res.ok{color:#A7F3C4;background:rgba(22,163,74,.22)}.bv2a .bv2l-res.bad{color:#FFC1B5;background:rgba(220,38,38,.22)}
+.bv2a .bv2l-res2{text-align:center;font:500 13px Inter,sans-serif;opacity:.9;margin-top:8px}
+.bv2a .bv2l-post{display:flex;align-items:center;gap:10px;padding:11px 0;border-top:1px solid var(--line-soft)}.bv2a .bv2l-post:first-of-type{border-top:0}.bv2a .bv2l-post .t{flex:1;min-width:0}.bv2a .bv2l-post .t b{display:block;font:600 14.5px Inter,sans-serif;color:var(--ink)}
+.bv2a .bv2l-post .t span{display:block;font:500 12.5px Inter,sans-serif;color:var(--muted);margin-top:2px;overflow-wrap:break-word}.bv2a .bv2l-post .d{font:700 15px Inter,sans-serif;white-space:nowrap;color:var(--ink)}.bv2a .bv2l-post .d.neg{color:var(--emerald)}.bv2a .bv2l-post .d.pos{color:var(--danger)}
+.bv2a .bv2l-btn{width:100%;min-height:48px;margin-top:12px;border-radius:14px;border:1.5px solid var(--ink);background:var(--surface,#fff);font:700 15px Inter,sans-serif;color:var(--ink)}
+.bv2a .bv2l-link{display:block;margin:10px auto 0;min-height:44px;border:0;background:none;font:700 15px Inter,sans-serif;color:var(--ink)}
+.bv2a .bv2l-v1{font:500 12.5px Inter,sans-serif;color:var(--muted);margin:10px 2px}[data-theme="dark"] .bv2a .bv2l-btn{background:var(--surface,#131E33)}`;
+function _bv2LCssOnce(){ if(document.getElementById("bv2lCss")) return; const st=document.createElement("style"); st.id="bv2lCss"; st.textContent=BV2_L_CSS; document.head.appendChild(st); }
+
+/* ---------- m3 : instantane de depart (ecriture differee unique) ---------- */
+function bv2SnapshotDue(tr){   /* PURE : faut-il figer ? -> {due, r} */
+  if(!tr||!bv2PreviewActive()) return {due:false};
+  const st=tripStatus(tr); if(st!=="ongoing"&&st!=="done") return {due:false};
+  const s=bv2Store(tr); if(s.readOnly||!s.data.travelersConfirmed) return {due:false};
+  if(_bv2Obj(s.data.snapshots)&&s.data.snapshots.departure!=null) return {due:false};
+  const r=bv2Estimate(tr); if(!r.ok) return {due:false}; return {due:true, r}; }
+function bv2SnapshotFreeze(tr, gesture){   /* geste differe (§7.4) ; refuse si deja fige (idempotent), si l'espace a change, si compte synchronise */
+  const g=gesture||bv2Capture(); const due=bv2SnapshotDue(tr); if(!due.due) return {ok:false, code:"RIEN_A_FIGER"};
+  const c=due.r.result.scenarios.central, byPost={};
+  for(const p of due.r.result.posts) if(BV2_POSTS.indexOf(p.post)>=0) byPost[p.post]={ empty:p.empty===true, complete:p.complete===true, totalMinor:p.complete===true&&p.empty!==true?p.totalMinor:null, knownMinor:Number.isSafeInteger(p.knownMinor)?p.knownMinor:0 };   /* decision GPT lot 1 : postes figes avec leur etat (devise = currency de l'instantane) */
+  const snap={ centralMinor:c.complete===true?c.totalMinor:null, knownMinor:c.knownMinor, complete:c.complete===true, currency:due.r.result.currency, at:Date.now(), byPost };
+  const K=_bv2XKeep(tr); let r;
+  try{ r=bv2Mutate(tr, d=>{ if(!_bv2Obj(d.snapshots)) d.snapshots={}; if(d.snapshots.departure!=null) return false; d.snapshots.departure=snap; }, g); }catch(_e){ r={ok:false, code:"GESTE_ERREUR"}; }
+  if(!r||!r.ok) _bv2XRestore(tr, K); return r||{ok:false, code:"GESTE_ERREUR"}; }
+function _bv2LByPostOk(bp){   /* byPost facultatif : null si absent ou illisible (alors comparaison a l'estimation actuelle, dite telle) */
+  if(!_bv2Obj(bp)) return null;
+  for(const [k,v] of Object.entries(bp)){ if(BV2_POSTS.indexOf(k)<0||!_bv2Obj(v)||typeof v.empty!=="boolean"||typeof v.complete!=="boolean"||!Number.isSafeInteger(v.knownMinor)||v.knownMinor<0) return null;
+    if(v.totalMinor!=null&&!(Number.isSafeInteger(v.totalMinor)&&v.totalMinor>=0)) return null; if(v.complete&&!v.empty&&v.totalMinor==null) return null; }
+  return bp; }
+function _bv2LSnapOk(s, cur){ return _bv2Obj(s)&&s.currency===cur&&Number.isSafeInteger(s.knownMinor)&&s.knownMinor>=0&&typeof s.complete==="boolean"&&(s.complete?Number.isSafeInteger(s.centralMinor)&&s.centralMinor>=0:s.centralMinor==null)&&Number.isFinite(s.at); }
+
+/* ---------- vue PURE du bilan ---------- */
+function bv2BilanView(tr, r){
+  const cur=_bv2CurOf(tr), data=bv2Store(tr).data, sp=bv2SpentView(tr, r&&r.ok?r:null), v1=bv2ReadV1(tr), res=r&&r.ok?r.result:null;
+  const out={ currency:cur, budgetMinor:v1.choice&&v1.choice.currency===cur?v1.choice.amountMinor:null, spentMinor:sp.spentMinor, count:sp.count, partial:sp.pending+sp.invalid, est:null, posts:[] };
+  const snap=_bv2Obj(data.snapshots)?data.snapshots.departure:null;
+  if(_bv2LSnapOk(snap, cur)){ const endMs=tr.dateEnd?Date.parse(tr.dateEnd+"T23:59:59"):NaN;
+    out.est={ kind:Number.isFinite(endMs)&&snap.at>endMs?"late":"departure", at:snap.at, complete:snap.complete, minor:snap.complete?snap.centralMinor:null, knownMinor:snap.knownMinor, byPost:_bv2LByPostOk(snap.byPost) }; }
+  else if(res){ const c=res.scenarios.central; out.est={ kind:"current", complete:c.complete===true, minor:c.complete===true?c.totalMinor:null, knownMinor:c.knownMinor }; }
+  const concl=out.count>0&&out.partial===0;
+  out.budgetDiff=concl&&out.budgetMinor!=null?out.budgetMinor-out.spentMinor:null;
+  out.estDiff=concl&&out.est&&out.est.complete?out.est.minor-out.spentMinor:null;
+  const fz=out.est&&out.est.byPost; out.postsBasis=fz?out.est.kind:(res?"current":null); out.postsAt=fz?out.est.at:null;   /* postes : instantane de depart s'il porte byPost, sinon estimation actuelle (libelle explicite) */
+  for(const p of BV2_POSTS){ const ep=fz?(fz[p]?Object.assign({post:p}, fz[p]):null):(res?res.posts.find(x=>x.post===p):null), real=sp.byPost[p]||0, has=sp.recs.some(x=>x.post===p&&x.tripMinor!=null);
+    const pend=sp.recs.filter(x=>x.post===p&&x.tripMinor==null).length;   /* audit GPT B3.8-1 P1 : depense sans taux (ou illisible) dans le poste -> aucun ecart chiffre */
+    const estMinor=ep&&!ep.empty&&ep.complete?ep.totalMinor:null, unknown=!!(ep&&!ep.empty&&!ep.complete), none=!ep||ep.empty;
+    if(!has&&!pend&&(none||estMinor===0)) continue;   /* rien d'estime, rien de paye : poste absent */
+    if(!has&&!pend&&unknown) continue;
+    out.posts.push({ post:p, realMinor:real, estMinor, unknown, none, pending:pend, diff:pend?null:(estMinor!=null?real-estMinor:(none?real:null)) }); }
+  out.posts.sort((a,b)=>(a.diff==null)-(b.diff==null)||Math.abs(b.diff||0)-Math.abs(a.diff||0)||BV2_POSTS.indexOf(a.post)-BV2_POSTS.indexOf(b.post));
+  return out; }
+
+/* ---------- fragments communs (ecran A4 et feuille du bilan archive) : PURS ---------- */
+function _bv2LHeroHtml(V, L, esc, f){
+  const col=(k, v, id)=>`<div><div class="k">${esc(k)}</div><div class="v" id="${id}">${esc(v)}</div></div>`;
+  let h=`<div class="bv2-card bv2-hero bv2l-hero"><div class="k">${esc(L.title)}</div><div class="row3">`;
+  if(V.budgetMinor!=null) h+=col(L.mine, f(V.budgetMinor), "bv2LBud");
+  if(V.est){ const lab=V.est.kind==="departure"?L.dep:(V.est.kind==="late"?_bv2Tx(L.depAt,{d:_bv2BDate(V.est.at)}):L.cur); h+=col(lab, V.est.complete?f(V.est.minor):_bv2Tx(L.known,{x:f(V.est.knownMinor)}), "bv2LEst"); }
+  else h+=col(L.dep, L.estNa, "bv2LEst");
+  h+=col(L.spent, f(V.spentMinor), "bv2LSpent")+`</div>`;
+  if(!V.count) h+=`<div class="bv2l-res" id="bv2LRes">${esc(L.noExp)}</div>`;
+  else if(V.partial) h+=`<div class="bv2l-res bad" id="bv2LRes">${esc(_bv2Tx(L.partial,{n:V.partial}))}</div>`;
+  else { if(V.budgetDiff!=null) h+=`<div class="bv2l-res ${V.budgetDiff>=0?"ok":"bad"}" id="bv2LRes">${esc(V.budgetDiff>0?_bv2Tx(L.saved,{x:f(V.budgetDiff)}):(V.budgetDiff<0?_bv2Tx(L.over,{x:f(-V.budgetDiff)}):L.exact))}</div>`;
+    const cur=V.est&&V.est.kind!=="departure";   /* instantane releve apres la fin, ou estimation actuelle : jamais « de depart » */
+    if(V.est&&!V.est.complete) h+=`<div class="bv2l-res2" id="bv2LRes2">${esc(L.estInc)}</div>`;
+    else if(V.estDiff!=null) h+=`<div class="bv2l-res2" id="bv2LRes2">${esc(V.estDiff>0?_bv2Tx(cur?L.underC:L.under,{x:f(V.estDiff)}):(V.estDiff<0?_bv2Tx(cur?L.aboveC:L.above,{x:f(-V.estDiff)}):(cur?L.equalC:L.equal)))}</div>`; }
+  return h+`</div>`; }
+function _bv2LPostSub(p, L, f){ return p.pending?_bv2Tx(L.postPend,{x:f(p.realMinor)}):(p.estMinor!=null?_bv2Tx(L.postLine,{x:f(p.realMinor), y:f(p.estMinor)}):(p.unknown?_bv2Tx(L.postUnk,{x:f(p.realMinor)}):_bv2Tx(L.postNone,{x:f(p.realMinor)}))); }
+function _bv2LPostDiff(p, f){ return p.diff==null?"":(p.diff>0?"+"+f(p.diff):(p.diff<0?"−"+f(-p.diff):f(0))); }
+function _bv2LPostsSubtitle(V, L){ return V.postsBasis==="departure"?L.subDep:(V.postsBasis==="late"?_bv2Tx(L.subLate,{d:_bv2BDate(V.postsAt)}):L.subCur); }
+function _bv2LPostsHtml(V, L, A, esc, f){
+  if(!V.posts.length) return "";
+  let h=`<h3>${esc(L.posts)}</h3><div class="bv2-card" id="bv2LPosts"><div class="bv2-line" id="bv2LPostsSub" data-basis="${esc(V.postsBasis||"")}" style="margin-top:0">${esc(_bv2LPostsSubtitle(V, L))}</div>`;
+  for(const p of V.posts) h+=`<div class="bv2l-post" data-lpost="${esc(p.post)}"${p.pending?' data-pending="1"':""}><div class="t"><b>${esc(A.post[p.post]||p.post)}</b><span>${esc(_bv2LPostSub(p, L, f))}</span></div><div class="d${p.diff>0?" pos":(p.diff<0?" neg":"")}">${esc(_bv2LPostDiff(p, f))}</div></div>`;
+  return h+`</div>`; }
+
+/* ---------- ecran A4 ---------- */
+function _bv2LRange(tr){ try{ return fmtRange(tr.dateStart, tr.dateEnd); }catch(_e){ return ""; } }
+function bv2RenderA4(body, tr){   /* -> true si rendu ; aucune ecriture synchrone */
+  const st=bv2Store(tr); if(st.readOnly) return false;
+  _bv2ACss(); _bv2LCssOnce(); _bv2XCssOnce(); const A=_bv2A(), L=_bv2L(), esc=_bv2Esc; _bv2Sub(_bv2Tx(L.sub,{d:_bv2LRange(tr)}));
+  if(_bv2ETrip&&_bv2ETrip!==tr) bv2CloseE();
+  if(_bv2Obj(tr.bilan)){   /* §9 : bilan V1 deja enregistre -> tel quel, jamais reecrit, aucun appel IA */
+    let inner=""; try{ inner=bilanContentHtml(tr); }catch(_e){ return false; }
+    body.innerHTML=`<div class="bv2a" id="bv2A4" data-v1="1"><div class="bv2l-v1" id="bv2LV1">${esc(_bv2Tx(L.v1,{d:Number.isFinite(tr.bilan.savedAt)?_bv2BDate(tr.bilan.savedAt):"?"}))}</div>${inner}<button type="button" class="bv2l-btn" id="bv2LPrint">${esc(L.print)}</button></div>`;
+    const pb=body.querySelector("#bv2LPrint"); if(pb) pb.onclick=()=>{ try{ printBilan(tr); }catch(_e){ toast(L.printErr); } };
+    bv2CloseQ(); return true; }
+  let ok=false;
+  bv2RenderGuard(()=>{
+    const r=bv2Estimate(tr), V=bv2BilanView(tr, r), f=x=>_bv2Fmt(x, V.currency);
+    let h=`<div class="bv2a" id="bv2A4">`+_bv2LHeroHtml(V, L, esc, f);
+    if(!V.count) h+=`<button type="button" class="btn gold" id="bv2LAdd" style="width:100%;margin-top:8px">${esc(L.add)}</button>`;
+    h+=_bv2LPostsHtml(V, L, A, esc, f);
+    h+=`<button type="button" class="bv2l-btn" id="bv2LPrint">${esc(L.print)}</button>`;
+    if(V.count) h+=`<button type="button" class="bv2l-link" id="bv2LAll">${esc(V.count===1?L.all1:_bv2Tx(L.all,{n:V.count}))} ›</button>`;
+    h+=`</div>`; body.innerHTML=h; ok=true; });
+  if(!ok) return false;
+  bv2CloseQ();
+  const on=(id, fn)=>{ const e=body.querySelector(id); if(e) e.onclick=()=>{ const t=currentTrip(); if(t&&bv2PreviewActive()) fn(t); }; };
+  on("#bv2LAdd", t=>bv2OpenExpense(t)); on("#bv2LAll", t=>bv2OpenExpenses(t)); on("#bv2LPrint", t=>bv2PrintBilan(t));
+  if(bv2ReadV1(tr).needsAutoFreeze) bv2AfterRender(()=>{ try{ bv2FreezeBudgetAuto(tr, bv2Capture()); }catch(_e){} });   /* meme ecriture differee declaree que B3.2 (§7.4) */
+  return true; }
+
+/* ---------- impression (iframe isolee, comme printBilan V1 ; aucune ecriture, aucun reseau) ---------- */
+function bv2BilanPrintHtml(tr){   /* PURE : HTML autonome a styles en ligne */
+  const L=_bv2L(), A=_bv2A(), r=bv2Estimate(tr), V=bv2BilanView(tr, r), f=x=>_bv2Fmt(x, V.currency), e=escapeHtml, sp=bv2SpentView(tr, r&&r.ok?r:null);
+  const PC="-webkit-print-color-adjust:exact;print-color-adjust:exact";
+  let h=`<div style="font-family:Inter,system-ui,-apple-system,sans-serif;color:#1a1a1a;max-width:640px;margin:0 auto"><div style="background:#0E2148;border-radius:11px;padding:12px 16px;${PC}">`
+    +`<div style="font:700 9.5px/1 system-ui;letter-spacing:2px;color:#E9C46A;${PC}">MAGOT VOYAGE</div><div style="font-size:19px;font-weight:800;color:#fff;margin-top:4px;${PC}">${e(tripTitle(tr))}</div>`
+    +`<div style="font-size:12px;color:#c9d2e4;margin-top:2px;${PC}">${e(_bv2LRange(tr))} · ${e(L.title)}</div></div>`;
+  const cell=(k,v)=>`<td style="border:1px solid #e6e6e6;padding:8px 10px"><div style="font-size:11px;color:#666">${e(k)}</div><div style="font-size:16px;font-weight:700;margin-top:2px">${e(v)}</div></td>`;
+  h+=`<table style="width:100%;border-collapse:collapse;margin-top:12px"><tr>`;
+  if(V.budgetMinor!=null) h+=cell(L.mine, f(V.budgetMinor));
+  if(V.est) h+=cell(V.est.kind==="departure"?L.dep:(V.est.kind==="late"?_bv2Tx(L.depAt,{d:_bv2BDate(V.est.at)}):L.cur), V.est.complete?f(V.est.minor):_bv2Tx(L.known,{x:f(V.est.knownMinor)}));
+  h+=cell(L.spent, f(V.spentMinor))+`</tr></table>`;
+  const res=!V.count?L.noExp:(V.partial?_bv2Tx(L.partial,{n:V.partial}):(V.budgetDiff!=null?(V.budgetDiff>0?_bv2Tx(L.saved,{x:f(V.budgetDiff)}):(V.budgetDiff<0?_bv2Tx(L.over,{x:f(-V.budgetDiff)}):L.exact)):""));
+  if(res) h+=`<div style="margin-top:10px;font-weight:700">${e(res)}</div>`;
+  if(V.posts.length){ h+=`<h3 style="font-size:14px;margin:16px 0 2px">${e(L.posts)}</h3><div style="font-size:11px;color:#666;margin-bottom:6px">${e(_bv2LPostsSubtitle(V, L))}</div><table style="width:100%;border-collapse:collapse;font-size:12.5px">`;
+    for(const p of V.posts){ const sub=_bv2LPostSub(p, L, f), d=_bv2LPostDiff(p, f);
+      h+=`<tr><td style="border-bottom:1px solid #eee;padding:6px 4px;font-weight:600">${e(A.post[p.post]||p.post)}</td><td style="border-bottom:1px solid #eee;padding:6px 4px;color:#555">${e(sub)}</td><td style="border-bottom:1px solid #eee;padding:6px 4px;text-align:right;font-weight:700">${e(d)}</td></tr>`; }
+    h+=`</table>`; }
+  if(sp.recs.length){ const v1=new Map(((tr.expenses)||[]).filter(_bv2Obj).map(x=>[String(x.id), x]));
+    const recs=sp.recs.slice().sort((a,b)=>String(a.date||"").localeCompare(String(b.date||"")));
+    h+=`<h3 style="font-size:14px;margin:16px 0 6px">${e(_bv2Tx(L.all,{n:recs.length}).replace(/^\S+\s/,""))}</h3><table style="width:100%;border-collapse:collapse;font-size:12px"><tr style="color:#666;text-align:left"><th style="padding:4px">${e(L.pDate)}</th><th style="padding:4px">${e(L.pWhat)}</th><th style="padding:4px">${e(L.pPost)}</th><th style="padding:4px;text-align:right">${e(L.pAmt)}</th></tr>`;
+    for(const x of recs){ const v=v1.get(x.id)||{}, name=String(v.establishment||v.label||t("bcat."+x.category)).slice(0,60), amt=x.minor==null?"?":_bv2Fmt(x.kind==="refund"?-x.minor:x.minor, x.currency);
+      const tm=x.tripMinor==null?" ("+L.pNoRate+")":(x.currency!==V.currency?" = "+f(x.tripMinor):"");
+      h+=`<tr><td style="border-top:1px solid #eee;padding:4px">${e(x.date||"")}</td><td style="border-top:1px solid #eee;padding:4px">${e(name)}${x.kind==="refund"?" · "+e(L.pRefund):""}</td><td style="border-top:1px solid #eee;padding:4px">${e(A.post[x.post]||"")}</td><td style="border-top:1px solid #eee;padding:4px;text-align:right;white-space:nowrap">${e(amt+tm)}</td></tr>`; }
+    h+=`</table>`; }
+  h+=`<div style="margin-top:16px;font-size:10.5px;color:#888">${e(_bv2Tx(L.pFoot,{d:_bv2BDate(Date.now())}))}</div></div>`;
+  return h; }
+function bv2PrintBilan(tr){
+  const L=_bv2L();
+  try{ const html=bv2BilanPrintHtml(tr), ifr=document.createElement("iframe"); ifr.id="bv2LPrintFrame"; ifr.setAttribute("aria-hidden","true");
+    ifr.style.cssText="position:fixed;right:0;bottom:0;width:0;height:0;border:0;opacity:0;pointer-events:none"; document.body.appendChild(ifr);
+    let cleaned=false, gone=false; const cleanup=()=>{ if(cleaned) return; cleaned=true; try{ document.body.removeChild(ifr); }catch(_e){} };
+    const doc=ifr.contentWindow.document;
+    doc.open(); doc.write('<!doctype html><html lang="'+(document.documentElement.lang||"fr")+'"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><style>@page{margin:14mm}*{-webkit-print-color-adjust:exact;print-color-adjust:exact;box-sizing:border-box}html,body{margin:0;padding:0;background:#fff}body{padding:6px;font-family:Inter,system-ui,-apple-system,sans-serif}</style></head><body>'+html+'</body></html>'); doc.close();
+    const go=()=>{ if(gone) return; gone=true; try{ const w=ifr.contentWindow; w.focus(); const done=()=>{ try{ w.removeEventListener("afterprint", done); }catch(_e){} setTimeout(cleanup, 300); };
+        try{ w.addEventListener("afterprint", done); }catch(_e){} w.print(); setTimeout(cleanup, 60000); }catch(_e){ cleanup(); toast(L.printErr); } };
+    ifr.onload=()=>setTimeout(go, 120); setTimeout(go, 400); return true;
+  }catch(_e){ try{ toast(L.printErr); }catch(_){} return false; } }
+
+/* ---------- bilan d'un voyage archive (decision GPT lot 1, n° 2) : feuille de CONSULTATION ouverte depuis l'historique (Souvenirs) ----------
+   currentTrip() et les regles gelees ne changent pas : la feuille recoit le voyage de l'historique. Lecture seule : aucune ecriture (ni instantane,
+   ni gel budgetAuto, ni tr.bilan), aucun appel IA ni reseau ; seule action : imprimer (iframe isolee). La fermeture rend l'historique tel quel. */
+let _bv2LSheetTrip=null;
+function bv2BilanSheetHtml(tr){   /* PURE */
+  const L=_bv2L(), A=_bv2A(), esc=_bv2Esc, r=bv2Estimate(tr), V=bv2BilanView(tr, r), f=x=>_bv2Fmt(x, V.currency), sp=bv2SpentView(tr, r&&r.ok?r:null);
+  let h=`<div class="bv2a" id="bv2LSheetBody"><div class="bv2l-v1" id="bv2LArch">${esc(_bv2LRange(tr))} · ${esc(L.archived)}</div>`+_bv2LHeroHtml(V, L, esc, f)+_bv2LPostsHtml(V, L, A, esc, f);
+  const v1=new Map(((tr.expenses)||[]).filter(_bv2Obj).map(x=>[String(x.id), x])), recs=sp.recs.slice().sort((a,b)=>String(a.date||"").localeCompare(String(b.date||"")));
+  h+=`<h3>${esc(L.exp)}</h3><div class="bv2-card" id="bv2LExp">`;
+  if(!recs.length) h+=`<div class="bv2-line">${esc(L.expNone)}</div>`;
+  for(const x of recs){ const e=v1.get(x.id)||{}, name=String(e.establishment||e.label||t("bcat."+x.category)).slice(0,60), amt=x.minor==null?"?":_bv2Fmt(x.kind==="refund"?-x.minor:x.minor, x.currency);
+    h+=`<div class="bv2l-post" data-lexp="${esc(x.id)}"><div class="t"><b>${esc(name)}</b><span>${esc((x.date||"")+" · "+(A.post[x.post]||""))}${x.tripMinor==null?" · "+esc(L.pNoRate):""}</span></div><div class="d">${esc(amt)}</div></div>`; }
+  h+=`</div><button type="button" class="bv2l-btn" id="bv2LSheetPrint">${esc(L.print)}</button></div>`;
+  return h; }
+function bv2OpenBilanSheet(tr){   /* -> true si ouverte ; consultation seule */
+  if(!tr||!bv2PreviewActive()||S.trips.indexOf(tr)<0||tripStatus(tr)!=="done") return false;
+  const st=bv2Store(tr); if(st.readOnly) return false;
+  _bv2ACss(); _bv2LCssOnce(); _bv2ECssOnce(); const L=_bv2L();
+  let html=""; bv2RenderGuard(()=>{ html=bv2BilanSheetHtml(tr); });   /* toute ecriture V2 serait refusee pendant la construction */
+  _bv2EShow(_bv2Tx(L.sheet,{t:tripTitle(tr)}), html); _bv2ETrip=null; _bv2EKind="bilan"; _bv2ELine=null; _bv2LSheetTrip=tr;
+  const B=document.getElementById("bv2EBody"); B.scrollTop=0;
+  const pb=B.querySelector("#bv2LSheetPrint"); if(pb) pb.onclick=()=>{ const t2=_bv2LSheetTrip; if(t2&&bv2PreviewActive()&&S.trips.indexOf(t2)>=0) bv2PrintBilan(t2); };
+  return true; }
+openBilan=(function(prev){ return function(tr){   /* historique : voyage sans bilan V1 + apercu V2 actif -> bilan V2 en consultation ; sinon bilan V1 (gele) tel quel */
+  try{ if(tr&&bv2PreviewActive()&&!_bv2Obj(tr.bilan)&&bv2OpenBilanSheet(tr)) return Promise.resolve(); }catch(e){ console.error("bv2OpenBilanSheet", e); }
+  return prev.apply(this, arguments); }; })(openBilan);
+
+/* ---------- accroches ---------- */
+bv2RenderA=(function(prev){ return function(body, tr){
+  let done=false; try{ if(tr&&bv2PreviewActive()&&tripStatus(tr)==="done"&&bv2RenderA4(body, tr)) done=true; }catch(e){ console.error("bv2RenderA4", e); }
+  const out=done?undefined:prev(body, tr);
+  try{ if(done) _bv2PGear(true); }catch(_e){}   /* ⚙ de B3.7, comme sur les autres ecrans V2 */
+  try{ if(bv2SnapshotDue(tr).due){ const g=bv2Capture(); bv2AfterRender(()=>{ try{ const r=bv2SnapshotFreeze(tr, g); if(r.ok&&currentTrip()===tr&&bv2PreviewActive()&&typeof currentTab!=="undefined"&&currentTab==="budget") renderBudget(); }catch(_e){} }); } }catch(_e){}   /* m3 : ecriture differee unique (§7.4) */
+  return out; }; })(bv2RenderA);
+/* ===== fin BUDGET V2 -- B3.8 ===== */
 /* FUEL-R1 : table statique FUEL_BY_CC supprimee -- aucun prix carburant/energie non source, dans aucun pays. */
 /* FUEL-R1 : fuelPrice() (table statique) supprimee. */
 /* ============================================================
