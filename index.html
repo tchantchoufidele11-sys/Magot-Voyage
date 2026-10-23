@@ -15371,7 +15371,7 @@ bv2OpenLink=(function(prev){ return function(tr, id){ const r=prev.apply(this, a
    - Q3 : paiement encore relie a l'ancienne cle : information verifiee sur les donnees reelles (bv2ReadExpenses), aucun deplacement, aucun bouton.
    - Garde : structure inattendue (nombre de cartes, cle, boutons attendus) => la carte (ou l'ecran) d'origine reste tel quel et utilisable. */
 const BV2_42Q_TXT={
-  fr:{titre:"Prix à rattacher",autresT:"Points à vérifier",autres:"Autres points à vérifier",prix:"Prix enregistré : {x}",parPers:"{x} par personne",choixSans:"Choix enregistrés sans prix",
+  fr:{origine:"origine à vérifier",confGratuit:"Retirer ce prix (gratuit) ? Tes dépenses et tes paiements ne changent pas.",titre:"Prix à rattacher",autresT:"Points à vérifier",autres:"Autres points à vérifier",prix:"Prix enregistré : {x}",parPers:"{x} par personne",choixSans:"Choix enregistrés sans prix",
     supprimee:"étape supprimée",disparue:"plus dans ton voyage",aIdentifier:"étape à identifier",envInconnue:"enveloppe non reconnue",repas:"Repas",dejRoute:"Déjeuner en route",activite:"Activité",
     choisir:"Choisir une étape",rattacher:"Rattacher",retirer:"Retirer ce prix",retirerChoix:"Retirer ces choix",annuler:"Annuler",ok:"Retirer",effacer:"Effacer",garder:"Garder celle-ci",
     confPrix:"Retirer ce prix de {x} ? Tes dépenses et tes paiements ne changent pas.",confChoix:"Retirer ces choix ? Tes dépenses et tes paiements ne changent pas.",
@@ -15379,7 +15379,7 @@ const BV2_42Q_TXT={
     pay1:"1 paiement est relié à ce prix : il restera à relier séparément.",payN:"{n} paiements sont reliés à ce prix : ils resteront à relier séparément.",
     apres1:"Prix rattaché. 1 paiement reste à relier.",apresN:"Prix rattaché. {n} paiements restent à relier.",change:"Les étapes ont changé : choisis à nouveau.",
     entree1:"1 prix à rattacher",entreeN:"{n} prix à rattacher",rang1:"1ʳᵉ étape",rangN:"{n}ᵉ étape"},
-  en:{titre:"Prices to link",autresT:"Points to check",autres:"Other points to check",prix:"Saved price: {x}",parPers:"{x} per person",choixSans:"Choices saved without a price",
+  en:{origine:"origin to check",confGratuit:"Remove this price (free)? Your expenses and payments do not change.",titre:"Prices to link",autresT:"Points to check",autres:"Other points to check",prix:"Saved price: {x}",parPers:"{x} per person",choixSans:"Choices saved without a price",
     supprimee:"step deleted",disparue:"no longer in your trip",aIdentifier:"step to identify",envInconnue:"unrecognised envelope",repas:"Meal",dejRoute:"Lunch on the road",activite:"Activity",
     choisir:"Choose a step",rattacher:"Link",retirer:"Remove this price",retirerChoix:"Remove these choices",annuler:"Cancel",ok:"Remove",effacer:"Erase",garder:"Keep this one",
     confPrix:"Remove this price of {x}? Your expenses and payments do not change.",confChoix:"Remove these choices? Your expenses and payments do not change.",
@@ -15387,7 +15387,7 @@ const BV2_42Q_TXT={
     pay1:"1 payment is linked to this price: it will have to be linked separately.",payN:"{n} payments are linked to this price: they will have to be linked separately.",
     apres1:"Price linked. 1 payment still to link.",apresN:"Price linked. {n} payments still to link.",change:"The steps have changed: choose again.",
     entree1:"1 price to link",entreeN:"{n} prices to link",rang1:"1st step",rangN:"step {n}"},
-  es:{titre:"Precios por vincular",autresT:"Puntos por revisar",autres:"Otros puntos por revisar",prix:"Precio guardado: {x}",parPers:"{x} por persona",choixSans:"Opciones guardadas sin precio",
+  es:{origine:"origen por verificar",confGratuit:"¿Quitar este precio (gratuito)? Tus gastos y pagos no cambian.",titre:"Precios por vincular",autresT:"Puntos por revisar",autres:"Otros puntos por revisar",prix:"Precio guardado: {x}",parPers:"{x} por persona",choixSans:"Opciones guardadas sin precio",
     supprimee:"etapa eliminada",disparue:"ya no está en tu viaje",aIdentifier:"etapa por identificar",envInconnue:"sobre no reconocido",repas:"Comida",dejRoute:"Almuerzo en ruta",activite:"Actividad",
     choisir:"Elegir una etapa",rattacher:"Vincular",retirer:"Quitar este precio",retirerChoix:"Quitar estas opciones",annuler:"Cancelar",ok:"Quitar",effacer:"Borrar",garder:"Quedarme con esta",
     confPrix:"¿Quitar este precio de {x}? Tus gastos y pagos no cambian.",confChoix:"¿Quitar estas opciones? Tus gastos y pagos no cambian.",
@@ -15395,7 +15395,7 @@ const BV2_42Q_TXT={
     pay1:"1 pago está vinculado a este precio: habrá que vincularlo aparte.",payN:"{n} pagos están vinculados a este precio: habrá que vincularlos aparte.",
     apres1:"Precio vinculado. Queda 1 pago por vincular.",apresN:"Precio vinculado. Quedan {n} pagos por vincular.",change:"Las etapas han cambiado: vuelve a elegir.",
     entree1:"1 precio por vincular",entreeN:"{n} precios por vincular",rang1:"1.ª etapa",rangN:"{n}.ª etapa"},
-  it:{titre:"Prezzi da collegare",autresT:"Punti da verificare",autres:"Altri punti da verificare",prix:"Prezzo salvato: {x}",parPers:"{x} a persona",choixSans:"Scelte salvate senza prezzo",
+  it:{origine:"origine da verificare",confGratuit:"Rimuovere questo prezzo (gratuito)? Le tue spese e i tuoi pagamenti non cambiano.",titre:"Prezzi da collegare",autresT:"Punti da verificare",autres:"Altri punti da verificare",prix:"Prezzo salvato: {x}",parPers:"{x} a persona",choixSans:"Scelte salvate senza prezzo",
     supprimee:"tappa eliminata",disparue:"non più nel tuo viaggio",aIdentifier:"tappa da identificare",envInconnue:"busta non riconosciuta",repas:"Pasto",dejRoute:"Pranzo in viaggio",activite:"Attività",
     choisir:"Scegli una tappa",rattacher:"Collega",retirer:"Rimuovi questo prezzo",retirerChoix:"Rimuovi queste scelte",annuler:"Annulla",ok:"Rimuovi",effacer:"Cancella",garder:"Tieni questa",
     confPrix:"Rimuovere questo prezzo di {x}? Le tue spese e i tuoi pagamenti non cambiano.",confChoix:"Rimuovere queste scelte? Le tue spese e i tuoi pagamenti non cambiano.",
@@ -15403,7 +15403,7 @@ const BV2_42Q_TXT={
     pay1:"1 pagamento è collegato a questo prezzo: andrà collegato a parte.",payN:"{n} pagamenti sono collegati a questo prezzo: andranno collegati a parte.",
     apres1:"Prezzo collegato. Resta 1 pagamento da collegare.",apresN:"Prezzo collegato. Restano {n} pagamenti da collegare.",change:"Le tappe sono cambiate: scegli di nuovo.",
     entree1:"1 prezzo da collegare",entreeN:"{n} prezzi da collegare",rang1:"1ª tappa",rangN:"{n}ª tappa"},
-  de:{titre:"Zuzuordnende Preise",autresT:"Zu prüfende Punkte",autres:"Weitere zu prüfende Punkte",prix:"Gespeicherter Preis: {x}",parPers:"{x} pro Person",choixSans:"Gespeicherte Angaben ohne Preis",
+  de:{origine:"Herkunft zu prüfen",confGratuit:"Diesen Preis (kostenlos) entfernen? Deine Ausgaben und Zahlungen ändern sich nicht.",titre:"Zuzuordnende Preise",autresT:"Zu prüfende Punkte",autres:"Weitere zu prüfende Punkte",prix:"Gespeicherter Preis: {x}",parPers:"{x} pro Person",choixSans:"Gespeicherte Angaben ohne Preis",
     supprimee:"Etappe gelöscht",disparue:"nicht mehr in deiner Reise",aIdentifier:"Etappe zu bestimmen",envInconnue:"unbekanntes Budget",repas:"Mahlzeit",dejRoute:"Mittagessen unterwegs",activite:"Aktivität",
     choisir:"Etappe wählen",rattacher:"Zuordnen",retirer:"Diesen Preis entfernen",retirerChoix:"Diese Angaben entfernen",annuler:"Abbrechen",ok:"Entfernen",effacer:"Löschen",garder:"Diese behalten",
     confPrix:"Diesen Preis von {x} entfernen? Deine Ausgaben und Zahlungen ändern sich nicht.",confChoix:"Diese Angaben entfernen? Deine Ausgaben und Zahlungen ändern sich nicht.",
@@ -15413,7 +15413,13 @@ const BV2_42Q_TXT={
     entree1:"1 zuzuordnender Preis",entreeN:"{n} zuzuordnende Preise",rang1:"1. Etappe",rangN:"{n}. Etappe"} };
 function _b42qT(){ return BV2_42Q_TXT[lang()]||BV2_42Q_TXT.fr; }
 const BV2_42Q_A=["IDENTITE_ABSENTE","SANS_LIGNE","ID_ABSENT","ID_AMBIGU","PROVENANCE_ENVELOPPE"];   /* raisons « prix sans etape » (meme case d'origine, 8984) */
-function _b42qClasse(x){ if(!x) return null; if(BV2_42Q_A.indexOf(x.reason)>=0) return x.user?"A":"B"; if(x.reason==="METADONNEES_ORPHELINES") return "B"; return null; }
+/* r2 (audit GPT, P2) : un PRIX n'est annonce que si la saisie contient vraiment total, unitPrice ou zero (jamais sur la seule presence de user : facteurs seuls = choix).
+   METADONNEES_ORPHELINES signifie « absent de la projection » (ex. estimation indisponible : bv2HeldList recoit r=null), PAS « sans prix » ni « etape disparue » :
+   avec un prix => carte de prix « origine a verifier » (classe A2, jamais comptee comme « prix a rattacher » prouve) ; sans prix => choix (B). */
+function _b42qAPrix(u){ return !!(u&&(_bv2Obj(u.total)||_bv2Obj(u.unitPrice)||(u.zero!=null&&u.zero!==false))); }
+function _b42qClasse(x){ if(!x) return null; const px=_b42qAPrix(x.user);
+  if(BV2_42Q_A.indexOf(x.reason)>=0) return px?"A":"B"; if(x.reason==="METADONNEES_ORPHELINES") return px?"A2":"B"; return null; }
+function _b42qEstPrix(cl){ return cl==="A"||cl==="A2"; }
 const BV2_42Q_CSS=`
 #bv2ESheet .bv2e-item.b42q-cache{display:none!important}
 #bv2ESheet .b42q-c{border:1px solid var(--line);border-radius:14px;padding:12px 14px;margin:10px 0;background:var(--surface,#fff)}
@@ -15452,7 +15458,7 @@ function _b42qOrigine(tr, x, avecEtat){ const Q=_b42qT(), E=_bv2E(), F=_b42kFT()
   else if(pre==="act"){ parts.push(lieu()||Q.activite, jour(b&&b.day)); }
   else if(pre==="hotel") parts.push(E.types.hotel); else if(pre==="tax") parts.push(E.types.tourist_tax); else if(pre==="env") parts.push(E.types.envelope);
   else if(E.types[pre]) parts.push(E.types[pre]);   /* cle systeme (registre, Budget V2...) : aucune origine inventee */
-  if(avecEtat){ const s={IDENTITE_ABSENTE:Q.supprimee, SANS_LIGNE:Q.disparue, METADONNEES_ORPHELINES:Q.disparue, ID_ABSENT:Q.aIdentifier, ID_AMBIGU:Q.aIdentifier, PROVENANCE_ENVELOPPE:Q.envInconnue}[x.reason]; if(s) parts.push(s); }
+  if(avecEtat){ const s={IDENTITE_ABSENTE:Q.supprimee, SANS_LIGNE:Q.disparue, METADONNEES_ORPHELINES:Q.origine, ID_ABSENT:Q.aIdentifier, ID_AMBIGU:Q.aIdentifier, PROVENANCE_ENVELOPPE:Q.envInconnue}[x.reason]; if(s) parts.push(s); }
   return parts.filter(Boolean).join(" · "); }
 /* --- etapes proposees : la liste d'ORIGINE (_bv2ECandidates / _bv2EKeyTargets, non etendues), identite stable, homonymes departages --- */
 function _b42qCibles(tr, x){ const E=_bv2E(), Q=_b42qT(), F=_b42kFT(), out=[];
@@ -15487,9 +15493,10 @@ function _b42qCarte(tr, x, card, cl){ const Q=_b42qT(), ro=!card.querySelector("
   const cib=ro?[]:_b42qCibles(tr, x), nRes=card.querySelectorAll('[data-a="resume"]').length, nAtt=card.querySelectorAll('[data-a="attach"]').length, del=card.querySelector('[data-a="del"]');
   if(!ro){ if(!del) return null; if(nRes!==_bv2ECandidates(tr, x).length) return null; let r=null; try{ r=bv2Estimate(tr); }catch(_e){} if(nAtt!==(r&&r.ok?_bv2EKeyTargets(tr, r, x.key).length:0)) return null; }   /* structure inattendue : carte d'origine conservee */
   const c=document.createElement("div"); c.className="b42q-c"; c.dataset.cle=x.key; c.dataset.classe=cl;
-  const m=_b42qMontant(x); let h=cl==="A"?`<div class="b42q-px">${_bv2Esc(_bv2Tx(Q.prix,{x:m}))}</div>`:`<div class="b42q-px">${_bv2Esc(Q.choixSans)}</div>`;
+  const m=_b42qMontant(x), gratuit=!!(x.user&&x.user.zero!=null&&x.user.zero!==false&&!x.user.total&&!x.user.unitPrice), prixCarte=_b42qEstPrix(cl);
+  let h=prixCarte?`<div class="b42q-px">${_bv2Esc(gratuit?_bv2E().free:_bv2Tx(Q.prix,{x:m}))}</div>`:`<div class="b42q-px">${_bv2Esc(Q.choixSans)}</div>`;   /* r2 : « Gratuit » seul, jamais « Prix enregistre : Gratuit » */
   h+=`<div class="b42q-or">${_bv2Esc(_b42qOrigine(tr, x, true))}</div>`;
-  const np=cl==="A"?_b42qPaiements(tr, x.key):0; if(np) h+=`<div class="b42q-pay">${_bv2Esc(np===1?Q.pay1:_bv2Tx(Q.payN,{n:np}))}</div>`;   /* Q3 : verifie sur les donnees ; rien n'est deplace */
+  const np=prixCarte?_b42qPaiements(tr, x.key):0; if(np) h+=`<div class="b42q-pay">${_bv2Esc(np===1?Q.pay1:_bv2Tx(Q.payN,{n:np}))}</div>`;   /* Q3 : verifie sur les donnees ; rien n'est deplace */
   c.innerHTML=h; if(ro) return c;
   if(cib.length){ const sel=document.createElement("select"); sel.className="b42k-selcache"; sel.hidden=true; sel.innerHTML=`<option value=""></option>`+cib.map(o=>`<option value="${_bv2Esc(o.v)}">${_bv2Esc(o.lib)}</option>`).join("");
     const bt=document.createElement("button"); bt.type="button"; bt.className="b42k-selbtn vide b42q-champ"; bt.textContent=Q.choisir; bt.setAttribute("aria-haspopup","listbox");
@@ -15504,8 +15511,8 @@ function _b42qCarte(tr, x, card, cl){ const Q=_b42qT(), ro=!card.querySelector("
       try{ const t2=currentTrip(); const reste=t2?bv2HeldList(t2, bv2Estimate(t2)).some(y=>y.key===x.key):true; const n1=t2?_b42qPaiements(t2, x.key):0;
         if(!reste&&n0>0&&n1>0) toast(n1===1?Q.apres1:_bv2Tx(Q.apresN,{n:n1})); }catch(_e){} };   /* Q3 : seulement si verifie apres l'ecriture ; jamais « le paiement a suivi » */
     c.appendChild(sel); c.appendChild(bt); c.appendChild(go); }
-  const rt=document.createElement("button"); rt.type="button"; rt.className="b42q-sec"; rt.textContent=cl==="A"?Q.retirer:Q.retirerChoix;
-  rt.onclick=()=>_b42qConfirmer(c, cl==="A"?_bv2Tx(Q.confPrix,{x:m}):Q.confChoix, Q.ok, ()=>_b42qCliquer(card.querySelector('[data-a="del"]')));
+  const rt=document.createElement("button"); rt.type="button"; rt.className="b42q-sec"; rt.textContent=prixCarte?Q.retirer:Q.retirerChoix;
+  rt.onclick=()=>_b42qConfirmer(c, prixCarte?(gratuit?Q.confGratuit:_bv2Tx(Q.confPrix,{x:m})):Q.confChoix, Q.ok, ()=>_b42qCliquer(card.querySelector('[data-a="del"]')));
   c.appendChild(rt); return c; }
 /* --- Q1 : garde de confirmation sur les boutons d'origine destructeurs (« Supprimer », « Effacer », « Garder celle-ci ») --- */
 function _b42qGarde(ev){ const b=ev.target&&ev.target.closest?ev.target.closest('#bv2EBody .bv2e-item [data-a="del"],#bv2EBody .bv2e-item [data-a="choose"]'):null;
@@ -15525,7 +15532,7 @@ function _b42qEcran(tr){ const B=document.getElementById("bv2EBody"), T=document
   for(let i=0;i<cards.length;i++){ const k=cards[i].querySelector(".k"); if(+cards[i].dataset.i!==i||!k||k.textContent.indexOf(list[i].key)!==0) return false; }
   _b42qCss(); const Q=_b42qT(); let nA=0; const autres=[];
   cards.forEach((card,i)=>{ const x=list[i], cl=_b42qClasse(x); card._b42qX=x;
-    if(cl){ const c=_b42qCarte(tr, x, card, cl); if(c){ card.classList.add("b42q-cache"); card.insertAdjacentElement("afterend", c); if(cl==="A"){ nA++; return; } autres.push(c); return; } }
+    if(cl){ const c=_b42qCarte(tr, x, card, cl); if(c){ card.classList.add("b42q-cache"); card.insertAdjacentElement("afterend", c); if(_b42qEstPrix(cl)){ nA++; return; } autres.push(c); return; } }
     const k=card.querySelector(".k"), m=_b42qMontant(x), o=_b42qOrigine(tr, x, false), tx=[o, m].filter(Boolean).join(" · "); if(k){ k.textContent=tx; k.hidden=!tx; }   /* Q2 : seule la cle technique est remplacee */
     card.classList.add("b42q-autre"); autres.push(card); });
   if(autres.length){ const hd=document.createElement("div"); hd.className="b42q-h"; hd.textContent=nA?Q.autres:Q.autresT;
@@ -15540,6 +15547,213 @@ function _b42qEntrees(){ const tr=currentTrip(); if(!tr) return; let r=null, hel
   for(const id of ["b42kHeld","b42mRetenues"]){ const s=document.querySelector("#"+id+" > span"); if(s) s.textContent=t; } }   /* pendant (G), apres (I) */
 renderBudget=(function(prev){ return function(){ const r=prev.apply(this, arguments); try{ _b42qEntrees(); }catch(e){ try{ console.error("b42q entree", e); }catch(_e){} } return r; }; })(renderBudget);
 /* ===== fin BUDGET V2 -- B4.2q ===== */
+/* ===== BUDGET V2 -- B4.2r : P2 « LIEN PERDU » -- GO DEVELOPPEMENT CONDITIONNEL GPT du 23 oct. 2026 (C1 + C2 + C4 ; C3 manuel, option b) =====
+   - Bloc AJOUTE apres B4.2q (lot Q gele 35fa6ee6) : aucun octet anterieur n'est modifie. Enveloppes PAR NOM : _bv2EMutate (C1), bv2OpenExpenses (C2),
+     renderBudget (C4). Aucune fonction financiere, aucun calcul (B1/B2), aucune synchronisation, aucun SQL n'est modifie.
+   - CAUSE (audit R) : un paiement est relie a l'identifiant ACTUEL de sa ligne ; tant que l'etape n'a pas de jeton, c'est meal.<id> / act.<id> ;
+     le premier prix (bv2ItemEdit), un prix commun (bv2EditMany), une reprise (bv2ResumeOrphan) posent le jeton -> meal.k<jeton> : le paiement perd son lien.
+   - C1 (prevention, atomique) : le CALLBACK fn transmis a _bv2EMutate est enveloppe. Avant la mutation : relevé des lignes REELLEMENT produites par le moteur
+     pour des etapes sans jeton, identite fiable et unique. Apres fn(draft), dans le MEME brouillon : pour chaque jeton NEUF du journal J (etape qui n'en avait
+     pas), les paiements relies a l'ancienne ligne de CETTE etape passent a <prefixe>.<jeton>. Seul lineId change. Echec ou refus : brouillon abandonne,
+     journal restaure par le code d'origine. Aucune seconde ecriture.
+   - C2 (reparation explicite) : un paiement deja au lien perdu recoit « Relier de nouveau a « … » » seulement si une cible UNIQUE est demontree
+     (meme type, meme identifiant d'etape, jeton pose sur cette etape atteste par bound.itemId) ; revérifiee au toucher ; ecriture = bv2ExpenseLink d'origine.
+   - C4 : « n paiement(s) au lien perdu · Voir » dans « A verifier » pendant le voyage, compteur de bv2PaymentView, independant du reste a payer. */
+const BV2_42R_TXT={
+  fr:{relier:"Relier de nouveau à « {l} »",perdus:"{n} paiement(s) au lien perdu",voir:"Voir",fait:"Paiement relié de nouveau.",change:"Ce paiement a changé : réessaie depuis la liste."},
+  en:{relier:"Link again to “{l}”",perdus:"{n} payment(s) with a lost link",voir:"View",fait:"Payment linked again.",change:"This payment has changed: try again from the list."},
+  es:{relier:"Volver a vincular a «{l}»",perdus:"{n} pago(s) con vínculo perdido",voir:"Ver",fait:"Pago vinculado de nuevo.",change:"Este pago ha cambiado: inténtalo de nuevo desde la lista."},
+  it:{relier:"Ricollega a «{l}»",perdus:"{n} pagamento/i con collegamento perso",voir:"Vedi",fait:"Pagamento ricollegato.",change:"Questo pagamento è cambiato: riprova dall'elenco."},
+  de:{relier:"Wieder verknüpfen mit „{l}“",perdus:"{n} Zahlung(en) mit verlorener Verknüpfung",voir:"Ansehen",fait:"Zahlung wieder verknüpft.",change:"Diese Zahlung hat sich geändert: bitte erneut aus der Liste."} };
+function _b42rT(){ return BV2_42R_TXT[lang()]||BV2_42R_TXT.fr; }
+const BV2_42R_CLE=/^(meal|act)\.([A-Za-z0-9_-]{1,60})$/;   /* identifiant d'etape « par identifiant du Planning » : ni .x<rang>, ni .d<n>, ni repas reserve (day/route) */
+/* --- C1 : releve AVANT la mutation : etape sans jeton -> ligne reellement produite par le moteur, identite fiable et unique --- */
+function _b42rAvant(tr){ const out=new Map(); let r=null; try{ r=bv2Estimate(tr); }catch(_e){ return out; } if(!r||!r.ok) return out;
+  const plan=Array.isArray(tr.plan)?tr.plan:[], vus=new Map();
+  for(const l of r.result.lines){ if(l.type!=="meal"&&l.type!=="activity") continue; const m=BV2_42R_CLE.exec(l.id); if(!m||BV2_TOKEN.test(m[2])||m[2]==="day"||m[2]==="route") continue;
+    const me=r.meta&&r.meta[l.id]; if(!me||me.replacementId===true||me.heldEdit===true||me.heldReason||me.bv2id) continue;   /* identite douteuse exclue (untrustedId vaut toujours true sans jeton, ID-5 : l'unicite est verifiee ci-dessous) */
+    const it=_bv2ItemOf(tr, l.id); if(!it||_bv2TokOf(it)||_bv2EPrefixOf(it)!==m[1]||String(it.id)!==m[2]) continue;
+    if(plan.filter(x=>x&&_bv2EPrefixOf(x)===m[1]&&x.id!=null&&String(x.id)===m[2]).length!==1) continue;   /* identifiant unique dans le Planning */
+    vus.set(it, (vus.get(it)||0)+1); out.set(it, { ancien:l.id, pre:m[1] }); }
+  for(const [it,n] of vus) if(n!==1) out.delete(it);   /* une etape, une seule ligne */
+  return out; }
+/* --- C1 : dans le brouillon, apres fn(draft) : seuls les jetons NEUFS du journal, seul lineId --- */
+function _b42rMigrer(d, J, n0, avant){ if(!_bv2Obj(d)||!_bv2Obj(d.expenses)) return 0; const ch=[];
+  for(const e of J.slice(n0)){ if(!e||e.key!=="bv2id"||(e.had&&e.prev!=null&&e.prev!=="")) continue;   /* l'etape avait deja un jeton : jamais migree */
+    const a=avant.get(e.obj); if(!a) continue; const tok=_bv2TokOf(e.obj); if(!tok) continue; const neuf=a.pre+"."+tok; if(neuf===a.ancien) continue;
+    for(const [k,x] of Object.entries(d.expenses)) if(_bv2Obj(x)&&x.lineId===a.ancien) ch.push([k, neuf]); }
+  if(!ch.length) return 0; const ex=Object.assign({}, d.expenses);
+  for(const [k,neuf] of ch) ex[k]=Object.assign({}, ex[k], { lineId:neuf });   /* montants, settles, settlesTax, fx, digest : inchanges */
+  d.expenses=ex; return ch.length; }
+_bv2EMutate=(function(prev){ return function(tr, fn, g, J){
+  if(!Array.isArray(J)||typeof fn!=="function") return prev.apply(this, arguments);
+  let avant=null; try{ avant=_b42rAvant(tr); }catch(_e){ avant=null; }
+  if(!avant||!avant.size) return prev.apply(this, arguments);
+  const n0=J.length;
+  const fn2=function(d){ const res=fn.apply(this, arguments); if(res===false) return res;
+    let ok=true; try{ _b42rMigrer(d, J, n0, avant); }catch(_e){ ok=false; } if(!ok) throw new Error("B42R_MIGRATION");   /* jamais d'ecriture partielle : le geste echoue entier */
+    return res; };
+  return prev.call(this, tr, fn2, g, J); }; })(_bv2EMutate);
+/* --- C2 : cible UNIQUE demontree pour un paiement deja au lien perdu --- */
+function _b42rCible(tr, r, x){ if(!x||!x.lineId||!x.lost) return null; const m=BV2_42R_CLE.exec(String(x.lineId)); if(!m||BV2_TOKEN.test(m[2])||m[2]==="day"||m[2]==="route") return null;
+  if(!r||!r.ok) return null; if(r.result.lines.some(l=>l.id===x.lineId)) return null;   /* la ligne existe : pas un lien perdu */
+  const plan=Array.isArray(tr.plan)?tr.plan:[], its=plan.filter(it=>it&&_bv2EPrefixOf(it)===m[1]&&it.id!=null&&String(it.id)===m[2]); if(its.length!==1) return null;   /* identifiant repris ou duplique : rien */
+  const it=its[0], tok=_bv2TokOf(it); if(!tok) return null; const id=m[1]+"."+tok;
+  const ed=_bv2Edit(bv2Store(tr).data, id); if(!ed||!_bv2Obj(ed.bound)||ed.bound.bv2id!==tok||String(ed.bound.itemId)!==m[2]) return null;   /* jeton pose sur CETTE etape (atteste) */
+  const holders=plan.filter(z=>_bv2TokOf(z)===tok); if(holders.length!==1) return null;
+  const l=bv2LinkableLines(tr, r).find(z=>z.id===id); if(!l) return null; if(x.post&&l.post&&x.post!==l.post) return null;   /* poste du paiement incoherent avec l'etape : aucune proposition */ const me=r.meta&&r.meta[id]; if(me&&(me.heldReason||me.untrustedId===true)) return null;
+  return l; }
+bv2OpenExpenses=(function(prev){ return function(tr, opts){ const res=prev.apply(this, arguments);
+  try{ const B=document.getElementById("bv2EBody"); if(B&&tr&&_bv2ETrip===tr) _b42rReparer(tr, opts, B); }catch(e){ try{ console.error("b42r", e); }catch(_e){} } return res; }; })(bv2OpenExpenses);
+function _b42rReparer(tr, opts, B){ let r=null; try{ r=bv2Estimate(tr); }catch(_e){ return; } const pv=bv2PaymentView(tr, r), T=_b42rT();
+  _b42rCss();
+  for(const x of pv.spent.recs){ if(!x.lost) continue; const row=B.querySelector('.bv2x-row[data-exp="'+(window.CSS&&CSS.escape?CSS.escape(String(x.id)):String(x.id))+'"]'); if(!row||row.querySelector(".b42r-rel")) continue;
+    const l=_b42rCible(tr, r, x); if(!l) continue; const lib=_bv2XLineLabel(tr, r, l), b=document.createElement("button"); b.type="button"; b.className="b42r-rel"; b.textContent=_bv2Tx(T.relier,{l:lib}); b.dataset.exp=String(x.id); b.dataset.cible=l.id;
+    const t=row.querySelector(".t")||row; t.appendChild(b);
+    b.onclick=()=>{ const t2=_bv2EGuard(); if(!t2) return; const r2=bv2Estimate(t2), x2=bv2PaymentView(t2, r2).spent.recs.find(z=>String(z.id)===b.dataset.exp), l2=_b42rCible(t2, r2, x2);
+      if(!x2||!l2||l2.id!==b.dataset.cible){ toast(T.change); bv2OpenExpenses(t2, opts); return; }   /* revérifié au toucher : sinon refus sur */
+      const rec=_bv2Obj(bv2Store(t2).data.expenses)?bv2Store(t2).data.expenses[String(x2.id)]:null; if(!rec){ toast(T.change); bv2OpenExpenses(t2, opts); return; }
+      const out=bv2ExpenseLink(t2, x2.id, l2.id, rec.kind==="refund"?false:rec.settles===true, bv2Capture(), rec.settlesTax===true);   /* ecriture et refus d'origine ; bascule conservee */
+      if(_bv2EAfter(out, null)){ toast(T.fait); bv2OpenExpenses(t2, opts); } }; } }
+const BV2_42R_CSS=`
+#bv2ESheet .b42r-rel{display:block;border:0;background:none;padding:6px 0 2px;min-height:40px;text-align:left;font:600 14px/1.3 Inter,sans-serif;color:var(--gold-d,#B7791F);text-decoration:underline;text-underline-offset:3px;overflow-wrap:anywhere}
+[data-theme="dark"] #bv2ESheet .b42r-rel{color:var(--gold,#E9B559)}`;
+function _b42rCss(){ if(document.getElementById("b42rCss")) return; const st=document.createElement("style"); st.id="b42rCss"; st.textContent=BV2_42R_CSS; document.head.appendChild(st); }
+/* --- C4 : « n paiement(s) au lien perdu » dans « A verifier » pendant le voyage (G) ; meme compteur que l'ecran apres le voyage (I) --- */
+function _b42rAlerte(){ const ec=document.getElementById("b42kEcran"); if(!ec||ec.querySelector("#b42rPerdus")) return; const tr=currentTrip(); if(!tr) return;
+  let n=0, perdus=null, doubles=[]; try{ const r=bv2Estimate(tr); perdus=new Set(bv2PaymentView(tr, r).spent.recs.filter(x=>x.lineId&&x.lost).map(x=>String(x.id))); n=perdus.size; doubles=(bv2Forecast(tr, r).doubles)||[]; }catch(_e){ return; } if(!n) return;
+  /* r2 (audit GPT) : un paiement ne figure que dans UNE alerte. La ligne « non rattache(s) » de G (bv2Forecast().doubles, qui inclut les liens perdus) est recalculee
+     a l'affichage sans les liens perdus : retiree si plus rien, sinon nombre restant. Ni bv2Forecast, ni bv2PaymentView, ni les donnees ne sont modifies. */
+  try{ const T2=_b42T(), A=_bv2A();
+    ec.querySelectorAll('.b42k-av [data-b42k="dbl"]').forEach(btn=>{ const dd=doubles.find(z=>z&&z.post===btn.dataset.post); if(!dd||!Array.isArray(dd.ids)) return; const reste=dd.ids.filter(id=>!perdus.has(String(id))).length;
+      const row=btn.closest(".b42k-av"); if(!row) return; if(reste===0){ row.remove(); return; } if(reste!==dd.ids.length){ const sp=row.querySelector("span"); if(sp) sp.textContent=_bv2Tx(T2.dbl,{p:A.post[dd.post]||dd.post, n:reste}); } }); }catch(_e){}
+  const T=_b42rT(), K=_b42kT(), e=_bv2Esc, ligne=`<div class="b42k-av" id="b42rPerdus"><span>${e(_bv2Tx(T.perdus,{n}))}</span><button type="button" data-b42k="payments">${e(T.voir)}</button></div>`;   /* « Voir » : « Toutes les depenses » (geste d'origine de G) */
+  let d=ec.querySelector('details.b42k-pli[data-pli="verifier"]');
+  if(d){ const ls=d.querySelector(".b42k-avs"); if(ls) ls.insertAdjacentHTML("beforeend", ligne); const c=d.querySelector("#b42kNbVerif"); if(c) c.textContent=String(d.querySelectorAll(".b42k-av").length); return; }
+  let ouvert=false; try{ ouvert=!!_b42kPlis().verifier; }catch(_e){}
+  ec.insertAdjacentHTML("beforeend", `<details class="b42k-pli" data-pli="verifier"${ouvert?" open":""}><summary class="b42-sec"><h2>${e(K.verifier)}</h2><span class="b42k-compte" id="b42kNbVerif">1</span></summary><div class="b42-list b42k-avs">${ligne}</div></details>`); }
+renderBudget=(function(prev){ return function(){ const r=prev.apply(this, arguments); try{ _b42rAlerte(); }catch(e){ try{ console.error("b42r alerte", e); }catch(_e){} } return r; }; })(renderBudget);
+/* ===== fin BUDGET V2 -- B4.2r ===== */
+/* ===== BUDGET V2 -- B4.2s (S1) : « MA PREVISION » CONSERVEE A PART -- GO DEVELOPPEMENT S1 CONDITIONNEL GPT du 23 oct. 2026 (option A) =====
+   - Bloc AJOUTE apres B4.2r (lot R gele 63c90057) : aucun octet anterieur n'est modifie. Enveloppes PAR NOM : bv2Mutate (callback), bv2ResumeOrphan et bv2ResumeKey (contexte, r2), bv2OpenLine
+     (affichage de la fiche, apres N), _b42qConfirmer (texte de confirmation de Q). Moteur B1/B2, calculs, schema (budgetV2.v, cles de premier niveau),
+     synchronisation S.3 et SQL : NON modifies. Le moteur ne lit pas edits[k].prevision.
+   - DONNEE : edits[k].prevision = {mode:"total"|"unitPrice"|"zero", amount?, currency?, factors?, at} : ce que le voyageur PENSE depenser.
+     Jamais ecrite par une confirmation (basis expense/booking) ; jamais attribuee a Magot.
+   - ECRITURE : callback de bv2Mutate enveloppe ; copie des edits AVANT fn(draft), comparaison APRES, regles appliquees DANS LE MEME brouillon (aucune
+     seconde ecriture) ; ambiguite => le geste echoue entier (refus sur, rien n'est ecrit).
+       R1 prix TAPE pose ou change (montant/mode/devise, pas les seuls facteurs) => prevision = ce prix ;
+       R2 confirmation (expense/booking) => prevision conservee ; creee depuis l'ancien prix tape si elle manquait ;
+       R3 (D2) prix retire : s'il etait TAPE, la prevision courante part avec lui ; s'il etait CONFIRME, la prevision independante RESTE ;
+       R4 (D3, r2) la prevision suit SEULEMENT un rattachement explicite (bv2ResumeOrphan : destination = jeton de l'etape ; bv2ResumeKey : newKey
+          demande), donnees deplacees identiques a la source, destination SANS prevision prealable (meme a montant egal) ; sinon refus entier.
+          Aucune destination n'est jamais deduite d'une egalite de contenu ;
+       R5 taxe, petit-dejeuner, personnes, facteurs, bound, confirmRequired, at seuls : prevision intacte, aucune prevision inventee.
+   - LECTURE PURE (b42sPrevision) : prevision si elle n'est pas plus ancienne qu'un prix tape posterieur ; sinon le prix tape ; sinon rien.
+   - LIMITE (option A, decision GPT) : un client ANCIEN qui rattache un prix confirme perd la prevision courante de cette saisie ; non couvert en S1,
+     condition de production non levee. Aucune reference figee n'existe encore (S2). */
+const BV2_42S_TXT={
+  fr:{magot:"Estimation Magot",prevision:"Ta prévision",confirme:"Prix confirmé",nd:"Non disponible",parU:"{x} par {u}",gratuit:"Gratuit",aussi:"Ta prévision de {x} sera aussi retirée."},
+  en:{magot:"Magot estimate",prevision:"Your forecast",confirme:"Confirmed price",nd:"Not available",parU:"{x} per {u}",gratuit:"Free",aussi:"Your forecast of {x} will also be removed."},
+  es:{magot:"Estimación de Magot",prevision:"Tu previsión",confirme:"Precio confirmado",nd:"No disponible",parU:"{x} por {u}",gratuit:"Gratis",aussi:"Tu previsión de {x} también se quitará."},
+  it:{magot:"Stima Magot",prevision:"La tua previsione",confirme:"Prezzo confermato",nd:"Non disponibile",parU:"{x} per {u}",gratuit:"Gratis",aussi:"Anche la tua previsione di {x} sarà rimossa."},
+  de:{magot:"Magot-Schätzung",prevision:"Deine Planung",confirme:"Bestätigter Preis",nd:"Nicht verfügbar",parU:"{x} pro {u}",gratuit:"Kostenlos",aussi:"Deine Planung von {x} wird ebenfalls entfernt."} };
+function _b42sT(){ return BV2_42S_TXT[lang()]||BV2_42S_TXT.fr; }
+/* --- partie « prix » d'une saisie (sans facteurs) --- */
+function _b42sPrix(u){ if(!_bv2Obj(u)) return null;
+  if(u.zero!=null&&u.zero!==false) return { mode:"zero", basis:_bv2Obj(u.zero)&&u.zero.basis||"typed" };
+  const m=_bv2Obj(u.total)?u.total:(_bv2Obj(u.unitPrice)?u.unitPrice:null); if(!m) return null;
+  return { mode:_bv2Obj(u.total)?"total":"unitPrice", amount:m.amount, currency:m.currency, basis:m.basis||"typed" }; }
+const _b42sSig=p=>p?JSON.stringify([p.mode, p.amount==null?null:String(p.amount), p.currency||null, p.basis]):"";
+const _b42sTape=p=>!!p&&p.basis==="typed";
+const _b42sConfirme=p=>!!p&&(p.basis==="expense"||p.basis==="booking");
+function _b42sDepuis(u, at){ const p=_b42sPrix(u); if(!_b42sTape(p)) return null; const o={ mode:p.mode, at:Number.isFinite(at)?at:Date.now() };
+  if(p.mode!=="zero"){ o.amount=String(p.amount); o.currency=p.currency; } if(_bv2Obj(u.factors)&&Object.keys(u.factors).length) o.factors=bv2Clone(u.factors); return o; }
+const _b42sSigP=v=>_bv2Obj(v)?JSON.stringify([v.mode, v.amount==null?null:String(v.amount), v.currency||null]):"";
+/* --- regles R1 a R5 sur le brouillon ; renvoie le nombre de changements ; leve une erreur si ambigu (le geste echoue entier) --- */
+function _b42sRegles(avant, d){ if(!_bv2Obj(d)||!_bv2Obj(d.edits)) return 0; const E2=d.edits, A0=_bv2Obj(avant)?avant:{}; let n=0; const traites=new Set();
+  /* R4 (r2, audit GPT) : transfert UNIQUEMENT dans un rattachement explicite (bv2ResumeOrphan / bv2ResumeKey, contexte _b42sCtx) ;
+     jamais deduit d'une egalite de contenu ; destination demontree (jeton de l'etape / newKey demande) ; aucune prevision preexistante a destination */
+  const cx=_b42sCtx;
+  if(cx&&cx.oldKey&&_bv2Obj(A0[cx.oldKey])&&!_bv2Has(E2, cx.oldKey)){
+    let dest=null;
+    if(cx.fn==="orphan"){ const tok=_bv2TokOf(cx.it), pre=_bv2EPrefixOf(cx.it); if(!tok||!pre) throw new Error("B42S_RATTACHEMENT_IDENTITE");
+      const h=_bv2EHolders(cx.tr).get(tok)||[]; if(h.length!==1||h[0]!==cx.it) throw new Error("B42S_RATTACHEMENT_IDENTITE");
+      dest=pre+"."+tok; if(!_bv2Obj(E2[dest])||!_bv2Obj(E2[dest].bound)||E2[dest].bound.bv2id!==tok) throw new Error("B42S_RATTACHEMENT_IDENTITE"); }
+    else if(cx.fn==="key"){ dest=cx.newKey; if(!_bv2Obj(E2[dest])) throw new Error("B42S_RATTACHEMENT_IDENTITE"); }
+    else throw new Error("B42S_RATTACHEMENT_IDENTITE");
+    if(dest===cx.oldKey) throw new Error("B42S_RATTACHEMENT_IDENTITE");
+    const src=A0[cx.oldKey], arr=E2[dest];
+    for(const f of BV2_E_FIELDS){ if(f==="bound"||f==="confirmRequired"||f==="at"||src[f]===undefined) continue;   /* les donnees deplacees sont exactement celles de la source */
+      if(JSON.stringify(arr[f])!==JSON.stringify(src[f])) throw new Error("B42S_RATTACHEMENT_IDENTITE"); }
+    if(_bv2Obj(A0[dest])&&_bv2Obj(A0[dest].prevision)) throw new Error("B42S_PREVISION_DESTINATION");   /* jamais d'ecrasement, meme a montant egal */
+    if(_bv2Obj(arr.prevision)&&!(_bv2Obj(src.prevision)&&JSON.stringify(arr.prevision)===JSON.stringify(src.prevision))) throw new Error("B42S_PREVISION_DESTINATION");
+    if(_bv2Obj(src.prevision)){ E2[dest]=Object.assign({}, arr, { prevision:bv2Clone(src.prevision) }); n++; }
+    traites.add(dest); }
+  /* R1, R2, R3, R5 */
+  for(const k of Object.keys(E2)){ if(traites.has(k)||!_bv2Obj(E2[k])) continue; const b=_bv2Obj(A0[k])?A0[k]:{}, a=E2[k];
+    const pb=_b42sPrix(b.user), pa=_b42sPrix(a.user); if(_b42sSig(pa)===_b42sSig(pb)) continue;   /* R5 : prix inchange (facteurs, taxe, at...) */
+    if(_b42sTape(pa)){ const v=_b42sDepuis(a.user, Number.isFinite(a.at)?a.at:Date.now()); if(_b42sSigP(v)!==_b42sSigP(a.prevision)||!_bv2Obj(a.prevision)){ E2[k]=Object.assign({}, a, { prevision:v }); n++; } continue; }   /* R1 */
+    if(_b42sConfirme(pa)){ if(!_bv2Obj(a.prevision)&&_b42sTape(pb)){ E2[k]=Object.assign({}, a, { prevision:_b42sDepuis(b.user, b.at) }); n++; } continue; }   /* R2 */
+    if(!pa&&_b42sTape(pb)&&_bv2Obj(a.prevision)){ const c=Object.assign({}, a); delete c.prevision; if(Object.keys(c).length) E2[k]=c; else delete E2[k]; n++; } }   /* saisie vide => cle retiree, comme le code d'origine */   /* R3 : prix tape retire ; prix confirme retire => prevision gardee */
+  return n; }
+bv2Mutate=(function(prev){ return function(tr, fn, gesture){
+  if(typeof fn!=="function") return prev.apply(this, arguments);
+  const fn2=function(d){ const avant=_bv2Obj(d)&&_bv2Obj(d.edits)?bv2Clone(d.edits):{}; const res=fn.apply(this, arguments); if(res===false) return res;
+    _b42sRegles(avant, d); return res; };   /* une erreur ici fait echouer le geste entier (brouillon abandonne par bv2Mutate) */
+  return prev.call(this, tr, fn2, gesture); }; })(bv2Mutate);
+/* --- contexte de rattachement explicite (r2) : pose par les deux gestes d'origine, lu par R4, toujours retire (finally) --- */
+let _b42sCtx=null;
+bv2ResumeOrphan=(function(prev){ return function(tr, oldKey, it, gesture){ const av=_b42sCtx; _b42sCtx={ fn:"orphan", tr, oldKey, it };
+  try{ return prev.apply(this, arguments); } finally{ _b42sCtx=av; } }; })(bv2ResumeOrphan);
+bv2ResumeKey=(function(prev){ return function(tr, oldKey, newKey, gesture){ const av=_b42sCtx; _b42sCtx={ fn:"key", tr, oldKey, newKey };
+  try{ return prev.apply(this, arguments); } finally{ _b42sCtx=av; } }; })(bv2ResumeKey);
+/* --- lecture PURE de « ma prevision courante » --- */
+function b42sPrevision(ed){ if(!_bv2Obj(ed)) return null; const pu=_b42sPrix(ed.user), pv=_bv2Obj(ed.prevision)?ed.prevision:null;
+  if(pv&&!(_b42sTape(pu)&&Number.isFinite(ed.at)&&Number.isFinite(pv.at)&&ed.at>pv.at&&_b42sSigP(_b42sDepuis(ed.user, ed.at))!==_b42sSigP(pv))) return Object.assign({ origine:"prevision" }, pv);   /* un prix tape plus recent (ancien client) l'emporte */
+  if(_b42sTape(pu)) return Object.assign({ origine:"saisie" }, _b42sDepuis(ed.user, ed.at));
+  return null; }
+/* --- affichage : fiche de prix (lot N) --- */
+const BV2_42S_CSS=`
+#bv2ESheet .b42s-comp{margin-top:10px;border-top:1px solid var(--line-soft,var(--line));padding-top:8px;display:grid;grid-template-columns:1fr auto;row-gap:4px;column-gap:12px}
+#bv2ESheet .b42s-comp .k{font:500 13px/1.35 Inter,sans-serif;color:var(--ink-2,var(--muted))}
+#bv2ESheet .b42s-comp .v{font:600 14px/1.35 Inter,sans-serif;color:var(--ink);text-align:right;white-space:nowrap}
+#bv2ESheet .b42s-comp .v.nd{font-weight:500;color:var(--muted)}
+#bv2ESheet .b42s-comp .d{grid-column:1 / -1;font:500 12px/1.3 Inter,sans-serif;color:var(--muted);margin-top:-2px}`;
+function _b42sCss(){ if(document.getElementById("b42sCss")) return; const st=document.createElement("style"); st.id="b42sCss"; st.textContent=BV2_42S_CSS; document.head.appendChild(st); }
+function _b42sMontant(v, l, cur){ const T=_b42sT(), E=_bv2E(); if(!v) return null; if(v.mode==="zero") return T.gratuit;
+  const c=v.currency||cur, mi=bv2BudgetMinorOf(String(v.amount), c); const s=mi==null?String(v.amount)+" "+c:_bv2Fmt(mi, c);
+  if(v.mode==="unitPrice"&&l&&l.unit){ const u=E.units[l.unit]||l.unit; return _bv2Tx(T.parU,{x:s, u}); } return s; }
+function b42sFiche(tr, lineId){ const B=document.getElementById("bv2EBody"), bloc=B&&B.querySelector("#b42nPrix"); if(!bloc||bloc.querySelector(".b42s-comp")||_bv2EKind!=="line"||_bv2ELine!==lineId) return false;
+  const r=bv2Estimate(tr); if(!r.ok) return false; const l=r.result.lines.find(x=>x.id===lineId); if(!l) return false;
+  const cur=r.result.currency, ed=_bv2Edit(bv2Store(tr).data, lineId), pv=b42sPrevision(ed), pu=_b42sPrix(ed&&ed.user), conf=_b42sConfirme(pu);
+  if(!pv&&!conf) return false;   /* rien de plus a dire que la fiche N */
+  if(!conf&&(bloc.dataset.etat==="perso"||bloc.dataset.etat==="gratuitToi")) return false;   /* le titre N est deja ta prevision (contrat N1f : aucun doublon, jamais « Estimation Magot » sur un prix saisi) */
+  const T=_b42sT(), N=_b42nT(), esc=_bv2Esc, f=x=>_bv2Fmt(x, cur);
+  let mg=null; if(l.editState==="MAGOT"){ if((l.state==="ESTIMATED"||l.state==="KNOWN")&&l.amounts&&l.amounts.central!=null&&(!l.source||l.source.kind!=="user")) mg=l.amounts.central; }
+  else if(l.magot&&l.magot.centralMinor!=null&&(l.magot.state==="ESTIMATED"||l.magot.state==="KNOWN")&&l.magot.sourceKind&&l.magot.sourceKind!=="user") mg=l.magot.centralMinor;   /* jamais une saisie ni une valeur V1 */
+  const ligne=(k,v,cl)=>`<div class="k">${esc(k)}</div><div class="v${cl?" "+cl:""}">${esc(v)}</div>`;
+  let h=(bloc.dataset.etat==="estimation"||bloc.dataset.etat==="connu")?"":ligne(T.magot, mg!=null?f(mg):T.nd, mg!=null?"":"nd");   /* la fiche N a deja l'estimation Magot en titre : pas de doublon */
+  h+=ligne(T.prevision, pv?_b42sMontant(pv, l, cur):T.nd, pv?"":"nd"); if(pv&&Number.isFinite(pv.at)) h+=`<div class="d">${esc(_b42nDate(pv.at))}</div>`;
+   /* le prix confirme est deja le titre de la fiche N (« Prix confirme · X ») : pas de doublon */
+  _b42sCss(); const c=document.createElement("div"); c.className="b42s-comp"; c.id="b42sComp"; c.innerHTML=h; bloc.appendChild(c);
+  bloc.querySelectorAll(":scope > .n").forEach(n=>{ if(n.textContent.indexOf(_bv2Tx(N.sansSaisie,{x:""}).trim())===0) n.hidden=true; });   /* « Valeur de Magot sans ta saisie » : remplacee par la ligne « Estimation Magot » */
+  return true; }
+bv2OpenLine=(function(prev){ return function(tr, lineId){ const ok=prev.apply(this, arguments);
+  try{ if(ok) b42sFiche(tr, lineId); }catch(e){ try{ console.error("b42sFiche", e); }catch(_e){} } return ok; }; })(bv2OpenLine);
+/* --- Q : un retrait qui supprimerait AUSSI une prevision independante le dit explicitement (D2) --- */
+function _b42sAussi(tr, cles){ const T=_b42sT(), st=bv2Store(tr).data, out=[];
+  for(const k of cles){ const ed=_bv2Edit(st, k); if(!_bv2Obj(ed)||!_bv2Obj(ed.prevision)) continue; const pu=_b42sPrix(ed.user);
+    if(_b42sTape(pu)&&_b42sSigP(_b42sDepuis(ed.user, ed.at))===_b42sSigP(ed.prevision)) continue;   /* prix tape = la prevision elle-meme : deja annonce */
+    out.push(_b42sMontant(ed.prevision, null, _bv2CurOf(tr)||"EUR")); }
+  return out.length?_bv2Tx(T.aussi,{x:out.join(", ")}):""; }
+_b42qConfirmer=(function(prev){ return function(zone, texte, libOui, siOui){ let t=texte;
+  try{ const tr=_bv2ETrip||currentTrip(); let cles=[];
+    if(zone&&zone.dataset&&zone.dataset.cle) cles=[zone.dataset.cle];
+    else if(zone&&zone._b42qX){ const x=zone._b42qX, Q=_b42qT(); if(libOui===Q.garder) cles=bv2HeldList(tr, bv2Estimate(tr)).filter(y=>y.reason==="SAISIES_CONCURRENTES"&&y.tok===x.tok&&y.key!==x.key).map(y=>y.key); else cles=[x.key]; }
+    const a=tr?_b42sAussi(tr, cles):""; if(a) t=texte+" "+a; }catch(_e){}
+  return prev.call(this, zone, t, libOui, siOui); }; })(_b42qConfirmer);
+/* ===== fin BUDGET V2 -- B4.2s ===== */
 /* ===== BUILD DE TEST LOT S -- version isolee pour les essais iPhone (ne JAMAIS deployer sur l'app de production) =====
    Ajoute au candidat S.6 r1 GELE (842defac...), sans rien modifier d'autre. Retirer ce bloc redonne S.6 gele a l'octet.
    - Seuls les comptes dont l'email contient « lots-essai » peuvent se connecter : toute autre session (restauree, mot de passe,
