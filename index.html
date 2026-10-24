@@ -15688,7 +15688,10 @@ function _b42sRegles(avant, d){ if(!_bv2Obj(d)||!_bv2Obj(d.edits)) return 0; con
       if(JSON.stringify(arr[f])!==JSON.stringify(src[f])) throw new Error("B42S_RATTACHEMENT_IDENTITE"); }
     if(_bv2Obj(A0[dest])&&_bv2Obj(A0[dest].prevision)) throw new Error("B42S_PREVISION_DESTINATION");   /* jamais d'ecrasement, meme a montant egal */
     if(_bv2Obj(arr.prevision)&&!(_bv2Obj(src.prevision)&&JSON.stringify(arr.prevision)===JSON.stringify(src.prevision))) throw new Error("B42S_PREVISION_DESTINATION");
-    if(_bv2Obj(src.prevision)){ E2[dest]=Object.assign({}, arr, { prevision:bv2Clone(src.prevision) }); n++; }
+    /* r3 (P2 GPT) : on deplace la prevision COURANTE de la source avec sa date d'origine ; saisie d'un ancien client (prix tape, sans prevision,
+       ou prix tape posterieur a la prevision) => prevision creee depuis ce prix et SA date ; date absente ou non fiable => aucune date fabriquee */
+    const cs=b42sPrevision(src), imp=!cs?null:(cs.origine==="prevision"?bv2Clone(src.prevision):(Number.isFinite(src.at)?_b42sDepuis(src.user, src.at):null));
+    if(imp){ E2[dest]=Object.assign({}, arr, { prevision:imp }); n++; }
     traites.add(dest); }
   /* R1, R2, R3, R5 */
   for(const k of Object.keys(E2)){ if(traites.has(k)||!_bv2Obj(E2[k])) continue; const b=_bv2Obj(A0[k])?A0[k]:{}, a=E2[k];
@@ -15733,11 +15736,14 @@ function b42sFiche(tr, lineId){ const B=document.getElementById("bv2EBody"), blo
   let mg=null; if(l.editState==="MAGOT"){ if((l.state==="ESTIMATED"||l.state==="KNOWN")&&l.amounts&&l.amounts.central!=null&&(!l.source||l.source.kind!=="user")) mg=l.amounts.central; }
   else if(l.magot&&l.magot.centralMinor!=null&&(l.magot.state==="ESTIMATED"||l.magot.state==="KNOWN")&&l.magot.sourceKind&&l.magot.sourceKind!=="user") mg=l.magot.centralMinor;   /* jamais une saisie ni une valeur V1 */
   const ligne=(k,v,cl)=>`<div class="k">${esc(k)}</div><div class="v${cl?" "+cl:""}">${esc(v)}</div>`;
-  let h=(bloc.dataset.etat==="estimation"||bloc.dataset.etat==="connu")?"":ligne(T.magot, mg!=null?f(mg):T.nd, mg!=null?"":"nd");   /* la fiche N a deja l'estimation Magot en titre : pas de doublon */
-  h+=ligne(T.prevision, pv?_b42sMontant(pv, l, cur):T.nd, pv?"":"nd"); if(pv&&Number.isFinite(pv.at)) h+=`<div class="d">${esc(_b42nDate(pv.at))}</div>`;
+  /* r4 (GO GPT) : seules les valeurs presentes sont affichees ; aucune ligne « Non disponible » dans la fiche, aucun bloc vide */
+  const avecMagot=mg!=null&&bloc.dataset.etat!=="estimation"&&bloc.dataset.etat!=="connu";   /* la fiche N a deja l'estimation Magot en titre : pas de doublon */
+  let h=avecMagot?ligne(T.magot, f(mg)):"";
+  if(pv){ h+=ligne(T.prevision, _b42sMontant(pv, l, cur)); if(Number.isFinite(pv.at)) h+=`<div class="d">${esc(_b42nDate(pv.at))}</div>`; }
+  if(!h) return false;
    /* le prix confirme est deja le titre de la fiche N (« Prix confirme · X ») : pas de doublon */
   _b42sCss(); const c=document.createElement("div"); c.className="b42s-comp"; c.id="b42sComp"; c.innerHTML=h; bloc.appendChild(c);
-  bloc.querySelectorAll(":scope > .n").forEach(n=>{ if(n.textContent.indexOf(_bv2Tx(N.sansSaisie,{x:""}).trim())===0) n.hidden=true; });   /* « Valeur de Magot sans ta saisie » : remplacee par la ligne « Estimation Magot » */
+  if(avecMagot) bloc.querySelectorAll(":scope > .n").forEach(n=>{ if(n.textContent.indexOf(_bv2Tx(N.sansSaisie,{x:""}).trim())===0) n.hidden=true; });   /* « Valeur de Magot sans ta saisie » : remplacee par la ligne « Estimation Magot » */
   return true; }
 bv2OpenLine=(function(prev){ return function(tr, lineId){ const ok=prev.apply(this, arguments);
   try{ if(ok) b42sFiche(tr, lineId); }catch(e){ try{ console.error("b42sFiche", e); }catch(_e){} } return ok; }; })(bv2OpenLine);
